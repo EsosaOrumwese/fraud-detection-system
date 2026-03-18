@@ -4705,17 +4705,17 @@ After that, the visibility side of the path had to be strengthened from labels c
 
 Once those semantic and runtime defects were removed, later enlarged-network proof strengthened the path again by showing non-regression under the larger working platform. The learning-coupled corridor pinned `label_store accepted = 3080`, `pending = 0`, `rejected = 0`, and a real `label_asof_utc`, while later integrated full-platform proof still showed material `label_store_accepted_delta` with all bounded integrity deltas at zero. That matters because the path is no longer merely good enough on the first Case and Label slice. It has now been shown to remain authoritative, temporally governed, and operationally clean once the platform enlarged around learning, promotion, rollback, and integrated full-platform proof.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 To move `Authoritative label commit and visibility path` from its `A` posture to its `Bi` posture, the platform had to resolve five things: first, make authoritative label truth measurable on its own boundary rather than inferred from later downstream behavior; second, prove that the Label Store boundary was already plane-ready and clean on a bounded Case and Label slice; third, upgrade the object from a local label seam into a cross-plane supervision-truth boundary once future learning use became part of the active question; fourth, correct the writer boundary's runtime seating after direct `OOMKilled` evidence; and fifth, convert visibility from mere readback into fail-closed `as_of` and maturity law, then show that same boundary stayed non-regressed under later enlarged-platform proof.
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of this path is:
 
 a production-ready supervision-truth boundary where case-side supervision requests become append-only, provenance-complete, duplicate-safe, conflict-visible, temporally queryable authoritative label truth at the owned `Label Store` boundary, and where that label truth remains runtime-stable, learning-safe, and non-regressed enough for later review, dataset construction, and larger integrated platform proofs to trust.
 
-### `Why this matters for the meta goal`
+`Why this matters for the meta goal`
 
 This object helps the meta goal because it shows that you did not merely have labels in a table or labels available for ML later. You reasoned the platform until it could answer harder questions cleanly: where authoritative supervision truth actually lives, how duplicate and conflicting assertions are handled without silent corruption, how temporal visibility is enforced so learning does not consume future or immature labels, and how that same truth boundary survives real runtime and enlarged-network pressure. That reads as production-readiness judgment, not as a generic data-pipeline story.
 
@@ -4875,40 +4875,40 @@ The next clean move is to map this path to the `pressure episodes` that actually
 ## 2026-03-15 22:18:52 +00:00 - Map the pressure episodes that changed the Learning-input basis path from a named design boundary into a causal-admission boundary
 For `Learning-input basis path`, the pressure history is less about one runtime crash and more about forcing the platform to answer a harder question correctly: what exact slice of platform truth is learning actually allowed to use? In `A`, the path is already defined narrowly as archive truth plus authoritative label truth plus replay references becoming a committed learning-input basis with replay, `as_of`, maturity, and anti-leakage law pinned. In `Bi`, the pressure episodes are the ones that turned that from a design claim into an earned causal-admission boundary.
 
-## `Learning-input basis path` - `pressure episodes that changed its posture`
+`Learning-input basis path` - `pressure episodes that changed its posture`
 
-### 1. The path first had to become a `semantic-admission boundary`, not just the learning stack can see data
+1. The path first had to become a `semantic-admission boundary`, not just the learning stack can see data
 
 The first real posture change was that this path stopped being a vague OFS and Databricks readiness idea and became an explicit admission gate. The rebuilt Phase 5 posture made it fail closed unless the learning basis was interface-pack-authorized, the current oracle world was admitted by the pinned `6B` gate posture, current label truth was present and mature enough, and the managed corridor was still readable and attributable. That changed the path from archive and labels probably exist into learning basis must be admitted through named authority surfaces.
 
-### 2. The first bounded proof exposed that the `gate itself was malformed`, not yet a truthful current-basis proof
+2. The first bounded proof exposed that the `gate itself was malformed`, not yet a truthful current-basis proof
 
 The first bounded Phase 5.B run did not fail because Databricks, SageMaker, or MLflow had already proved the path false. It failed because the new semantic gate was still reading the basis incorrectly: `output_roles` were parsed too narrowly, the `6B` gate reader assumed the wrong validation path shape, and managed-artifact discovery was too strict. That is an important pressure episode for this object because it changed the posture from current learning basis is probably admissible to the basis is not admissible until the gate can read the right world and the right outputs correctly.
 
-### 3. Once that gate was corrected, the path stopped being current world data and became a `narrow authorized basis`
+3. Once that gate was corrected, the path stopped being current world data and became a `narrow authorized basis`
 
 After the correction, the bounded proof went green only by narrowing the admitted basis to the intended interface-pack outputs: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`, both carrying the expected `business_traffic` role, with the current `6B` validation bundle materially present and machine-gate readable. That is a real posture change. The object is no longer whatever the managed corridor can reach; it is now the specifically authorized world basis for learning on this run.
 
-### 4. Temporal law had to become `explicit and fail-closed`, not just implied by current run
+4. Temporal law had to become `explicit and fail-closed`, not just implied by current run
 
 This path also changed posture once `feature_asof_utc`, `label_asof_utc`, maturity, and no-future-leakage stopped being background intentions and became hard admission law. Earlier learning-input readiness already pinned that all learning rows must stay inside `feature_asof_utc`, `label_asof_utc`, and maturity law, with the future-timestamp policy fail-closed and the replay basis explicitly recorded. That matters because it turns the learning basis from authorized current data into causal current data. Without that step, the path would still be a managed-read boundary, not a trustworthy learning boundary.
 
-### 5. Current label truth had to become `materially usable supervision truth`, not merely a downstream artifact
+5. Current label truth had to become `materially usable supervision truth`, not merely a downstream artifact
 
 A further posture change came from the label side. The bounded proof does not admit the learning basis on abstract label availability; it admits it only when current label truth is materially present and clean enough to support learning use. The accepted Phase 5 basis pins `label_store accepted = 3080`, `pending = 0`, `rejected = 0`, with `case_mgmt labels_accepted = 2931`. That changes the path from the world is authorized to the world plus supervision truth is materially ready for bounded learning.
 
-### 6. The path then had to prove that the `managed corridor remains attributable` to that same admitted basis
+6. The path then had to prove that the `managed corridor remains attributable` to that same admitted basis
 
 The final posture change for this object is that the admitted basis cannot disappear behind healthy managed jobs. The bounded learning proof required the retained managed corridor to remain attributable and continuous on top of the same admitted world and label basis. That is why the green result explicitly carried the current semantic admission together with managed continuity across the retained `m10*`, `m11*`, and `m12*` evidence chain and a governed candidate-bundle reference. At that point the path stops being we admitted a basis and becomes we admitted a basis that the managed learning corridor can actually carry forward without breaking attribution.
 
-## `What this mapping says in one line`
+`What this mapping says in one line`
 
 `Learning-input basis path` moved from a named design boundary into a production-ready causal-admission boundary by becoming explicitly authority-gated, then correctly world-scoped, then time-law-bound, then supervision-clean, and finally attributable through the managed learning corridor itself.
 
 The next clean move is to interrogate these episodes one by one.
 
 ## 2026-03-15 22:25:31 +00:00 - Interrogate the key episodes that turned the Learning-input basis path into an earned causal-admission boundary
-## `Learning-input basis path` - `episode interrogation`
+`Learning-input basis path` - `episode interrogation`
 
 For this path, the important question is not whether Databricks later built a dataset or whether SageMaker later trained a model. It is whether the platform first turned archive truth, authoritative label truth, and replay references into one admitted causal basis that learning was actually allowed to use. That is already the `A` boundary, and the run-process keeps it separate at `P12 LEARNING_INPUT_READY` before any dataset commitment begins.
 
@@ -4951,7 +4951,7 @@ That is what turns this path from a good `A` design idea into an earned `Bi` pro
 The next clean move is the `object transformation synthesis` for this path.
 
 ## 2026-03-15 22:32:18 +00:00 - Synthesize how the Learning-input basis path moved from a designed learning-readiness seam into an earned causal-admission boundary
-## `Learning-input basis path` - `transformation synthesis`
+`Learning-input basis path` - `transformation synthesis`
 
 In `A`, this path already had a narrow and important job: turn archive truth, authoritative label truth, and replay references into a learning-input readiness basis that is safe to build datasets from. It was never supposed to mean Databricks can read some files, and it was deliberately kept narrower than offline dataset commitment, train and eval, or promotion. Its owned outcome was already pinned as replay basis, `as_of`, maturity, and anti-leakage closure, with `P12 LEARNING_INPUT_READY` standing as its own gate before later learning work could begin.
 
@@ -4967,17 +4967,17 @@ The path also had to resolve whether current label truth was materially usable s
 
 Finally, the path had to prove corridor attribution continuity. It was not enough to admit a good basis and then let the managed corridor blur away from it. The accepted closure kept the evidence chain continuous: semantic admission, bounded OFS dataset basis, then managed train and eval plus governance all remained attributable on the same admitted world and time boundary. The plan's accepted Phase 5 ledger reflects exactly that progression, with semantic admission, dataset basis, and managed train and eval recorded as separate but continuous authorities. That changes the object from one good basis was admitted into the managed learning corridor remained tied to that same admitted basis as it advanced.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 To move `Learning-input basis path` from its `A` posture to its `Bi` posture, the platform had to resolve five things: first, make learning input an explicit semantic-admission boundary rather than a vague managed-read boundary; second, correct the proving gate so basis authority was judged truthfully rather than through harness-shape errors; third, narrow the admitted basis to one authorized current world and one authorized interface-pack output set; fourth, enforce replay-derived `feature_asof_utc`, `label_asof_utc`, maturity, and fail-closed future-boundary law strongly enough to reject even a superficially green managed run; and fifth, show that materially usable label truth and the later managed corridor both remained attributable to that same admitted causal basis.
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of this path is:
 
 a production-ready causal-admission boundary where archive truth, authoritative label truth, and replay references become one formally pinned, interface-pack-authorized, `6B.S5`-admitted, replay-derived, maturity-governed learning basis, and where that basis remains materially supervised, no-future-leakage-safe, and continuously attributable as the managed learning corridor advances into later dataset and model work.
 
-### `Why this matters for the meta goal`
+`Why this matters for the meta goal`
 
 This object helps the meta goal because it shows that you did not treat learning readiness as we have Databricks, SageMaker, and MLflow. You forced the platform to answer harder questions first: which world learning is allowed to use, why that world is the right one, how its temporal boundary is derived, how future leakage is blocked fail-closed, and how later managed work stays tied to that same admitted basis. That reads as serious ML platform production-readiness judgment rather than generic ML pipeline assembly.
 
@@ -5149,40 +5149,40 @@ The next clean move is to map this path to the `pressure episodes` that actually
 ## 2026-03-15 23:01:26 +00:00 - Map the pressure episodes that changed the Offline dataset commitment path from a stubbed managed surface into a real OFS dataset-truth boundary
 For `Offline dataset commitment path`, the posture-changing history is less about whether learning has an admissible basis and more about whether the managed offline-feature corridor can turn that already-admitted basis into authoritative dataset truth on the real managed surface. In `A`, this path was already defined as: green learning-input basis -> input binding and immutability checks -> Databricks build -> quality gate -> Iceberg and Glue commit verification -> manifest, fingerprint, rollback recipe, and time-bound and leakage audit closure. `Bi` is where that stopped being a design story and became an earned managed dataset boundary.
 
-## `Offline dataset commitment path` - `pressure episodes that changed its posture`
+`Offline dataset commitment path` - `pressure episodes that changed its posture`
 
-### 1. The path first had to stop being a managed jobs exist story and become a real dataset-truth boundary
+1. The path first had to stop being a managed jobs exist story and become a real dataset-truth boundary
 
 The first real posture change was that the retained Databricks OFS path stopped being trusted merely because the control plane was readable and the job IDs resolved. After `Phase 5.A` went green, the implementation notes explicitly record that the repo-managed Databricks OFS build and quality sources were still bootstrap stubs, so they could not honestly prove the real `Phase 5.B` goal. That changed the path from managed OFS is present into the path is still blocked until the managed OFS source itself becomes a real bounded dataset-basis proof.
 
-### 2. Rebuilding the path exposed two narrow compatibility defects before the real managed boundary could even be asked
+2. Rebuilding the path exposed two narrow compatibility defects before the real managed boundary could even be asked
 
 Once the bootstrap sources were replaced with a real bounded current-world OFS probe, the first two reds were not yet dataset-semantics reds. The first run failed because the notebook used raw `boto3` S3 access and Databricks serverless had no AWS credentials. The second failed because Spark Connect on the managed Databricks surface does not implement `toJSON()`. Those defects mattered because they changed the posture from the path is stubbed to the path is now real enough that managed-surface compatibility can block it, and they had to be cleared before the platform could reach the honest dataset-truth question.
 
-### 3. The first honest managed blocker was authoritative object-store authorization
+3. The first honest managed blocker was authoritative object-store authorization
 
 After those compatibility defects were cleared, the first truly production-relevant blocker appeared: Databricks serverless still could not read the authoritative object-store basis it was supposed to build from. The notes pin this clearly as the first real `Phase 5.B` blocker after the stub phase: the managed OFS surface tried to read the current promoted source world anonymously and failed immediately on required current-world inputs under `s3://fraud-platform-dev-full-object-store/...`. That changed the path from the Databricks source is finally real into the managed OFS corridor still cannot consume the platform's authoritative basis.
 
-### 4. Temporal law then had to be repinned from raw retained horizon to the promoted mission horizon
+4. Temporal law then had to be repinned from raw retained horizon to the promoted mission horizon
 
 The next posture change was semantic, not infrastructural. The notes explicitly say the rebuilt `Phase 5.B` spec was still asking Databricks to score the full retained `6B` partitions, while the proving boundary that could honestly be claimed was only the bounded promoted Phase 4 mission window. At the same time, `Phase 5.A` was still lifting `label_asof_utc` from a wall-clock label-store snapshot rather than carrying the promoted mission's bounded time law. The accepted correction was to repin both `Phase 5.A` and `Phase 5.B` to the promoted temporal contract: `feature_asof_utc = 2026-03-05T00:00:00Z`, `label_asof_utc = 2026-03-05T00:00:00Z`, `label_maturity_lag = 3d`, and to trim the raw OFS slice to that promoted horizon before scoring parity and quality. That changed the path from managed OFS can read the world into managed OFS is now building a bounded, causal dataset truth rather than an unbounded retained-world slice.
 
-### 5. The build-to-quality handoff had to become evidence-linked instead of notebook-payload-driven
+5. The build-to-quality handoff had to become evidence-linked instead of notebook-payload-driven
 
 After the temporal law was corrected, the next blocker was again narrow but real: the build run itself succeeded, but the quality run request came back `HTTP 400` because the system was still trying to pass the full build snapshot through notebook parameters. The accepted bridge was to move the handoff to object-store evidence: write the build snapshot to the authoritative S3 learning evidence path and let the quality notebook read that reference directly. That changed the path from a fragile notebook-payload control surface into a more production-shaped managed dataset corridor where the quality stage consumed durable evidence by reference instead of oversized inline control-plane payloads.
 
-### 6. The accepted bounded OFS slice finally proved the path as a real managed dataset-truth boundary
+6. The accepted bounded OFS slice finally proved the path as a real managed dataset-truth boundary
 
 The final posture-changing episode is the accepted rerun itself: `phase5_ofs_dataset_basis_20260312T054900Z` with `verdict = PHASE5B_READY` and `open_blockers = 0`. The important point is not only that the run went green. It is that the accepted slice remained materially useful after being trimmed to the promoted time law: the raw event horizon still extended far past the mission window, but the bounded slice was cut back to the promoted `feature_asof_utc` and `label_asof_utc` boundary and still retained large event, flow-label, and case-timeline volumes with meaningful fraud signal. That is the point where the path stopped being Databricks jobs and OFS logic exist and became the managed OFS corridor can commit a bounded, causally valid dataset basis that is strong enough for downstream training and evaluation to trust.
 
-## `What this mapping says in one line`
+`What this mapping says in one line`
 
 `Offline dataset commitment path` moved from a bootstrap-only managed surface into a real dataset-truth boundary by first becoming a genuine OFS proof path, then clearing compatibility and authorization blockers, then repinning itself to the promoted time law instead of the raw retained horizon, then replacing fragile notebook-payload handoff with durable evidence handoff, and finally proving that the managed OFS corridor could commit a materially useful bounded dataset slice on the authoritative platform basis.
 
 The next clean move is to interrogate these episodes one by one.
 
 ## 2026-03-15 23:08:47 +00:00 - Interrogate the key episodes that turned the Offline dataset commitment path into an earned OFS dataset-truth boundary
-## `Offline dataset commitment path` - `episode interrogation`
+`Offline dataset commitment path` - `episode interrogation`
 
 For `Offline dataset commitment path`, the important question is not whether Databricks later ran successfully. It is whether an already-admitted learning basis became authoritative dataset truth at its own owned boundary, with manifest, fingerprint, rollback recipe, and time-bound and leakage closure strong enough that later training would be forced to consume that dataset rather than redefine dataset truth for itself. That is the boundary `A` already pins, and `P13 OFS_DATASET_COMMITTED` makes the same closure explicit in the run-process.
 
@@ -5225,7 +5225,7 @@ That is what turns this path from a strong `A` design idea into an earned `Bi` p
 The next clean move is the `object transformation synthesis` for this path.
 
 ## 2026-03-15 23:15:54 +00:00 - Synthesize how the Offline dataset commitment path moved from a designed OFS seam into an earned dataset-truth boundary
-## `Offline dataset commitment path` - `transformation synthesis`
+`Offline dataset commitment path` - `transformation synthesis`
 
 In `A`, this path already had a narrow and important job: turn a green learning-input basis into authoritative offline dataset truth. It was never supposed to mean Databricks can read some files, and it was deliberately kept narrower than learning-input admission and narrower than later train and eval truth. Its owned outcome was already pinned as a committed dataset object with manifest, fingerprint, rollback recipe, and passing time-bound and leakage audit, with `P13 OFS_DATASET_COMMITTED` standing as its own closure before training is allowed to begin.
 
@@ -5241,17 +5241,17 @@ With those defects removed, the bounded rerun finally changed the object's postu
 
 That bounded real-data closure also sits on top of a stronger dataset-governance posture already pinned by the path contract itself: the committed dataset boundary is not just rows, but deterministic manifest, fingerprint, rollback recipe, and passing time-bound and leakage audit. The run-process keeps those as mandatory `P13` closure objects, and the earlier OFS closure trail already materialized run-scoped manifest, fingerprint, and time-bound audit with future-breach count `0`. So the final `Bi` reading of this object is not simply bounded OFS basis passed. It is that the platform now has a production-ready dataset-truth boundary whose managed real-data slice has been causally proved and whose dataset object is governed strongly enough to be handed to later MF work as authoritative input.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 To move `Offline dataset commitment path` from its `A` posture to its `Bi` posture, the platform had to resolve five things: first, make OFS a real dataset-truth boundary rather than a shallow managed-job surface; second, clear the narrow managed-surface compatibility and authorization defects that were hiding the real boundary question; third, repin the dataset to the promoted replay and time law instead of the raw retained horizon; fourth, move build-to-quality handoff onto durable evidence rather than notebook payload; and fifth, prove that the bounded managed OFS slice remains materially useful after being trimmed to the admitted causal window, while still satisfying the stronger manifest, fingerprint, rollback, and leakage discipline the path already required.
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of this path is:
 
 a production-ready offline-dataset-truth boundary where an already-admitted causal learning basis becomes a managed OFS dataset object on authoritative platform truth, with deterministic manifest, committed fingerprint, real rollback recipe, and passing time-bound and leakage law, and where that dataset remains bounded by the admitted replay and temporal contract strongly enough that later MF and MPR work can trust it as authoritative input rather than as convenient managed output.
 
-### `Why this matters for the meta goal`
+`Why this matters for the meta goal`
 
 This object helps the meta goal because it shows that you did not treat OFS as we have Databricks, therefore we have datasets. You forced the platform to answer harder questions first: whether the managed surface is actually proving dataset truth rather than just existing, whether it can read the authoritative world through the correct managed boundary, whether the dataset is bounded by the admitted causal law rather than by raw retained horizon, and whether later model work is inheriting one governed dataset object instead of inventing its own basis. That reads as production-readiness judgment, not as managed-ML tooling talk.
 
@@ -5467,43 +5467,43 @@ The last important turn was `M11.H`. The path did not close on bundle publicatio
 The next clean move is to interrogate these episodes one by one.
 
 ## 2026-03-15 23:52:33 +00:00 - Interrogate the key episodes that turned the Train / eval and candidate-bundle path into an earned candidate-truth boundary
-## `Train / eval and candidate-bundle path` - `episode interrogation`
+`Train / eval and candidate-bundle path` - `episode interrogation`
 
 For this path, the key question is not whether SageMaker, MLflow, or later promotion machinery ever went green. It is whether one immutable governed dataset became candidate truth on its own boundary: managed train and eval on the right basis, metrics and leakage closure tied to that basis, lineage that stays complete, a published candidate bundle that is actually attributable, and safe-disable and rollback truth before promotion starts. That is already how `A` defines the object, and it is also how `P14 MF_EVAL_COMMITTED` defines the closure.
 
-### 1. `The path first had to become a distinct candidate-truth corridor, not just a generic managed learning is working story`
+1. `The path first had to become a distinct candidate-truth corridor, not just a generic managed learning is working story`
 
 The first important shift was methodological. The platform did not allow `P14` to collapse into Learning is green. The build plan splits the lane into train and eval runtime readiness, immutable input binding, evaluation gates, MLflow lineage, candidate publication, and safe-disable and rollback, and the `A` note says the same thing in design terms: this boundary exists to turn governed dataset truth into candidate-bundle truth before promotion begins. System-design-wise, that matters because it establishes that candidate truth is its own owned object, not a by-product of dataset truth or later promotion truth.
 
-### 2. `The first rebuilt managed run failed on a real SageMaker role boundary`
+2. `The first rebuilt managed run failed on a real SageMaker role boundary`
 
 Once the corridor was treated as its own object, the first true managed `Phase 5.C` run failed in the right place: `CreateTrainingJob` never started because the SageMaker execution role lacked `s3:ListBucket` on the authoritative object-store basis. That is a real posture change because the path stopped being managed MF is present and became managed MF still cannot enter the authoritative dataset basis it claims to train from. The accepted bridge was narrow and production-shaped: keep the same bounded sample basis and fix the SageMaker execution role on that same object-store path, rather than moving the proof back to an easier evidence-bucket convenience surface.
 
-### 3. `The next failure proved runner honesty mattered, not just service readiness`
+3. `The next failure proved runner honesty mattered, not just service readiness`
 
 After the role was fixed, the next managed red came from the runner boundary itself: both `train` and `validation` channels were pointed at one mixed parent prefix that also contained other dataset artifacts. That matters because it shows the candidate-truth boundary was now being challenged on runner integrity, not merely on IAM or on the service being up. The accepted bridge again stayed narrow: keep the same admitted manifest, same sampled rows, and same thresholds, but split the artifacts into explicit `train`, `validation`, and `test` objects so the runner stops smuggling ambiguity into train and eval truth.
 
-### 4. `The first end-to-end green run was rejected because candidate truth was still outside the admitted time law`
+4. `The first end-to-end green run was rejected because candidate truth was still outside the admitted time law`
 
 The third rebuilt managed run completed the whole corridor end to end: SageMaker training succeeded, SageMaker batch transform succeeded, MLflow lineage committed, and gate and publish and rollback all completed. But it still did not count as closure authority, because the sampled event horizon exceeded the admitted `feature_asof_utc` boundary. That is a decisive moment for this path: the platform refused to let a superficially green managed corridor stand in for semantically valid candidate truth. The accepted bridge was to over-collect label candidates, join them to event rows, hard-trim the joined sample to `ts_utc <= feature_asof_utc`, and fail closed if the selected sample still crossed the time law.
 
-### 5. `The accepted managed closure turned the path into a real plane-ready candidate boundary`
+5. `The accepted managed closure turned the path into a real plane-ready candidate boundary`
 
 The next run, `phase5_learning_managed_20260312T071600Z`, is where the path actually changed posture. It kept the same admitted world and same managed corridor, but tightened the selector so the actual sample stayed inside `feature_asof_utc = 2026-03-05T00:00:00Z`, with `event_scan.ts_max_utc = 2026-03-04T22:25:01.492086Z`. At that point the evidence chain became continuous and attributable from source runtime and label truth, through semantic admission and bounded OFS dataset basis, into managed train and eval plus lineage plus governance. That is the moment where the object stops meaning the managed surfaces work and becomes the platform has real candidate truth on the governed basis.
 
-### 6. `The path then had to become lineage-complete under a strict no-fallback MLflow contract`
+6. `The path then had to become lineage-complete under a strict no-fallback MLflow contract`
 
 Even after accepted managed closure, candidate truth was still incomplete until lineage itself was forced into a stricter contract. The first `M11.F` green used a fallback experiment path while the registry still pinned a different path, which was useful but not final. The strict no-fallback rerun then failed closed on `experiment_id_missing`, making the drift explicit. Only after the canonical handle pin was published and the strict rerun closed green did the path become lineage-complete on the exact managed MLflow surface it claimed to use. That matters because candidate truth here is not just train and eval success; it is train and eval truth plus lineage truth that survives strict handle discipline.
 
-### 7. `Candidate truth then became a real published bundle rather than merely a train and eval result`
+7. `Candidate truth then became a real published bundle rather than merely a train and eval result`
 
 The next posture change came with `M11.G`. The corridor did not stop at training passed and lineage exists. It published a run-scoped `candidate_bundle.json`, carried a deterministic candidate id, tied lineage back to `M11.D/E/F` plus the `M10` fingerprint, and passed operability checks such as model artifact readability, train and transform completion posture, serving-handle pinning, and package-group materialization. That changed the path from managed train and eval plus lineage are green into the platform now has a provenance-complete candidate bundle that later promotion can actually consume.
 
-### 8. `The final posture change was pre-promotion operability truth`
+8. `The final posture change was pre-promotion operability truth`
 
 The last important turn was `M11.H`. The path did not close on bundle publication alone. It also required safe-disable and rollback closure and bounded reproducibility proof. The managed lane double-read the candidate bundle and got a stable SHA256, verified run-scope continuity and lineage continuity, confirmed OFS rollback references were readable, and published a run-scoped rollback-drill artifact. That changed the path from candidate bundle exists into candidate bundle is operable and safe enough to hand to promotion without promotion having to discover basic rollback truth for the first time.
 
-### `What this interrogation says about the path`
+`What this interrogation says about the path`
 
 So the real transformation of `Train / eval and candidate-bundle path` is not:
 
@@ -5518,7 +5518,7 @@ That is what turns the path from a strong `A` design idea into an earned `Bi` pr
 The next clean move is the `object transformation synthesis` for this path.
 
 ## 2026-03-16 00:00:41 +00:00 - Synthesize how the Train / eval and candidate-bundle path moved from a designed MF seam into an earned candidate-truth boundary
-## `Train / eval and candidate-bundle path` - `object transformation synthesis`
+`Train / eval and candidate-bundle path` - `object transformation synthesis`
 
 In `A`, this path already had a narrow and important job: turn one immutable governed dataset into candidate-bundle truth. It was never supposed to mean SageMaker can launch or MLflow has a run. It was deliberately narrower than dataset truth and narrower than later promotion truth. Its owned outcome was already pinned as training and evaluation closure plus metrics and leakage gates, MLflow lineage closure, candidate-bundle publication, and safe-disable and rollback closure, with `P14 MF_EVAL_COMMITTED` standing as its own boundary before promotion is even allowed to start.
 
@@ -5536,17 +5536,17 @@ Then the object had to move from train and eval result into actual candidate-bun
 
 The final transformation was pre-promotion operability truth. `M11.H` did not allow the object to close on bundle publication alone. It required bounded reproducibility and safe-disable and rollback closure: read the candidate bundle twice and verify stable SHA256, verify run-scope and lineage continuity, confirm OFS rollback references are readable, and publish a run-scoped rollback-drill artifact for the MPR path. That changed the object from candidate bundle exists into candidate bundle is operable and safe enough to hand to promotion without promotion having to discover rollback truth for the first time.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 To move `Train / eval and candidate-bundle path` from its `A` posture to its `Bi` posture, the platform had to resolve six things: first, make candidate truth a distinct governed corridor rather than a generic managed-learning story; second, fix authoritative-basis access on the real SageMaker boundary; third, correct runner channel honesty without weakening the basis; fourth, reject a false green and repin the bounded sample to the admitted time law; fifth, force strict MLflow lineage closure on the canonical experiment path; and sixth, turn train and eval closure into a provenance-complete, reproducibility-checked, rollback-aware candidate bundle before promotion begins.
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of this path is:
 
 a production-ready candidate-truth boundary where one immutable governed dataset becomes one managed SageMaker and MLflow train-and-eval closure under the admitted replay and `as_of` law, with real metrics, leakage and lineage discipline, a provenance-complete published candidate bundle, and pre-promotion safe-disable and rollback truth strong enough that the next promotion corridor is evaluating a governed candidate rather than a vague model artifact.
 
-### `Why this matters for the meta goal`
+`Why this matters for the meta goal`
 
 This object helps the meta goal because it shows that you did not treat MF as we have SageMaker and MLflow, therefore we have candidate models. You forced the platform to answer harder questions first: can the managed corridor read the authoritative basis; is the train and eval runner honest about the sample it consumes; does the candidate stay inside the admitted time law; is lineage strict rather than fallback-soft; and is the published candidate already operable and rollback-aware before promotion begins. That reads as production-readiness judgment, not as managed-service assembly.
 
@@ -5728,76 +5728,76 @@ The next clean move is to map this path to the `pressure episodes` that actually
 ## 2026-03-16 00:31:12 +00:00 - Map the pressure episodes that changed the Promotion and rollback-governance path from a designed corridor into earned promotion truth
 For `Promotion and rollback-governance path`, the posture-changing history is not mainly about whether the platform had a registry or whether a candidate bundle already existed. It is about whether the platform could turn eligible candidate truth into governed promotion truth through a strict, fail-closed corridor with explicit promotion evidence, real rollback discipline, deterministic active resolution, and coherent governance closure. In `A`, that boundary was already defined narrowly; in `Bi`, the pressure episodes are the ones that turned that boundary from a good design into an earned operated corridor.
 
-## `Promotion and rollback-governance path` - `pressure episodes that changed its posture`
+`Promotion and rollback-governance path` - `pressure episodes that changed its posture`
 
-### 1. The path first had to become a distinct promotion-governance corridor, not just the registry changed after candidate creation
+1. The path first had to become a distinct promotion-governance corridor, not just the registry changed after candidate creation
 
 The first posture change was structural. The platform did not let promotion remain an implied tail of train and eval. The `A` notes already split Group 6 into five distinct truths, and the build plan then expanded `M12` into its own strict corridor with sequenced subphases, fail-closed blocker families, and non-gate acceptance objectives such as promotion safety, rollback realism, post-promotion observation, governance completeness, and operability acceptance. That changed the path from candidate exists, so promotion probably follows into promotion-governance is its own owned truth boundary.
 
-### 2. The corridor then had to prove that promotion starts from an explicitly governed entry, not just from any model artifact that looks promotable
+2. The corridor then had to prove that promotion starts from an explicitly governed entry, not just from any model artifact that looks promotable
 
 The next posture change was entry discipline. `P15` already says the entry gate is an eligible candidate bundle from `P14`, and the build plan made that concrete by forcing `M12` to begin with authority and handle closure, candidate eligibility precheck, and compatibility gate checks before promotion commit is even allowed. The progression snapshot shows `M12.A`, `M12.B`, and `M12.C` all closing green in sequence. That matters because the path moved here from candidate bundle exists to only a candidate that passes governed eligibility and compatibility prechecks is even allowed to enter the promotion corridor.
 
-### 3. Promotion then had to become explicit event truth, not an inferred registry side effect
+3. Promotion then had to become explicit event truth, not an inferred registry side effect
 
 A further posture change came when the corridor was forced to own explicit promotion truth itself. The run-process already defines `P15` around a committed promotion corridor event, and the `A` notes insist that this path exists to prove promotion is explicit and auditable rather than accidental. The build plan keeps `M12.D` as its own promotion-event-commit lane and the `P15` DoD anchors require the promotion receipt to be committed. That changes the object from a state changed somewhere in registry surfaces into promotion happened through an explicit governed event with its own receipt.
 
-### 4. Rollback then changed the path from promotion history into bounded restore truth
+4. Rollback then changed the path from promotion history into bounded restore truth
 
 The next major posture shift is `M12.E`. The path could not count as ready just because promotion committed. It had to prove rollback was real and measured. The build plan and run-process both pin rollback drill execution and bounded-objective evidence as required closure objects, and the progression snapshot shows `M12.E rollback drill execution` closed green with a committed rollback drill report and a pass verdict. That changed the path from promotion succeeded into promotion lives inside a corridor where rollback is exercised and bounded against the pinned restore contract.
 
-### 5. Active resolution then changed promotion truth into deterministically governable promoted state
+5. Active resolution then changed promotion truth into deterministically governable promoted state
 
 After rollback truth was earned, the path changed posture again at `M12.F`. At this point the question was no longer only can we promote and roll back. It became does the promoted state resolve deterministically as one active bundle per consuming scope, with compatibility checks passing on the governed side? The implementation trail for `M12.F` explicitly records one-active-per-scope deterministic resolution, promoted lifecycle status and run-scope parity, candidate-bundle hash stability, serving-mode alignment, topic and schema compatibility alignment, and model-artifact readability. That changed the path from promotion-plus-rollback history into a promoted state that is actually governable and resolvable before runtime authority is allowed to claim it.
 
-### 6. Governance append then made the promoted state durable, ordered, and reviewable rather than merely successful once
+6. Governance append then made the promoted state durable, ordered, and reviewable rather than merely successful once
 
 The next posture shift is `M12.G`. The path did not stop at active resolution. It had to prove that promotion, rollback, and active-resolution facts were appended into the governance surface coherently. The implementation notes for `M12.G` pin exactly that: append log readability and parseability, required event-set presence, non-decreasing ordering, no duplicate event ids, run-scope consistency, readable evidence refs, and preservation of prior append history. The build-plan progression then shows `M12.G governance append closure` closed green with a governance append snapshot and an operability acceptance report. That changed the path from the promotion corridor worked into the promotion corridor left a coherent governance trail that later review can trust.
 
-### 7. Deterministic rollup and handoff finally changed the corridor into closed promotion-governance truth
+7. Deterministic rollup and handoff finally changed the corridor into closed promotion-governance truth
 
 The final posture change came when the corridor stopped being a set of passed substeps and became one deterministic governed verdict. The build plan makes this explicit: `M12.H` performs the `P15` rollup and verdict, while the full `M12` DoD anchors require deterministic `P15` verdict and handoff pack. The progression snapshot shows `M12.H P15 gate rollup + M13 handoff` closed green, and the corridor as a whole is marked done only once the promotion receipt, rollback drill, bounded-restore evidence, active-bundle compatibility checks, post-promotion observation, governance append, operability acceptance, and deterministic verdict are all committed. That changed the path from several promotion-related surfaces went green into one closed promotion-governance truth surface now exists.
 
-## `What this mapping says in one line`
+`What this mapping says in one line`
 
 `Promotion and rollback-governance path` moved from a correctly designed promotion concept into a production-ready governance boundary by first becoming its own strict corridor, then enforcing candidate eligibility and compatibility as governed entry, then making promotion explicit, then turning rollback into bounded restore truth, then proving deterministic active resolution, then appending that state coherently into governance evidence, and finally closing it under one deterministic `P15` verdict.
 
 The next clean move is to interrogate these episodes one by one.
 
 ## 2026-03-16 00:39:28 +00:00 - Interrogate the key episodes that turned the Promotion and rollback-governance path into an earned governed corridor
-## `Promotion and rollback-governance path` - `episode interrogation`
+`Promotion and rollback-governance path` - `episode interrogation`
 
 For this path, the important question is not whether a candidate bundle existed or whether some registry surface changed. It is whether an eligible candidate bundle became explicit, auditable, rollback-governed promotion truth through the owned corridor, before runtime was allowed to treat anything as active authority. That is already how `A` defines the path, and it is also exactly how `P15 MPR_PROMOTION_COMMITTED` defines its pass gate.
 
-### `Episode 1 - the path first had to become a distinct promotion-governance corridor, not just the registry changed after candidate creation`
+`Episode 1 - the path first had to become a distinct promotion-governance corridor, not just the registry changed after candidate creation`
 
 What surfaced first was a boundary-definition problem. The platform could not let promotion remain an implied tail of candidate creation. That is why `M12` was expanded into its own strict corridor: fixed sequence, fail-closed blocker families, explicit DoD anchors, and non-gate acceptance objectives such as promotion safety, rollback realism, post-promotion observation, governance completeness, and operability acceptance. System-design-wise, that matters because promotion stops being a vague side effect of the learning lane and becomes its own governed truth boundary. The accepted bridge here was not code first; it was corridor formalization itself. The readiness property improved here was owned promotion-governance closure.
 
-### `Episode 2 - the corridor then had to prove that promotion starts from governed entry, not just any model artifact that looks promotable`
+`Episode 2 - the corridor then had to prove that promotion starts from governed entry, not just any model artifact that looks promotable`
 
 The next posture change was entry discipline. `P15` already says promotion begins only when the candidate is eligible from `P14`, and the executed corridor made that concrete with `M12.A` authority and handle closure, `M12.B` candidate eligibility, and `M12.C` compatibility precheck, all closing green before promotion commit was allowed to start. That matters because the path moved here from a candidate exists to only a candidate that has crossed governed eligibility and compatibility checks is allowed into the promotion corridor. The accepted bridge was the strict `A -> B -> C` gate sequence rather than a direct jump to registry mutation. The readiness property improved here was governed entry discipline.
 
-### `Episode 3 - promotion then had to become explicit event truth, not an inferred registry side effect`
+`Episode 3 - promotion then had to become explicit event truth, not an inferred registry side effect`
 
 The next pressure episode changed the meaning of promotion itself. The first green `M12.D` closure already made promotion explicit by emitting a promotion receipt and publication evidence, but that still was not considered strong enough. User direction repinned `M12.D` to require strict transport proof: broker ACK (`topic/partition/offset`) plus consumer readback payload-hash match. The earlier receipt-only closure was retained as historical evidence, but it was deliberately judged insufficient for advancement under the stricter contract. That matters because the path moved from promotion receipt exists to promotion happened through an explicit governed transport event and can be proven as such. The accepted bridge was to reopen `M12.D`, add the stricter gate, and rerun until `m12d_broker_transport_proof.json` existed. The readiness property improved here was transport-backed explicit promotion truth.
 
-### `Episode 4 - rollback then changed the path from promotion history into bounded restore truth`
+`Episode 4 - rollback then changed the path from promotion history into bounded restore truth`
 
 Once explicit promotion truth existed, the path still was not ready. `M12.E` had to prove that rollback was not paper-only. The executed rollback lane checked strict `M12.D` continuity, readability of the promotion receipt, stable double-read hash of the candidate bundle, run-scope parity, and readability and pass posture of the OFS rollback recipe and rollback drill report. The lane then closed green and published the run-scoped rollback drill report plus the bounded-restore evidence. System-design-wise, that matters because the path moved from we promoted something to promotion lives inside a corridor where restore can be executed and measured against the pinned contract. The accepted bridge was the managed rollback-drill lane itself, not a narrative assurance. The readiness property improved here was real rollback and bounded-restore truth.
 
-### `Episode 5 - active resolution then changed promotion truth into deterministically governable promoted state`
+`Episode 5 - active resolution then changed promotion truth into deterministically governable promoted state`
 
 After rollback, the corridor still had to prove that the promoted state resolved correctly. The first `M12.F` run failed on `M12-B6`, not because promotion or rollback were false, but because the lane was reading the wrong evidence shape from `M12.D`. It incorrectly assumed older rich fields in `m12d_promotion_commit_snapshot.json`, which produced false negatives on one-active-per-scope and runtime compatibility. The accepted bridge was to keep the gates strict and fix the source-of-truth wiring: resolve lifecycle and publication artifacts from `m12d_execution_summary.json`, and then rerun. The green closure then verified one-active-per-scope determinism, promoted lifecycle status and run-scope parity, candidate hash stability, serving-mode alignment, topic and schema compatibility, and model-artifact readability. That changed the path from promotion plus rollback happened into the promoted state is deterministically resolvable and compatibility-safe on the governed side. The readiness property improved here was deterministic active-resolution truth.
 
-### `Episode 6 - governance append then made the promoted state durable, ordered, and reviewable rather than merely successful once`
+`Episode 6 - governance append then made the promoted state durable, ordered, and reviewable rather than merely successful once`
 
 The corridor then had to prove that promotion-governance facts were not just true once, but appended coherently into the governance surface. `M12.G` pinned exactly what that meant: readable and parseable JSONL append log, required M12 governance event set present, non-decreasing ordering by `ts_utc`, no duplicate `event_id`, run-scope consistency, readable evidence refs, and preservation of prior events when adding the new M12 events. The lane closed green and emitted both the governance append snapshot and the operability acceptance report. That matters because the path moved from the promotion corridor worked to the promotion corridor left a coherent governance trail that later review can trust. The accepted bridge was to make governance append its own strict managed lane. The readiness property improved here was governance coherence and durability.
 
-### `Episode 7 - deterministic rollup and verdict finally changed the corridor into closed promotion-governance truth`
+`Episode 7 - deterministic rollup and verdict finally changed the corridor into closed promotion-governance truth`
 
 The final posture shift came when the corridor stopped being a set of green substeps and became one deterministic `P15` verdict. `M12.H` was materialized as a managed lane that had to roll up `M12.A..G` in strict order, enforce the expected next-gate ladder, check run-scope parity, emit `m12h_p15_gate_verdict.json`, and publish `m13_handoff_pack.json`. The green result then recorded `p15_verdict = ADVANCE_TO_P16` and `p15_next_gate = M13_READY`. That matters because the path moved from promotion-related surfaces passed to one closed promotion-governance truth now exists and can hand off deterministically. The accepted bridge was the strict rollup lane itself, not an informal summary. The readiness property improved here was deterministic corridor verdict and handoff truth.
 
-### `What this interrogation says about the path`
+`What this interrogation says about the path`
 
 So the real transformation of `Promotion and rollback-governance path` is not:
 
@@ -5812,7 +5812,7 @@ That is what turns the path from a strong `A` design idea into an earned `Bi` pr
 The next clean move is the `object transformation synthesis` for this path.
 
 ## 2026-03-16 00:47:28 +00:00 - Synthesize how the Promotion and rollback-governance path moved from a designed MPR seam into an earned promotion-truth boundary
-## `Promotion and rollback-governance path` - `object transformation synthesis`
+`Promotion and rollback-governance path` - `object transformation synthesis`
 
 In `A`, this path already had a narrow and important job: turn an eligible candidate bundle into governed promotion truth. It was never supposed to mean the registry changed and it was never supposed to mean runtime is already consuming the right active bundle. Its owned outcome was already pinned as: explicit promotion through the governed corridor, executed rollback drill, measured rollback bounded-objective truth against the pinned recovery contract, passing active-bundle resolution checks, and passing compatibility fail-closed checks. That is exactly the boundary the run-process later freezes at `P15 MPR_PROMOTION_COMMITTED`.
 
@@ -5830,24 +5830,24 @@ After that, the corridor had to prove governance durability and coherence. `M12.
 
 The final transformation was deterministic verdict and handoff truth. `M12.H` rolled up `A..G` in strict order, enforced the expected next-gate ladder, checked run-scope parity, emitted `m12h_p15_gate_verdict.json`, and published `m13_handoff_pack.json`. That is the moment where the corridor stops being a collection of successful substeps and becomes one closed `P15` promotion-governance truth surface with a deterministic verdict.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 To move `Promotion and rollback-governance path` from its `A` posture to its `Bi` posture, the platform had to resolve six things: first, make promotion its own strict corridor rather than an implied tail of candidate creation; second, enforce governed entry through handle, eligibility, and compatibility closure; third, turn promotion into transport-backed explicit event truth; fourth, turn rollback into executed bounded-restore truth; fifth, prove deterministic active-resolution on the governed side without weakening the gate; and sixth, append the whole state into coherent governance evidence and close it under one deterministic `P15` verdict.
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of this path is:
 
 a production-ready promotion-governance boundary where an eligible candidate bundle becomes an explicitly promoted, auditable, rollback-governed registry state through one strict fail-closed corridor, with measured bounded-restore truth, deterministic active-resolution and compatibility checks, coherent governance append evidence, and a deterministic `P15` verdict that the next runtime-authority path is allowed to consume rather than infer.
 
-### `Why this matters for the meta goal`
+`Why this matters for the meta goal`
 
 This object helps the meta goal because it shows that you did not treat promotion as set active and move on. You forced the platform to answer harder operational questions first: what exactly was promoted, whether the promotion event itself is explicit and provable, whether rollback is real and inside contract, whether one active bundle resolves deterministically per scope, whether compatibility is checked before runtime consumption, and whether the full state is preserved in a coherent governance trail. That reads like serious ML platform operations judgment rather than simple model versioning.
 
 The next clean move is the `Bi claim mix` for this path.
 
 ## 2026-03-16 00:54:36 +00:00 - Extract the Bi claim mix for the Promotion and rollback-governance path so the notebook states exactly what promotion-truth judgment this work now supports
-## `Promotion and rollback-governance path` - `Bi claim mix`
+`Promotion and rollback-governance path` - `Bi claim mix`
 
 1. `Readiness-reasoning claim`
 
@@ -6014,40 +6014,40 @@ The next clean move is to map this path to the `pressure episodes` that actually
 ## 2026-03-16 01:18:03 +00:00 - Map the pressure episodes that changed the Active-bundle authority feedback path from an inferential seam into runtime-authority truth
 For `Active-bundle authority feedback path`, the posture-changing history is not mainly about whether a candidate bundle existed or whether promotion-governance closed. It is about whether governed promoted state actually became runtime-readable authority for the consuming scope, and whether that authority stayed attributable across candidate, rollback, and restore transitions rather than being inferred from registry state alone. In `A`, the path is already pinned that narrowly: promoted registry truth -> deterministic active-bundle resolution -> runtime-readable decision authority.
 
-## `Active-bundle authority feedback path` - `pressure episodes that changed its posture`
+`Active-bundle authority feedback path` - `pressure episodes that changed its posture`
 
-### 1. `The path first had to become a distinct registry-to-runtime authority boundary, not an implied tail of promotion`
+1. `The path first had to become a distinct registry-to-runtime authority boundary, not an implied tail of promotion`
 
 The first posture change was structural. Group 6 does not let candidate promoted and runtime now consumes the right active bundle collapse into one vague activation story. The `A` notes pin `Active-bundle authority feedback path` as its own fifth path, after promotion-governance and before Group 3 decision formation, and the readiness plan separately tracks active-bundle resolution correctness as its own metric with runtime plus MLflow and MPR cross-checks. That changed the path from promotion probably implies runtime authority into registry-to-runtime authority is its own owned truth boundary.
 
-### 2. `The learning-coupled proof then reopened the path at the deeper question: runtime attribution to the correct active bundle`
+2. `The learning-coupled proof then reopened the path at the deeper question: runtime attribution to the correct active bundle`
 
 The next major posture change happened when the learning-coupled proof stopped being satisfied by promotion truth alone and explicitly created a runtime-attribution question. The `Bi` notes say this directly: the coupled phase only counts as green when active runtime decisions for the bounded run carry the promoted bundle truth in DLA governance stamps, with one bounded bundle identity, one bounded policy identity, and no attribution ambiguity. System-design-wise, that upgrades the path from the promoted state exists to runtime is now being pressured to prove it is reading the right governed authority. The class of challenge here is runtime authority attribution. The accepted bridge was to pressure the live runtime on that question directly rather than infer authority from registry state.
 
-### 3. `The first learning-coupled attempt showed that duplicate ingress scope could make the runtime-authority path look dark for the wrong reason`
+3. `The first learning-coupled attempt showed that duplicate ingress scope could make the runtime-authority path look dark for the wrong reason`
 
 The first attempt then exposed a subtle but important boundary problem. Short rollback and restore slices could not reuse the same `platform_run_id` as the candidate slice and still expect fresh downstream evidence. Ingress would accept the request shape, but collapse it as duplicate traffic before RTDL and DLA could restamp alternate-bundle truth. That means the open issue was not that bundle resolution in runtime was wrong. It was that the path had no fresh decision-bearing traffic scope with which to prove alternate authority states. The class of challenge here is scope-validity and duplicate-ingress defect. The accepted bridge was to give candidate, rollback, and restore their own fresh run scopes and record them explicitly in the run charter.
 
-### 4. `The corrected learning-coupled rerun then proved candidate, rollback, and restore runtime-authority truth`
+4. `The corrected learning-coupled rerun then proved candidate, rollback, and restore runtime-authority truth`
 
 With fresh candidate, rollback, and restore scopes, the rerun materially improved the picture: candidate bundle attribution went green, rollback bundle attribution went green, restore bundle attribution went green, and control, integrity, and downstream participation stayed healthy. That is the point where the path changes from runtime authority may exist, but transition truth is dark into runtime bundle authority is now attributable across promotion, rollback, and restore transitions. The class of challenge here is bounded transition attribution proof, and it is green. The accepted bridge demonstrably changed posture because the earlier darkness disappeared once fresh ingress scopes were used.
 
-### 5. `The final defect was not in runtime authority itself, but in which authority the rollup trusted`
+5. `The final defect was not in runtime authority itself, but in which authority the rollup trusted`
 
 Even after the runtime attribution probes themselves were green, the learning-coupled rollup still drifted because it read the older `previous_active_bundle` value from a retained earlier governance record instead of using the truthful staged registry surface for the current phase. The implementation notes make the correction explicit: the rollback bundle probe and the live `phase6_registry_surface_manifest.json` agreed on the real prior active runtime bundle, so the remaining issue was not runtime resolution or runtime attribution; it was a rollup-authority defect in the evidence layer. The accepted bridge was to repin rollback judgment to the staged registry surface so receipt truth and runtime truth finally agreed. That changed the path from runtime authority is green but the formal summary is wrong into the evidence chain now tells the same authority story as the live runtime.
 
-### 6. `Later operator and integrated proofs strengthened the path again by showing that active runtime truth stayed aligned with promoted truth`
+6. `Later operator and integrated proofs strengthened the path again by showing that active runtime truth stayed aligned with promoted truth`
 
 The last strengthening episodes came after the core Phase 6 correction. The Phase 7 ML day-2 probe recorded that active bundle and policy revision matched promoted truth, and the later Phase 7 closure still recorded that the live DF bundle and policy matched promoted truth. Then the accepted full integrated closure strengthened the claim again by recording that the active runtime bundle still matched promoted truth and that the post-restore active runtime bundle still matched promoted truth. That matters because the path is no longer merely Phase 6 attribution went green once. It has now shown that runtime-readable authority stays aligned with promoted truth under operator readback and under full integrated platform proof, including restore. The class of challenge here is later enlarged-network non-regression and operator-readback truth, and it is green.
 
-## `What this mapping says in one line`
+`What this mapping says in one line`
 
 `Active-bundle authority feedback path` moved from a correctly designed but still partly inferential registry-to-runtime seam into a production-ready runtime-authority boundary by first becoming its own explicit object, then being re-asked as live runtime attribution, then clearing duplicate-scope darkness with fresh candidate, rollback, and restore scopes, then correcting the rollup to trust staged registry truth, and finally proving that live runtime and operator readback still matched promoted truth across restore and integrated full-platform closure.
 
 The next clean move is to interrogate these episodes one by one.
 
 ## 2026-03-16 01:27:11 +00:00 - Interrogate the key episodes that turned the Active-bundle authority feedback path into an earned runtime-authority boundary
-## `Active-bundle authority feedback path` - `episode interrogation`
+`Active-bundle authority feedback path` - `episode interrogation`
 
 For this path, the important question is not whether promotion closed or whether runtime later emitted decisions. It is whether governed promoted state actually became runtime-readable authority for the consuming scope, and whether that authority stayed attributable across candidate, rollback, and restore transitions. `A` already pins the path that narrowly: promoted registry truth -> deterministic active-bundle or policy resolution -> runtime-readable authority surface -> later decision consumption.
 
@@ -6090,7 +6090,7 @@ That is what turns the path from a strong `A` design idea into an earned `Bi` pr
 The next clean move is the `object transformation synthesis` for this path.
 
 ## 2026-03-16 01:36:19 +00:00 - Synthesize how the Active-bundle authority feedback path moved from a designed registry-to-runtime seam into an earned runtime-authority boundary
-## `Active-bundle authority feedback path` - `object transformation synthesis`
+`Active-bundle authority feedback path` - `object transformation synthesis`
 
 In `A`, this path already had a narrow and important job: turn governed promoted state into runtime-readable decision authority. It was never supposed to mean promotion happened, so runtime must now be using the right bundle, and it was never supposed to mean the decision fabric already formed the decision correctly. Its owned outcome was narrower: one promoted state becomes one deterministically resolved active bundle or policy for the consuming runtime scope. The `A` note is explicit that promoted registry truth is not yet runtime authority until that resolution happens, and the production-readiness definition says the same thing at plane level: the active bundle must be resolved deterministically for the runtime that actually consumes it, and runtime must consume the right active bundle.
 
@@ -6104,24 +6104,24 @@ Even then, the path was not finished, because the next defect was not in runtime
 
 Once fresh transition attribution and rollup authority were corrected, later operator and integrated proof strengthened the path again by showing non-regression under larger working-platform use. The explicit ML day-2 operator surface then recorded that active bundle and policy revision matched promoted truth, and the later integrated platform proof recorded that the active runtime bundle still matched promoted truth and that the post-restore active runtime bundle still matched promoted truth. That matters because the path is no longer merely Phase 6 attribution once turned green. It has now shown that runtime-readable authority stays aligned with promoted truth under later operator readback and later full integrated platform proof, including restore.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 To move `Active-bundle authority feedback path` from its `A` posture to its `Bi` posture, the platform had to resolve four things: first, make registry-to-runtime authority a distinct owned boundary rather than an implied consequence of promotion; second, reopen that boundary at the live runtime-attribution level and give candidate, rollback, and restore fresh scopes so alternate authority states could actually be stamped into runtime evidence; third, correct the evidence-layer rollup so it trusted the current staged registry authority rather than stale carried-forward fields; and fourth, show that the same runtime-authority truth remained aligned with promoted truth later under operator readback and integrated full-platform proof.
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of this path is:
 
 a production-ready runtime-authority boundary where governed promoted state becomes one deterministically resolved active bundle or policy for the consuming runtime scope, and where candidate, rollback, and restore transitions are all attributable in live runtime evidence and summarized under the correct staged registry authority, with later operator and integrated proofs still showing that runtime truth matches promoted truth.
 
-### `Why this matters for the meta goal`
+`Why this matters for the meta goal`
 
 This object serves the meta goal well because it shows that you did not stop at we promoted a candidate or even the registry has an active version. You forced the platform to answer the harder runtime question: what was actually authoritative for the consuming runtime, how did that truth change under rollback and restore, and did the formal evidence layer tell the same story as live runtime behavior? That reads like serious ML and runtime operations judgment, because it proves you were not only governing promotion, but governing the last mile where promoted truth becomes live operational authority.
 
 The next clean move is the `Bi claim mix` for this path.
 
 ## 2026-03-16 01:44:56 +00:00 - Extract the Bi claim mix for the Active-bundle authority feedback path so the notebook states exactly what runtime-authority judgment this work now supports
-## `Active-bundle authority feedback path` - `Bi claim mix`
+`Active-bundle authority feedback path` - `Bi claim mix`
 
 1. `Readiness-reasoning claim`
 
@@ -6156,9 +6156,9 @@ The next clean move is the `Run reconstruction and receipt closure path` object 
 ## 2026-03-16 16:44:37 +00:00 - Open the Run reconstruction and receipt closure path by pinning its A posture, Bi posture, and why exact run reconstruction is the first Group 7 continuity boundary
 For `Bi`, Group 7 is inherited from `A`, handled group-first by default, but since the notebook is explicitly descending here, the right first path to open is `Run reconstruction and receipt closure path`.
 
-## `Run reconstruction and receipt closure path`
+`Run reconstruction and receipt closure path`
 
-### `Object`
+`Object`
 
 Parent group: `Run governance, observability, and evidence closure`.
 
@@ -6166,7 +6166,7 @@ Main secondary object it lives inside: `Working platform + Ops / Gov / Meta` as 
 
 The first enlarged-network object that materially re-pressures it is therefore the Phase 7 working platform itself: `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta`. This is where exact run reconstruction stops being a nice reporting idea and becomes a production-readiness question with explicit operator-facing proof obligations.
 
-### `A posture`
+`A posture`
 
 In `A`, this path exists to turn earlier lane receipts into an exact, readable, attributable run story rather than a hand-assembled summary. It is deliberately narrower than governance append, narrower than final-verdict publication, and narrower than teardown or cost closure. Its job is: once the earlier run has produced its lane receipts, where does the platform reconcile them into one exact run story under one run scope? The `A` note states that plainly, and Group 7's group-level argument reinforces that reconstruction is the first continuity step before governance append, verdict publication, teardown, and cost closure.
 
@@ -6176,7 +6176,7 @@ earlier lane receipts and closure inputs under one run scope -> run report plus 
 
 That `A` posture already carries the core constraints the later readiness work has to preserve: the path must be reconciliation-driven, single-run-scope, exact rather than hand-assembled, and materially seated in real reporter and reconciliation lanes rather than in narrative summary.
 
-### `Bi posture`
+`Bi posture`
 
 In `Bi`, this path becomes the production-ready `run-reconstruction boundary`. That means it is no longer enough that receipts exist somewhere in S3 or that an operator could probably piece the story together. The path now has to support a stronger claim:
 
@@ -6192,7 +6192,7 @@ So the `Bi` posture is:
 
 a production-ready run-reconstruction boundary where current-run receipts and evidence become one exact, durable, traceable run story under single-writer and run-scope discipline, strong enough that later governance append, verdict publication, and operational readback can build on it rather than reconstruct around it.
 
-### `Why this object matters`
+`Why this object matters`
 
 This object matters because it is the point where the platform stops saying `we emitted receipts` and starts being able to say what exactly happened in this run. If this boundary is weak, then later governance append, proof-matrix closure, final verdict, teardown judgment, and cost-to-outcome closure are all forced to stand on a partially reconstructed or hand-assembled story. Group 7's own `A` synthesis says continuity in this group begins exactly here: run reconstruction first, then governance append, then final verdict, then teardown and cost closure.
 
@@ -6207,7 +6207,7 @@ The next clean move is the `system-design questions` for this path.
 ## 2026-03-16 16:45:25 +00:00 - Derive the system-design questions for the Run reconstruction and receipt closure path so later pressure history stays on exact run-story reconstruction itself
 For `Run reconstruction and receipt closure path`, the system-design interrogation should stay on exact run-story reconstruction itself: whether earlier lane receipts become one authoritative, readable, attributable run story under a single run scope. It should not drift forward into governance append, final-verdict publication, teardown, or cost closure. Group 7 separates those on purpose, and both the `A` note and the run and build plans treat run report plus reconciliation as the first owned closure before the rest of Group 7 continues.
 
-## `Run reconstruction and receipt closure path` - `system-design questions`
+`Run reconstruction and receipt closure path` - `system-design questions`
 
 1. `What exactly counts as run reconstruction truth here?`
 
@@ -6274,68 +6274,68 @@ The next clean move is to map this path to the `pressure episodes` that actually
 ## 2026-03-16 16:45:57 +00:00 - Map the pressure episodes that changed the Run reconstruction and receipt closure path from inherited closeout logic into a production-ready reconstruction boundary
 For `Run reconstruction and receipt closure path`, the posture-changing history is not mainly about whether prior phases had receipts. It is about whether those receipts could be turned into one exact run story through a governed closeout corridor, and later whether that same reconstruction truth could survive the stricter `Ops / Gov / Meta` readiness boundary instead of remaining only an inherited `P11` artifact.
 
-## `Run reconstruction and receipt closure path` - `pressure episodes that changed its posture`
+`Run reconstruction and receipt closure path` - `pressure episodes that changed its posture`
 
-### 1. The path first had to become a real closure corridor, not a reporting afterthought
+1. The path first had to become a real closure corridor, not a reporting afterthought
 
 The first posture change was structural. In `A`, this path already existed to turn earlier lane receipts into an exact run story, but in the execution plan it only became real once `M8 / P11` was defined as a dedicated closeout corridor with explicit prerequisite lanes: reporter runtime identity, closure-input evidence readiness, single-writer contention proof, reporter one-shot execution, closure-bundle completeness, rollup verdict, and closure sync. That changed the path from `the run can probably be summarized` into `run reconstruction is its own governed boundary`.
 
-### 2. Single-writer governance had to become real before reconstruction could count as truth
+2. Single-writer governance had to become real before reconstruction could count as truth
 
 The next posture change was that reconstruction stopped being merely `a reporter can run` and became `only one writer can close the run truthfully`. `M8.D` only closed after the lock surface was made executable enough to prove real advisory-lock behavior: writer-1 acquired the lock, writer-2 was denied with an explicit fail-closed signal, and post-release reacquire succeeded. That is a real shift for this object, because the run story stopped being potentially multi-writer or narrative and became governed by single-writer discipline.
 
-### 3. The reporter then had to become a real managed runtime lane, not a stub or local fallback
+3. The reporter then had to become a real managed runtime lane, not a stub or local fallback
 
 Once single-writer discipline was earned, the path still was not ready because the reporter lane itself was only stub-level. `M8.E` had to be expanded into an execution-grade managed one-shot corridor on EKS, and the first real attempts failed for runtime reasons that mattered to the boundary itself: the runtime image rejected the pinned lock backend, and then the reporter failed on missing Aurora-side receipts tables. The accepted bridges were narrow and truth-preserving: keep the pinned backend visible in evidence while injecting `db_advisory_lock` as the effective runtime compatibility shim, and add one-shot pre-run DDL bootstrap for the required tables. That changed the path from `the reporter concept exists` into `the reporter can actually produce governed reconstruction artifacts on the managed runtime surface`.
 
-### 4. Closure-bundle completeness then changed the path from `reporter ran` into exact reconstruction truth
+4. Closure-bundle completeness then changed the path from `reporter ran` into exact reconstruction truth
 
 Even after the reporter ran, the object was not yet strong enough. `M8.F` is where the path's meaning changed again: the validator proved that all required closure bundle artifacts were present, readable, parseable, run-scoped correctly, and reconciliation-coherent. The authoritative pass explicitly checked `7 / 7` required bundle artifacts, run-scope conformance, closure-ref coherence, and reconciliation status, check, and delta coherence. That is the point where the path stops meaning `we emitted some closeout artifacts` and becomes `the run story is reconstructable exactly from a coherent closure bundle`.
 
-### 5. Rollup and handoff then changed the path from bundle completeness into deterministic reconstruction judgment
+5. Rollup and handoff then changed the path from bundle completeness into deterministic reconstruction judgment
 
 The next posture change came in `M8.I` and `M8.J`. `M8.I` first failed on unreadable reference surfaces and a non-secret false positive, which meant the corridor still could not publish reconstruction truth deterministically. The accepted remediation was to project `run_report` and `reconciliation` deterministically from object-store source truth into the evidence contract refs and harden the scanner. Then `M8.J` closed only once contract parity was complete across `14 / 14` required artifacts and the cost and outcome closure plus handoff pack were committed. That changed the path from `the reconstruction bundle is internally coherent` into `the reconstructed run story is now publishable, verdict-bearing, and handoff-safe under deterministic closure rules`.
 
-### 6. Later Phase 7 work strengthened the path again by making exact reconstruction a decisive readiness metric on the larger ops, gov, and meta object
+6. Later Phase 7 work strengthened the path again by making exact reconstruction a decisive readiness metric on the larger ops, gov, and meta object
 
 The final posture shift happened later, when this path stopped being only an `M8 / P11` spine closure fact and was re-asked inside the rebuilt `Phase 7 Ops / Gov / Meta` proof. The first candidate assessor still had proof defects, including grading CSV evidence refs as if JSON parsing were required, but once those bounded assessor defects were corrected, exact run reconstruction and evidence readback went green. The final accepted `Phase 7` authority then treated reconstruction as a decisive plane-ready metric, with `10 / 10` required local evidence present and `18 / 18` accepted Phase 5 references readable. That changed the path from `spine closeout can reconstruct the run` into `the ops, gov, and meta plane can now treat exact run reconstruction as one of its accepted readiness truths`.
 
-## `What this mapping says in one line`
+`What this mapping says in one line`
 
 `Run reconstruction and receipt closure path` moved from a correctly designed reconciliation idea into a production-ready reconstruction boundary by first becoming its own governed closeout corridor, then earning single-writer discipline, then making the reporter real on the managed runtime surface, then proving closure-bundle completeness, then publishing deterministic reconstruction judgment and handoff, and finally surviving the stricter `Phase 7` ops, gov, and meta proof as an accepted exact-reconstruction truth.
 
 The next clean move is to interrogate these episodes one by one.
 
 ## 2026-03-16 16:46:29 +00:00 - Interrogate the key episodes that turned the Run reconstruction and receipt closure path into an earned exact-reconstruction boundary
-## `Run reconstruction and receipt closure path` - `episode interrogation`
+`Run reconstruction and receipt closure path` - `episode interrogation`
 
 For this path, the important question is not whether prior lanes emitted receipts or whether later governance and verdict surfaces eventually went green. It is whether those earlier lane receipts became one exact, attributable run story through a governed reconstruction corridor under one run scope. That is already how Group 7 defines the path in `A`, and it is also exactly how `M8 / P11` defines its first owned closure: run report plus reconciliation before governance append, later rollup, and later cost closure.
 
-### `Episode 1 - the path first had to become a real closure corridor, not a reporting afterthought`
+`Episode 1 - the path first had to become a real closure corridor, not a reporting afterthought`
 
 What surfaced first was a boundary-definition defect. The platform could not let run reconstruction remain an informal reporting layer after execution. That is why `M8` was expanded into its own strict closeout corridor with explicit prerequisite lanes and a fixed `M8.A..J` sequence, and why run report and reconciliation was pinned as the first planned lane before governance append, non-regression, rollup, and cost closure. System-design-wise, that matters because the path stopped being `operators can probably summarize what happened` and became `exact run reconstruction is its own owned truth boundary`. The accepted bridge here was corridor formalization itself. The readiness property improved here was `owned reconstruction closure`.
 
-### `Episode 2 - single-writer governance had to become real before reconstruction could count as truth`
+`Episode 2 - single-writer governance had to become real before reconstruction could count as truth`
 
 Once the corridor existed, the next pressure point was writer discipline. Reconstruction could not be treated as authoritative until the platform proved that only one writer could close the run story for a given run scope. The fail-first `M8.D` execution exposed that the original Aurora lock surface was still seeded and non-routable; the accepted bridge was to materialize the concrete Aurora lock endpoint and repin the SSM endpoint paths to those real RDS surfaces, then rerun the same contention probe. The green rerun then proved the actual closure fact pattern: writer-1 acquired the run-scoped lock, writer-2 was denied fail-closed, and post-release reacquire succeeded. The class of challenge here is single-writer truth discipline, not generic database connectivity. The readiness property improved here was `authoritative single-writer reconstruction truth`.
 
-### `Episode 3 - the reporter then had to become a real managed runtime lane, not a stub or local fallback`
+`Episode 3 - the reporter then had to become a real managed runtime lane, not a stub or local fallback`
 
 After single-writer discipline was earned, the path still was not ready because the reconstruction corridor still needed a real reporter runtime on the managed surface. `M8.E` is where that changed. The platform deliberately kept the lane managed-first and refused local reporter compute as closure proof, so the reporter had to run as an EKS one-shot job. The fail-first chain matters here because it shows the boundary becoming real in stages: first the active image rejected `REPORTER_LOCK_BACKEND=aurora_advisory_lock`, then the reporter failed on missing Aurora-side receipts tables, then the IRSA role lacked the KMS envelope permissions needed for SSE-KMS object writes. The accepted bridges stayed narrow and truth-preserving: inject the effective runtime backend while retaining the pinned backend in evidence, bootstrap the required tables one-shot before execution, and extend the IRSA role for object-store S3 and KMS on the same managed path. Only after that did the authoritative one-shot run close green with lock acquire and release proof and `7 / 7` required closure artifacts readable. The class of challenge here is managed-runtime realization of the reconstruction boundary. The readiness property improved here was `managed reporter execution that can actually produce governed reconstruction artifacts`.
 
-### `Episode 4 - closure-bundle completeness then changed the path from the reporter ran into exact reconstruction truth`
+`Episode 4 - closure-bundle completeness then changed the path from the reporter ran into exact reconstruction truth`
 
 Even with a green reporter run, the object was still too weak if the resulting closure artifacts were partial, malformed, or not actually coherent as one run story. That is what `M8.F` changed. The validator was deliberately built against the current authoritative object-store run-close surface and then required all the things this path actually owns: required objects readable and parseable, run-scope conformance, `run_completed` closure-ref coherence, and reconciliation pass, check-map, and delta coherence. The green closure on `M8.F` matters because it is the moment where the path stops meaning `the reporter emitted some artifacts` and becomes `the run story is reconstructable exactly from a coherent closure bundle`. The class of challenge here is bundle completeness and reconciliation coherence. The accepted bridge was to validate against the real implemented closure surface rather than a looser intended contract. The readiness property improved here was `exact reconstruction truth from a coherent closure bundle`.
 
-### `Episode 5 - rollup and handoff then changed the path from bundle completeness into deterministic reconstruction judgment`
+`Episode 5 - rollup and handoff then changed the path from bundle completeness into deterministic reconstruction judgment`
 
 The next pressure point was that an internally coherent bundle still does not by itself produce a deterministic judged run story. `M8.I` and `M8.J` are the posture-changing episodes here. The first `M8.I` run failed on two things that matter exactly to this path: unreadable `run_report_ref` and `reconciliation_ref` at the handoff surface, and a false-positive non-secret violation caused by policy metadata values. The accepted bridge was not to weaken the gate. It was to project `run_report` and `reconciliation` deterministically from the object-store source truth into the evidence-path contract refs and to harden the non-secret scanner so policy metadata lists no longer masquerade as secret leakage. That allowed `M8.I` to publish a deterministic `P11` verdict and `m9_handoff_pack.json`. Then `M8.J` strengthened the same object again by proving `14 / 14` contract parity and closing the phase-level cost and outcome receipt plus closure sync. The class of challenge here is deterministic publication and handoff-safe reconstruction judgment, not just internal bundle coherence. The readiness property improved here was `publishable, verdict-bearing, handoff-safe run reconstruction truth`.
 
-### `Episode 6 - later Phase 7 work strengthened the path again by making exact reconstruction a decisive readiness metric on the larger ops, gov, and meta object`
+`Episode 6 - later Phase 7 work strengthened the path again by making exact reconstruction a decisive readiness metric on the larger ops, gov, and meta object`
 
 The final important turn is that this path did not remain only an old `M8 / P11` spine-closeout fact. It was re-asked later at the stricter `Ops / Gov / Meta` readiness boundary. The first rushed Phase 7 closure candidate was explicitly withdrawn because the phase had moved too fast and the reflected artifacts had started to anchor the work to a patched story instead of a truthful one. That restart matters because it proves the platform would not let a weaker operational proof inherit authority merely because earlier artifacts existed. The rebuilt Phase 7 closure then treated exact run reconstruction as one of the decisive accepted truths on the plane-ready scope, with `10 / 10` required local evidence present and `18 / 18` accepted Phase 5 refs readable. The class of challenge here is later enlarged-object operational proof, not spine-closeout housekeeping. The accepted bridge was a truthful restart and rebuild of the Phase 7 boundary, not incremental patching around the earlier story. The readiness property improved here was `exact reconstruction promoted into accepted ops, gov, and meta readiness truth`.
 
-### `What this interrogation says about the path`
+`What this interrogation says about the path`
 
 So the real transformation of `Run reconstruction and receipt closure path` is not:
 
@@ -6350,7 +6350,7 @@ That is what turns the path from a strong `A` design idea into an earned `Bi` pr
 The next clean move is the `object transformation synthesis` for this path.
 
 ## 2026-03-16 16:47:16 +00:00 - Synthesize how the Run reconstruction and receipt closure path moved from a designed closeout idea into an earned exact-reconstruction boundary
-## `Run reconstruction and receipt closure path` - `object transformation synthesis`
+`Run reconstruction and receipt closure path` - `object transformation synthesis`
 
 In `A`, this path already had a narrow and important job: turn earlier lane receipts into one exact run story. It was never supposed to mean `ops has some receipts somewhere`, and it was deliberately kept narrower than governance append, final-verdict publication, teardown, or cost closure. Its owned outcome was already pinned as `run report + reconciliation`, and the `M8 / P11` build plan freezes that exact ordering by making run report and reconciliation the first planned lane before governance append, rollup, and closure sync.
 
@@ -6366,24 +6366,24 @@ The next transformation was from bundle coherence into deterministic judged reco
 
 The final transformation came later, when this path stopped being only an old `M8 / P11` fact and was re-asked inside the stricter `Phase 7 Ops / Gov / Meta` boundary. The rebuilt Phase 7 plane does not merely inherit reconstruction as a historical artifact; it treats exact run reconstruction as one of its decisive readiness truths, alongside alert drill evidence, ML day-2 readback, and idle and restore discipline. The accepted `phase7_ops_gov_meta_restart_20260313T002459Z` authority records `10 / 10` required local evidence present and `18 / 18` accepted Phase 5 refs readable, and the readiness ledger explicitly judges the plane green with `exact run reconstruction` named as part of the accepted story. That changed the object from `spine closeout can reconstruct the run` into `run reconstruction is now strong enough to support the larger ops, gov, and meta plane as accepted readiness truth`.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 To move `Run reconstruction and receipt closure path` from its `A` posture to its `Bi` posture, the platform had to resolve five things: first, make run reconstruction its own strict closeout corridor rather than a reporting afterthought; second, make single-writer contention discipline real; third, make the reporter real on the managed runtime surface; fourth, prove closure-bundle completeness and reconciliation coherence; and fifth, turn that coherent bundle into deterministic verdict-bearing, handoff-safe reconstruction truth that later survived the stricter `Phase 7` ops, gov, and meta proof.
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of this path is:
 
 a production-ready run-reconstruction boundary where current-run receipts and closure evidence become one exact, durable, traceable run story under single-writer and managed-reporter discipline, with enough bundle completeness, readback strength, and verdict traceability that later governance append, verdict publication, and ops, gov, and meta review can build on it rather than reconstruct around it.
 
-### `Why this matters for the meta goal`
+`Why this matters for the meta goal`
 
 This object helps the meta goal because it shows that you did not treat operational closeout as `we had receipts and some observability`. You forced the platform to answer harder questions first: who is allowed to close the run story, whether the reporter can actually reconstruct it on the managed surface, whether the closure bundle is coherent enough to make the run exact rather than plausible, and whether later ops, gov, and meta judgment is building on durable run truth instead of on patched narrative. That reads like serious platform-operations judgment, not like post hoc reporting.
 
 The next clean move is the `Bi claim mix` for this path.
 
 ## 2026-03-16 16:47:47 +00:00 - Extract the Bi claim mix for the Run reconstruction and receipt closure path so the notebook states exactly what reconstruction judgment this work now supports
-## `Run reconstruction and receipt closure path` - `Bi claim mix`
+`Run reconstruction and receipt closure path` - `Bi claim mix`
 
 1. `Readiness-reasoning claim`
 
@@ -6418,9 +6418,9 @@ The next clean move is the object frame for `Governance append and close-marker 
 ## 2026-03-16 16:48:18 +00:00 - Open the Governance append and close-marker path by pinning its A posture, Bi posture, and why formal governance closure is its own Group 7 boundary after reconstruction
 For `Governance append and close-marker path`, the object frame should stay on formal governance closure itself: where reconstructed run truth is appended durably and where the run is explicitly marked closed. It should not drift backward into run reconstruction, and it should not drift forward into final-verdict publication or cost and teardown closure. The `A` note makes that boundary explicit, and the `M8 / P11` plan keeps governance append closure and run-close marker as its own lane after run report plus reconciliation.
 
-## `Governance append and close-marker path`
+`Governance append and close-marker path`
 
-### `Object`
+`Object`
 
 Parent group: `Run governance, observability, and evidence closure`.
 
@@ -6428,7 +6428,7 @@ Main secondary object it lives inside: `Working platform + Ops / Gov / Meta` as 
 
 The first enlarged-network object that materially re-pressures it is the Phase 7 `Ops / Gov / Meta` plane itself: `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta`. That is the first point where governance closure stops being only a spine closeout concern and becomes part of the larger question of whether the working platform is explainable, auditable, and closable as one governed operational story.
 
-### `A posture`
+`A posture`
 
 In `A`, this path exists to turn run-close reconstruction truth into append-safe governance truth that is explicitly closed. Its job is not to reconstruct the run, and it is not yet to publish the full final-platform verdict. Its narrower job is: once the platform already knows what happened in the run, where does it append that closure truth, and how does it mark the run as formally closed? The `A` note says that directly.
 
@@ -6438,7 +6438,7 @@ reconstructed run truth -> append-safe governance log -> explicit close marker u
 
 That `A` posture already carries the key disciplines later readiness work has to preserve: append-safe history rather than mutable summary overwrite, explicit close marker rather than informal `done` implication, and verification of schema, run-scope, and ordering rather than mere file existence. The `A` note is explicit that the design rejects two shortcuts: letting the run report act as a proxy for formal closure, and using a mutable summary object instead of append-safe governance history plus a close marker.
 
-### `Bi posture`
+`Bi posture`
 
 In `Bi`, this path becomes the production-ready formal governance-closure boundary. That means it is no longer enough that the run was reconstructed or that some governance files exist under the evidence prefix. The path now has to support a stronger claim:
 
@@ -6456,7 +6456,7 @@ So the `Bi` posture is:
 
 a production-ready governance-closure boundary where reconstructed run truth becomes append-safe, explicitly closed governance truth on the authoritative append-log and close-marker surfaces, strong enough that later verdict publication and handoff can rely on formal closure rather than reconstruct around it.
 
-### `Why this object matters`
+`Why this object matters`
 
 This object matters because it is the point where the platform stops saying `we can explain what happened` and starts being able to say the run is formally closed. If this boundary is weak, the platform may still reconstruct the run and even publish later verdicts, but it loses the clean answer to:
 
@@ -6476,7 +6476,7 @@ The next clean move is the `system-design questions` for this path.
 ## 2026-03-16 16:48:46 +00:00 - Derive the system-design questions for the Governance append and close-marker path so later pressure history stays on formal governance closure itself
 For `Governance append and close-marker path`, the system-design interrogation should stay on formal governance closure itself: whether reconstructed run truth becomes append-safe governance truth and is explicitly marked closed under the correct run scope. It should not drift backward into run reconstruction, and it should not drift forward into proof-matrix and final-verdict publication, teardown, or cost closure. The `A` note and the `M8` plan both separate that boundary explicitly.
 
-## `Governance append and close-marker path` - `system-design questions`
+`Governance append and close-marker path` - `system-design questions`
 
 1. `What exactly counts as formal governance-closure truth here?`
 
@@ -6543,60 +6543,60 @@ The next clean move is to map this path to the `pressure episodes` that actually
 ## 2026-03-16 16:49:17 +00:00 - Map the pressure episodes that changed the Governance append and close-marker path from an implied closeout idea into a verified formal-closure boundary
 For `Governance append and close-marker path`, the posture-changing history is shorter and cleaner than some of the earlier Group 6 paths. The main pressure was not repeated runtime failure. It was forcing formal closure to stop being implied by reconstruction and to become its own verified governance truth boundary. In `A`, the path was already defined narrowly as reconstructed run truth -> append-safe governance history -> explicit close marker. In `Bi`, the path changed posture when that closure became execution-grade, source-truth-verified, contract-normalized, and later strong enough to count again inside the rebuilt `Ops / Gov / Meta` proof.
 
-## `Governance append and close-marker path` - `pressure episodes that changed its posture`
+`Governance append and close-marker path` - `pressure episodes that changed its posture`
 
-### 1. The path first had to stop being implied by run reconstruction and become a distinct formal-closure boundary
+1. The path first had to stop being implied by run reconstruction and become a distinct formal-closure boundary
 
 The first posture change was structural. The platform could not let `the run was reconstructed` serve as a proxy for `the run is formally closed`. The `A` note is explicit that this path exists precisely to reject that shortcut, and the `M8` plan made it a separate owned lane after run report plus reconciliation and before later rollup and handoff. That changed the object from `closure can probably be inferred once the story exists` into `formal closure is its own truth boundary`.
 
-### 2. Source-truth governance surfaces then had to be distinguished from downstream evidence-path contract surfaces
+2. Source-truth governance surfaces then had to be distinguished from downstream evidence-path contract surfaces
 
 The next posture change was more subtle but important. The platform already had governance source truth on object-store surfaces, but that alone was not enough for this boundary to count as closed under the evidence contract the later lanes expected. The `M8.H` expansion makes that explicit: first validate source-of-truth governance append and marker surfaces on object-store, then materialize deterministic governance projections at the handle-contract evidence paths. That changed the path from `governance facts exist somewhere` into `governance closure can now be made both source-truthful and contract-consumable without blurring ownership`.
 
-### 3. `M8.H` then had to become an execution-grade verification lane rather than a stub-level closure note
+3. `M8.H` then had to become an execution-grade verification lane rather than a stub-level closure note
 
 Once that distinction was clear, the path still was not ready until it became a real validator lane. The implementation notes record exactly that step: `M8.H` was expanded from stub to execution-grade with fail-closed checks for upstream gate validity, object-store governance source truth, append ordering, schema, run-scope, marker coverage, deterministic projection, and post-write readback. That is a real posture change, because the path stopped being a design intention about append-safe closure and became a governed executable corridor that could fail honestly.
 
-### 4. The green `M8.H` execution changed the path from formal closure should exist into formal closure is now materially true on the run scope
+4. The green `M8.H` execution changed the path from formal closure should exist into formal closure is now materially true on the run scope
 
 The decisive posture change came with the green `M8.H` execution itself: `m8h_p11_governance_close_marker_20260226T063647Z`. The closure did not just confirm file existence. It verified that `run_completed` was readable and coherent, that `events.jsonl` was parseable and run-scoped with required closure facts present, that marker coverage was complete, that append ordering was non-decreasing, and then projected both `append_log.jsonl` and `closure_marker.json` under the evidence run scope. That changed the object from `closure can be described formally` into `formal governance closure is now an executed and verified truth boundary`.
 
-### 5. Later rebuilt `Phase 7` work strengthened the path again by treating governance closure as part of accepted ops, gov, and meta readiness, not just inherited `M8` history
+5. Later rebuilt `Phase 7` work strengthened the path again by treating governance closure as part of accepted ops, gov, and meta readiness, not just inherited `M8` history
 
 The final strengthening episode came later, when this path stopped being only a historical `M8 / P11` closure fact and was re-asked inside the rebuilt `Phase 7 Ops / Gov / Meta` proof. The accepted readiness ledger treats the governance and evidence family as part of the rebuilt plane-ready scope, alongside exact reconstruction, evidence readback, alert coverage, idle and restore discipline, and handle resolution. That matters because the object is no longer merely `the spine once wrote append-safe closure artifacts`. It is now part of the accepted statement that the working platform can close itself as a governed operational system.
 
-## `What this mapping says in one line`
+`What this mapping says in one line`
 
 `Governance append and close-marker path` moved from a correctly designed formal-closure idea into a production-ready governance boundary by first becoming its own distinct truth surface, then separating source-truth governance from downstream evidence-path contract needs, then becoming a fail-closed validator lane, then proving append-safe close-marker truth on the authoritative run scope, and finally being strong enough to count again inside the rebuilt `Ops / Gov / Meta` acceptance story.
 
 The next clean move is to interrogate these episodes one by one.
 
 ## 2026-03-16 16:49:52 +00:00 - Interrogate the key episodes that turned the Governance append and close-marker path into an earned formal-closure boundary
-## `Governance append and close-marker path` - `episode interrogation`
+`Governance append and close-marker path` - `episode interrogation`
 
 For this path, the important question is not whether the platform can explain what happened in the run. It is whether that reconstructed run truth becomes formally closed governance truth on the right surfaces, under the right run scope, in a way later verdict and handoff can actually rely on. That is already the `A` boundary: reconstructed run truth must become append-safe governance truth plus an explicit close marker, and the design explicitly rejects two weak shortcuts: treating the run report as a proxy for formal closure, or using a mutable summary object instead of append-safe governance history plus a close marker.
 
-### `Episode 1 - the path first had to stop being implied by run reconstruction and become a distinct formal-closure boundary`
+`Episode 1 - the path first had to stop being implied by run reconstruction and become a distinct formal-closure boundary`
 
 What surfaced first was a boundary-definition problem. The platform could not let `the run story exists` stand in for `the run is formally closed`. That is why the `A` note isolates this as its own path, and why the `M8` sequence places governance append closure and run-close marker after run report plus reconciliation and before later rollup and handoff. System-design-wise, that matters because the object stops being a narrative consequence of reconstruction and becomes an owned closure boundary with its own truth surfaces. The accepted bridge here was structural: make governance append and close-marker verification its own dedicated lane rather than folding it into reconstruction or later verdicting. The readiness property improved here was `owned formal-closure truth`.
 
-### `Episode 2 - source-truth governance surfaces then had to be separated from downstream evidence-path contract surfaces`
+`Episode 2 - source-truth governance surfaces then had to be separated from downstream evidence-path contract surfaces`
 
 The next posture change was more subtle. It was not enough that governance append facts and close-marker truth already existed somewhere on the object-store source surfaces. For this path to count as closed under the platform's own closure contract, those truths also had to become contract-consumable at the run-scoped evidence paths. The `M8.H` plan is explicit about this dual requirement: first verify source-truth governance append and marker surfaces, then materialize handle-contract projections under the evidence run scope. That changes the path from `governance closure facts exist` into `governance closure is now both source-truthful and contract-readable without blurring ownership`. The readiness property improved here was `source-truth plus contract-truth alignment`.
 
-### `Episode 3 - M8.H then had to become an execution-grade verification lane rather than a stub-level closure note`
+`Episode 3 - M8.H then had to become an execution-grade verification lane rather than a stub-level closure note`
 
 Once that distinction was clear, the path still was not ready until it became a real fail-closed validator lane. The implementation trail records exactly that expansion: `M8.H` was widened from stub to execution-grade with checks for upstream gate validity, object-store governance source truth, append ordering, schema, run-scope, marker coverage, deterministic projection, and post-write readback. That matters because the path stopped being a design note about how closure should work and became a governed executable lane that could fail honestly if closure truth was weak. The accepted bridge was not a looser summary or a docs-only marker; it was the execution-grade verifier itself. The readiness property improved here was `governance-closure executability`.
 
-### `Episode 4 - the green M8.H execution changed the path from formal closure should exist into formal closure is materially true on this run scope`
+`Episode 4 - the green M8.H execution changed the path from formal closure should exist into formal closure is materially true on this run scope`
 
 The decisive posture change came with the green `M8.H` execution: `m8h_p11_governance_close_marker_20260226T063647Z`. What matters is not merely that it passed. It passed by verifying the things this path actually owns: object-store governance append and marker source truth, `run_completed` closure refs, schema, run-scope, and order coverage, and then deterministic materialization of `append_log.jsonl` and `closure_marker.json` under the evidence run scope. That is the moment where the path stops meaning `we can describe formal closure` and becomes `formal governance closure is now an executed, verified, durable truth boundary`. The readiness property improved here was `materially verified append-safe closure under the run scope`.
 
-### `Episode 5 - later rebuilt Phase 7 work strengthened the path again by making governance closure part of accepted ops, gov, and meta readiness rather than only inherited M8 history`
+`Episode 5 - later rebuilt Phase 7 work strengthened the path again by making governance closure part of accepted ops, gov, and meta readiness rather than only inherited M8 history`
 
 The final strengthening episode came later, when this path stopped being only an old `M8 / P11` artifact and was re-asked inside the rebuilt `Phase 7 Ops / Gov / Meta` plane. The accepted Phase 7 authority does not just inherit closure blindly; it treats the governance and evidence family as part of the rebuilt plane-ready truth, alongside exact run reconstruction, evidence readback, alert drill evidence, ML day-2 readback, idle and restore discipline, and handle integrity. The accepted closure authority `phase7_ops_gov_meta_restart_20260313T002459Z` records `10 / 10` required local evidence present and `18 / 18` accepted Phase 5 refs readable, and judges the plane green as a rebuilt operational story rather than as a patched carry-forward. That changes the path from `the spine once wrote append-safe closure artifacts` into `formal governance closure is now strong enough to support the larger ops, gov, and meta readiness claim`. The readiness property improved here was `formal closure promoted into accepted working-platform governance truth`.
 
-### `What this interrogation says about the path`
+`What this interrogation says about the path`
 
 So the real transformation of `Governance append and close-marker path` is not:
 
@@ -6611,7 +6611,7 @@ That is what turns the path from a strong `A` design idea into an earned `Bi` pr
 The next clean move is the `object transformation synthesis` for this path.
 
 ## 2026-03-16 16:50:21 +00:00 - Synthesize how the Governance append and close-marker path moved from a designed formal-closure idea into an earned governance-closure boundary
-## `Governance append and close-marker path` - `object transformation synthesis`
+`Governance append and close-marker path` - `object transformation synthesis`
 
 In `A`, this path already had a narrow and important job: turn reconstructed run truth into append-safe governance truth that is explicitly closed. It was never supposed to mean `the run report exists, so closure can be inferred`, and it was deliberately kept narrower than run reconstruction and narrower than later final-verdict publication. Its owned outcome was already pinned as governance append plus formal close marker under the run scope, and the design explicitly rejected the two weak substitutes: treating the run report as proxy for closure, or using a mutable summary object instead of append-safe governance history plus close marker.
 
@@ -6625,24 +6625,24 @@ The decisive transformation came with the green `m8h_p11_governance_close_marker
 
 The final strengthening came later, when this path stopped being only an old `M8 / P11` fact and was re-asked inside the rebuilt `Phase 7 Ops / Gov / Meta` boundary. The first rushed Phase 7 closure story was explicitly withdrawn because it had moved too fast and was anchoring the repo to a patched narrative rather than a truthful one. The rebuilt accepted closure then treated the governance and evidence family as part of the plane-ready truth, alongside exact run reconstruction, evidence readback, runbook-linked operator surfaces, and idle and restore discipline. That changed the object from `the spine once wrote append-safe closure artifacts` into `formal governance closure is strong enough to support the larger working-platform ops, gov, and meta readiness story`.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 To move `Governance append and close-marker path` from its `A` posture to its `Bi` posture, the platform had to resolve four things: first, make formal closure its own owned boundary rather than a by-product of reconstruction; second, separate source-truth governance surfaces from downstream evidence-contract needs; third, make governance append and close-marker verification execution-grade and fail-closed; and fourth, prove that the same formal-closure truth was strong enough to count again inside the rebuilt `Ops / Gov / Meta` readiness boundary.
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of this path is:
 
 a production-ready governance-closure boundary where reconstructed run truth becomes append-safe, explicitly closed governance truth on the authoritative append-log and close-marker surfaces, with schema, run-scope, and ordering discipline strong enough that later rollup, verdict publication, and handoff are building on formal closure rather than inferring completion from the mere existence of a report.
 
-### `Why this matters for the meta goal`
+`Why this matters for the meta goal`
 
 This object helps the meta goal because it shows that you did not stop at `the platform can explain what happened`. You forced the platform to answer the harder governance question: where was closure truth appended, what marks the run as formally closed, and can later operational judgment rely on that closure as governed truth rather than patched narrative? That reads like serious platform-operations judgment, because it proves closure is not just descriptive; it is formally governed and durable.
 
 The next clean move is the `Bi claim mix` for this path.
 
 ## 2026-03-16 16:50:51 +00:00 - Extract the Bi claim mix for the Governance append and close-marker path so the notebook states exactly what formal-closure judgment this work now supports
-## `Governance append and close-marker path` - `Bi claim mix`
+`Governance append and close-marker path` - `Bi claim mix`
 
 1. `Readiness-reasoning claim`
 
@@ -6677,9 +6677,9 @@ The next clean move is the object frame for `Proof-matrix and final-verdict publ
 ## 2026-03-16 16:51:25 +00:00 - Open the Proof-matrix and final-verdict publication path by pinning its A posture, Bi posture, and why whole-platform judgment is its own Group 7 boundary after formal closure
 For `Proof-matrix and final-verdict publication path`, the object frame should stay on whole-platform judgment itself. It should not drift backward into governance append and close-marker closure, and it should not drift forward into teardown, residual-readability, or cost closure. Group 7 and the final-phase contracts separate those boundaries explicitly: this path owns `full source matrix`, `six-proof matrix`, and `final verdict publication`; only later do teardown and post-teardown closure begin.
 
-## `Proof-matrix and final-verdict publication path`
+`Proof-matrix and final-verdict publication path`
 
-### `Object`
+`Object`
 
 Parent group: `Run governance, observability, and evidence closure`.
 
@@ -6687,7 +6687,7 @@ Main secondary object it lives inside: `Working platform + Ops / Gov / Meta` as 
 
 The first enlarged-network object that materially re-pressures it is `Full-platform bounded integrated validation`, because that is the first point where the platform is no longer only proving that the working platform can be operated and closed. It must now prove that all required lanes and proof classes can be brought together into one coherent, blocker-free whole-platform claim before any later teardown or post-run closure is allowed. The readiness matrix and the `P16` contract both make that whole-platform judgment role explicit.
 
-### `A posture`
+`A posture`
 
 In `A`, this path exists to turn all prior closed platform truth into one explicit final judgment of the whole platform. Its job is not to reconstruct the run, and it is not yet to tear the platform down. Its narrower job is to answer: once every required lane has produced closure evidence, how does the platform turn that into one blocker-free, evidence-backed final verdict? The `A` note states that directly.
 
@@ -6697,7 +6697,7 @@ authoritative source summaries -> full source matrix -> six-proof completeness m
 
 That `A` posture already carries the key disciplines later readiness work has to preserve: the source matrix must be blocker-free, the six-proof matrix must be complete for each required lane, the verdict must be deterministic, and the published verdict object must be the same one the lane generated rather than a looser summary surrogate. The `A` note is explicit that the design rejects two weak shortcuts: `all upstream phases are green` as proxy for valid whole-platform verdict, and summary report as substitute for a deterministic, scope-complete, proof-complete verdict object.
 
-### `Bi posture`
+`Bi posture`
 
 In `Bi`, this path becomes the production-ready whole-platform judgment boundary. That means it is no longer enough that many earlier lanes closed green, or that closure summaries exist somewhere. The path now has to support a stronger claim:
 
@@ -6714,7 +6714,7 @@ So the `Bi` posture is:
 
 a production-ready whole-platform judgment boundary where all required lane closures are assembled into one blocker-free source matrix, one complete six-proof matrix, and one deterministic final-verdict bundle published at the run-scoped truth surface, strong enough that later teardown and cost closure are building on explicit whole-platform judgment rather than inferring it.
 
-### `Why this object matters`
+`Why this object matters`
 
 This object matters because it is the point where the platform stops saying `many important things closed green` and starts being able to say the whole platform is now explicitly judged. If this boundary is weak, the system can still close the spine, close learning, promote a bundle, reconstruct the run, and even carry later ops and governance surfaces, but it loses the clean answer to:
 
@@ -6734,7 +6734,7 @@ The next clean move is the `system-design questions` for this path.
 ## 2026-03-16 16:52:24 +00:00 - Derive the system-design questions for the Proof-matrix and final-verdict publication path so later pressure history stays on whole-platform judgment itself
 For `Proof-matrix and final-verdict publication path`, the system-design interrogation should stay on whole-platform judgment itself: whether prior closed platform truth becomes one blocker-free, proof-complete, deterministic final verdict. It should not drift backward into governance append and close-marker closure, and it should not drift forward into teardown or post-run cost closure. Group 7 and the `P16 / M13.D` contracts separate those boundaries on purpose.
 
-## `Proof-matrix and final-verdict publication path` - `system-design questions`
+`Proof-matrix and final-verdict publication path` - `system-design questions`
 
 1. `What exactly counts as whole-platform judgment truth here?`
 
@@ -6809,44 +6809,44 @@ The next clean move is to map this path to the `pressure episodes` that actually
 ## 2026-03-16 16:53:51 +00:00 - Map the pressure episodes that changed the Proof-matrix and final-verdict publication path from a designed verdict idea into an executed whole-platform judgment boundary
 For `Proof-matrix and final-verdict publication path`, the posture-changing history is not mainly about whether many earlier lanes were green. It is about whether those earlier closures could be turned into one explicit whole-platform judgment without missing sources, missing proof classes, or loose verdict logic. In `A`, this path was already defined as: authoritative source summaries -> full source matrix -> six-proof completeness matrix -> deterministic verdict assembly -> published full-verdict bundle. In `Bi`, the episodes that mattered are the ones that turned that design into an executed judgment boundary.
 
-## `Proof-matrix and final-verdict publication path` - `pressure episodes that changed its posture`
+`Proof-matrix and final-verdict publication path` - `pressure episodes that changed its posture`
 
-### 1. The path first had to stop being implied by many green lanes and become a distinct whole-platform judgment corridor
+1. The path first had to stop being implied by many green lanes and become a distinct whole-platform judgment corridor
 
 The first posture change was structural. The platform could not let `lots of upstream phases are green` stand in for `the whole platform has been judged`. That is why `P16` is a separate gate with its own pass law, and why `M13` is strictly sequenced around source-matrix closure, six-proof closure, and deterministic final-verdict publication before teardown begins. That changed the path from `whole-platform green can probably be inferred` into `whole-platform judgment is its own owned truth boundary`.
 
-### 2. The path then had to solve a real source-truth problem: earlier closures were not uniformly readable in one authoritative shape
+2. The path then had to solve a real source-truth problem: earlier closures were not uniformly readable in one authoritative shape
 
 The next posture change came when `M13.B` had to build the source matrix honestly. The implementation trail is explicit that the earlier phase summaries were not all uniformly durable-readable in the same shape: `M1` had no run-control durable summary object, older `M3/M4` durable objects were KMS-inaccessible, and `M2` closure existed in a different local evidence shape. The accepted bridge was not to pretend those rows were fine. It was to implement an explicit dual-source policy: durable S3 summary first, repo-anchored fallback only for known legacy surfaces, with every fallback recorded per row. That changed the path from `source truth exists somewhere` into `there is now an authoritative full source matrix with explicit source-mode handling`.
 
-### 3. Six-proof completeness then had to become an explicit closure object rather than a vague assumption about lane quality
+3. Six-proof completeness then had to become an explicit closure object rather than a vague assumption about lane quality
 
 After source coverage was made explicit, the next posture shift was that proof completeness itself became its own judged object. `M13.C` did not merely inherit upstream `PASS` states; it closed only once the six-proof matrix was complete enough to advance to `M13.D`. That matters because the path moved from `all required sources are represented` to `all required proof classes are represented too`, which is exactly the difference between platform activity and whole-platform judgment.
 
-### 4. The first final-verdict run exposed that judgment logic was still too naive about source scope
+4. The first final-verdict run exposed that judgment logic was still too naive about source scope
 
 The next pressure episode was the first `M13.D` red. It did not fail because the platform was actually not ready. It failed because the verdict lane was still enforcing `overall_pass=true` on every source row, even though `M13.B` had already intentionally accepted some rows under `legacy_pre_run_scope`. That is a real posture-changing episode for this object because it forced the path to distinguish strict judgment from wrongly scoped strictness. The class of challenge here is source-scope discipline in whole-platform judgment.
 
-### 5. The accepted remediation preserved strictness but made whole-platform judgment source-scope-aware
+5. The accepted remediation preserved strictness but made whole-platform judgment source-scope-aware
 
 The accepted bridge is what really changed the path. The system did not relax the verdict boundary into `legacy rows are always fine`. Instead, it kept strict checks for non-legacy rows, and for legacy rows it required: source readability, upstream `M13.B` row pass, and expected verdict and next-gate checks where pinned. The implementation explicitly propagated `legacy_scope_reason` and `upstream_row_pass`, and gated hard summary-pass enforcement with `enforce_summary_pass = not legacy_scope_reason`. That changed the path from `final verdict logic is overly crude` into `final verdict logic is now scope-aware without becoming permissive`.
 
-### 6. The green rerun then changed the path from whole-platform verdict should exist into whole-platform verdict is now materially published and identity-verified
+6. The green rerun then changed the path from whole-platform verdict should exist into whole-platform verdict is now materially published and identity-verified
 
 The decisive posture change came with the green `M13.D` rerun. The important thing is not just that it passed. It passed by publishing `m13d_final_verdict_bundle.json` in run-control, publishing the rendered run-scoped `full_platform/final_verdict.json`, and then verifying readback identity through the same `execution_id`, deterministic verdict, deterministic next gate, and scope-complete fields. That is the moment where the path stops meaning `we can say the platform is green` and becomes `the platform has one authoritative, deterministic, published whole-platform judgment object`.
 
-### 7. Later M13 closure strengthened the path again by proving the verdict remained coherent after the later teardown and cost lanes
+7. Later M13 closure strengthened the path again by proving the verdict remained coherent after the later teardown and cost lanes
 
 The final strengthening episode came at `M13.J`. By that point, the path was no longer just `the final verdict was once published`. The later closure sync proved parity across `M13.A..M13.I`, confirmed non-gate acceptance including final-verdict readability and post-teardown and cost continuity, and closed `M13` completely green on the managed lane. That matters because the path is no longer merely `M13.D went green`. It has now shown that whole-platform judgment stayed coherent and readable after the later teardown, readability, and cost lanes also closed.
 
-## `What this mapping says in one line`
+`What this mapping says in one line`
 
 `Proof-matrix and final-verdict publication path` moved from a correctly designed final-judgment idea into a production-ready whole-platform judgment boundary by first becoming its own explicit corridor, then solving uneven source-truth readability through managed source-matrix closure, then making six-proof completeness explicit, then correcting verdict logic to handle legacy source scope without weakening strictness, and finally publishing one deterministic verdict object whose identity and coherence remained intact through full `M13` closure.
 
 The next clean move is to interrogate these episodes one by one.
 
 ## 2026-03-16 16:54:28 +00:00 - Interrogate the key episodes that turned the Proof-matrix and final-verdict publication path into an earned whole-platform judgment boundary
-## `Proof-matrix and final-verdict publication path` - `episode interrogation`
+`Proof-matrix and final-verdict publication path` - `episode interrogation`
 
 For this path, the important question is not whether many upstream lanes had already gone green. It is whether those earlier closures could be turned into one explicit whole-platform judgment that was blocker-free, proof-complete, deterministic, and published as the authoritative final verdict before teardown began. That is already the `A` boundary, and it is exactly how `P16 FULL_PLATFORM_CLOSED` defines the owned closure.
 
@@ -6878,7 +6878,7 @@ The decisive posture change came with the green `M13.D` rerun. What matters is n
 
 The final strengthening episode came later, at `M13.J`. By that point the path was no longer merely `M13.D once went green`. The later closure sync proved parity across `M13.A..M13.I`, and the non-gate acceptance checks explicitly included final verdict readability, post-teardown guardrail continuity, and phase cost-outcome continuity. That matters because the object is no longer merely a one-time publication event. It has now shown that the whole-platform verdict remained coherent and readable even after the later teardown and cost lanes also closed. The accepted bridge here was not a fresh redesign of the verdict boundary, but later coherence proof that strengthened its final posture. The readiness property improved here was `durable whole-platform judgment coherence through full M13 closure`.
 
-### `What this interrogation says about the path`
+`What this interrogation says about the path`
 
 So the real transformation of `Proof-matrix and final-verdict publication path` is not:
 
@@ -6893,7 +6893,7 @@ That is what turns the path from a strong `A` design idea into an earned `Bi` pr
 The next clean move is the `object transformation synthesis` for this path.
 
 ## 2026-03-16 16:55:23 +00:00 - Synthesize how the Proof-matrix and final-verdict publication path moved from a designed verdict idea into an earned whole-platform judgment boundary
-## `Proof-matrix and final-verdict publication path` - `object transformation synthesis`
+`Proof-matrix and final-verdict publication path` - `object transformation synthesis`
 
 In `A`, this path already had a narrow and important job: turn all prior closed platform truth into one explicit whole-platform judgment. It was never supposed to mean `lots of earlier lanes are green, so the final verdict is obvious`, and it was deliberately kept narrower than governance append and narrower than later teardown. Its owned outcome was already pinned as: authoritative source summaries -> full source matrix -> six-proof completeness matrix -> deterministic verdict assembly -> published full-verdict bundle at the run-scoped truth surface. The design is explicit that it rejects two weak shortcuts: treating upstream green as proxy for valid whole-platform verdict, and treating a summary report as substitute for a deterministic, scope-complete, proof-complete verdict object.
 
@@ -6909,24 +6909,24 @@ The decisive posture change came with the green `M13.D` rerun. What matters is n
 
 The final strengthening came later, when this path stopped being only an `M13.D` publication fact and was re-proved through full `M13` closure. `M13.J` did not just say the phase was done. It verified parity across `M13.A..M13.I`, and its non-gate acceptance explicitly included final verdict readability, post-teardown guardrail continuity, and phase cost-outcome continuity before closing `M13` fully green. That changed the object from `the final verdict was once published` into `the whole-platform judgment remained coherent and readable through the rest of final-phase closure`.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 To move `Proof-matrix and final-verdict publication path` from its `A` posture to its `Bi` posture, the platform had to resolve five things: first, make whole-platform judgment its own fail-closed corridor rather than an inference from many green lanes; second, solve uneven source-truth readability through an explicit source-matrix policy; third, make six-proof completeness an explicit judged input before verdict assembly; fourth, correct final-verdict logic so it stayed strict while becoming source-scope-aware; and fifth, publish one deterministic verdict object whose identity and coherence survived later full `M13` closure.
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of this path is:
 
 a production-ready whole-platform judgment boundary where all prior closed platform truth becomes one blocker-free source matrix, one proof-complete six-proof matrix, and one deterministic final-verdict bundle published at the run-scoped truth surface, with scope, identity, and consistency discipline strong enough that later teardown and review are building on explicit whole-platform judgment rather than inferring it.
 
-### `Why this matters for the meta goal`
+`Why this matters for the meta goal`
 
 This object helps the meta goal because it shows that you did not stop at `many parts of the platform closed green`. You forced the platform to answer the harder judgment question: is the whole platform actually blocker-free, proof-complete, source-scope-correct, and published as one authoritative verdict object? That reads like serious systems and operations judgment, because it proves the platform treats activity, closure, and judgment as different truths and only makes the whole-platform claim after passing its own dedicated verdict boundary.
 
 The next clean move is the `Bi claim mix` for this path.
 
 ## 2026-03-16 16:57:39 +00:00 - Extract the Bi claim mix for the Proof-matrix and final-verdict publication path so the notebook states exactly what whole-platform judgment this work now supports
-## `Proof-matrix and final-verdict publication path` - `Bi claim mix`
+`Proof-matrix and final-verdict publication path` - `Bi claim mix`
 
 1. `Readiness-reasoning claim`
 
@@ -6959,15 +6959,15 @@ This path supports the claim that the final ready posture is not merely the plat
 The next clean move is the object frame for `Drift-visible observability attestation path`.
 
 ## 2026-03-16 18:07:08 +00:00 - Open the Drift-visible observability attestation path by pinning its A posture, Bi posture, and why live visibility is its own Group 7 boundary after final judgment
-## `Drift-visible observability attestation path` - `object frame`
+`Drift-visible observability attestation path` - `object frame`
 
-### `Object`
+`Object`
 
 Parent group: `Run governance, observability, and evidence closure`.
 
 This object sits inside the Group 7 family that turns execution closure into governed, observable, auditable, idle-safe, and cost-accountable run truth. Within that family, this particular path owns truthful live visibility rather than reconstruction, governance append, final verdict, teardown, or cost closure. In the `Bi` ranking logic, it belongs under the high-payoff `P5` object family and becomes especially important again once the enlarged `Ops / Gov / Meta` boundary is rebuilt and later coupled into the full platform story.
 
-### `A posture`
+`A posture`
 
 In `A`, this path already has a narrow but serious job: turn live platform behavior into trustworthy operator visibility and drift-attestation truth. Its job is not to reconstruct the run after the fact, not to append governance closure facts, and not to publish the final verdict. Its entry is also stricter than `some logs exist`. The entry is a working platform with one declared active runtime path, live telemetry from the same runtime surfaces that path actually uses, and an observability and control scope able to attest freshness, alert coverage, correlation continuity, handle resolution, and active-path drift before certification.
 
@@ -6977,7 +6977,7 @@ So the `A` posture is:
 
 declared active runtime path + live telemetry, traces, and logs from those same surfaces + correlation, freshness, alert, and handle checks -> observability attestation truth for the run.
 
-### `Bi posture`
+`Bi posture`
 
 In `Bi`, this object becomes the production-ready live-visibility boundary for the rebuilt `Ops / Gov / Meta` plane. The question stops being `do dashboards and alarms exist?` and becomes `can operators trust live green on the active path, detect drift before false certification, and act through a real operator surface?` That is why the restarted Phase 7 work did not accept a shallow closure story. It explicitly re-anchored the plane around operational reconstructability, evidence readback, dashboards and alarms, cost discipline, idle and restart posture, handle and secret integrity, and drift visibility. When the first bounded Phase 7 pass found dashboards but incomplete operator surfaces, the right response was not to weaken the claim; it was to restart the phase, rebuild the operator boundary, and tighten the proof surface.
 
@@ -6989,7 +6989,7 @@ So the `Bi` posture is:
 
 a production-ready observability-attestation boundary where the declared active runtime path is live-visible, fresh, attributable, alert-covered, handle-clean, and drift-checkable enough to support safe certification and real operator action, first on the rebuilt `Ops / Gov / Meta` plane and then again when that plane is coupled into the integrated platform.
 
-### `Why this object matters`
+`Why this object matters`
 
 This object matters because if it is weak, the platform can still execute, reconstruct the run, append governance facts, and even publish a final verdict while operators remain blind to whether the live boundary is fresh, correctly attributed, or drifting away from the declared active path. That is exactly the looseness `A` rejects. The platform treats runtime execution truth and runtime visibility truth as different owned boundaries, and this path is the one that forces the second boundary to become explicit.
 
@@ -7004,7 +7004,7 @@ The next clean move is the `system-design questions` and `pressure episodes` map
 ## 2026-03-16 18:19:44 +00:00 - Derive the system-design questions for the Drift-visible observability attestation path so later pressure history stays on truthful live visibility of the declared active runtime path
 For `Drift-visible observability attestation path`, the system-design interrogation should stay on truthful live visibility of the declared active runtime path. It should not drift backward into run reconstruction, and it should not drift forward into governance close-marker, final-verdict publication, teardown, or cost closure. The `A` note makes that boundary explicit, and the readiness definitions keep freshness, alert coverage, handle integrity, and drift visibility as their own proof family.
 
-## `Drift-visible observability attestation path` - `system-design questions`
+`Drift-visible observability attestation path` - `system-design questions`
 
 1. `What exactly counts as observability-attestation truth here?`
 
@@ -7068,7 +7068,7 @@ It is a staircase where the platform keeps refusing weaker substitutes for truth
 
 correlation truth -> live surface completeness -> assessor correctness -> operator actionability -> exercised alert path -> ML day-2 and active-path integrity -> accepted closure.
 
-## `Drift-visible observability attestation path` - `pressure history`
+`Drift-visible observability attestation path` - `pressure history`
 
 1. **Inherited precursor pressure before `Bi`: observability was already fail-closed on correlation-carriage and telemetry truth.**
 This path enters `Bi` with a real prehistory. The `A` note says the earlier observability proof lane explicitly probed the ingress edge, orchestrator surface, stream-lane telemetry surface, and observability lane; it then failed closed when ingress correlation-carriage and telemetry proof were insufficient, and only reran green after the runtime emitted structured correlation evidence. That means the object does not begin `Bi` as `nice-to-have monitoring`. It begins as a boundary already trained to reject fake-green visibility.
@@ -7091,7 +7091,7 @@ The new ML day-2 probe is important because it shows the object expanding from c
 7. **Accepted closure pressure: the path closed only when visibility became fresh, attributable, drift-aware, and operator-actionable.**
 The accepted rebuilt Phase 7 closure authority is strong precisely because it does not collapse back to `we have observability`. The ledger closes with real alert drill evidence, exact run reconstruction, ML day-2 readback, required handle and secret resolution, `0` placeholder-like active handles, and the broader Ops / Gov / Meta metric family including metric freshness and critical alert coverage. For this specific object, the key meaning is: the live platform can now be seen on the same active runtime surfaces it actually uses, with fresh metrics, real alert coverage, runbook linkage, clean live handles, and enough drift visibility to block false certification.
 
-## `Compressed reading`
+`Compressed reading`
 
 So the pressure history for this path is:
 
@@ -7106,65 +7106,65 @@ So the pressure history for this path is:
 The next clean move is `episode interrogation` for each of those pressure episodes: which ones were runtime defects, which were proof-boundary defects, and which were operator-chain defects.
 
 ## 2026-03-16 19:25:39 +00:00 - Interrogate the key episodes that turned the Drift-visible observability attestation path into an earned live-visibility boundary
-## `Drift-visible observability attestation path` - `episode interrogation`
+`Drift-visible observability attestation path` - `episode interrogation`
 
 The point of this section is to stop flattening every red into `observability was weak` or `the runtime was weak`. For this path, the useful question is always: what kind of truth boundary actually failed? The `A` note already pins the owned boundary tightly: this path exists to prove that the live platform can be seen truthfully on the same runtime surfaces it is actually using, with freshness, alert, drift, correlation, and handle checks before certification. So the interrogation has to separate live-path red from proof-surface red, and both from operator-chain incompleteness.
 
-### 1. `Phase 7` opened red on the live operator surface
+1. `Phase 7` opened red on the live operator surface
 
 **Classification:** `operator-surface incompleteness`, not runtime failure.
 
 The first red did not say the platform could not run. It said the live operator boundary was still too weak to support truthful observability-attestation: the operations dashboard was still ingress-only, the cost dashboard did not yet prove residual-runtime posture, and the alarm surface was effectively absent on the live `fraud-platform-dev-full` naming boundary. That is exactly the right kind of red for this object, because the path owns live visibility truth, not just runtime existence. The accepted response was therefore to improve the live operator surface itself, not to reopen runtime semantics.
 
-### 2. The first bounded `Phase 7` pass exposed three reds
+2. The first bounded `Phase 7` pass exposed three reds
 
 **Classification:** `proof-boundary defects`, not platform defects.
 
 Once the operator surface was materially present, the next reds came from the assessor: CSV evidence refs were being judged as JSON-only readbacks, billing freshness was being checked against the wrong CloudWatch stream rather than the budget surface that actually governs the phase, and the live drift probe assumed object-style access on structures that were partly dict-backed at runtime. None of those say the active runtime path was invisible or drifting; they say the proof boundary was misreading reality. The correct response was to fix the assessor and rerun the exact same boundary, not to widen the phase or invent a runtime story that the evidence did not support.
 
-### 3. The assessor then went green before idle and restart proof existed
+3. The assessor then went green before idle and restart proof existed
 
 **Classification:** `closure-boundary overreach`, not observability success.
 
 After the bounded assessor went green on reconstruction, evidence readback, observability, and drift checks, the next honest move was to fail the phase closed again because no live idle and restart drill existed yet. That red belongs primarily to the broader `Ops / Gov / Meta` closure, not to observability in isolation. But it matters here because it prevents this object from over-claiming. In other words: truthful live visibility is necessary, but it is not by itself enough to close the plane. The accepted response was to tighten the boundary immediately and require the missing receipt rather than letting a partial green masquerade as full closure.
 
-### 4. The first `Phase 7` closure candidate was withdrawn
+4. The first `Phase 7` closure candidate was withdrawn
 
 **Classification:** `methodological / authority defect`, not live-platform regression.
 
 The later withdrawal of the first closure candidate is important because it shows the red was no longer in the runtime or in one dashboard. The defect was in the closure story itself: the phase had moved too quickly, the reflected artifacts had started to anchor the notebook to a patched narrative, and the right engineering action was to withdraw the closure claim entirely and restart from the real boundary. For this path, that matters because the platform is explicitly refusing to accept `good enough-looking observability` as closure authority.
 
-### 5. The rebuilt `Phase 7` boundary still stayed red
+5. The rebuilt `Phase 7` boundary still stayed red
 
 **Classification:** `operator-chain incompleteness`, not visibility-surface absence.
 
 On the restart, the live boundary already had dashboards, critical alarms, budget surface, runtime bundle and policy readback, and the idle and restore controller. But the phase still stayed red because the operator chain was incomplete: there was no explicit runbook linkage on the live dashboards, no fresh alert-path evidence beyond alarms sitting in `OK`, and the ML day-2 mitigation path was still too implicit to count as an operator surface. This is a different red from the opening one. The first red was `surface incomplete`. This one is `surface exists, but operator actionability is still under-specified`. The accepted next work was therefore exactly the right trio: runbook surface, alert-to-runbook drill, and explicit ML day-2 operator proof.
 
-### 6. The alert drill went green immediately
+6. The alert drill went green immediately
 
 **Classification:** `positive operator-chain proof`, not mere alarm existence.
 
 This episode is where the path stops being decorative. Once the runbook existed and the dashboards pointed to it, the bounded drill on `fraud-platform-dev-full-ig-lambda-errors` produced `OK -> ALARM -> OK`, and both transitions were attributable to the drill. That matters because it converts `alarm configured` into `alert path exercised and operator-usable on the live boundary`. So this is not just a resolved defect; it is the first direct proof that the observability path now supports signal-to-action behavior.
 
-### 7. The new ML day-2 probe failed on rollback and restore authority
+7. The new ML day-2 probe failed on rollback and restore authority
 
 **Classification:** `probe-shape defect`, not active-runtime-authority defect.
 
 This is one of the strongest episodes in the whole path because it proves the notebook is classifying reds correctly. The probe did not fail because the live runtime authority was wrong. The active bundle and policy revision matched promoted truth, `MLflow tracking_uri` was `databricks`, the SageMaker execution role resolved, and the model package group existed. The red came from the probe trying to read rollback and restore authority from fields that those retained probes do not actually expose. The correct fix was therefore to correct the probe to read authority from the accepted Phase 6 chain, not to `repair` a runtime that was already correct.
 
-### 8. The idle and restore drill then failed first on receipt serialization
+8. The idle and restore drill then failed first on receipt serialization
 
 **Classification:** `artifact-writer defect in an adjacent path`, not an observability defect.
 
 This episode belongs more naturally to `Idle-safe teardown and residual-readability path`, and that distinction matters. The live action itself was correct: node count after idle reached `0`, the nodegroup restored to pre-drill shape, and active deployments came back cleanly. The failure was in JSON serialization on datetime-bearing update payloads in the controller. For this observability path, the lesson is boundary discipline: do not steal a neighboring path's red and misclassify it as observability weakness. The right response was to fix the writer and reuse the same fresh drill artifact, not to reopen the live visibility story.
 
-### 9. Accepted closure
+9. Accepted closure
 
 **Classification:** `the object is now truthfully green`.
 
 By accepted closure, the path has earned a materially stronger claim than `we have dashboards`. The rebuilt closure records real alert drill evidence, exact run reconstruction, explicit ML day-2 readback, `11 / 11` required handle and secret surfaces resolved, `0` placeholder-like active handles, and the broader Phase 7 observability metrics of freshness and critical alert coverage. That means the remaining ambiguity classes have been burned down in the right order: surface incompleteness, proof-boundary misreads, operator-chain gaps, and probe-shape defects were all separated rather than blurred together. What is left is a truthful green on the actual active runtime path.
 
-### `Compressed reading`
+`Compressed reading`
 
 The real value of this interrogation is that it shows most reds on this path were not `the platform cannot be seen`. They were:
 
@@ -7180,7 +7180,7 @@ That is exactly what makes the final green meaningful. The path did not become s
 The next clean move is `transformation synthesis` for this object.
 
 ## 2026-03-16 19:26:15 +00:00 - Synthesize how the Drift-visible observability attestation path moved from designed visibility truth into an earned operator-trust boundary
-## `Drift-visible observability attestation path` - `transformation synthesis`
+`Drift-visible observability attestation path` - `transformation synthesis`
 
 The transformation is not that the platform `got observability`.
 `A` already had that boundary. The transformation is that this boundary moved from a designed, materially seated visibility truth into a production-ready operator-trust boundary that could survive rebuilt `Ops / Gov / Meta` closure without hiding behind dashboards, stale proofs, or decorative telemetry. In `A`, the path already owned a serious question: can operators see the live platform on the same runtime surfaces it is actually using, with correlation, freshness, alert, drift, and handle checks before certification? The handles, route logic, and earlier fail-closed correlation proof already made that boundary real.
@@ -7210,11 +7210,11 @@ Or even tighter:
 The next clean move is extracting the `claim mix` for this object.
 
 ## 2026-03-16 19:26:38 +00:00 - Extract the Bi claim mix for the Drift-visible observability attestation path so the notebook states exactly what live-visibility judgment this work now supports
-## `Drift-visible observability attestation path` - `Bi claim mix`
+`Drift-visible observability attestation path` - `Bi claim mix`
 
 For this path, the `Bi` claim mix is this.
 
-### `Bi claim mix`
+`Bi claim mix`
 
 1. `Readiness-reasoning claim`
 
@@ -7248,22 +7248,22 @@ This path supports the claim that the final ready posture is not merely `the pla
 
 This path supports the meta goal because it makes a reviewer infer that you did not treat observability as a recruiter-facing garnish. You treated it as a fail-closed production boundary with its own truth, its own red classes, and its own closure discipline. The path shows judgment in three especially senior-looking ways: you separated runtime red from proof red, you separated visibility from reconstruction and verdict, and you refused closure until the live operator chain could actually move from signal to action. That reads as production-readiness reasoning, not as `I added CloudWatch dashboards`.
 
-### `Compressed Bi claim`
+`Compressed Bi claim`
 
 `Drift-visible observability attestation path` shows that you can take observability from `the platform emits signals` to a dedicated fail-closed operator-truth boundary where the active runtime path is fresh, attributable, alert-covered, runbook-linked, handle-clean, drift-visible, and safe enough to certify against without being fooled by stale surfaces, incomplete operator chains, or wrong-surface green.
 
 The next clean move is the next object in this Group 7 sequence.
 
 ## 2026-03-16 19:27:06 +00:00 - Open the Idle-safe teardown and residual-readability path by pinning its A posture, Bi posture, and why safe stop is its own Group 7 boundary after final judgment
-## `Idle-safe teardown and residual-readability path` - `object frame`
+`Idle-safe teardown and residual-readability path` - `object frame`
 
-### `Object`
+`Object`
 
 Parent group: `Run governance, observability, and evidence closure`.
 
 This object sits inside the Group 7 family that turns a successful run into governed closure rather than just `the platform finished`. Within that family, it owns safe stop and safe idle truth. Its job is not to reconstruct the run, not to append governance facts, not to prove live visibility, and not to publish the final verdict. Its narrower responsibility is: once the platform has already reached a valid closure point, can it be brought down to an idle-safe posture without hidden residual compute, hidden cost leakage, or broken evidence readability? That boundary is already explicit in `A`, in the run-process phase model, and in the production-readiness definition for idle, teardown, and residual scan.
 
-### `A posture`
+`A posture`
 
 In `A`, this path is already a real, materially seated closure corridor rather than a vague `destroy things later` idea. The entry is intentionally strict: the full-platform verdict has already been published, and only then does the platform enter the teardown corridor. The route is also explicit: final verdict first, then teardown plan, then teardown execution, then residual-risk and post-teardown readability checks, then post-teardown cost guardrail, then final closure sync. The owned outcome is `idle-safe teardown truth`: non-essential runtime is shut down or quiesced, forbidden residuals are absent, evidence remains readable after teardown, and the cost posture has been captured.
 
@@ -7275,7 +7275,7 @@ final verdict published -> managed teardown corridor -> residual and readability
 
 The important `A`-level design reading is that the platform treats successful operation and safe idling as different truths. It refuses two weak shortcuts: final verdict as a proxy for safe closure, and teardown execution as a proxy for residual-zero and readable-evidence closure.
 
-### `Bi posture`
+`Bi posture`
 
 In `Bi`, this object stops being only an end-of-run final corridor and becomes a production-ready live idle and restore boundary for the `Ops / Gov / Meta` plane and then for the integrated working platform. The readiness definition sharpens the object directly: the environment must be safely idled or closed without hidden leftovers, residual resources must be detectable, restart from idle must not corrupt the platform, and no hidden long-running cost surfaces may remain unintentionally. In the Phase 7 metric ledger that becomes concrete as `residual non-essential compute after idle = 0`, together with attributable spend and handle integrity on the active runtime path.
 
@@ -7289,7 +7289,7 @@ So the `Bi` posture is:
 
 a production-ready idle and restore boundary where the live platform can be driven to true idle, residual non-essential compute can be proven zero, post-idle evidence and readback remain usable, major spend remains attributable, restart restores the working runtime cleanly, and the same truth still holds when the ops and governance plane is coupled back into the integrated platform.
 
-### `Why this object matters`
+`Why this object matters`
 
 This object matters because without it the platform can still look impressive on the happy path: it can execute workloads, publish verdicts, append governance facts, and expose dashboards. But it loses a clean answer to whether it can be stopped safely. The `A` note says that directly: remove this path and the reviewer can fairly say the platform can run and judge itself, but has no explicit owner for safe stop and safe idle as operational truth. That is exactly the looseness the production-readiness definition rejects.
 
@@ -7306,7 +7306,7 @@ The next clean move is deriving the `system-design questions` for this object.
 ## 2026-03-16 19:27:41 +00:00 - Derive the system-design questions for the Idle-safe teardown and residual-readability path so later pressure history stays on safe post-run state as its own boundary
 For this object, the system-design interrogation should stay on safe post-run state as an owned truth boundary. It should not drift backward into final-verdict publication, and it should not drift sideways into generic cost reporting. The `A` note is very explicit: this path exists to answer whether, after the platform has already finished proving itself, it can be brought down to a safe idle state without hidden cost, hidden runtime residue, or broken evidence readability. The run-process and production-readiness docs then sharpen the same thing into deterministic shutdown, residual detection, restart-from-idle correctness, and no hidden long-running cost surfaces.
 
-## `Idle-safe teardown and residual-readability path` - `system-design questions`
+`Idle-safe teardown and residual-readability path` - `system-design questions`
 
 1. `What exactly counts as idle-safe teardown truth here?`
 
@@ -7356,7 +7356,7 @@ Several larger contracts shape it. The immediate safe-idle contract requires non
 
 If this path were weak, the platform could still execute workloads, publish a final verdict, append governance facts, and maybe even report costs later. But it would lose a clean answer to whether the environment is actually idle-safe, whether non-essential compute is really gone, whether residuals are visible, whether evidence survived teardown readably, and whether post-run cost posture is safe enough to leave unattended. The `A` note says that directly: remove this path and the system can run and judge itself, but no longer has an explicit owner for safe stop and safe idle as operational truth.
 
-### `Compressed system-design reading`
+`Compressed system-design reading`
 
 This path is really asking one hard question in several forms:
 
@@ -7388,65 +7388,65 @@ So the compressed reading is:
 The next clean move is `episode interrogation` for this path.
 
 ## 2026-03-16 19:48:46 +00:00 - Interrogate the key episodes that turned the Idle-safe teardown and residual-readability path into an earned live idle and restore boundary
-## `Idle-safe teardown and residual-readability path` - `episode interrogation`
+`Idle-safe teardown and residual-readability path` - `episode interrogation`
 
 The point here is to stop flattening every red into `shutdown failure`. This object has a narrower owned boundary than that. The `A` note fixes it clearly: after final verdict, the platform must prove that non-essential runtime is gone or quiesced, residual risk is bounded or zero, evidence remains readable, and the run is safe to leave idle. It also says this boundary exists because successful operation and safe idling are different truths.
 
-### 1. `M13.F` first attempt failed closed
+1. `M13.F` first attempt failed closed
 
 **Classification:** `execution-authority defect`, not idle-safety semantic failure.
 
 The first inherited red on this path was not `the platform cannot stop safely`. It was that the managed teardown executor lacked the required EKS and SageMaker actions to perform the teardown boundary it already owned. That is a control-surface and permission failure on the executor, not a proof that the platform's safe-idle semantics were wrong. The corrective action was therefore authority repair, not a redesign of the path.
 
-### 2. `M13.G` and `M13.H` then closed green
+2. `M13.G` and `M13.H` then closed green
 
 **Classification:** `positive inherited corridor proof`, not just planning intent.
 
 This matters because it means the path did not enter `Bi` as a theoretical closure lane. The inherited managed corridor had already proved residual-readability closure and post-teardown cost-guardrail closure with `residual_item_count=0`, `idle_safe=true`, and a published run-scoped teardown cost snapshot. So by the time `Bi` reopens the object, the system already knows how to perform end-of-run safe-idle closure under a formal managed sequence.
 
-### 3. `PHASE7_C_IDLE_DRILL_MISSING`
+3. `PHASE7_C_IDLE_DRILL_MISSING`
 
 **Classification:** `closure-boundary truth correction`, not platform regression.
 
 The first real `Bi` red on this object came from tightening the boundary, not from a newly broken runtime. The assessor could still go green without any live idle and restart receipt, so the proof boundary was corrected to fail closed unless `phase7_idle_restart_drill.json` existed and was green. The resulting `PHASE7_C_IDLE_DRILL_MISSING` red is exactly the right kind of red: it says the plane did not yet have live idle and restore proof, even though the older inherited `M13` corridor existed. That is a truthfulness improvement in the readiness boundary, not a regression in platform behavior.
 
-### 4. First live idle drill failed on `eks.describe_update` parameter shape
+4. First live idle drill failed on `eks.describe_update` parameter shape
 
 **Classification:** `controller defect`, not runtime inability to idle.
 
 This episode is one of the strongest in the path because it cleanly separates platform action from proof and control weakness. The drill controller used the wrong parameter name on `eks.describe_update`, but the platform had already entered the intended idle posture: RTDL, Case and Label, and `coredns` were at `0`, the nodegroup was already at `min=0`, `desired=0`, and nodes were draining toward zero. So the right interpretation is not `idle posture failed`. It is `the controller observing and writing the drill was weaker than the live idle action itself`.
 
-### 5. The first `Phase 7` closure candidate was withdrawn
+5. The first `Phase 7` closure candidate was withdrawn
 
 **Classification:** `method / closure-authority defect`, not safe-idle regression.
 
 This is not a red inside teardown mechanics, but it absolutely matters for this path. The first closure candidate was withdrawn because the phase had moved too quickly and the reflected artifacts had started to anchor the notebook to a patched story. For this object, that means the earlier idle and restart proof was not allowed to stand merely because some bounded slices existed. The phase was restarted from the real operator boundary. That is important because it proves the notebook is not willing to let a partially convincing idle story close the plane.
 
-### 6. Rebuilt idle and restore drill failed first on receipt serialization
+6. Rebuilt idle and restore drill failed first on receipt serialization
 
 **Classification:** `artifact-writer defect`, not live runtime failure.
 
 On the rebuilt boundary, the live runtime behavior was already correct: the nodegroup reached `min=0`, `desired=0`, node count after idle reached `0`, RTDL, Case and Label, and `coredns` all went to `0`, and restore returned the runtime to `min=2`, `desired=4` with active deployments back cleanly. The red was a JSON serialization defect on datetime-bearing update payloads. So once again, the drill says the platform action is stronger than the artifact writer around it. This is exactly the kind of narrow red a good `Bi` notebook should surface instead of misclassifying as `idle is broken`.
 
-### 7. Accepted rebuilt `Phase 7` closure
+7. Accepted rebuilt `Phase 7` closure
 
 **Classification:** `the object is now truthfully green` on the rebuilt plane boundary.
 
 By accepted rebuilt closure, this path has crossed the line from inherited terminal-teardown competence to real live idle and restore readiness. The final accepted metrics include `node count after idle = 0`, runtime restored to pre-drill shape, spend attributable by service family, `11 / 11` required handle and secret surfaces resolved, and `0` placeholder-like active handles. That is why the plan ledger can now treat residual non-essential compute after idle as proven on the rebuilt plane-ready scope.
 
-### 8. `M13.I` first attempt failed closed on budget-handle parsing
+8. `M13.I` first attempt failed closed on budget-handle parsing
 
 **Classification:** `adjacent-path cost-outcome defect`, not this path's red.
 
 This one is worth naming because it shows good boundary discipline. `M13.I` failed on invalid budget-threshold handle parsing, but that belongs to the later phase cost-outcome closure, not to `Idle-safe teardown and residual-readability path` itself. This path ends with residual and readability and post-teardown cost-guardrail truth; it does not own the later phase budget outcome parser. Calling `M13.I` a teardown-path failure would blur exactly the boundary the `A` note worked hard to pin.
 
-### 9. Idle guard workflow added afterward
+9. Idle guard workflow added afterward
 
 **Classification:** `positive operationalization / control-surface strengthening`, not rescue of a failed semantic boundary.
 
 The later idle guard work is not the reason this path became green, but it is still part of the episode reading. It adds a standing operational control surface around the same boundary: heartbeat-based idle detection, `observe_only`, `stop_services`, and `dispatch_m13_teardown` modes, OIDC-only auth, required upstream IDs for teardown dispatch, and active-run lock blocking of mutating modes. That is not `proof by workflow existence`. It is the platform taking a now-proven safe-idle boundary and turning it into an enforceable ongoing control against idle-cost drift.
 
-### `Compressed reading`
+`Compressed reading`
 
 Most reds on this path were not `the platform cannot stop safely`. They were:
 
@@ -7460,7 +7460,7 @@ Most reds on this path were not `the platform cannot stop safely`. They were:
 That is exactly why the final green matters. The object did not become strong because teardown existed. It became strong because the notebook kept separating live idle truth from the tools and receipts trying to observe or close it, and only accepted closure once true zero-node idle, readable retained evidence, attributable spend, and clean restore all lined up on the same rebuilt operator boundary.
 
 ## 2026-03-16 19:49:18 +00:00 - Synthesize how the Idle-safe teardown and residual-readability path moved from a designed teardown corridor into an earned live idle and restore boundary
-## `Idle-safe teardown and residual-readability path` - `transformation synthesis`
+`Idle-safe teardown and residual-readability path` - `transformation synthesis`
 
 The transformation is not that the platform suddenly learned how to shut down.
 `A` already had a real managed teardown corridor. In `A`, this object was already a deliberately bounded closure path that only began after full-platform verdict publication, then moved through teardown planning, teardown execution, residual and readability verification, post-teardown cost guardrail, and only then into final closure sync. So the starting point was already stronger than `we added a shutdown step`. It was: safe idle is its own owned truth, separate from both successful runtime execution and final verdict publication.
@@ -7483,7 +7483,7 @@ Or tighter:
 `Bi`: that truth is now strong enough to trust on the live platform.**
 
 ## 2026-03-16 19:49:44 +00:00 - Extract the Bi claim for the Idle-safe teardown and residual-readability path so the notebook states exactly what safe-idle judgment this work now supports
-## `Idle-safe teardown and residual-readability path` - `Bi claim`
+`Idle-safe teardown and residual-readability path` - `Bi claim`
 
 **This object supports the claim that you took safe stop from a wired end-of-run teardown corridor and turned it into a production-ready live idle and restore boundary: the platform can be driven to true idle without hidden non-essential runtime left behind, without losing readable evidence, with spend still attributable, and then restored cleanly without corrupting the active platform story.** In `A`, the path already owned safe-idle teardown truth as a distinct boundary after final verdict, with explicit teardown, residual, readability, and cost-guardrail subclosures rather than `switch things off and hope`.
 
@@ -7494,15 +7494,15 @@ So the clean `Bi` reading is:
 **You proved not just that the platform can run and judge itself, but that it can be left in a safe, economically controlled, operationally repeatable post-run state and brought back again on the real live platform boundary.** That same truth was then carried into the integrated platform proof, where idle-to-zero and post-restore runtime truth still held after `Ops / Gov / Meta` was coupled into the full platform story.
 
 ## 2026-03-16 23:18:34 +00:00 - Open the Cost guardrail and cost-to-outcome closure path by pinning its A posture, Bi posture, and why attributable spend is its own Group 7 boundary after technical closure
-## `Cost guardrail and cost-to-outcome closure path` - `object frame`
+`Cost guardrail and cost-to-outcome closure path` - `object frame`
 
-### `Object`
+`Object`
 
 Parent group: `Run governance, observability, and evidence closure`.
 
 This object sits inside the Group 7 family that turns a run from `it happened` into a governed, auditable, closable platform story. Within that family, its owned job is attributable spend truth. It does not own the final verdict, it does not own teardown execution, and it is not just a general budgeting backdrop. Its narrower responsibility is: once the platform has spent money to run, what exactly was spent, what envelope governed that spend, and what proof or risk-retirement outcome did that spend buy? In other words, this is the boundary where cost stops being ambient cloud noise and becomes explicit platform truth.
 
-### `A posture`
+`A posture`
 
 In `A`, this path is already real, narrow, and materially seated. The wired platform does not treat cost discipline as a loose operational preference. The run-process pins it as an operating law: no phase may begin unless a phase spend envelope is recorded, and no phase may close without a cost-to-outcome receipt that says what was spent, what artifacts were emitted, and what decision or risk was retired. Phase advancement is fail-closed if spend is consumed without material proof outcome. That means this path already exists in the wired system as a real closure corridor, not as a future optimization idea.
 
@@ -7518,7 +7518,7 @@ full-platform closure already achieved -> teardown and residual readability alre
 
 The important `A` reading is that the platform treats technical closure and economic closure as different truths, and forces both to become explicit.
 
-### `Bi posture`
+`Bi posture`
 
 In `Bi`, this object stops being only a terminal closure lane and becomes a live production-readiness cost accountability boundary inside the rebuilt `Ops / Gov / Meta` plane and then inside the integrated working platform. The readiness plan makes that jump visible. In the Operations and Governance and Meta ledger, cost discipline is one of the actual readiness families, not background admin: `unattributed spend = 0` is a pinned target, and the accepted closure records that the platform's visible major spend families remained attributable across RDS, S3, MSK, DynamoDB, Lambda, and API Gateway. That is a much stronger posture than `we exported a cost file after shutdown`.
 
@@ -7530,7 +7530,7 @@ So the `Bi` posture is:
 
 a production-ready cost accountability boundary where the live platform must not only emit cost artifacts, but also keep spend attributable, keep unattributed spend at zero, expose waste and idle-floor defects honestly, and show that the money consumed by a phase or plane actually bought a real proof or risk-retirement outcome.
 
-### `Why this object matters`
+`Why this object matters`
 
 This object matters because without it the platform can still look technically impressive. It can run, score, append audit truth, publish verdicts, and even shut down cleanly. But it loses a clean answer to one of the most senior-looking operational questions: what did this run cost, why was that spend acceptable, and what did the platform actually buy with it? The `A` note is very explicit that this is why the path exists. Without it, cost remains ambient cloud residue rather than owned platform truth.
 
@@ -7547,7 +7547,7 @@ The next clean move is deriving the `system-design questions` for this object.
 ## 2026-03-16 23:19:12 +00:00 - Derive the system-design questions for the Cost guardrail and cost-to-outcome closure path so later pressure history stays on attributable spend truth
 For this object, the system-design interrogation should stay on attributable spend truth. It should not drift into generic budget commentary, and it should not collapse back into teardown. The narrower question is: once the run is already technically closed and idle-safe, can the platform prove what it spent, what envelope governed that spend, and what proof or risk-retirement outcome that spend actually bought? In `Bi`, that broadens into whether spend remains attributable on the live platform and whether unattributed spend stays at zero.
 
-## `Cost guardrail and cost-to-outcome closure path` - `system-design questions`
+`Cost guardrail and cost-to-outcome closure path` - `system-design questions`
 
 1. **What exactly counts as cost-closure truth here?**
 This path is not satisfied because billing data exists somewhere. Its owned outcome is stronger: a blocker-free cost guardrail snapshot, a committed phase budget envelope, and a committed phase cost-to-outcome receipt for the run window, with spend attributable to explicit artifacts and an explicit decision or risk retired. That is the core definition the `A` note pins for this path.
@@ -7585,7 +7585,7 @@ Several larger contracts shape it at once. The phase law requires envelope-befor
 12. **What would break if this path were weak or missing?**
 The platform could still run, produce decisions, publish verdicts, and even shut down cleanly. But it would lose clean answers to: what the run cost, what envelope governed that spend, whether spend remained attributable, whether idle burn was avoided, and what proof or risk-retirement outcome the platform actually bought with that money. That would weaken the platform's closure story immediately, because technical success would no longer imply economically governed success.
 
-### `Compressed system-design reading`
+`Compressed system-design reading`
 
 This path is really asking one hard question in several forms:
 
@@ -7594,7 +7594,7 @@ This path is really asking one hard question in several forms:
 The next clean move is mapping this object to the `pressure history`.
 
 ## 2026-03-16 23:19:49 +00:00 - Map the pressure history that changed the Cost guardrail and cost-to-outcome closure path from terminal receipt discipline into a live cost-accountability boundary
-## `Cost guardrail and cost-to-outcome closure path` - `pressure history`
+`Cost guardrail and cost-to-outcome closure path` - `pressure history`
 
 The pressure history for this object is not mainly `we added cost receipts`. It is a two-stage story. First, the wired platform made cost closure a real boundary in its own right: post-teardown cost guardrail first, then phase budget plus cost-outcome closure, then only after that final sync. At the same time, the run law made cost discipline global rather than optional: no phase starts without an envelope, and no phase advances if spend was consumed without material proof outcome.
 
@@ -7621,71 +7621,71 @@ So the compressed reading is:
 The next clean move is `episode interrogation` for this path.
 
 ## 2026-03-16 23:20:20 +00:00 - Interrogate the key episodes that turned the Cost guardrail and cost-to-outcome closure path into an earned cost-accountability boundary
-## `Cost guardrail and cost-to-outcome closure path` - `episode interrogation`
+`Cost guardrail and cost-to-outcome closure path` - `episode interrogation`
 
 The point here is to stop flattening every red into `cost was bad` or `billing existed`. This object owns a narrower truth boundary: once the run is already operationally closed, can the platform prove what it spent, what envelope governed that spend, and what proof or risk-retirement outcome that spend bought? The `A` note pins that boundary explicitly, and the run and process authority makes it fail-closed at both phase entry and phase advancement.
 
-### 1. The first pressure was making cost discipline a real law, not a reporting afterthought
+1. The first pressure was making cost discipline a real law, not a reporting afterthought
 
 **Classification:** `boundary formalization`, not runtime pressure.
 
 Before this path could even be interrogated properly, the platform had to stop treating budget as soft commentary. The implementation history records the deliberate decision to encode cost-to-outcome as hard law across policy, run execution, and handle contracts, so every phase now needs a spend envelope and a post-run receipt, and phase advancement fails closed if spend lacks material proof outcome. That is not yet `cost green`; it is the move that made later reds meaningful.
 
-### 2. `M12.I` proved the path was already an operated lane before final closeout
+2. `M12.I` proved the path was already an operated lane before final closeout
 
 **Classification:** `positive governed-lane proof`, not endgame bookkeeping.
 
 The next important episode is positive, not red. `M12.I` already materialized a managed cost-outcome lane that parsed budget and cost handles, captured AWS month-to-date spend via Cost Explorer, emitted the budget envelope and cost-outcome receipt, and closed green with `aws_mtd_cost_amount=134.5162173637 USD`. That matters because it proves the object was live earlier in the platform, not invented only for `M13` cleanup.
 
-### 3. `M13.H` established the correct entry posture for terminal cost closure
+3. `M13.H` established the correct entry posture for terminal cost closure
 
 **Classification:** `upstream dependency proved`, not spend-justification complete.
 
 The green `M13.H` closure is not the same as full cost-to-outcome truth, but it is the correct upstream dependency for it. By that point the platform had already proved `idle_safe=true`, `residual_item_count=0`, and a published run-scoped teardown cost snapshot. So the path's terminal entry was honest: cost closure only opens after safe-idle posture and residual-zero posture are already real. That is exactly the sequencing the `A` note says this path requires.
 
-### 4. The first real red in `M13.I` was a handle-interpretation defect, not uncontrolled spend
+4. The first real red in `M13.I` was a handle-interpretation defect, not uncontrolled spend
 
 **Classification:** `proof-boundary / handle-interpretation defect`, not economic failure.
 
 The first fail-closed `M13.I` run did not say `the platform cannot explain its spend`. It failed because the workflow helper read numeric budget pins through a string-only path, so all threshold values came through as null and the lane correctly raised `M13-B10`. This is a very important red for the object because it proves the platform preferred strict cost truth over fake green. It would not let unreadable budget handles masquerade as valid closure.
 
-### 5. The `M13.I` rerun closed green only after numeric-budget truth was repaired
+5. The `M13.I` rerun closed green only after numeric-budget truth was repaired
 
 **Classification:** `truthful terminal closure`, not lenient retry success.
 
 The rerun is meaningful because the fix was narrow and the contract stayed strict. The workflow helper was patched to parse raw numeric handles directly, then the rerun closed green and explicitly verified the budget pins as `300.0 / 120.0 / 210.0 / 270.0`. So the platform did not widen the contract; it repaired the interpreter until the same cost-truth boundary could pass honestly.
 
-### 6. The next pressure widened the object from receipt publication to cost accumulation is an engineering boundary
+6. The next pressure widened the object from receipt publication to cost accumulation is an engineering boundary
 
 **Classification:** `waste-retirement intervention`, not cosmetic housekeeping.
 
 In `Bi`, one of the strongest posture changes is the bounded cost-hygiene pass. Instead of leaving stale proving debris in place, the platform explicitly retired rejected learning artefacts, stale SageMaker model resources, and the ingress Lambda zip pile, with measured reductions like `737.8 MiB -> 64.4 MiB` on the Lambda artefact pile, and added lifecycle prevention so the same waste would stop regrowing. This is not a billing report; it is the object starting to treat waste itself as engineering drift.
 
-### 7. The whole-platform cost review then found the real live waste shape
+7. The whole-platform cost review then found the real live waste shape
 
 **Classification:** `live runtime waste diagnosis`, not finance-only commentary.
 
 The next pressure was more production-shaped. Cost Explorer review showed that the problem was not `cloud is expensive` in the abstract. The real live waste was a huge stale ingress idempotency table (`97,745,446` items, `142,509,236,122` bytes) plus an idle EKS worker floor keeping Aurora hot. The response was to recycle the stale DDB ledger back to zero and put the EKS runtime into explicit standby, which immediately dropped Aurora CPU from about `~100%` to roughly `~17-18%` in the first samples. That is a strong episode because it turns cost truth into platform-state diagnosis rather than accounting narration.
 
-### 8. `Phase 7` opened red because live cost visibility was still incomplete
+8. `Phase 7` opened red because live cost visibility was still incomplete
 
 **Classification:** `operator-surface incompleteness`, not runtime spend chaos.
 
 When the object moved into the rebuilt `Ops / Gov / Meta` plane, the red was no longer about whether receipts existed. It was that the live cost and operator boundary was still incomplete: the operations dashboard was still ingress-only, the cost dashboard did not yet prove residual-runtime posture, and alarm coverage was missing, while the live runtime was active again with the EKS nodegroup at `min=2`, `desired=4`. So the platform rightly treated cost discipline as a live operational boundary, not a later documentation exercise.
 
-### 9. The first bounded `Phase 7` pass exposed proof defects, not spend-attribution failure
+9. The first bounded `Phase 7` pass exposed proof defects, not spend-attribution failure
 
 **Classification:** `proof-boundary defects`, not cost-boundary semantic failure.
 
 Once the live operator surface improved, the next reds came from the assessor itself. The important one for this path is that billing freshness was being judged against CloudWatch `EstimatedCharges` instead of the budget surface that actually governs the phase. Alongside the CSV readback and drift-probe issues, that showed the proof boundary was still misreading live truth. The right move was therefore to fix the bounded assessor, not to widen the cost claim or pretend the platform itself had failed.
 
-### 10. The accepted rebuilt `Phase 7` closure made cost accountability a live plane-readiness claim
+10. The accepted rebuilt `Phase 7` closure made cost accountability a live plane-readiness claim
 
 **Classification:** `truthfully green live cost boundary`, not just terminal receipt success.
 
 By accepted rebuilt closure, the object had clearly widened beyond end-of-run receipts. The plane was green only once the budget surface was readable, spend was attributable by service family, node count after idle was `0`, runtime restored to pre-drill shape, and handle integrity stayed clean. That is the decisive `Bi` move for this path: cost truth is no longer only `we published envelope + receipt after teardown`. It is now `the live platform's spend is attributable, challengeable, and tied to idle and restoration truth on the operator boundary`.
 
-### `Compressed reading`
+`Compressed reading`
 
 Most of the important reds on this path were not `we spent too much money`. They were:
 
@@ -7700,7 +7700,7 @@ That is exactly why the final green matters. The object did not become strong be
 The next clean move is the `transformation synthesis` for this object.
 
 ## 2026-03-16 23:20:56 +00:00 - Synthesize how the Cost guardrail and cost-to-outcome closure path moved from designed receipt discipline into an earned live cost-accountability boundary
-## `Cost guardrail and cost-to-outcome closure path` - `transformation synthesis`
+`Cost guardrail and cost-to-outcome closure path` - `transformation synthesis`
 
 The transformation is not that the platform suddenly started caring about cost.
 `A` already made this a real closure boundary. In `A`, the path is already a distinct post-run corridor: after final verdict and after teardown, residual, and readability closure, the platform still is not fully closed until it commits a cost guardrail snapshot, a phase budget envelope, and a phase cost-to-outcome receipt. That means the starting posture was already strong: technical closure and economic closure were treated as different truths, and the platform already refused the shortcut of `the run is done, so the spend must have been fine`.
@@ -7738,7 +7738,7 @@ Or tighter:
 `Bi`: that truth now governs the live platform.**
 
 ## 2026-03-16 23:21:24 +00:00 - Extract the Bi claim for the Cost guardrail and cost-to-outcome closure path so the notebook states exactly what cost-accountability judgment this work now supports
-## `Cost guardrail and cost-to-outcome closure path` - `Bi claim`
+`Cost guardrail and cost-to-outcome closure path` - `Bi claim`
 
 This object supports the claim that you turned cost discipline from a post-run receipt corridor into a live production-readiness boundary. In the wired platform, the path already exists to turn a fully closed run into attributable spend truth through a cost guardrail snapshot, a phase budget envelope, and a phase cost-to-outcome receipt. What makes it a `Bi` claim is that this same boundary now governs the platform while it is being operated: spend is not allowed to sit as ambient cloud residue, phase progress is not allowed on unattributed or spend-only consumption, and economic closure is treated as part of platform truth rather than a finance afterthought.
 
@@ -7749,7 +7749,7 @@ A tighter one-line version for the notebook is:
 **`Cost guardrail and cost-to-outcome closure path` shows that you moved cost from passive reporting into active platform discipline: spend must stay attributable, tied to explicit proof or risk-retirement outcome, and clean enough on the live platform to support a real production-readiness claim rather than a vague `the system worked` story.**
 
 ## 2026-03-17 05:25:29 +00:00 - Transition notebook weight from remaining lower-yield primary objects to the secondary enlarged-network objects while retaining full primary-layer scope
-## `Transition note` - keep `P6` and `P7` in scope, but move the main notebook weight to the secondary enlarged-network objects
+`Transition note` - keep `P6` and `P7` in scope, but move the main notebook weight to the secondary enlarged-network objects
 
 At this point, the right move is not to drop `P6 - Durable audit, archive, and replay truth` or `P7 - Run and world-source authority`. The `Bi` method already pins that the inventory is complete and non-negotiable, and that ranking is allowed to control only interrogation order, depth of treatment, and reader payoff, not inclusion. So these objects remain part of the notebook's object universe even if they are no longer the best immediate standalone openings.
 
@@ -7780,13 +7780,13 @@ A tighter one-line version for the ledger is:
 **`Bi` now transitions from remaining lower-yield primary objects to the secondary enlarged-network objects: `P6` and `P7` stay explicitly in scope, but the main notebook weight shifts to `S1..S7`, with `S1 - Control + Ingress` opening next as the clearest re-pressured base object.**
 
 ## 2026-03-18 00:00:00 +00:00 - Open S1 afresh as the first secondary enlarged-network object by framing Control + Ingress as the re-pressured working-platform base
-## `Object`
+`S1 - Control + Ingress as the re-pressured working-platform base` - `object frame`
 
 `S1` = `Control + Ingress as the re-pressured working-platform base`
 
 This is a secondary-layer enlarged-network object, and it opens first because `Bi` has to keep the inherited base visible. The point is not merely that later planes went green; it is that the already-working system had to stay green under repeated enlarged coupling. That is why the notebook ranks `S1` first and pairs it with `P1 - Canonical traffic admission and bus publication`.
 
-## `A posture`
+`A posture`
 
 In `A`, `S1` is not just `there is an ingress service`. It is the smallest already-serious working-platform base formed by two bound structures.
 
@@ -7798,7 +7798,7 @@ So the clean `A` posture of `S1` is:
 
 That is enough to make `Control + Ingress` the first real working-platform base in `A`, rather than a loose collection of edge plumbing.
 
-## `Bi posture`
+`Bi posture`
 
 In `Bi`, this same object stops being `the thing that was already there` and becomes the inherited base that later readiness work must not silently regress. The notebook is explicit that `Control + Ingress` is the clearest example of a base object that stayed visible and had to be re-pressured as later planes attached. The plan matches that exactly: readiness is plane-first, then network-coupled; the only materially working starting plane is `Control + Ingress`; and Phase 0 exists to reconfirm that base under the same bounded-production method later planes will use.
 
@@ -7811,7 +7811,7 @@ Its `Bi` posture is therefore stronger than `wired and working`. It is:
 
 The plan's own closure language shows the earned result: the Control + Ingress metric family is proven on the exact APIGW-scored closure authority and remains the working-platform base.
 
-## `Why this object mattered`
+`Why this object mattered`
 
 `S1` matters because without it, `Bi` would drift into a misleading story where only the new planes seem to matter. But your own method rejects that. The harder readiness question is whether the inherited base kept its truth while the network enlarged around it. That is exactly why the notebook says some of the most important `Bi` reasoning lives at enlarged-network scope rather than inside one local path, and why `Control + Ingress` is singled out as the clearest repeated re-pressure object.
 
@@ -7824,7 +7824,7 @@ More concretely, this object is what prevents later `RTDL`, `Case + Label`, and 
 
 while enlarged coupling was added around it.
 
-## `Concern`
+`Concern`
 
 The core concern for `S1` is:
 
@@ -7835,7 +7835,7 @@ That concern has two sides:
 * local base truth: edge, admission, publication, ingest evidence, recovery, and truthful scoring
 * enlarged-network non-regression: later planes must not turn a once-green base into a falsely green, stale-scoped, or silently regressed base
 
-## `Measurement`
+`Measurement`
 
 The measurement family for `S1` starts with the Phase 0 Control + Ingress standard:
 
@@ -7855,12 +7855,12 @@ Then, once the network enlarges, the measurement family is re-asked at coupled-n
 
 The accepted base closure metrics show why `S1` can be treated as earned rather than assumed: steady `3025.30 eps`, burst `6019.50 eps`, recovery `3019.21 eps`, `4xx = 0`, `5xx = 0`, zero Lambda errors and throttles, zero DLQ delta, and immediate recovery-to-green.
 
-## `One-line object frame`
+`One-line object frame`
 
 `S1` is the enlarged-network object that keeps the already-working `Control + Ingress` base visible in `Bi`: in `A` it is the platform's first governed control-and-runtime-entry base, and in `Bi` it becomes the re-pressured working-platform base whose edge, ingress truth, bus continuity, and ingest-evidence story must stay trustworthy while later planes attach.
 
 ## 2026-03-18 08:44:40 +00:00 - Derive the system-design questions for S1 so the secondary-layer interrogation stays on Control + Ingress as the re-pressured working-platform base
-## `S1 - system-design questions`
+`S1 - system-design questions`
 
 Yes. For `S1`, the questions have to stay at base-object scope. This is not yet the `Boundary access path` or the `Admission and disposition path` on their own. It is the larger question of what it means for `Control + Ingress` to count as the first trustworthy working-platform base, and then to remain trustworthy as later planes enlarge the network around it. That is exactly why `S1` opens the secondary layer and why the plan starts from `Control + Ingress` as the only materially working plane.
 
@@ -7907,54 +7907,54 @@ Compressed into one line:
 The next clean move is to map `S1` to the pressure episodes that actually changed its posture.
 
 ## 2026-03-18 08:45:16 +00:00 - Map the pressure episodes that changed S1 from a wired inherited base into a re-proved enlarged-network working-platform base
-## `S1 - pressure episodes that actually changed its posture`
+`S1 - pressure episodes that actually changed its posture`
 
 Yes. At `S1` scope, the pressure episodes are the ones that changed whether `Control + Ingress` could still be treated as the trustworthy working-platform base. That means not every ingress event, and not just one path. It means the episodes that changed the base's boundary truth, proving truth, runtime truth, evidential truth, and later re-pressured non-regression truth.
 
-### `Episode 1 - the base was not yet one provable live base; it was still boundary-drift vulnerable`
+`Episode 1 - the base was not yet one provable live base; it was still boundary-drift vulnerable`
 
 At the start of fresh `Phase 0`, `Control + Ingress` was not yet a clean working-platform base because the proving loop could still drift onto the stale internal ALB story. The active front door was API Gateway `v1 -> POST /ingest/push -> IG Lambda`, but the stale SSM service URL still pointed at the retained ALB surface, and the wrapper was not yet forcing the execute-api URL explicitly. That means `S1` began in a posture where the base existed, but the thing being proved could still be the wrong base. The accepted bridge was to force the execute-api boundary explicitly and treat the keyed health contract honestly. That changed `S1` from declared base to single live base under proof.
 
-### `Episode 2 - the first red on the base turned out to be proving-shape under-drive, not base failure`
+`Episode 2 - the first red on the base turned out to be proving-shape under-drive, not base failure`
 
 Once the correct edge was forced, the first bounded run still went red, but the evidence showed the base was not actually failing in the way a bad working-platform base would fail: valid-traffic `4xx` and `5xx` stayed `0`, DLQ stayed flat, Lambda errors and throttles stayed `0`, and the main problem was that WSP was materially under-driving the declared load. This changed `S1` because it separated weak base from weak proving shape. The accepted bridge was to repin WSP to the stronger already-proven posture rather than start remediating the base itself. That moved `S1` from ambiguous red base to truthfully pressured base candidate.
 
-### `Episode 3 - after harness correction, the base exposed a real runtime insufficiency`
+`Episode 3 - after harness correction, the base exposed a real runtime insufficiency`
 
 Once the stronger WSP posture removed the under-drive ambiguity, `S1` stopped being blocked by the harness and started showing a real runtime problem. With `IG_HEALTH_BUS_PROBE_MODE` corrected to `none`, the `600`-concurrency run was semantically clean but badly under target, and the naive `900`-concurrency probe made the base materially worse by surfacing `KAFKA_PUBLISH_TIMEOUT`, `PUBLISH_AMBIGUOUS`, quarantine artifacts, and lane-level `IG_PUSH_REJECTED`. This is a genuine `S1` episode because it changed the meaning of the working-platform base from `apparently there` to `not yet production-ready under its declared envelope`. The accepted bridge was not to keep the more aggressive posture; it was to preserve the semantically trustworthy `600` baseline and treat the hot path as the real blocker. That changed `S1` from truthfully pressured but insufficient to base under disciplined runtime diagnosis.
 
-### `Episode 4 - the base could not be judged honestly until observability itself stopped lying`
+`Episode 4 - the base could not be judged honestly until observability itself stopped lying`
 
 The next posture change for `S1` was not runtime behavior but proof visibility. The first timing-telemetry deployment broke the run with a helper `NameError`, so the base briefly became unjudgeable for a proving-agent reason rather than a platform reason. After the helper was repaired, the base became attributable: gate-init cost, admit-path cost, and long duplicate and in-flight quarantine paths were visible. At object scope, this changed `S1` from runtime red but opaque to runtime red and explainable, which is a much stronger working-platform-base posture.
 
-### `Episode 5 - the base was failing closed for the wrong reason`
+`Episode 5 - the base was failing closed for the wrong reason`
 
 A very important `S1` shift came when benign governance append contention (`S3_APPEND_CONFLICT`, live `ConditionalRequestConflict`) was being interpreted as `OBJECT_STORE_UNHEALTHY`, causing valid traffic to fail closed for the wrong reason. This is bigger than one path problem: if the base's health semantics lie, then the whole working-platform base is untrustworthy. Broadening the benign exception family changed `S1` materially. After that fix, the same bounded runs became semantically clean at essentially target rate. That moved `S1` from strict but untruthful fail-closed base to truthful fail-closed base.
 
-### `Episode 6 - once semantics were clean, the active blocker moved from the base to the proof boundary`
+`Episode 6 - once semantics were clean, the active blocker moved from the base to the proof boundary`
 
 After the health-classification fix, the base itself was no longer the active semantic blocker. The remaining red lived in the coarse minute-aligned APIGW metric view, while the exact APIGW access-log window on the same runs showed the base actually clearing target repeatedly (`3023.950 eps`, `3024.642 eps`). This is a real posture change for `S1`: the working-platform base stopped being a runtime-readiness problem and became a proof-boundary problem. The accepted bridge was to codify the exact APIGW-side proof surface rather than keep over-remediating the base. That changed `S1` from almost-green base on a weak scorer to truthfully green base on the right scorer.
 
-### `Episode 7 - the base had to become single-owned and governable, not just green`
+`Episode 7 - the base had to become single-owned and governable, not just green`
 
 Even after the base was truthfully green, `S1` was still not in its final posture because the retained internal ingress ALB, ECS, and SSM story remained materially present in cost surfaces, helper resolution, and older reflections. Reconciling away the obsolete ingress stack, deleting the stale SSM service URL, codifying APIGW telemetry in Terraform, and aligning the graphs with the accepted live story changed `S1` again. This is the move from green enough base to governable, single-owned, non-drifting base.
 
-### `Episode 8 - the accepted cheaper posture had to hold without reopening the base`
+`Episode 8 - the accepted cheaper posture had to hold without reopening the base`
 
 A smaller but still real posture change came when the cost cleanup was accepted only after the same frozen truthful baseline still held on the exact-window gate. File-backed checkpoints, bounded log retention, and other accepted cheaper proving posture changes did not reopen the base. That matters for `S1` because it shows the working-platform base had become stable enough that cost-tightening no longer destabilized its truth story. The base was not only green; it was green under accepted proving discipline.
 
-### `Episode 9 - later enlarged-network coupling turned S1 into a re-pressured base, not a finished local plane`
+`Episode 9 - later enlarged-network coupling turned S1 into a re-pressured base, not a finished local plane`
 
 This is the final object-scope shift. `S1` did not disappear once `Phase 0` went green. The `Bi` notebook explicitly resets around the fact that `Control + Ingress` is the clearest inherited base that had to remain visible and stay green as later planes attached. So the final posture of `S1` is not just `Phase 0 closed`. It is a reaffirmed working-platform base that later objects are allowed to borrow trust from. That is the reason `S1` exists in the secondary layer at all.
 
-## `What this means for S1 in one line`
+`What this means for S1 in one line`
 
 `S1` changed posture when the platform progressively turned Control + Ingress from a merely wired, partly drift-vulnerable base into a single-lived, truthfully pressured, truthfully scored, cost-disciplined, governable base that later enlarged networks could safely inherit.
 
 The next clean move is to interrogate these episodes.
 
 ## 2026-03-18 08:45:53 +00:00 - Interrogate the key episodes that turned S1 from an inherited wired base into a trustworthy re-pressured working-platform base
-## `S1` — interrogated pressure episodes
+`S1` — interrogated pressure episodes
 
 Yes. For `S1`, the interrogation has to stay at base-object scope:
 
@@ -7967,9 +7967,7 @@ So the right interrogation question for every episode is:
 
 ---
 
-## `S1` — interrogated pressure episodes
-
-### `Episode 1 — boundary drift meant the base was not yet one provable live base`
+`Episode 1 — boundary drift meant the base was not yet one provable live base`
 
 **What surfaced**
 At restart, the active front door was already known to be `API Gateway v1 -> POST /ingest/push -> IG Lambda`, but the proving wrapper still was not forcing the execute-api ingest URL, and `/fraud-platform/dev_full/ig/service_url` still pointed to the retained internal ALB surface. The health probe also turned out to be truthful only when exercised with the same API key contract the runtime expects.
@@ -7991,7 +7989,7 @@ Because it did not simplify the base by weakening its contract. It made the base
 
 ---
 
-### `Episode 2 — the first red was a proving-shape defect, not a weak base`
+`Episode 2 — the first red was a proving-shape defect, not a weak base`
 
 **What surfaced**
 The first fresh bounded run on the corrected edge was red on throughput (`1734.125 eps` vs `3000`), but it stayed clean on the usual semantic indicators: `4xx = 0`, `5xx = 0`, flat DLQ, zero Lambda errors, zero throttles. The lane evidence showed the WSP side was materially under-driving the boundary.
@@ -8013,7 +8011,7 @@ Because `S1` is supposed to prove a trustworthy base, not absorb blame for a sou
 
 ---
 
-### `Episode 3 — after harness correction, a real runtime insufficiency appeared`
+`Episode 3 — after harness correction, a real runtime insufficiency appeared`
 
 **What surfaced**
 After the stronger WSP posture and the `IG_HEALTH_BUS_PROBE_MODE` correction, the base reached a truthful runtime red: semantically clean, but badly under target at `600` reserved concurrency. Then the naive `900`-concurrency probe made the base materially worse: `IG_PUSH_REJECTED`, `KAFKA_PUBLISH_TIMEOUT`, `PUBLISH_AMBIGUOUS`, and quarantine artifacts on valid traffic.
@@ -8035,7 +8033,7 @@ Because it protected the most important property of `S1`: the base must stay sem
 
 ---
 
-### `Episode 4 — the base could not be judged honestly until observability itself stopped lying`
+`Episode 4 — the base could not be judged honestly until observability itself stopped lying`
 
 **What surfaced**
 The first request-timing deployment broke the run with a helper `NameError`, making the run invalid proof. After the timing helper was repaired and redeployed, the base became much more readable: gate init around `~1.4 s`, successful admit-path work still expensive, and some long-running `QUARANTINE` cases stretching into `11–15 s`.
@@ -8057,7 +8055,7 @@ Because it did not modify the base's semantics. It removed blindness around them
 
 ---
 
-### `Episode 5 — the base was failing closed for the wrong reason`
+`Episode 5 — the base was failing closed for the wrong reason`
 
 **What surfaced**
 Benign governance append contention (`S3_APPEND_CONFLICT`, live `ConditionalRequestConflict`) was being interpreted as `OBJECT_STORE_UNHEALTHY`, which then caused valid traffic to fail closed through `IG_UNHEALTHY:OBJECT_STORE_UNHEALTHY`. After broadening the benign exception family, reruns immediately became semantically clean and nearly on target.
@@ -8079,7 +8077,7 @@ Because it did not weaken fail-closed behavior in general. It made fail-closed b
 
 ---
 
-### `Episode 6 — once semantics were clean, the blocker moved to the proof boundary`
+`Episode 6 — once semantics were clean, the blocker moved to the proof boundary`
 
 **What surfaced**
 After the store-health fix, the base stayed semantically clean with `4xx = 0`, `5xx = 0`, low latency, and near-target throughput, while the remaining miss lived in the coarse minute-bin scoring surface. The exact APIGW access-log window, once enabled and verified, showed repeated green runs over the same truthful baseline: `3023.950 eps`, `3024.642 eps`, and later `3018.458 eps` on the accepted cheaper proving posture.
@@ -8101,7 +8099,7 @@ Because it kept the target fixed and the truthful baseline fixed. It corrected t
 
 ---
 
-### `Episode 7 — the accepted cheaper posture had to hold without reopening the base`
+`Episode 7 — the accepted cheaper posture had to hold without reopening the base`
 
 **What surfaced**
 The cost pass showed DynamoDB write amplification was real, but shifting receipt storage to `object_store` immediately collapsed the live envelope into `IG_PUSH_REJECTED`, `KAFKA_PUBLISH_TIMEOUT`, and `PUBLISH_AMBIGUOUS`. The accepted bridge kept `ddb_hot`, compacted receipt bodies, bounded WSP log retention, moved WSP checkpoints to file for bounded proof, and then reran the same frozen truthful baseline successfully.
@@ -8123,7 +8121,7 @@ Because it preserved the base's semantic integrity and its accepted proof shape,
 
 ---
 
-### `Episode 8 — the retained internal ingress story had to be removed from the live base`
+`Episode 8 — the retained internal ingress story had to be removed from the live base`
 
 **What surfaced**
 Even after truthful green closure, the retained internal ALB, ECS, and SSM ingress surface still existed materially and still contaminated older reflections. The runtime reconcile removed the obsolete internal ingress surface, deleted the stale SSM URL, made the ECS cluster inactive, codified APIGW metrics and access logs in Terraform, and restored single ownership of the telemetry surface.
@@ -8145,7 +8143,7 @@ Because it closed the last gap between `the base is green` and `the base is gove
 
 ---
 
-### `Episode 9 — the base became something later planes were allowed to inherit`
+`Episode 9 — the base became something later planes were allowed to inherit`
 
 **What surfaced**
 By the end of Phase 0, the accepted closure was green on steady, burst, and recovery with `4xx = 0`, `5xx = 0`, Lambda clean, DLQ flat, exact APIGW proof, and later repo-authority and graph updates reflecting the closure. The notebook then explicitly treats `Control + Ingress` as the re-pressured working-platform base for later enlarged-network objects.
@@ -8167,7 +8165,7 @@ Because `Bi` is not trying to prove `some runs went green`. It is trying to prov
 
 ---
 
-## `What this interrogation says about S1`
+`What this interrogation says about S1`
 
 The real transformation of `S1` is not:
 
@@ -8182,9 +8180,9 @@ That is why `S1` is a strong opening secondary object for `Bi`: it exposes the e
 The next clean move is the `S1 transformation synthesis`.
 
 ## 2026-03-18 09:22:27 +00:00 - Synthesize how S1 moved from an inherited working base into the trustworthy re-pressured Control + Ingress base
-## `S1 - Control + Ingress as the re-pressured working-platform base`
+`S1 - Control + Ingress as the re-pressured working-platform base`
 
-### `object transformation synthesis`
+`object transformation synthesis`
 
 In `A`, `Control + Ingress` was already more than `some ingress services exist`. It was the platform's first serious working base because Group 1 established governed legitimacy, one run basis, one source-world basis, one ready authority, and Group 2 established governed runtime-entry truth, one real ingress boundary, deterministic ingress disposition, authoritative bus handoff, and committed ingest truth. That is the pre-pressure object `S1` inherits.
 
@@ -8198,7 +8196,7 @@ It is:
 
 > the platform turned `Control + Ingress` from an already-serious but still pressure-untested base into the trustworthy re-pressured working-platform base that later enlarged networks were allowed to inherit.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 First, the base had to stop being merely declared and become single and provable. The proving loop could still fall back to the stale ALB URL until the execute-api target was forced explicitly, which meant the base was not yet one truthful live boundary under proof. `S1` could not become a trustworthy base while two ingress stories were still materially in play.
 
@@ -8216,7 +8214,7 @@ Seventh, the base had to become operationally sane without surrendering truth. T
 
 Eighth, even after it was truthfully green, the base had to become single-owned and drift-cleared. The retained internal ingress ALB, ECS, and SSM surface still existed materially and still contaminated the reflected story until it was reconciled away. Removing that obsolete ingress surface and codifying the APIGW telemetry in Terraform changed `S1` from `green enough base` into a governable base with one live ingress story.
 
-### `What this object became`
+`What this object became`
 
 By the accepted bounded closure, the base held the exact requirements the plan said mattered: steady, burst, and recovery green; `4xx = 0`; `5xx = 0`; Lambda errors and throttles at `0`; DLQ delta at `0`; and the metric family judged proven on the exact APIGW-scored authority. That is why the plan now treats `Control + Ingress` as the working-platform base rather than merely as a plane that once had a good run.
 
@@ -8233,7 +8231,7 @@ To move `S1` from its `A` posture to its `Bi` posture, the platform had to resol
 7. hot-path cost waste without weakening the truth boundary
 8. retained ingress drift that kept the accepted story from matching the live system
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of `S1` is:
 
@@ -8242,7 +8240,7 @@ The final `Bi` posture of `S1` is:
 That is the object-level transformation. The next clean move is the `Bi claim mix` for `S1`.
 
 ## 2026-03-18 09:22:56 +00:00 - Extract the Bi claim mix for S1 so the notebook states exactly what working-platform-base judgment this object now supports
-## `S1 - Bi claim mix`
+`S1 - Bi claim mix`
 
 1. `Readiness-reasoning claim`
 `S1` supports the claim that you can reason a working-platform base to readiness by classifying different reds correctly instead of flattening everything into `ingress is bad`. Its posture only changed because the work kept separating boundary ambiguity, harness under-drive, true runtime insufficiency, observability blindness, false fail-closed health semantics, proof-boundary distortion, and live-topology drift, and then chose a different bridge for each one while preserving semantic truth.
@@ -8266,13 +8264,13 @@ That is the object-level transformation. The next clean move is the `Bi claim mi
 `S1` shows that you can turn a merely wired control-and-ingress base into a trustworthy working-platform base by making the front door singular, the pressure truthful, the health semantics honest, the scoring surface exact, and the live topology clean enough that later planes can safely inherit it.
 
 ## 2026-03-18 09:23:20 +00:00 - Open S2 as the first enlarged working network by framing Control + Ingress + RTDL as the first coupled network that must hold together under live pressure
-## `Object`
+`S2 - Control + Ingress + RTDL as the first enlarged working network` - `object frame`
 
 `S2` = `Control + Ingress + RTDL` as the first enlarged working network.
 
 This is the first secondary object where the platform stops being `a working base plus a separately hardening runtime plane` and has to prove one joined network: ingress is live, the bus handoff is live, RTDL is live, and the whole chain remains trustworthy under the retained production envelope. The plan is explicit that this phase exists to prove the first real working network beyond `Control + Ingress`.
 
-## `A posture`
+`A posture`
 
 In `A`, `S2` does not yet exist as a production-ready enlarged network. What exists instead are the two pre-pressure meanings that later have to be coupled honestly.
 
@@ -8282,7 +8280,7 @@ So the clean `A` posture of `S2` is:
 
 **a proven Control + Ingress base handing admitted traffic and context onto the bus, plus a separately meaningful RTDL runtime corridor that is wired to consume that truth, but not yet earned as one enlarged working network.**
 
-## `Bi posture`
+`Bi posture`
 
 In `Bi`, `S2` becomes the first enlarged network that has to be judged as one thing.
 
@@ -8306,7 +8304,7 @@ So the `Bi` posture is:
 
 **a production-ready first enlarged network where the retained Control + Ingress base and the live RTDL runtime now hold together on a fresh coupled scope with real current-run participation, truthful cross-plane continuity, and bounded semantic and runtime behavior.**
 
-## `Why this object mattered`
+`Why this object mattered`
 
 `S2` matters because this is the first point where the platform can no longer hide behind `the base is green` or `RTDL exists`.
 
@@ -8316,7 +8314,7 @@ This object forces the first truly production-shaped question beyond ingress:
 
 That is why the plan elevates it into its own coupled-network readiness object, and why the `Bi` notebook ranks it immediately after `S1`. It is the first place where `healthy ingress with dark downstream runtime` becomes an unacceptable false green.
 
-## `Concern`
+`Concern`
 
 The core concern for `S2` is:
 
@@ -8329,7 +8327,7 @@ That concern breaks into a few object-level worries:
 * RTDL health surfaces must distinguish advisory replay noise from true semantic and runtime red
 * and ingress must not only stay green because RTDL is dark, starved, or serving stale pods
 
-## `Measurement`
+`Measurement`
 
 The measurement family for `S2` is explicitly cross-plane.
 
@@ -8344,14 +8342,14 @@ The plan pins the coupled-network focus as:
 
 The ledger also pins the RTDL family itself: `CSFB false-ready rate`, `IEG` lag, checkpoint, and backpressure, `OFP` freshness and restart-to-green, false missing-feature rate, false fail-closed rate, `DF` fail-closed and quarantine, decision latency, `DLA` append and replay divergence, and archive writer integrity. Then the accepted coupled closure compresses that family into the authoritative fresh-scope verdict: steady `3035.833`, burst `6227.000`, recovery `3020.050`, `4xx = 0`, `5xx = 0`, ingress `p95/p99` low, `IEG apply_failure_count = 0`, no blocker ids, and material RTDL participation without accepted fail-closed, quarantine, or archive regression.
 
-## `One-line object frame`
+`One-line object frame`
 
 `S2` is the first enlarged working-network object: in `A`, it exists only as a wired relationship between the proven Control + Ingress base and the separately meaningful RTDL runtime corridor; in `Bi`, it becomes the first production-ready coupled network where ingress, event-bus handoff, and live RTDL participation all have to remain current-run, continuous, and semantically trustworthy under the retained envelope.
 
 The next clean move is deriving the `system-design questions` for `S2`.
 
 ## 2026-03-18 09:23:54 +00:00 - Derive the system-design questions for S2 so the enlarged-network interrogation stays on the first real working network beyond ingress
-## `S2 - system-design questions`
+`S2 - system-design questions`
 
 Yes. For `S2`, the questions have to stay at enlarged-network scope. This object is not `RTDL, but next`. It is the first place where the notebook has to ask whether the already-working `Control + Ingress` base and the now-live RTDL corridor actually hold together as one production-worthy network. That is exactly why `S2` is ranked as the first real enlarged production network beyond ingress, and why Phase 2 is framed around continuity, live participation, and stable coupled behavior rather than around one component's local health.
 
@@ -8395,7 +8393,7 @@ Compressed into one line:
 The next clean move is to map `S2` to the pressure episodes that actually changed its posture.
 
 ## 2026-03-18 09:24:31 +00:00 - Map the pressure episodes that changed S2 from a maybe-coupled story into the first trustworthy enlarged working network
-## `S2 - pressure episodes that actually changed its posture`
+`S2 - pressure episodes that actually changed its posture`
 
 Yes. At `S2` scope, the pressure history has to stay at the level of the first enlarged working network, not drift into a list of RTDL-local bugs.
 
@@ -8403,58 +8401,58 @@ So the question for every episode is:
 
 **what changed whether `Control + Ingress + RTDL` deserved to count as one trustworthy working network, with real current-run RTDL participation, real handoff continuity, and no false green from stale scope or dark downstream runtime?**
 
-### `Episode 1 - the object first had to stop being green ingress plus maybe-live RTDL and become a fresh-scope coupled question`
+`Episode 1 - the object first had to stop being green ingress plus maybe-live RTDL and become a fresh-scope coupled question`
 
 Before the coupled proof stabilized, the notebook and plan had already changed the meaning of the object itself. `S2` is explicitly the first real working network beyond `Control + Ingress`, and the plan says the coupled question is not just whether ingress stays green, but whether RTDL is actually consuming and deciding on the same current run without downstream starvation or stale scope. That changes the posture immediately: `S2` begins as a **fresh-coupled legitimacy problem**, not merely `attach RTDL and see what happens`.
 
-### `Episode 2 - the first fresh coupled red showed the network was failing before RTDL meaningfully formed`
+`Episode 2 - the first fresh coupled red showed the network was failing before RTDL meaningfully formed`
 
 One of the earliest decisive coupled episodes showed the enlarged network was not yet truly forming. On the fresh-scope closure candidate, ingress request timing showed `decision = QUARANTINE` with `reason.PUBLISH_AMBIGUOUS`, requests spent `12-27 s` in the handler, and the RTDL hot snapshot showed almost no downstream participation at all: `DF decisions_total = 0`, `AL intake_total = 0`, `case / label = 0`. That changed `S2` because it proved the object was not yet `RTDL went red under load`; it was `the coupled network is still collapsing at the ingress publish boundary before real runtime participation exists`.
 
-### `Episode 3 - fresh-scope coupling exposed a run-scoped ingress defect that did not exist in reused-scope near-greens`
+`Episode 3 - fresh-scope coupling exposed a run-scoped ingress defect that did not exist in reused-scope near-greens`
 
 The same evidence narrowed the cause further. Fresh-scope runs were surfacing `PUBLISH_AMBIGUOUS`, while reused-scope coupled runs were near-green. The reason was that the Lambda handler cached the whole ingress gate by `platform_run_id`, and gate construction also built a fresh Kafka publisher, so each fresh run forced producer cold-start on the hot path. The accepted bridge was to keep the gate run-scoped but move the Kafka publisher behind a process-level shared cache. This changed `S2` from **fresh-scope coupled collapse** to **fresh-scope coupling that could at least form honestly.**
 
-### `Episode 4 - the object then had to survive the distinction between local ingress red and real coupled-network red`
+`Episode 4 - the object then had to survive the distinction between local ingress red and real coupled-network red`
 
 Even after the ingress producer patch, not every fresh-scope red meant the same thing. One fresh retry scope collapsed hard with `474.519 eps`, `4xx = 762`, `5xx = 2222`, repeated `http_503`, `IG_PUSH_REJECTED`, and quarantine receipts. That changed the active question again: had the rematerialized coupled network exposed a real enlarged-network regression, or was the run still being defeated before meaningful RTDL participation formed? This matters at `S2` scope because the first enlarged working network can only be promoted once the platform can tell the difference between **base-side coupled failure** and **downstream RTDL failure**.
 
-### `Episode 5 - false fresh-scope green had to be disqualified when the downstream side was actually stale`
+`Episode 5 - false fresh-scope green had to be disqualified when the downstream side was actually stale`
 
 A very important posture change came when a fresh-scope coupled green was found to be riding stale RTDL pods. The new ReplicaSets were stuck in `ImagePullBackOff`, the old pods were still `Running`, and kubelet was trying to pull the shorthand image from Docker Hub instead of ECR. That means ingress could stay green while the supposed fresh downstream runtime was not actually fresh. This episode is one of the most important for `S2`, because it changes the object from `coupled green exists` to `coupled green is only valid when downstream current-run participation is materially fresh`.
 
-### `Episode 6 - rematerialization had to become materially current-run before the coupled network could be trusted`
+`Episode 6 - rematerialization had to become materially current-run before the coupled network could be trusted`
 
 After the image-normalization fix, the next fresh scope was different in a way that matters for `S2`: RTDL and case/label deployments were all `1/1` on the full ECR digest, current pods were young and `Running`, and the runtime secrets decoded to the new `platform_run_id`. That changed the object from **nominally rematerialized** to **materially current-run at the runtime surface**, which is necessary before any continuity claim across `Ingress -> Event Bus -> RTDL` can count as trustworthy.
 
-### `Episode 7 - with fresh runtime really live, RTDL participation became materially visible`
+`Episode 7 - with fresh runtime really live, RTDL participation became materially visible`
 
 Once the stale-pod defect was out of the way, the pressure history stopped being `is RTDL really there?` and started being `what kind of RTDL truth is actually being produced?` The notes around the RTDL path and OFP path make clear that once RTDL is attached to the working ingress base, feature readiness, decisioning, append truth, and archive truth stop being only plane-local concerns and become part of the first coupled runtime-truth boundary. This is the episode where `S2` stops being a base-plus-attachment story and becomes a **real enlarged runtime network** with current-run downstream surfaces that can now go semantically right or wrong.
 
-### `Episode 8 - replay-era false-red had to be separated from true current-run operator health`
+`Episode 8 - replay-era false-red had to be separated from true current-run operator health`
 
 Another important posture change was that the coupled network could no longer be judged on raw `watermark old = red` logic. The RTDL readiness work had already shown that projector surfaces like `IEG` could be mutating current-run traffic with fresh checkpoints and zero apply failures while still reporting hard `RED / WATERMARK_TOO_OLD`. The accepted posture moved these into replay-aware advisory semantics rather than false hard red. At `S2` scope, that changes the object from `coupled runtime looks sick because projector health says red` to `coupled runtime can now be judged on truthful current-run health rather than stale replay semantics`.
 
-### `Episode 9 - after repin truth was restored, OFP missing-feature red became the first genuinely coupled semantic blocker`
+`Episode 9 - after repin truth was restored, OFP missing-feature red became the first genuinely coupled semantic blocker`
 
 Once the materializer rollback defect was closed and the correct digest stayed live, `IEG` remained truthful on the repinned run, but `OFP` became the real blocker: `health_state = RED`, `health_reasons = ["WATERMARK_TOO_OLD", "MISSING_FEATURES_RED"]`, `missing_features = 152`, while `stale_graph_version = 0`. That is a major posture change for `S2` because the object is no longer blocked by stale-scope ambiguity or dead downstream participation. It is now blocked by a **real semantic insufficiency inside the coupled runtime network.**
 
-### `Episode 10 - the coupled network then had to distinguish true feature-readiness failure from contract-shape defects`
+`Episode 10 - the coupled network then had to distinguish true feature-readiness failure from contract-shape defects`
 
 The `Bi` notes for `Online feature readiness path` make clear that some repeated OFP and DF postures were not true feature absence but contract-shape errors. One repeated posture, `GRAPH_VERSION_UNAVAILABLE`, was later shown not to come from missing graph version at all, but from a mismatch where `IdentityGraphQuery.status()` returned graph version as a bare string while downstream `OFP` and `DF` expected a mapping. This matters for `S2` because it moves the coupled network from **feature-readiness looks red** to **some of that redness was actually a coupled seam defect in cross-component contract shape.**
 
-### `Episode 11 - the final fresh-scope closure turned S2 from a hardening target into a promoted working network`
+`Episode 11 - the final fresh-scope closure turned S2 from a hardening target into a promoted working network`
 
 The decisive posture change is the accepted fresh coupled closure itself. The plan records the RTDL family as proven on fresh scope `platform_20260311T092709Z` with steady `3035.833 eps`, burst `6227.000 eps`, recovery `3020.050 eps`, `4xx = 0`, `5xx = 0`, ingress `p95/p99` low, `IEG apply_failure_count = 0`, and `snapshot blocker ids = []`. The ledger judgment is explicit: the RTDL metric family is proven on a fresh coupled scope with material RTDL participation and no accepted fail-closed, quarantine, or archive-integrity regression. That is the point where `S2` stops being `the first enlarged network we are trying to understand` and becomes **the first enlarged working network the platform is allowed to inherit from.**
 
-## `What this mapping says in one line`
+`What this mapping says in one line`
 
 `S2` changed posture when the platform progressively turned `Control + Ingress + RTDL` from a maybe-coupled story, vulnerable to fresh-scope ingress collapse, stale downstream pods, replay-era false red, and contract-shape ambiguity, into a genuinely fresh, current-run, semantically trustworthy first enlarged working network whose closure could be promoted.
 
 The next clean move is to interrogate these `S2` episodes one by one.
 
 ## 2026-03-18 09:25:07 +00:00 - Interrogate the S2 episodes so the notebook keeps classifying the first enlarged working network at coupled scope rather than flattening everything into RTDL-local bugs
-## `S2` - interrogated pressure episodes
+`S2` - interrogated pressure episodes
 
 Yes. I'll keep this at enlarged-network object scope.
 
@@ -8511,9 +8509,9 @@ It became ready because the platform progressively separated:
 That is the object-level reasoning `Bi` needs for `S2`. The next clean move is the `S2 transformation synthesis`.
 
 ## 2026-03-18 09:25:41 +00:00 - Synthesize how S2 moved from a wired relationship between the inherited base and RTDL into the first trustworthy enlarged working network
-## `S2 - Control + Ingress + RTDL`
+`S2 - Control + Ingress + RTDL`
 
-### `object transformation synthesis`
+`object transformation synthesis`
 
 In `A`, `S2` did not yet exist as an earned production-ready network. What existed instead were two already-meaningful pre-pressure surfaces that were wired together but not yet proven together: the `Control + Ingress` base, which already owned run legitimacy, ingress truth, and bus handoff, and the RTDL corridor, which already owned projection, context, features, decisioning, and runtime audit truth. So the `A` starting point was not `nothing was there`. It was a **real upstream base plus a real runtime corridor**, but not yet one earned enlarged working network.
 
@@ -8527,7 +8525,7 @@ It is:
 
 > the platform turned `Control + Ingress + RTDL` from a wired relationship between an already-working base and a separately meaningful runtime into the **first trustworthy enlarged working network**, where fresh-scope legitimacy, handoff continuity, current-run RTDL participation, and semantic runtime truth were all strong enough to support promotion.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 First, the object had to become a **fresh-coupled legitimacy problem** rather than a vague `attach RTDL` story. The notebook reset makes that explicit: `Bi` must start from the inherited object, recover the final ready posture, and then explain the transformation through the pressure history. For `S2`, that meant refusing any reading where ingress health alone counted as coupled success; the object only became meaningful once fresh scope, current-run participation, and cross-boundary continuity were treated as non-negotiable.
 
@@ -8541,7 +8539,7 @@ Fifth, once runtime freshness was real, the object had to move from `is RTDL act
 
 Sixth, after freshness and semantic classification were corrected, the remaining open issue stopped being legitimacy and became **narrow coupled-control underfill**. The fresh ECR-backed rerun showed real RTDL participation, no ingress error posture, healthy immediate attribution, and only a small steady shortfall at `2958.733 eps`; the accepted move was not another broad rematerialization but a minimal stream-speedup uplift, followed by one more genuinely fresh closure candidate. That matters because it shows the object was now close enough that the remaining red could be treated as a small control-calibration question rather than a deeper network-legitimacy question.
 
-### `What this object became`
+`What this object became`
 
 The final fresh-scope closure on `platform_20260311T092709Z` is where `S2` actually earns its `Bi` posture. That run held steady `3035.833 eps`, burst `6227.000 eps`, recovery `3020.050 eps`, `4xx = 0`, `5xx = 0`, excellent ingress latency, `IEG apply_failure_count = 0`, and no snapshot blocker ids, while the RTDL family was judged proven on a **fresh coupled scope with material RTDL participation and no accepted fail-closed, quarantine, or archive-integrity regression**. The plan then treats that closure as sufficient to promote `Control + Ingress + RTDL` into the working platform.
 
@@ -8556,7 +8554,7 @@ To move `S2` from its `A` posture to its `Bi` posture, the platform had to resol
 5. separate RTDL operator-truth and seam-contract defects from true semantic blockers
 6. close the remaining coupled-control underfill narrowly, then prove the network on a final fresh scope
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of `S2` is:
 
@@ -8565,7 +8563,7 @@ The final `Bi` posture of `S2` is:
 The next clean move is the `Bi claim mix` for `S2`.
 
 ## 2026-03-18 09:26:13 +00:00 - Extract the Bi claim mix for S2 so the notebook states exactly what first-enlarged-network judgment this object now supports
-## `S2 - Bi claim mix`
+`S2 - Bi claim mix`
 
 Yes. For `S2`, the `Bi claim mix` is this.
 
@@ -8593,13 +8591,13 @@ Yes. For `S2`, the `Bi claim mix` is this.
 Next clean move is `S3 object frame`.
 
 ## 2026-03-18 09:26:49 +00:00 - Open S3 as the next enlarged working network by framing Control + Ingress + RTDL + Case + Label as the first coupled network that must carry runtime truth into operational-review and supervision truth
-## `Object`
+`S3 - Control + Ingress + RTDL + Case + Label as the next enlarged working network` - `object frame`
 
 `S3` = `Control + Ingress + RTDL + Case + Label` as the **next enlarged working network**.
 
 This object exists because once `Case + Label` is attached, the platform is no longer proving only that the runtime can decide correctly. It is proving that the already-working `Control + Ingress + RTDL` network can carry those decisions forward into **operational-review truth** and **authoritative supervision truth** without regressing the upstream network. That is exactly why the `Bi` matrix ranks `S3` so highly, and why Phase 4 is defined as the enlarged-network proof after Case + Label is attached.
 
-## `A posture`
+`A posture`
 
 In `A`, `S3` does not yet exist as an earned production-ready enlarged network. What exists instead are two already-meaningful wired surfaces that have not yet been proven together under coupled pressure.
 
@@ -8609,7 +8607,7 @@ So the clean `A` posture of `S3` is:
 
 **a working runtime base plus a separately meaningful operational-review and supervision corridor, wired together but not yet earned as one enlarged network under live upstream pressure.**
 
-## `Bi posture`
+`Bi posture`
 
 In `Bi`, `S3` becomes the first enlarged network where the platform has to prove that **runtime truth remains usable as downstream operational truth**.
 
@@ -8633,7 +8631,7 @@ So the `Bi` posture is:
 
 **a production-ready enlarged network where the retained runtime base and the attached Case + Label corridor hold together under real upstream pressure, with operational-review truth and authoritative label truth remaining timely, duplicate-safe, lineage-linked, and promotion-worthy.**
 
-## `Why this object mattered`
+`Why this object mattered`
 
 `S3` matters because this is the first point where the platform has to answer a harder question than `can it decide?` It now has to answer:
 
@@ -8648,7 +8646,7 @@ That is why Phase 4's qualitative focus is not phrased as `Case + Label runs`. I
 
 This object also matters because it is the first enlarged network where **future learning truth is already being prepared** even though learning is not yet the active plane. The coupled scope explicitly keeps the `label truth path into future learning use` in view, which means `S3` is where downstream supervision truth stops being merely operationally useful and starts becoming a credible future learning basis.
 
-## `Concern`
+`Concern`
 
 The core concern for `S3` is:
 
@@ -8661,7 +8659,7 @@ That concern breaks into four object-level worries:
 * timing may look catastrophically bad because the proving layer is asking the wrong clock question
 * or the coupled network may regress the already-working runtime base rather than simply extending it
 
-## `Measurement`
+`Measurement`
 
 The measurement family for `S3` is explicitly **cross-plane**.
 
@@ -8703,14 +8701,14 @@ And later enlarged-network and full-platform proof strengthened it again:
 * integrity deltas all `0`
   under the larger platform
 
-## `One-line object frame`
+`One-line object frame`
 
 `S3` is the enlarged-network object where a previously working runtime base first has to prove that its outputs remain operationally usable and supervision-worthy under load: in `A` it is only a wired relationship between the runtime corridor and the operational case and label truth corridor; in `Bi` it becomes the production-ready network where RTDL outputs, case truth, and authoritative label truth all remain timely, duplicate-safe, lineage-linked, and strong enough to promote the enlarged working platform.
 
 The next clean move is deriving the `system-design questions` for `S3`.
 
 ## 2026-03-18 09:27:23 +00:00 - Derive the system-design questions for S3 so the enlarged-network interrogation stays on runtime truth becoming operational-review and supervision truth
-## `S3 - system-design questions`
+`S3 - system-design questions`
 
 Yes. For `S3`, the questions have to stay at enlarged-network scope. This object is not `Case + Label, but later.` It is the first point where the platform has to prove that the already-working `Control + Ingress + RTDL` runtime can carry its outputs forward into **operational-review truth** and **authoritative supervision truth** without regressing the inherited working network. That is exactly how Phase 4 is framed: not `is Case + Label alive,` but `does the network still hold when operational review truth is introduced?`
 
@@ -8757,7 +8755,7 @@ Compressed into one line:
 The next clean move is to map `S3` to the pressure episodes that actually changed its posture.
 
 ## 2026-03-18 09:27:57 +00:00 - Map the pressure episodes that changed S3 from a wired downstream corridor into the enlarged operational-review working network
-## `S3 - pressure episodes that actually changed its posture`
+`S3 - pressure episodes that actually changed its posture`
 
 Yes. At `S3` scope, the pressure history has to stay at the level of the **enlarged operational-review network**, not collapse into separate CaseTrigger, Case Management, or Label Store bug lists.
 
@@ -8765,46 +8763,46 @@ So the question for each episode is:
 
 **what changed whether `Control + Ingress + RTDL + Case + Label` deserved to count as one trustworthy enlarged working network, where RTDL outputs remain operationally usable as case and label truth under real upstream pressure?** That is exactly the coupled question Phase 4 was opened to answer.
 
-### `Episode 1 - the downstream corridor first had to prove it was real enough to attach at all`
+`Episode 1 - the downstream corridor first had to prove it was real enough to attach at all`
 
 Before `S3` could become an enlarged-network question, the Case + Label corridor had to stop being only a wired downstream idea and become a bounded plane-ready truth surface. That happened at Phase 3 closure, where the bounded slice stayed clean on CaseTrigger, Case Management, and Label Store integrity deltas, with the promoted upstream base also scoring `PASS`. This changed `S3` because the object no longer began from `maybe downstream review truth exists.` It began from **a downstream plane already proven clean enough to be coupled to the working runtime base**.
 
-### `Episode 2 - opening Phase 4 changed the object from plane-local Case + Label into a true enlarged-network problem`
+`Episode 2 - opening Phase 4 changed the object from plane-local Case + Label into a true enlarged-network problem`
 
 The next posture change was architectural and methodological at the same time. Phase 4 was opened explicitly because the question had changed from `is Case + Label plane-ready?` to `does the enlarged Control + Ingress + RTDL + Case + Label network still hold once operational-review truth is introduced?` That matters because `S3` is not just `Phase 3 plus more traffic.` It is the first point where the platform has to prove that **runtime truth remains operationally usable downstream without regressing the already-working `Control + Ingress + RTDL` network**.
 
-### `Episode 3 - the first coupled attempts showed S3 had not yet been truthfully pressured because the proving layer was still wrong`
+`Episode 3 - the first coupled attempts showed S3 had not yet been truthfully pressured because the proving layer was still wrong`
 
 The early coupled attempts did not yet reveal a true enlarged-network semantic failure. The first coupled work still suffered from methodological defects: no dedicated truthful coupled executor yet, reused control-bootstrap and reused post-activation warm-gate logic, and a proving layer that was still shaped for an older question. That changed `S3` because the object stopped being read as `maybe Case + Label regresses the runtime` and instead became `the enlarged network is live enough that the harness now needs to be corrected before the object can be judged honestly`.
 
-### `Episode 4 - a timing-basis defect made the object look catastrophically slow until the authoritative processing clocks were pinned`
+`Episode 4 - a timing-basis defect made the object look catastrophically slow until the authoritative processing clocks were pinned`
 
 One of the biggest posture changes for `S3` came from the coupled timing probe. Its first version used the wrong clocks, `observed_time` and the earlier `LABEL_PENDING` timeline timestamp, and produced a false-red story of roughly `68 s` decision-to-case and case-to-label latency. The live store rows then showed the real clocks: case-open must be `first_seen_at_utc -> created_at_utc`, and case-to-label must start at the actual Case Management handshake write attempt (`cm_label_emissions.first_requested_at_utc`). That changed `S3` from **operational-review truth exists but appears badly broken** into **operational-review truth is now measurable on the right boundary clocks**.
 
-### `Episode 5 - the first fresh full coupled rerun proved the enlarged network itself was already semantically healthy, and the remaining red lived in the inherited envelope`
+`Episode 5 - the first fresh full coupled rerun proved the enlarged network itself was already semantically healthy, and the remaining red lived in the inherited envelope`
 
 Once the stale warm-gate dependency was removed and the timing basis was corrected, the first fresh full coupled rerun changed the object sharply. On that run, pre and post runtime snapshots were green, `decision_to_case p95 = 0.0 s`, `case_to_label p95 ~= 0.164 s`, and CaseTrigger, Case Management, and Label Store all stayed green on the same scope. The only red left was the inherited burst-envelope `429` pocket. That is a decisive posture shift for `S3`: it shows the object was **not** failing because downstream operational-review truth was semantically bad. It was already holding as a coupled network; the active blocker had moved to the envelope and proving shape around it.
 
-### `Episode 6 - the remaining S3 red then narrowed into proving-envelope geometry rather than downstream operational-truth failure`
+`Episode 6 - the remaining S3 red then narrowed into proving-envelope geometry rather than downstream operational-truth failure`
 
 After that first fresh coupled rerun, the remaining work no longer looked like `Case + Label still breaks the enlarged network.` It became a sequence of proving-shape refinements around steady warm-up and burst-step behavior. Target-rate presteady improved the right thing, the combined target-rate warm posture closed steady while leaving only the burst-edge reject pocket, and the short-burst and token-override corrections eventually removed the inherited burst-shape drift without changing the downstream case-label semantics. This changed `S3` from **semantically healthy but not yet closure-grade** into **an enlarged network whose only remaining blocker was proving-envelope calibration at the ingress edge, not operational-review truth regression**.
 
-### `Episode 7 - final Phase 4 closure promoted S3 from a hardening target into the working platform`
+`Episode 7 - final Phase 4 closure promoted S3 from a hardening target into the working platform`
 
 The decisive posture change is the accepted Phase 4 closure itself. On `phase4_case_label_coupled_20260312T003302Z`, the enlarged network went fully green: steady `3060.177777777778 eps`, burst `7118.0 eps`, recovery `3018.4333333333334 eps`, `4xx = 0`, `5xx = 0`, subsecond downstream timing, and matured downstream state showing `case_mgmt labels_accepted = 2931` and `label_store accepted = 3080`. The old remaining blocker (`PHASE4.B24_LABEL_COMMIT_UNDERCOUNT`) was then recognized as a stale scoring artifact, not a live coupled failure, and the reroll closed `PHASE4_READY` with `open_blockers = 0`. That is the point where `S3` stops being `the enlarged network we are still diagnosing` and becomes **the promoted working platform**.
 
-### `Episode 8 - later enlarged-network pressure strengthened S3 again by proving non-regression under a larger working platform`
+`Episode 8 - later enlarged-network pressure strengthened S3 again by proving non-regression under a larger working platform`
 
 `S3` did not stop mattering once Phase 4 closed. Later enlarged-network work strengthened it again. The later coupled and integrated metrics still showed `decision_to_case p95 = 0.0 s`, `case_to_label p95 = 0.196-0.1982594 s`, and clean integrity deltas under the learning-coupled and full-platform phases. That matters because it changes `S3` from **good enough on its own coupled proof** into **non-regressed under a larger promoted platform**, which is exactly the kind of strengthened posture `Bi` is meant to surface.
 
-## `What this mapping says in one line`
+`What this mapping says in one line`
 
 `S3` changed posture when the platform progressively turned `Control + Ingress + RTDL + Case + Label` from a coupled network that was not yet being asked the right question, because the executor, warm gate, and timing clocks were wrong, into a truthfully measurable, semantically healthy operational-review network whose only remaining reds lived in the inherited proving envelope, and which was finally promoted once that envelope was corrected and the stale scoring artifact was removed.
 
 The next clean move is to interrogate these `S3` episodes one by one.
 
 ## 2026-03-18 09:28:31 +00:00 - Interrogate the S3 episodes so the notebook classifies the enlarged operational-review network at object scope rather than as separate downstream service bug lists
-## `S3 - interrogated pressure episodes`
+`S3 - interrogated pressure episodes`
 
 Yes. I'll keep this at **S3 object scope**:
 
@@ -8812,7 +8810,7 @@ not `what happened to CaseTrigger,`
 not `what happened to Label Store,`
 but **what changed whether `Control + Ingress + RTDL + Case + Label` deserved to count as one trustworthy enlarged working network where runtime outputs remain operationally usable as case and label truth under real upstream pressure.** That is the actual Phase 4 question the plan opened.
 
-### `Episode 1 - the downstream corridor first had to become real enough to attach`
+`Episode 1 - the downstream corridor first had to become real enough to attach`
 
 **What surfaced**
 Before `S3` could be a coupled-network question, the Case + Label corridor had to stop being only a wired downstream idea. Phase 3 closed green on its own bounded slice: CaseTrigger, Case Management, and Label Store integrity stayed clean, the upstream promoted base still scored `PASS`, and the ledger treated the plane as proven on its own production criteria.
@@ -8834,7 +8832,7 @@ Because `Bi` is supposed to preserve object meaning. `S3` only makes sense if th
 
 ---
 
-### `Episode 2 - opening Phase 4 changed S3 from a plane story into a true enlarged-network question`
+`Episode 2 - opening Phase 4 changed S3 from a plane story into a true enlarged-network question`
 
 **What surfaced**
 When Phase 4 was opened, the question changed explicitly. It was no longer `is Case + Label plane-ready?` It became `does the enlarged Control + Ingress + RTDL + Case + Label network still hold when operational-review truth is introduced?` The plan pinned the new coupled scope, the new timing and starvation evidence, and the no-regression requirement against the already-working `Control + Ingress + RTDL` base.
@@ -8856,7 +8854,7 @@ Because the object had genuinely changed. Reusing the old plane-oriented or broa
 
 ---
 
-### `Episode 3 - the first coupled attempts showed S3 had not yet been truthfully pressured`
+`Episode 3 - the first coupled attempts showed S3 had not yet been truthfully pressured`
 
 **What surfaced**
 The first coupled attempt failed at the reused control-bootstrap seam before any traffic was sent because the Phase 4 runner wrote `g4a_run_charter.active.json` while the reused bootstrap worker still expected `g3a_run_charter.active.json`. The second attempt reached real prewarm and activation traffic, but the reused post-activation warm gate was still enforcing the wrong proof posture and the rollup was hard-coded to append `PHASE4.B24_TIMING_EVIDENCE_UNAVAILABLE`.
@@ -8878,7 +8876,7 @@ Because it preserved the real coupled question instead of weakening it. The enla
 
 ---
 
-### `Episode 4 - the timing basis defect made S3 look catastrophically slow until the real processing clocks were pinned`
+`Episode 4 - the timing basis defect made S3 look catastrophically slow until the real processing clocks were pinned`
 
 **What surfaced**
 The first dedicated timing probe produced a false-red story: both `decision-to-case` and `case-to-label` looked like `~68 s`. Live store rows showed why that was wrong. The correct case-open clock was `first_seen_at_utc -> created_at_utc`, not `observed_time`, and the correct case-to-label clock was the Case Management handshake write attempt (`cm_label_emissions.first_requested_at_utc`), not the earlier `LABEL_PENDING` timeline timestamp. After repinning to those clocks, the same scope rescored cleanly.
@@ -8900,7 +8898,7 @@ Because it did not weaken the timing requirement. It made the requirement truthf
 
 ---
 
-### `Episode 5 - the first fresh full coupled rerun proved the enlarged network itself was already semantically healthy`
+`Episode 5 - the first fresh full coupled rerun proved the enlarged network itself was already semantically healthy`
 
 **What surfaced**
 After removing the stale post-activation warm-gate dependency and correcting the timing basis, the first fresh full coupled rerun showed the important thing: pre and post runtime snapshots were green, `decision_to_case p95 = 0.0 s`, `case_to_label p95 ~= 0.164 s`, and CaseTrigger, Case Management, and Label Store all stayed green on the same scope. The only red left was in the envelope summary: burst `4xx` were all API-edge `429`, not downstream semantic failure.
@@ -8922,7 +8920,7 @@ Because it preserved the target while correcting the proof shape. It refused to 
 
 ---
 
-### `Episode 6 - the remaining red narrowed into proving-envelope geometry rather than downstream case/label failure`
+`Episode 6 - the remaining red narrowed into proving-envelope geometry rather than downstream case/label failure`
 
 **What surfaced**
 After the first fresh coupled rerun, the remaining work was no longer about whether operational-review truth existed or was semantically broken. It was about proving-envelope calibration: removing the badly inherited burst shape, then finally eliminating the stale scoring surface that still carried `PHASE4.B24_LABEL_COMMIT_UNDERCOUNT` even after the run-scoped post snapshot had matured and showed real downstream state (`case_mgmt labels_accepted = 2931`, `label_store accepted = 3080`).
@@ -8944,7 +8942,7 @@ Because it treated the remaining blocker as what it really was: a stale scoring 
 
 ---
 
-### `Episode 7 - final Phase 4 closure promoted S3 from a hardening target into the working platform`
+`Episode 7 - final Phase 4 closure promoted S3 from a hardening target into the working platform`
 
 **What surfaced**
 The decisive run `phase4_case_label_coupled_20260312T003302Z` was fully green: steady `3060.177777777778 eps`, burst `7118.0 eps`, recovery `3018.4333333333334 eps`, `4xx = 0`, `5xx = 0`, low latency, `decision_to_case p95 = 0.0 s`, `case_to_label p95 = 0.17482505 s`, and matured downstream state showing committed labels on the same run. The rerolled readiness receipt then closed cleanly with `PHASE4_READY`, `next_phase = PHASE5`, and `open_blockers = 0`.
@@ -8966,7 +8964,7 @@ Because `Bi` is not trying to prove `many retries happened.` It is trying to sho
 
 ---
 
-### `Episode 8 - later enlarged-network pressure strengthened S3 again by proving non-regression under a larger platform`
+`Episode 8 - later enlarged-network pressure strengthened S3 again by proving non-regression under a larger platform`
 
 **What surfaced**
 Later coupled and integrated phases kept the same downstream timing and integrity story intact: `decision_to_case p95 = 0.0 s`, `case_to_label p95 = 0.196-0.1982594 s`, with downstream integrity deltas still clean under the enlarged learning-coupled and integrated platform.
@@ -8988,7 +8986,7 @@ Because later enlargement should not silently absorb or erase the earlier operat
 
 ---
 
-## `What this interrogation says about S3`
+`What this interrogation says about S3`
 
 The real transformation of `S3` is not:
 
@@ -9001,9 +8999,9 @@ It is:
 The next clean move is the `S3 object transformation synthesis`.
 
 ## 2026-03-18 09:29:04 +00:00 - Synthesize how S3 moved from a wired runtime-plus-review relationship into the promoted enlarged operational-review working network
-## `S3 - Control + Ingress + RTDL + Case + Label`
+`S3 - Control + Ingress + RTDL + Case + Label`
 
-### `object transformation synthesis`
+`object transformation synthesis`
 
 In `A`, `S3` did not yet exist as an earned production-ready enlarged network. What already existed were two meaningful surfaces that were wired together but not yet proven together under coupled pressure: the already-working runtime base, and the distinct `RTDL -> Case/Label` corridor where real-time decisions and audit surfaces are supposed to become operational cases and authoritative labels, with truth ownership kept explicit across `CaseTrigger`, `Case Management`, and `Label Store`.
 
@@ -9017,7 +9015,7 @@ It is:
 
 > the platform turned a wired relationship between a working runtime and a downstream operational-review corridor into the **first trustworthy enlarged operational-review network**, where runtime outputs could be shown to remain operationally usable as case and label truth on the same current run, under real upstream pressure, and without regressing the inherited runtime base.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 The first thing that had to be resolved was **downstream corridor legitimacy before coupling**. `S3` could not begin from `maybe case and label truth works.` Phase 3 had to close green first on its own bounded slice, with clean CaseTrigger, Case Management, and Label Store integrity deltas and the promoted upstream base also scoring `PASS`. That changed the starting point of the object from `wired downstream plane` to `downstream operational-review corridor already proven clean enough to be attached.`
 
@@ -9033,7 +9031,7 @@ The final local resolution was that the remaining `S3` red had to be recognized 
 
 And `S3` did not stop there. Later enlarged-platform work strengthened it again by proving **non-regression under a bigger promoted platform**. The later integrated ledgers still showed `decision_to_case p95 = 0.0 s`, `case_to_label p95 ~= 0.1982594 s`, and integrity deltas staying at `0` under the wider platform. That matters because it means `S3` was not merely good enough on one lucky coupled run; it remained credible once the platform enlarged around learning and the full integrated authority.
 
-### `What this object became`
+`What this object became`
 
 By the end of the accepted Phase 4 closure, `S3` was no longer `runtime plus downstream review components.` It had become a **truthfully measurable, semantically healthy enlarged operational-review network**: one where RTDL outputs remained operationally usable downstream, case and label timing were low on the right clocks, case and label truth remained linked to upstream decision truth, and the inherited `Control + Ingress + RTDL` network was not regressed by the new coupling.
 
@@ -9048,7 +9046,7 @@ To move `S3` from its `A` posture to its `Bi` posture, the platform had to resol
 5. separate a semantically healthy coupled network from an inherited envelope and scoring problem
 6. close the final stale scoring artifact and promote the enlarged network on the real coupled proof
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of `S3` is:
 
@@ -9057,7 +9055,7 @@ The final `Bi` posture of `S3` is:
 Next clean move is the `Bi claim mix` for `S3`.
 
 ## 2026-03-18 09:29:39 +00:00 - Extract the Bi claim mix for S3 so the notebook states exactly what enlarged operational-review network judgment this object now supports
-## `S3 - Bi claim mix`
+`S3 - Bi claim mix`
 
 Yes. For `S3`, the `Bi claim mix` is this.
 
@@ -9085,13 +9083,13 @@ Yes. For `S3`, the `Bi claim mix` is this.
 The next clean move is `S4 object frame`.
 
 ## 2026-03-18 09:30:15 +00:00 - Open S4 as the feedback-loop enlarged network by framing Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps as the first coupled network that must prove governed truth continuity back into runtime authority
-## `Object`
+`S4 - Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps as the feedback-loop enlarged network` - `object frame`
 
 `S4` = `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps` as the **feedback-loop enlarged network**.
 
 This is the strongest secondary object in the matrix because it is the first enlarged-network surface where the platform has to prove the full governed loop rather than just a forward-serving chain: runtime truth, case and label truth, learning basis, managed train and eval, promotion, rollback, and active-bundle runtime authority all have to hold together as one coupled network. The `Bi` notebook ranks it that way explicitly.
 
-## `A posture`
+`A posture`
 
 In `A`, `S4` does **not** yet exist as an earned production-ready feedback loop. What exists instead are two already-meaningful wired surfaces that are connected but not yet pressure-proven as one network.
 
@@ -9101,7 +9099,7 @@ So the clean `A` posture of `S4` is:
 
 **a working runtime-and-supervision base plus a separately meaningful governed learning-and-activation corridor, wired together but not yet earned as one feedback-loop network under live coupled pressure.**
 
-## `Bi posture`
+`Bi posture`
 
 In `Bi`, `S4` becomes the first enlarged network where the platform has to prove that the **runtime -> case/label -> learning -> promoted bundle -> runtime** loop remains semantically stable, leakage-safe, explainable, and operationally useful once it becomes one coupled network. That is the exact purpose of Phase 6 in the readiness plan. The object is no longer `Learning + Evolution / MLOps exists` or even `the learning plane is green on its own.` It is now a coupled-network claim about truth continuity and governed feedback.
 
@@ -9111,7 +9109,7 @@ So the `Bi` posture is:
 
 **a production-ready feedback-loop network where the retained runtime-and-supervision base and the managed learning corridor hold together as one current authoritative loop: runtime truth becomes admissible learning truth, learning produces a governed promoted bundle, that bundle resolves correctly at runtime, rollback remains attributable, and the coupled network stays production-credible under bounded load.**
 
-## `Why this object mattered`
+`Why this object mattered`
 
 `S4` matters because this is the first point where the platform has to prove something harder than `the runtime makes decisions` or `labels exist` or `managed ML jobs run.` It has to prove that the platform's **feedback loop** is real and governed.
 
@@ -9124,7 +9122,7 @@ That means the platform now has to answer questions like:
 
 This is why `S4` has such high meta-goal payoff in the notebook. It is the strongest place to show that your platform is not just a serving system with some offline jobs attached, but a governed closed-loop system where model evolution is constrained by authoritative truth and later re-enters runtime under explicit authority.
 
-## `Concern`
+`Concern`
 
 The core concern for `S4` is:
 
@@ -9138,7 +9136,7 @@ That concern breaks into a few object-level worries:
 * rollback may exist on paper but not as a real bounded restoration path
 * the loop may be operationally green while semantically unattributable
 
-## `Measurement`
+`Measurement`
 
 The measurement family for `S4` is explicitly cross-plane and loop-shaped.
 
@@ -9146,14 +9144,14 @@ On the plane side, Phase 5 pins dataset-build success and duration, authoritativ
 
 The accepted closure surfaces then compress those concerns into concrete proof. The plan records Phase 5 semantic admission, dataset basis, and managed train and eval plus governance authorities; bounded sample sizes and temporal proof (`feature_asof_utc = 2026-03-05T00:00:00Z`, `event_scan.ts_max_utc = 2026-03-04T22:25:01.492086Z`); successful managed execution (`SageMaker training Completed`, `transform Completed`, `MLflow run FINISHED`, `gate_decision = PASS`, `publish_decision = ELIGIBLE`, `publication_status = PUBLISHED`, `rollback_validation_status = VALIDATED`); bounded evaluation visibility; and then the coupled runtime proof at Phase 6.
 
-## `One-line object frame`
+`One-line object frame`
 
 `S4` is the enlarged-network object where a previously working runtime-and-supervision platform first has to prove that its truth can safely feed governed learning and then return as active runtime authority: in `A` it is only a wired relationship between downstream supervision truth and the managed learning corridor; in `Bi` it becomes the production-ready feedback-loop network where runtime truth, label truth, dataset truth, candidate truth, promotion truth, rollback truth, and active-bundle runtime authority all remain continuous, explainable, and promotion-worthy under bounded load.
 
 The next clean move is deriving the `system-design questions` for `S4`.
 
 ## 2026-03-18 09:30:51 +00:00 - Derive the system-design questions for S4 so the enlarged-network interrogation stays on the governed feedback loop rather than on isolated learning or MLOps components
-## `S4 - system-design questions`
+`S4 - system-design questions`
 
 Yes. For `S4`, the questions have to stay at **feedback-loop enlarged-network scope**. This object is not `Learning + Evolution / MLOps, but later.` It is the first point where the platform has to prove that the working runtime and supervision network can safely become a **governed model-evolution loop**: runtime truth and label truth must become admissible learning truth, learning must become governed candidate and promotion truth, and that promoted truth must return as deterministic runtime authority without semantic drift or attribution loss. That is exactly how the plan frames Phase 6, and it matches the Group 6 split already pinned in `A`.
 
@@ -9216,52 +9214,52 @@ The controlling question for every episode is:
 
 **what changed whether `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps` deserved to count as one trustworthy feedback-loop network, where runtime truth becomes admissible learning truth, learning becomes governed bundle truth, and that bundle returns as real runtime authority without semantic drift?** `A` had already pinned Group 6 as exactly that kind of bounded truth system, and the readiness plan turns Phase 5 and 6 into the plane-ready plus coupled-feedback proof of that loop.
 
-## `S4 - pressure episodes that actually changed its posture`
+`S4 - pressure episodes that actually changed its posture`
 
-### `Episode 1 - the object first had to stop being a rushed closure story and become a real feedback-loop proof problem`
+`Episode 1 - the object first had to stop being a rushed closure story and become a real feedback-loop proof problem`
 
 The first real posture change was not technical but methodological. Learning was explicitly reopened because the earlier `Phase 5 / 6` closeout was judged under-expanded and over-promoted: too much relied on retained managed evidence continuity, not enough on a properly rebuilt proving boundary. That changed `S4` from `learning already looks promoted` into `the feedback loop still has to earn its object meaning under the same standard as the earlier planes.`
 
-### `Episode 2 - semantic admission and managed-surface readability made the loop attachable, but not yet trustworthy`
+`Episode 2 - semantic admission and managed-surface readability made the loop attachable, but not yet trustworthy`
 
 Rebuilt `Phase 5.A` pinned that the current world, label truth, `6B.S5` gate posture, Databricks surface, SageMaker role trust, and MLflow tracking surface were all materially readable and semantically admissible. That changed `S4` from `maybe learning can be attached at all` into `the feedback loop now has a real admissible source side and real managed surfaces.` But it was still not dataset truth yet.
 
-### `Episode 3 - the first honest blocker showed the loop still lacked real dataset-basis truth`
+`Episode 3 - the first honest blocker showed the loop still lacked real dataset-basis truth`
 
 Once `Phase 5.A` was green, the next blocker was that the retained Databricks OFS build and quality sources were only bootstrap stubs. They did not perform a bounded current-world dataset-basis build, leakage proof, maturity proof, or manifest-completeness proof. That changed `S4` because the loop could no longer be described as `managed learning exists.` It now had to prove that authoritative runtime and label truth actually become authoritative dataset truth on the managed boundary.
 
-### `Episode 4 - managed object-store access and the bounded temporal law turned the loop into a real admissible dataset corridor`
+`Episode 4 - managed object-store access and the bounded temporal law turned the loop into a real admissible dataset corridor`
 
 After the OFS source was rebuilt, the next blockers narrowed first to managed object-store authorization and then to the actual temporal law. The managed Databricks surface had to be fixed so it could read the authoritative object-store basis, and then Phase 5 had to stop scoring the raw retained `6B` horizon and instead trim to the promoted run's admitted time law. Only after that did `phase5_ofs_dataset_basis_20260312T054900Z` close green on a bounded, materially useful slice. This changed `S4` from `the loop can reach truth products` into `the loop can build an admissible, point-in-time-correct dataset basis from them.`
 
-### `Episode 5 - train/eval then had to become an honest candidate-truth corridor rather than just healthy managed services`
+`Episode 5 - train/eval then had to become an honest candidate-truth corridor rather than just healthy managed services`
 
 After dataset-basis truth was earned, the managed MF corridor still had to prove itself. It first failed on authoritative basis access, then on runner-channel honesty, and then a first end-to-end green candidate had to be rejected because its selected sample crossed the admitted `feature_asof_utc`. The accepted managed closure only counted once training, transform, lineage, governance, and bounded evaluation all held **on the corrected governed basis**. That changed `S4` from `the loop has a dataset` into `the loop now has a real candidate-truth corridor built from the right basis.`
 
-### `Episode 6 - coupled proof then had to move from registry readability to true runtime bundle authority`
+`Episode 6 - coupled proof then had to move from registry readability to true runtime bundle authority`
 
 At feedback-loop scope, it was no longer enough that candidate and promotion artifacts existed. The coupled question became whether the promoted bundle, rollback bundle, restore truth, and runtime resolution all stayed aligned on the live feedback loop. One key rerun showed candidate, rollback, and restore bundle attribution all going green, but also exposed that rollback drift could still come from stale carried governance fields rather than from the truthful Phase 6 registry surface. That changed `S4` from `registry truth exists` into `bundle authority must be judged on the same current coupled scope the runtime is actually consuming.`
 
-### `Episode 7 - enlarged feedback-loop pressure exposed real runtime seating defects in the supervision side`
+`Episode 7 - enlarged feedback-loop pressure exposed real runtime seating defects in the supervision side`
 
 Once learning was attached to the working platform, the loop exposed new runtime truth that the earlier phases had not yet forced. First `case_mgmt` became the active memory boundary and had to be repinned from `1Gi/4Gi` to `2Gi/6Gi`; once that was fixed, `label_store` became the next active memory boundary and had to be repinned from `512Mi/2Gi` to `1Gi/4Gi`. This is a true `S4` posture change, because it proves the feedback loop is not just offline learning and registry mechanics; attaching learning changed what counted as a stable coupled runtime on the live platform.
 
-### `Episode 8 - after runtime seating was fixed, the last active blocker moved out of the loop and into the proving harness`
+`Episode 8 - after runtime seating was fixed, the last active blocker moved out of the loop and into the proving harness`
 
 With bundle-authority truth corrected and the runtime budgets lifted, the remaining red no longer behaved like a feedback-loop semantic defect. Burst and recovery were green, candidate, rollback, and restore attribution were green, and downstream timing and integrity stayed green; the remaining miss was concentrated in the first measured steady minute. The implementation trail then showed the actual defect: the shared envelope builder was still inserting a no-op same-rate `presteady -> steady` boundary, which reset the scored steady window without representing a real platform regression. That changed `S4` from `the loop may still be unstable` into `the loop is already healthy; the scorer is still asking the wrong steady-state question.`
 
-### `Episode 9 - the accepted Phase 6 closure turned S4 from a hardening target into a promoted feedback loop`
+`Episode 9 - the accepted Phase 6 closure turned S4 from a hardening target into a promoted feedback loop`
 
 The decisive posture change is the accepted coupled closure itself: `phase6_learning_coupled_20260312T194748Z`. After collapsing duplicate adjacent same-rate segments, the enlarged loop went green on the unchanged declared envelope: steady `3047.367 eps`, burst `6099.000 eps`, recovery `3019.894 eps`, `4xx = 0`, `5xx = 0`, `decision_to_case p95 = 0.0 s`, `case_to_label p95 = 0.196 s`, with candidate bundle attribution, rollback attribution, restore attribution, and runtime active-bundle truth all green on the same run. That is the point where `S4` stopped being `the feedback-loop network we are still diagnosing` and became `the promoted working feedback loop.`
 
-## `What this mapping says in one line`
+`What this mapping says in one line`
 
 `S4` changed posture when the platform progressively turned the learning corridor from a rushed, partly exploratory managed story into a real feedback-loop network: first by rebuilding semantic admission and bounded dataset truth, then by forcing candidate truth onto the admitted causal basis, then by proving bundle authority and rollback truth at live runtime scope, then by fixing the real runtime seating defects that only appeared once learning was attached, and finally by removing the last proving-harness defect so the loop could be promoted honestly.
 
 The next clean move is to interrogate these `S4` episodes one by one.
 
 ## 2026-03-18 09:32:05 +00:00 - Interrogate the S4 episodes so the notebook classifies the enlarged learning-coupled network at feedback-loop object scope rather than as separate managed-surface or pod-level bug lists
-## `S4 - interrogated pressure episodes`
+`S4 - interrogated pressure episodes`
 
 Yes. I'll keep this at **`S4` feedback-loop object scope**:
 
@@ -9269,7 +9267,7 @@ not `what happened to Databricks,`
 not `what happened to SageMaker,`
 but **what changed whether `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps` deserved to count as one trustworthy feedback-loop network** -- one where runtime and label truth become admissible learning truth, learning becomes governed bundle truth, and that bundle returns as real runtime authority without semantic drift. That is exactly how `A` defines Group 6 and how the Phase 6 plan defines the coupled objective.
 
-### `Episode 1 - the object first had to stop being a rushed closure story and become a real feedback-loop proof problem`
+`Episode 1 - the object first had to stop being a rushed closure story and become a real feedback-loop proof problem`
 
 **What surfaced.**
 The earlier `Phase 5 / 6` closeout was judged under-expanded and over-promoted. The issue was not that the receipts were fake; it was that Learning had been moved too quickly from useful bounded probes into plane promotion and coupled-network promotion without the same depth of phase planning, telemetry evolution, and proving trail that earlier phases had earned.
@@ -9291,7 +9289,7 @@ Because it kept the production-ready standard fixed and corrected the proving po
 
 ---
 
-### `Episode 2 - semantic admission and managed-surface readability made the loop attachable, but not yet trustworthy`
+`Episode 2 - semantic admission and managed-surface readability made the loop attachable, but not yet trustworthy`
 
 **What surfaced.**
 Rebuilt `Phase 5.A` proved that the current upstream label truth was materially present and clean, that the world being admitted for learning really was the intended `6B` traffic world, that the required `6B.S5` gate rails were readable and pass-worthy, and that the managed learning surfaces themselves -- Databricks, SageMaker role trust, and Databricks-backed MLflow tracking -- were materially readable on the current repo and runtime posture.
@@ -9313,7 +9311,7 @@ Because the loop is not allowed to begin from `infrastructure exists` alone; it 
 
 ---
 
-### `Episode 3 - the first honest blocker showed the loop still lacked real dataset-basis truth`
+`Episode 3 - the first honest blocker showed the loop still lacked real dataset-basis truth`
 
 **What surfaced.**
 Once `Phase 5.A` was green, the retained Databricks OFS build and quality sources were read directly and found to be bootstrap stubs. They did not perform a bounded current-world dataset-basis build or prove leakage, as-of correctness, maturity, supervision coverage, or manifest completeness. So the active blocker became explicit: the learning corridor still lacked real dataset-basis truth.
@@ -9335,7 +9333,7 @@ Because `S4` is a feedback-loop object. Without authoritative dataset-basis trut
 
 ---
 
-### `Episode 4 - managed object-store access and the bounded temporal law turned the loop into a real admissible dataset corridor`
+`Episode 4 - managed object-store access and the bounded temporal law turned the loop into a real admissible dataset corridor`
 
 **What surfaced.**
 After the OFS sources were rebuilt, the next blockers came in layers. First, the managed Databricks surface still could not read the authoritative object-store basis because serverless Databricks was attempting anonymous S3 access. That was fixed through a Unity Catalog storage credential, external location, and repaired cross-account AWS role posture. Once that managed read path became real, the active blocker narrowed to the true semantic one: the retained proof was still reading the full raw `6B` horizon instead of the promoted Phase 4 bounded horizon, which made the event horizon exceed the admitted learning time law. The correction was to carry the bounded temporal contract (`feature_asof_utc`, `label_asof_utc`, maturity lag) from the promoted runtime world into the OFS slice and score the bounded slice rather than the raw partition. The accepted `phase5_ofs_dataset_basis_20260312T054900Z` then closed green on that corrected time law.
@@ -9357,7 +9355,7 @@ Because it neither hid the storage problem with local fallback nor weakened the 
 
 ---
 
-### `Episode 5 - train/eval then had to become an honest candidate-truth corridor rather than just healthy managed services`
+`Episode 5 - train/eval then had to become an honest candidate-truth corridor rather than just healthy managed services`
 
 **What surfaced.**
 After dataset-basis truth was earned, the retained managed train/eval lane still failed the actual `Phase 5.C` question because it was not training on the admitted OFS basis at all; it was synthesizing convenience CSV rows from an upstream fingerprint. Once the new bounded managed runner was used, the loop then exposed the real progression of candidate-truth blockers: first the SageMaker role lacked object-store access, then the train and validation channel boundaries were wrong, then the first full green candidate had to be rejected because the selected event horizon still exceeded the admitted `feature_asof_utc`. Only the fourth rebuilt managed run, `phase5_learning_managed_20260312T071600Z`, closed green because it preserved the same admitted world and managed corridor while keeping the bounded sample inside the admitted time law and preserving the full evidence chain from bounded dataset basis to published candidate bundle.
@@ -9379,7 +9377,7 @@ Because it refused the easy `managed corridor is green enough` story. Instead it
 
 ---
 
-### `Episode 6 - coupled proof then had to move from registry readability to true runtime bundle authority`
+`Episode 6 - coupled proof then had to move from registry readability to true runtime bundle authority`
 
 **What surfaced.**
 Once `Phase 5` was honestly green, the coupled `Phase 6` question stopped being `can we read registry artifacts?` and became `does the promoted bundle become the same truth the live runtime actually consumes?` The first boundary audit showed a real live coupling defect: rematerialization was only mounting the registry snapshot, while the DF worker could still be resolving policy from the image instead of from the run-scoped mounted policy. That had to be fixed before any coupled runtime proof could be trusted. Then the first rebuilt Phase 6 pass showed the next issues were not bundle-breaks but proving-boundary defects: a shared control-bootstrap contract drift (`g3a_run_charter.active.json`), the reused pre-traffic warm gate checking the wrong authority for rollback and restore, a DLA attribution probe calling a method the live store did not implement, and the Phase 6 runner drifting off the accepted Phase 4 envelope instead of inheriting it. Later, even after those were corrected, rollback drift still had to be re-anchored to the Phase 6 staged registry surface rather than to stale carried-forward governance fields. Together, these episodes changed `S4` from `registry truth exists` into `bundle authority is only trustworthy when the mounted snapshot, mounted policy, runtime attribution, rollback attribution, and adopted runtime envelope are all judged on the same current coupled scope.`
@@ -9401,7 +9399,7 @@ Because it preserved the strictness of the feedback-loop question while moving t
 
 ---
 
-### `Episode 7 - enlarged feedback-loop pressure exposed real runtime seating defects in the supervision side`
+`Episode 7 - enlarged feedback-loop pressure exposed real runtime seating defects in the supervision side`
 
 **What surfaced.**
 Once bundle-authority proof was placed on the right live scope, the enlarged feedback-loop network exposed real runtime seating problems that earlier phases had not yet forced. The next rerun failed fast because `case_mgmt` was `OOMKilled` under the learning-coupled boundary, which led to a narrow budget repin from `1Gi / 4Gi` to `2Gi / 6Gi`. After that rerun, `case_mgmt` stayed up and healthy, but the next active boundary became `label_store`, which was now `CrashLoopBackOff` with `Last State = OOMKilled`, leading to a narrow repin from `512Mi / 2Gi` to `1Gi / 4Gi`.
@@ -9423,7 +9421,7 @@ Because the defects were isolated, explicit, and runtime-real. Treating them as 
 
 ---
 
-### `Episode 8 - after runtime seating was fixed, the last active blocker moved out of the loop and into the proving harness`
+`Episode 8 - after runtime seating was fixed, the last active blocker moved out of the loop and into the proving harness`
 
 **What surfaced.**
 After the `case_mgmt` and `label_store` lifts, the next full Phase 6 run showed that the stack of runtime-coupled defects had fallen away: `case_mgmt` was stable, `label_store` was stable, candidate, rollback, and restore attribution were green, and the remaining blocker had narrowed to the envelope family. Then the repeated run changed the blocker again: burst went green, recovery stayed green, and the only remaining miss was the first measured steady minute. Increasing presteady did not remove the dip. The direct APIGW breakdown showed the deficit was locked to the `presteady -> steady` boundary even though both segments targeted the same `3000 eps`. That exposed the real defect: the shared envelope builder was still emitting a no-op same-rate segment transition that reset the limiter state and contaminated the first steady minute.
@@ -9445,7 +9443,7 @@ Because it removed a no-op harness transition without changing the production ta
 
 ---
 
-### `Episode 9 - the accepted Phase 6 closure turned S4 from a hardening target into a promoted feedback loop`
+`Episode 9 - the accepted Phase 6 closure turned S4 from a hardening target into a promoted feedback loop`
 
 **What surfaced.**
 The final accepted run, `phase6_learning_coupled_20260312T194748Z`, closed Phase 6 green on the unchanged declared envelope after the shared same-rate boundary correction. The enlarged working network was green on steady, burst, and recovery, with `4xx = 0`, `5xx = 0`, clean timing, green candidate, rollback, and restore attribution, and no new DF, AL, DLA, or Case + Label integrity breach. The plan's ledger then recorded the accepted plane-ready authorities from `Phase 5`, the accepted coupled authority from `Phase 6`, the bounded temporal proof, the managed execution evidence, and the coupled runtime resolution evidence.
@@ -9467,7 +9465,7 @@ Because `S4` is not trying to prove `Learning eventually worked.` It is trying t
 
 ---
 
-## `What this interrogation says about S4`
+`What this interrogation says about S4`
 
 The real transformation of `S4` is not:
 
@@ -9480,9 +9478,9 @@ It is:
 The next clean move is the `S4 object transformation synthesis`.
 
 ## 2026-03-18 09:32:42 +00:00 - Synthesize how S4 moved from a wired runtime-plus-learning relationship into the promoted governed feedback-loop working network
-## `S4 - Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`
+`S4 - Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps`
 
-### `object transformation synthesis`
+`object transformation synthesis`
 
 In `A`, `S4` did not yet exist as an earned production-ready feedback loop. What already existed were two meaningful wired surfaces that were connected but not yet pressure-proven as one loop: the already-working runtime-and-supervision base, and Group 6's governed learning corridor. The `A` synthesis is explicit that this corridor is not `the ML stack` in a vague sense; it is a bounded truth system with distinct closures for learning-input basis, offline dataset truth, candidate truth, promotion and rollback truth, and active-bundle runtime authority. Its group-level claim is that the platform turns authoritative runtime and label truth into governed model-evolution truth, and then turns governed promoted state back into deterministic runtime decision authority.
 
@@ -9496,7 +9494,7 @@ It is:
 
 > the platform turned a wired relationship between runtime and supervision truth and the managed learning corridor into a **trustworthy feedback-loop network**, where runtime and label truth became admissible learning truth, that learning truth became governed candidate and promotion truth, and the promoted truth came back as real runtime authority on the same bounded production-shaped loop.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 The first thing that had to be resolved was **method legitimacy**. Learning had to be demoted from its earlier over-promoted posture and reopened because the earlier `Phase 5 / 6` closeout was under-expanded relative to the standard used elsewhere in the plan. That changed `S4` from `apparently already promoted` into `a feedback-loop object that still has to earn plane truth and coupled truth under the same hardening method as the earlier network objects.`
 
@@ -9512,7 +9510,7 @@ Sixth, once learning was coupled back to the working network, the enlarged loop 
 
 Seventh, after the loop itself had become healthy, the last active blocker moved into the **proving harness**, not the loop semantics. The remaining steady miss stayed locked to a redundant same-rate `presteady -> steady` boundary. Collapsing duplicate adjacent same-rate segments removed that no-op harness reset without weakening the declared target. That is the final methodological transformation: the object stopped being `maybe the feedback loop is still unstable` and became `the feedback loop is already healthy; the scorer is still asking the wrong steady-state question.`
 
-### `What this object became`
+`What this object became`
 
 The accepted closure on `phase6_learning_coupled_20260312T194748Z` is where `S4` actually earns its `Bi` posture. The final accepted metrics show the enlarged network green on the unchanged declared envelope: steady `3047.367 eps`, burst `6099.000 eps`, recovery `3019.894 eps`, `4xx = 0`, `5xx = 0`, clean downstream timing, green candidate, rollback, and restore attribution, and no new DF, AL, DLA, or Case + Label integrity breach. The implementation note then states the actual meaning of that closure: the promoted learning bundle is active on the live runtime path, the enlarged network stays production-credible under bounded production-shaped load, rollback and restore are attributable and bounded, and the final active runtime truth at closure is the promoted learning bundle. The plan's current baseline then promotes `Learning + Evolution / MLOps` into the working platform.
 
@@ -9528,7 +9526,7 @@ To move `S4` from its `A` posture to its `Bi` posture, the platform had to resol
 6. fix the real supervision-side runtime seating defects that only appeared once learning was attached
 7. remove the final same-rate harness defect so the loop could close on the unchanged declared standard
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of `S4` is:
 
@@ -9537,7 +9535,7 @@ The final `Bi` posture of `S4` is:
 The next clean move is the `Bi claim mix` for `S4`.
 
 ## 2026-03-18 09:33:15 +00:00 - Extract the Bi claim mix for S4 so the notebook states exactly what governed feedback-loop judgment this object now supports
-## `S4 - Bi claim mix`
+`S4 - Bi claim mix`
 
 Yes. For `S4`, the `Bi claim mix` is this.
 
@@ -9563,13 +9561,13 @@ Yes. For `S4`, the `Bi claim mix` is this.
 `S4` shows that you can turn a merely wired learning corridor into a production-ready governed feedback loop by insisting that runtime and label truth first become admissible causal learning truth, that learning only produces governed bundle truth from that basis, and that promoted truth is only counted once it comes back as live runtime authority with attributable rollback and restore and no semantic drift across the loop.
 
 ## 2026-03-18 09:33:49 +00:00 - Open S5 as the enlarged operational-closure network by framing the working platform plus Ops / Gov / Meta as one governable system
-## `Object`
+`S5 - Working platform + Ops / Gov / Meta operational closure` - `object frame`
 
 `S5` = `Working platform + Ops / Gov / Meta operational closure`.
 
 This is the enlarged-network object where the story stops being mainly `the system runs correctly` and becomes `the system can be operated, reconstructed, governed, observed, idled safely, restored safely, and cost-accounted for as one working platform.` The secondary-layer matrix pins it exactly that way: it is the object that moves the story from runtime correctness into true operational closure posture.
 
-## `A posture`
+`A posture`
 
 In `A`, `S5` does not yet exist as an earned enlarged-network closure object. What exists instead is Group 7 as a bounded closure system with six distinct owned outcomes:
 
@@ -9584,7 +9582,7 @@ That group-level `A` claim is already very strong: the platform does not stop at
 
 **a working platform with a separately meaningful operational closure layer, wired as a real bounded truth system, but not yet earned as one enlarged operationally closed platform under live pressure.**
 
-## `Bi posture`
+`Bi posture`
 
 In `Bi`, `S5` becomes the first enlarged-network object where the platform has to prove that the already-working runtime, supervision, and learning platform can now be **operated as one governable system**, not just as one technically correct system. That is exactly the Phase 7 and Phase 8 split in the readiness plan:
 
@@ -9604,7 +9602,7 @@ So `S5` is not merely `there are dashboards and alarms now.` Its final `Bi` post
 
 The accepted baseline then promotes `Ops / Gov / Meta` into the working platform after rebuilt Phase 7 plane closure on `2026-03-13` and integrated Phase 8 closure on `2026-03-13`.
 
-## `Why this object mattered`
+`Why this object mattered`
 
 `S5` matters because this is the point where the platform has to answer a harder question than `does it serve, decide, label, and learn correctly?` It now has to answer:
 
@@ -9612,7 +9610,7 @@ The accepted baseline then promotes `Ops / Gov / Meta` into the working platform
 
 That is why this object has such high meta-goal payoff. A reviewer can already infer strong runtime and ML-platform reasoning from `S1`-`S4`. But `S5` is where the platform starts to look like something a serious operator could actually own day to day: exact reconstruction, formal closure, live alertability, ML day-2 readback, safe idle and restore, and cost discipline. That is much closer to senior platform ownership than `the pipeline went green.`
 
-## `Concern`
+`Concern`
 
 The core concern for `S5` is:
 
@@ -9627,7 +9625,7 @@ That concern breaks into a few object-level worries:
 * live runtime truth and promoted bundle truth may drift after restore
 * cost may be visible in aggregate but not attributable enough to support safe operational closure
 
-## `Measurement`
+`Measurement`
 
 The measurement family for `S5` is explicitly operational and closure-oriented.
 
@@ -9672,14 +9670,14 @@ Then Phase 8 strengthens the same object by integrating it into the whole platfo
 * node count after idle still `0`
 * post-restore active runtime bundle still matched promoted truth
 
-## `One-line object frame`
+`One-line object frame`
 
 `S5` is the enlarged-network object where a previously working runtime, supervision, and learning platform first has to prove that it can close as one **operable and governable system**: in `A` it is only a separately meaningful closure layer, but in `Bi` it becomes the production-ready operational-closure network where reconstruction, governance, observability, idle and restore, drift visibility, and cost discipline all become strong enough to support promotion of `Ops / Gov / Meta` into the working platform.
 
 The next clean move is deriving the `system-design questions` for `S5`.
 
 ## 2026-03-18 09:34:26 +00:00 - Derive the system-design questions for S5 so the enlarged-network interrogation stays on operational closure rather than on isolated dashboards, alarms, or cost tools
-## `S5 - system-design questions`
+`S5 - system-design questions`
 
 Yes. For `S5`, the questions have to stay at **operational-closure enlarged-network scope**. This object is not `dashboards, alarms, and cost stuff.` It is the first point where the platform has to prove that the already-working runtime, supervision, and learning platform can be **closed, reconstructed, governed, observed, idled, restored, and economically read back as one operable system**. That is already the Group 7 claim in `A`, and the readiness plan then turns it into the `Phase 7 -> Phase 8` progression: first prove `Ops / Gov / Meta` on its own closure criteria, then prove that the whole platform still tells one coherent integrated story once those operator and governance surfaces are coupled into the live run.
 
@@ -9732,7 +9730,7 @@ Compressed into one line:
 The next clean move is to map `S5` to the pressure episodes that actually changed its posture.
 
 ## 2026-03-18 09:35:14 +00:00 - Map the pressure episodes that changed S5 from a closure-layer story into the promoted operationally closed working platform
-## `S5 - pressure episodes that actually changed its posture`
+`S5 - pressure episodes that actually changed its posture`
 
 Yes. At `S5` scope, the pressure history has to stay at the level of the **operationally closed platform**, not collapse into separate stories about alarms, dashboards, idle scripts, or cost widgets.
 
@@ -9740,61 +9738,61 @@ So the question for each episode is:
 
 **what changed whether the already-working platform deserved to count as one operationally closed, governable system, one that could be reconstructed exactly, challenged live, idled safely, restored safely, and economically read back as a single bounded run story?** That is already the Group 7 claim in `A`, and the plan then turns it into the `Phase 7 -> Phase 8` proof path for `Ops / Gov / Meta`.
 
-### `Episode 1 - the object first had to stop being a rushed closure story and become a real ops/governance proof problem`
+`Episode 1 - the object first had to stop being a rushed closure story and become a real ops/governance proof problem`
 
 The first real posture change was methodological. The initial `Phase 7` closure candidate was withdrawn completely because the phase had moved too fast, the reflected artifacts were starting to anchor the work to a patched story, and the repo needed a truthful restart rather than incremental edits around an over-eager closeout. That changed `S5` from `Ops / Gov / Meta already looks closed` into `operational closure still has to earn its own plane-ready authority under the same rigor as the earlier phases.`
 
-### `Episode 2 - the rebuilt Phase 7 boundary opened red on operator-surface incompleteness, not on runtime failure`
+`Episode 2 - the rebuilt Phase 7 boundary opened red on operator-surface incompleteness, not on runtime failure`
 
 Once the object was rebuilt from the live operator questions, the first honest red was not `the platform is broken.` It was that the live operator surface was incomplete: the operations dashboard was still too ingress-heavy, the alarm surface on the active naming boundary was effectively absent, and cost, idle, and restart had to be treated as real live engineering boundaries because the runtime was still materially up after the accepted `Phase 6` closeout. This changed `S5` from a vague closeout layer into a concrete operational-closure problem with visible missing surfaces.
 
-### `Episode 3 - the first bounded Phase 7 pass then exposed proof-boundary defects rather than platform defects`
+`Episode 3 - the first bounded Phase 7 pass then exposed proof-boundary defects rather than platform defects`
 
 After the live dashboards and alarms were materially present, the next red changed class again. The bounded assessor stayed red, but for reasons that belonged to the proof surface, not the platform: CSV evidence refs from the accepted `Phase 5` chain were being scored as JSON-only readbacks, billing freshness was being checked against the wrong CloudWatch source instead of the budget surface, and the DF drift probe assumed object-style access on structures that were partly dict-backed at runtime. That changed `S5` because it separated `the operator surface is incomplete` from `the assessor is misreading the now-present surface.`
 
-### `Episode 4 - once those proof defects were cleared, the object had to fail closed again because idle/restart proof was still missing`
+`Episode 4 - once those proof defects were cleared, the object had to fail closed again because idle/restart proof was still missing`
 
 The next rerun proved that reconstruction, evidence readback, observability presence, and drift readback were now green. But that did **not** close `S5` honestly, because the phase could still go green without any live idle and restart receipt. The boundary was immediately tightened so `Phase 7` would fail closed unless `phase7_idle_restart_drill.json` existed and was green. This changed `S5` from `operator surfaces are readable` into `operator closure must include live bounded control actions, not only readable evidence.`
 
-### `Episode 5 - the truthful restart then exposed a stronger red: operator-chain incompleteness`
+`Episode 5 - the truthful restart then exposed a stronger red: operator-chain incompleteness`
 
 After the full restart, the live boundary already had dashboards, critical alarms, budget surface, runtime bundle and policy readback, and an idle and restore controller. But the object still stayed red because the **operator chain** was incomplete: there was no explicit runbook linkage on the live dashboards, no fresh alert-path evidence beyond alarms sitting in `OK`, and the ML day-2 mitigation path was still too implicit to count as an operator surface. This is a deeper `S5` episode than the earlier missing-surface red. The first red was `the surface is incomplete.` This one was `the surface exists, but it still does not carry operators cleanly from signal to action.`
 
-### `Episode 6 - the alert path then became exercised and attributable instead of merely configured`
+`Episode 6 - the alert path then became exercised and attributable instead of merely configured`
 
 Once the dashboards carried the runbook path and the live boundary was rebuilt around operator actionability, the bounded alert drill on `fraud-platform-dev-full-ig-lambda-errors` went green in exactly the right way: `OK -> ALARM -> OK`, with both transitions attributable to the drill. This changed `S5` materially because the object stopped meaning `alarms exist` and started meaning `the operator signal path is exercised, attributable, and usable on the live platform.` That is a real operational-closure improvement, not just a monitoring improvement.
 
-### `Episode 7 - ML day-2 readback had to become truthful operator readback, not just surface presence`
+`Episode 7 - ML day-2 readback had to become truthful operator readback, not just surface presence`
 
 The new ML day-2 probe changed the object again in a very useful way. It did **not** fail because active runtime truth was wrong: active bundle and policy revision still matched promoted truth, the MLflow tracking surface was readable, the SageMaker execution role resolved, and the model package group existed. The red came from the probe reading rollback and restore authority from the wrong shape. That changed `S5` because it proved the object was now asking a more serious operator question: not `can I see some ML surfaces?` but `can I read the live authority surfaces that explain what is active and what restore and rollback truth exists?` The accepted fix was to correct the probe shape, not to repair a runtime that was already semantically correct.
 
-### `Episode 8 - idle/restore then had to become a real bounded operational action rather than a paper control`
+`Episode 8 - idle/restore then had to become a real bounded operational action rather than a paper control`
 
 The rebuilt idle and restore drill reached true zero-node idle and restored the runtime to its pre-drill shape; the live action itself was correct. The only defect was in receipt serialization for the drill controller, not in the platform action. That matters a lot at `S5` scope because it shows the object had moved beyond `there is an idle controller` into `the platform can actually idle to zero and come back, and the remaining issue is now evidence-surface quality rather than action failure.` It sharpened `S5` from a nominal day-2 control plane into a real bounded operational closure object.
 
-### `Episode 9 - rebuilt Phase 7 closure turned S5 from a hardening target into a plane-ready operational-closure object`
+`Episode 9 - rebuilt Phase 7 closure turned S5 from a hardening target into a plane-ready operational-closure object`
 
 The accepted rebuilt `Phase 7` closure is where `S5` first truly changes status. At that point the ops, governance, and meta family closed green with: required local evidence `10 / 10`, accepted `Phase 5` refs readable `18 / 18`, critical alarms present `6`, real alert drill evidence, required handle and secret resolution `11 / 11`, placeholder-like active handles `0`, node count after idle `0`, restored nodegroup shape, and visible major spend families still attributable. That changed `S5` from `the ops and governance layer is being rebuilt` into `the platform has earned plane-ready operational closure truth.`
 
-### `Episode 10 - the object then had to survive one more transition: from plane-ready ops/governance to integrated full-platform coherence`
+`Episode 10 - the object then had to survive one more transition: from plane-ready ops/governance to integrated full-platform coherence`
 
 The final decisive change for `S5` came in `Phase 8`. The object was not allowed to promote just because `Phase 7` was green on its own. `Phase 8` was opened from a **fresh integrated boundary**, not by stacking old green receipts, because the real question had become: does one fresh runtime-serving proof plus fresh operator coupling still describe **one** platform story? The first expensive integrated run came back clean on the platform itself; the only red left was a self-inflicted rollup and scorer defect, not a platform defect. After that scorer was fixed narrowly, the accepted integrated closure showed the runtime backbone, the operator and governance continuity, and the integrated rollup all agreeing on one bounded full-platform story. That is the point where `S5` stopped being only a plane-ready closure layer and became a **promoted working-platform member**.
 
-## `What this mapping says in one line`
+`What this mapping says in one line`
 
 `S5` changed posture when the platform progressively turned `Ops / Gov / Meta` from a partly rushed, partly tool-surface closure story into a real operationally closed platform object: first by restarting the phase truthfully, then by completing the live operator chain, then by distinguishing proof-boundary defects from platform defects, then by forcing real alert, ML day-2, idle, restore, and cost and accountability proof, and finally by proving that all of those surfaces still told one coherent story when coupled back into the full working platform.
 
 The next clean move is to interrogate these `S5` episodes one by one.
 
 ## 2026-03-18 09:36:02 +00:00 - Interrogate the S5 episodes so the notebook classifies the operationally closed platform at object scope rather than as separate alert, idle, or cost tool stories
-## `S5 - interrogated pressure episodes`
+`S5 - interrogated pressure episodes`
 
 Yes. I'll keep this at **`S5` object scope**:
 
 not separate stories about alarms, idle drills, or cost widgets,
 but **what changed whether the already-working platform deserved to count as one operationally closed, governable system** -- one that could be reconstructed exactly, challenged live, idled safely, restored safely, and economically read back as a single bounded run story. That is already the Group 7 meaning in `A`, and the rebuilt `Phase 7 -> Phase 8` trail is the `Bi` pressure history that turns that closure layer into an earned enlarged-network object.
 
-### `Episode 1 - the object first had to stop being a rushed closure story and become a real ops/governance proof problem`
+`Episode 1 - the object first had to stop being a rushed closure story and become a real ops/governance proof problem`
 
 **What surfaced**
 The first `Phase 7` closure candidate was explicitly withdrawn. The reason was not that every individual action was fake, but that the phase had moved too fast, reflected artifacts had started to anchor the repo to a patched story, and the boundary needed a truthful restart rather than incremental editing around a too-early closeout.
@@ -9816,7 +9814,7 @@ Because the standard stayed fixed while the method was corrected. `S5` is suppos
 
 ---
 
-### `Episode 2 - the rebuilt boundary opened red on operator-surface incompleteness, not on runtime failure`
+`Episode 2 - the rebuilt boundary opened red on operator-surface incompleteness, not on runtime failure`
 
 **What surfaced**
 Once rebuilt from the live operator questions, the first fresh `Phase 7` probe showed that the live boundary already had dashboards, critical alarms, budget surface, runtime bundle and policy readback, and idle and restore controller, but that was still not enough for closure authority. Runbook linkage was missing, fresh alert-path evidence did not yet exist, and the ML day-2 operator path remained too implicit.
@@ -9838,7 +9836,7 @@ Because it did not widen the phase randomly. It made the missing control path ex
 
 ---
 
-### `Episode 3 - the first bounded Phase 7 pass then exposed proof-boundary defects rather than platform defects`
+`Episode 3 - the first bounded Phase 7 pass then exposed proof-boundary defects rather than platform defects`
 
 **What surfaced**
 After the live dashboards and alarms were materially present, the next red no longer came from missing operator surfaces. It came from the assessor misreading the now-present surface: CSV evidence refs were being treated as JSON-only readbacks, billing freshness was being asked of the wrong CloudWatch source, and drift probes were assuming the wrong runtime object shape.
@@ -9860,7 +9858,7 @@ Because the live operator surface had already improved. The honest next move was
 
 ---
 
-### `Episode 4 - once the bounded assessor went green on reconstruction / evidence / observability / drift, the next honest correction was to fail it closed again until live idle/restart proof existed`
+`Episode 4 - once the bounded assessor went green on reconstruction / evidence / observability / drift, the next honest correction was to fail it closed again until live idle/restart proof existed`
 
 **What surfaced**
 The next rerun proved that exact reconstruction, evidence readback, observability presence, and drift readback could all go green. But that still was not enough, because the phase could close without any live idle and restart receipt. So the boundary was deliberately tightened to fail closed unless `phase7_idle_restart_drill.json` existed and was green.
@@ -9882,7 +9880,7 @@ Because `S5` is not only about readable evidence. It is also about whether the l
 
 ---
 
-### `Episode 5 - the truthful restart then exposed a stronger red: operator-chain incompleteness`
+`Episode 5 - the truthful restart then exposed a stronger red: operator-chain incompleteness`
 
 **What surfaced**
 On the rebuilt boundary, the live surface already had dashboards, critical alarms, budget surface, runtime bundle and policy readback, and an idle and restore controller. Yet the phase still stayed red because runbook linkage was not explicit, alert-path evidence was still missing, and ML day-2 mitigation was still too implicit. This was deeper than the earlier `missing surfaces` problem.
@@ -9904,7 +9902,7 @@ Because it strengthened the exact missing part of the operator chain rather than
 
 ---
 
-### `Episode 6 - the alert path then became exercised and attributable instead of merely configured`
+`Episode 6 - the alert path then became exercised and attributable instead of merely configured`
 
 **What surfaced**
 Once the runbook existed and the dashboards linked to it, the fresh alert drill on `fraud-platform-dev-full-ig-lambda-errors` behaved exactly as the rebuilt phase needed: `OK -> ALARM -> OK`, and both transitions were attributable to the bounded drill.
@@ -9926,7 +9924,7 @@ Because it converted passive alarm presence into attributable operator evidence,
 
 ---
 
-### `Episode 7 - ML day-2 readback had to become truthful operator readback, not just surface presence`
+`Episode 7 - ML day-2 readback had to become truthful operator readback, not just surface presence`
 
 **What surfaced**
 The rebuilt ML day-2 probe did not fail because active runtime truth was wrong. Active bundle and policy revision matched promoted truth; the Databricks-backed MLflow tracking mode was readable; the SageMaker execution role and model package group were present. The red came from the probe reading rollback and restore authority from the wrong shape, not from a live platform truth defect.
@@ -9948,7 +9946,7 @@ Because the platform truth was already healthy. The defect was in how the operat
 
 ---
 
-### `Episode 8 - idle/restore then had to become a real bounded operational action rather than a paper control`
+`Episode 8 - idle/restore then had to become a real bounded operational action rather than a paper control`
 
 **What surfaced**
 The rebuilt idle and restore drill actually drove the runtime to true idle: nodegroup `min=0 / desired=0`, node count after idle = `0`, RTDL, Case + Label, and `coredns` at zero, and restore back to `min=2 / desired=4` with active deployments returning cleanly. The first defect was only receipt serialization on datetime-bearing update payloads, not a failure of the live platform action.
@@ -9970,7 +9968,7 @@ Because it preserved the stronger truth: the live platform action had already su
 
 ---
 
-### `Episode 9 - rebuilt Phase 7 closure turned S5 from a hardening target into a plane-ready operational-closure object`
+`Episode 9 - rebuilt Phase 7 closure turned S5 from a hardening target into a plane-ready operational-closure object`
 
 **What surfaced**
 The accepted rebuilt execution `phase7_ops_gov_meta_restart_20260313T002459Z` finally closed the phase on the rebuilt standard. The decisive closure metrics included `10 / 10` required local evidence, `18 / 18` accepted learning refs readable, `6 / 6` critical alarms, explicit alert drill evidence, ML day-2 operator surface truth, handle and secret resolution `11 / 11`, placeholder-like active handles `0`, and node count after idle `0` with runtime restored to pre-drill shape.
@@ -9992,7 +9990,7 @@ Because it answered the rebuilt phase question directly. It did not close on par
 
 ---
 
-### `Episode 10 - the object then had to survive one more transition: from plane-ready ops/governance to integrated full-platform coherence`
+`Episode 10 - the object then had to survive one more transition: from plane-ready ops/governance to integrated full-platform coherence`
 
 **What surfaced**
 `Phase 8` was explicitly opened from a fresh integrated boundary rather than by stacking old green receipts. The fresh integrated execution `phase8_full_platform_integrated_20260313T010847Z` rode a fresh Phase 6 backbone and a fresh operator and governance coupling on the same scope. The live integrated proof itself was already green; the first red, `PHASE8_B_IDLE_NOT_ZERO`, turned out to be a self-inflicted rollup defect because the drill artifact already showed node count after idle = `0`. After narrow scorer repair, the integrated rollup agreed with the live platform and the whole platform closed green on one bounded story.
@@ -10014,7 +10012,7 @@ Because the live platform had already answered the real integrated question posi
 
 ---
 
-## `What this interrogation says about S5`
+`What this interrogation says about S5`
 
 The real transformation of `S5` is not:
 
@@ -10027,9 +10025,9 @@ It is:
 The next clean move is the `S5 object transformation synthesis`.
 
 ## 2026-03-18 09:36:47 +00:00 - Synthesize how S5 moved from a separately meaningful closure layer into the promoted operationally closed working platform
-## `S5 - Working platform + Ops / Gov / Meta operational closure`
+`S5 - Working platform + Ops / Gov / Meta operational closure`
 
-### `object transformation synthesis`
+`object transformation synthesis`
 
 In `A`, `S5` did not yet exist as an earned enlarged-network closure object. What already existed was Group 7 as a real bounded closure system: run reconstruction, governance closure, verdict publication, observability attestation, idle-safe teardown, and cost and accountability closure were already separated as owned truths rather than treated as `some ops stuff after the run.` So the starting point was not weak. It was a working platform with a real closure layer, but that layer had not yet been pressure-proven as one operable whole-platform boundary.
 
@@ -10043,7 +10041,7 @@ It is:
 
 > the platform turned a separately meaningful closure layer into a trustworthy operational-closure network, where exact reconstruction, evidence-justified verdicts, alert and runbook usability, ML day-2 readback, idle and restore truth, and cost and accountability all became strong enough to support promotion first on the rebuilt ops and governance boundary and then again on the integrated whole-platform boundary.
 
-### `What had to be resolved`
+`What had to be resolved`
 
 The first thing that had to be resolved was method legitimacy. The initial Phase 7 closeout was withdrawn because it had moved too fast and had started anchoring the repo to a patched story. That mattered because `S5` could not be allowed to inherit authority from a rushed closure narrative. The object had to be restarted as a real proof problem, not cosmetically repaired.
 
@@ -10057,7 +10055,7 @@ The object also had to resolve exercised operator challengeability. The alert pa
 
 Finally, the object had to survive the transition from plane-ready closure to integrated full-platform coherence. Phase 7 closing green was not enough. Phase 8 was opened from a fresh integrated boundary so the platform could answer the harder question: whether the runtime backbone and the rebuilt operator and governance closure still agreed on one bounded story. The live integrated proof was already green; the remaining issue was a narrow rollup and scorer defect, not a platform defect. After that correction, `S5` stopped being only a plane-ready ops and governance layer and became a promoted working-platform member.
 
-### `What this object became`
+`What this object became`
 
 The accepted rebuilt Phase 7 closure is where `S5` first earns plane-ready closure truth: required local evidence `10 / 10`, accepted Phase 5 refs readable `18 / 18`, critical alarms present `6`, live alert drill evidence, required handle and secret surfaces resolved `11 / 11`, placeholder-like active handles `0`, node count after idle `0`, restored nodegroup shape, and major spend families still attributable. That is already much stronger than `we have observability.` It is an operator-usable, evidence-bearing closure boundary.
 
@@ -10074,10 +10072,36 @@ To move `S5` from its `A` posture to its `Bi` posture, the platform had to resol
 5. make alert and ML day-2 challenge paths exercised and attributable
 6. prove that the rebuilt operator and governance story still coheres when coupled back into one fresh integrated full-platform run
 
-### `Final Bi posture`
+`Final Bi posture`
 
 The final `Bi` posture of `S5` is:
 
 **a production-ready operational-closure network where the working platform can be reconstructed exactly, judged from evidence, challenged through live alert and ML day-2 surfaces, idled and restored safely, and economically read back as one coherent bounded run story, first on the rebuilt ops and governance plane and then again on the integrated whole-platform proof.**
 
 The next clean move is the `Bi claim mix` for `S5`.
+
+## 2026-03-18 09:37:21 +00:00 - Extract the Bi claim mix for S5 so the notebook states exactly what operational-closure judgment this object now supports
+`S5 - Bi claim mix`
+
+Yes. For `S5`, the `Bi` claim mix is this.
+
+1. `Readiness-reasoning claim`
+   `S5` supports the claim that you can reason operational closure itself as a production-readiness boundary, instead of treating `the platform ran` as enough. The work only became promotable because it separated the right classes of red: rushed closure-story defects, live operator-chain incompleteness, proof-surface misreads, missing live idle and restore proof, ML day-2 readback-shape defects, and finally integrated scorer defects after the real platform was already green.
+
+2. `Systems-design judgment claim`
+   `S5` supports the claim that you understood `Ops / Gov / Meta` as a real operational object with its own truth boundaries, not as `dashboards and cleanup.` The plan defines it around exact run reconstruction, verdict traceability, drift detection, safe idle and restart, cost attribution, and ML day-2 monitoring ownership, and then requires that object to pass both plane-ready proof in Phase 7 and integrated full-platform proof in Phase 8.
+
+3. `Measurement / evidence claim`
+   `S5` supports the claim that you made operational closure directly judgeable on live evidence surfaces. On the rebuilt Phase 7 closure, the accepted metrics were concrete and bounded: `10 / 10` required local evidence files, `18 / 18` accepted Phase 5 refs readable, `6 / 6` critical alarms, live `OK -> ALARM -> OK` drill evidence, `11 / 11` required handle and secret surfaces resolved, `0` placeholder-like active handles, `node count after idle = 0`, restored nodegroup shape, and attributable major spend families. Then Phase 8 re-asked the same object on an integrated scope and still held coherence with fresh runtime backbone plus fresh operator coupling on the same execution.
+
+4. `Constraint / trade-off claim`
+   `S5` supports the claim that you preferred truthful operational proof over easy green narratives. You withdrew the first rushed closure candidate, rebuilt the phase from live operator questions, failed it closed until live idle and restart proof existed, opened Phase 8 from a fresh integrated boundary instead of stacking old receipts, and fixed narrow scorer defects rather than weakening the gate or rerunning the whole platform blindly. That is a real trade-off claim: more ceremony, more proof surfaces, and more delayed closure in exchange for a much stronger operational-ownership result.
+
+5. `Production-relevant challenge claim`
+   `S5` supports the claim that the challenges here were genuinely production-shaped. The hard parts were not toy monitoring tasks. They were: proving exact reconstruction rather than patched narrative, exercising a real alert path, making ML day-2 readback truthful on live runtime authority, proving true idle-to-zero and restore on the active platform, keeping spend attributable by service family, and then showing that those operator and governance truths still held when coupled back into one fresh integrated full-platform run story.
+
+6. `Promotion / final-posture claim`
+   `S5` supports the claim that the end state is not merely `Ops surfaces became usable.` The end state is that `Ops / Gov / Meta` became a promoted working-platform member after rebuilt Phase 7 plane closure and integrated Phase 8 closure, with the plan's baseline then explicitly promoting `Ops / Gov / Meta` into the working platform and treating the whole `dev_full` platform as bounded-correct on that accepted integrated authority.
+
+`Compressed Bi claim`
+`S5` shows that you can turn a separately meaningful closure layer into a production-ready operational-closure object by insisting that reconstruction, verdict traceability, alertability, ML day-2 readback, idle and restore, and cost accountability are all real live truths first on their own boundary, and then only promoting them once they still cohere when coupled back into one full-platform proof story.
