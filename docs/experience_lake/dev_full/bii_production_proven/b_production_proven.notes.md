@@ -129,3 +129,35 @@ And the cleanest approach statement is:
 > **Our approach in `Bii` is to start from the accepted ready platform, preserve the same full-platform truth path that `Bi` proved under bounded pressure, and run the system through a production-style operating program in which uptime, stress, incidents, controlled change, audit answerability, operator transferability, and cost and evidence closure are all first-class parts of the claim.**
 
 That is the posture I would use to open the `Bii` document.
+
+## 2026-03-18 16:50:30 +00:00 - Pause Bii until the production-proving doctrine is repinned and actually executed on a less restrictive capstone program
+`Bii` is paused here on purpose.
+
+The reason is not that the platform still lacks readiness authority. `A` and `Bi` already did the hard threshold work:
+
+- the platform is a real engineered full-lifecycle system
+- the promoted working platform already closed bounded integrated correctness
+- bounded stress authorization is already earned
+
+So the pause is not about uncertainty over whether `dev_full` can be treated as ready on the bounded authorization standard.
+
+The pause is about the next layer's proving doctrine.
+
+The current file:
+
+- [dev-full_production-proving.md](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/model_spec/platform/pre-design_decisions/dev-full_production-proving.md)
+
+has not yet been executed, and its current posture is too restrictive and too binding for the capstone operating claim we actually want to run next. In particular, it hard-pins proof expectations like `7 / 30 days` as suitable production proof, when a different near-term proving shape is already credible enough for the current platform and capstone aim:
+
+- use the available `3` months of data
+- preserve the accepted production envelope
+- keep the proven `3000 / 6000 eps` operating shape alive
+- and repin the operating program around what will actually produce the strongest defended claim for this stage
+
+So the honest posture is:
+
+- do not pretend `Bii` is already being executed
+- do not let the notebook outrun the proving doctrine that is supposed to govern it
+- and do not inherit overly rigid proof hardlines just because they were written early
+
+The next clean move is to repin the production-proving doctrine into a less restrictive capstone operating program that matches the platform we actually earned in `Bi`, and only then reopen `Bii` as an executed operating-proof notebook rather than a paused doctrine layer.
