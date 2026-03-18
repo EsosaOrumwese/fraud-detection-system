@@ -1541,7 +1541,7 @@ Any later longer stress / soak work should therefore begin from the accepted `Ph
 
 ## AWS cost snapshot (`2026-03-01` to `2026-03-13`)
 
-This snapshot is included because production readiness in this repo explicitly includes cost discipline, and the phase work materially changed the cost profile over time.
+This snapshot is included because production readiness in this repo explicitly includes cost discipline, and the phase work materially changed the cost profile over time. It is not enough to say "the platform went green"; the plan should also explain what we spent, why we spent it, and which parts of the spend were valid proving cost versus earlier exploratory posture or retained-runtime drift.
 
 Source:
 - AWS Cost Explorer
@@ -1549,6 +1549,7 @@ Source:
 - granularity: `DAILY`
 - group-by: `SERVICE`
 - query window: `2026-03-01` through `2026-03-13`
+- query refresh used for this section: `2026-03-18`
 
 Caveat:
 - all returned days were still marked `Estimated=true` at query time
@@ -1558,7 +1559,7 @@ Caveat:
 
 | Date | Total USD | Estimated |
 |---|---:|---|
-| 2026-03-01 | `668.81` | `true` |
+| 2026-03-01 | `742.39` | `true` |
 | 2026-03-02 | `38.18` | `true` |
 | 2026-03-03 | `33.43` | `true` |
 | 2026-03-04 | `34.82` | `true` |
@@ -1570,42 +1571,42 @@ Caveat:
 | 2026-03-10 | `275.10` | `true` |
 | 2026-03-11 | `533.49` | `true` |
 | 2026-03-12 | `317.49` | `true` |
-| 2026-03-13 | `302.72` | `true` |
-| Window total | `3808.78` | mixed; all rows estimated at query time |
+| 2026-03-13 | `521.75` | `true` |
+| Window total | `4101.39` | mixed; all rows estimated at query time |
 
 ### Service totals so far
 
 | Service | Total USD |
 |---|---:|
-| Amazon DynamoDB | `858.61` |
-| Tax | `634.80` |
-| Amazon Elastic Container Service | `434.71` |
-| Amazon Managed Streaming for Apache Kafka | `358.42` |
-| AWS Lambda | `275.76` |
-| Amazon Relational Database Service | `261.95` |
-| Amazon API Gateway | `243.99` |
-| Amazon Simple Storage Service | `234.68` |
-| AmazonCloudWatch | `186.67` |
-| Amazon Elastic Compute Cloud - Compute | `143.59` |
-| EC2 - Other | `71.57` |
-| Amazon Virtual Private Cloud | `46.93` |
-| Amazon Elastic Container Service for Kubernetes | `29.82` |
-| Amazon Kinesis | `11.77` |
+| Amazon DynamoDB | `907.42` |
+| Tax | `708.38` |
+| Amazon Elastic Container Service | `448.50` |
+| Amazon Managed Streaming for Apache Kafka | `373.17` |
+| AWS Lambda | `312.39` |
+| Amazon Relational Database Service | `283.61` |
+| Amazon API Gateway | `276.39` |
+| Amazon Simple Storage Service | `251.86` |
+| AmazonCloudWatch | `197.74` |
+| Amazon Elastic Compute Cloud - Compute | `153.91` |
+| EC2 - Other | `79.55` |
+| Amazon Virtual Private Cloud | `49.87` |
+| Amazon Elastic Container Service for Kubernetes | `30.82` |
+| Amazon Kinesis | `12.17` |
 | Amazon Elastic Load Balancing | `6.29` |
 | Amazon Elastic MapReduce | `3.74` |
 | Amazon Athena | `1.74` |
 | Amazon Kinesis Analytics | `1.74` |
-| AWS Key Management Service | `0.93` |
-| AWS Cost Explorer | `0.56` |
-| Amazon EC2 Container Registry (ECR) | `0.46` |
+| AWS Key Management Service | `0.98` |
+| AWS Cost Explorer | `0.59` |
+| Amazon EC2 Container Registry (ECR) | `0.49` |
 | Amazon SageMaker | `0.05` |
-| All services total | `3808.78` |
+| All services total | `4101.39` |
 
 ### Daily breakdown by major service
 
 | Date | DynamoDB | ECS | MSK | Lambda | RDS | API GW | S3 | CloudWatch | EC2 Compute | EC2 Other | Daily total USD |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 2026-03-01 | `0.00` | `0.00` | `21.00` | `0.00` | `1.76` | `0.00` | `0.25` | `0.00` | `4.02` | `0.00` | `668.81` |
+| 2026-03-01 | `0.00` | `0.00` | `21.00` | `0.00` | `1.76` | `0.00` | `0.25` | `0.00` | `4.02` | `0.00` | `742.39` |
 | 2026-03-02 | `0.28` | `0.07` | `21.21` | `0.00` | `1.75` | `0.00` | `0.49` | `0.00` | `4.53` | `0.00` | `38.18` |
 | 2026-03-03 | `0.10` | `0.00` | `21.25` | `0.00` | `1.76` | `0.00` | `0.28` | `0.00` | `4.54` | `0.00` | `33.43` |
 | 2026-03-04 | `0.01` | `0.00` | `22.57` | `0.00` | `1.75` | `0.00` | `0.28` | `0.00` | `4.53` | `0.00` | `34.82` |
@@ -1617,13 +1618,13 @@ Caveat:
 | 2026-03-10 | `77.04` | `9.42` | `30.23` | `59.86` | `8.81` | `42.20` | `15.37` | `13.40` | `5.10` | `5.71` | `275.10` |
 | 2026-03-11 | `119.42` | `23.71` | `35.48` | `100.14` | `32.58` | `82.79` | `56.88` | `28.09` | `21.31` | `23.59` | `533.49` |
 | 2026-03-12 | `42.73` | `11.69` | `29.07` | `44.54` | `46.90` | `34.87` | `51.60` | `11.53` | `20.48` | `15.00` | `317.49` |
-| 2026-03-13 | `66.49` | `12.94` | `20.66` | `49.35` | `32.99` | `45.32` | `29.38` | `15.40` | `10.75` | `13.44` | `302.72` |
+| 2026-03-13 | `115.29` | `26.72` | `35.41` | `85.99` | `54.65` | `77.72` | `46.56` | `26.46` | `21.06` | `21.42` | `521.75` |
 
 ### Other services by day
 
 | Date | VPC | EKS | Kinesis | ELB | KMS | Cost Explorer | ECR | SageMaker | Tax | Daily total USD |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 2026-03-01 | `2.11` | `2.40` | `0.65` | `0.00` | `0.03` | `0.00` | `0.00` | `0.00` | `634.80` | `668.81` |
+| 2026-03-01 | `2.11` | `2.40` | `0.65` | `0.00` | `0.03` | `0.00` | `0.00` | `0.00` | `708.38` | `742.39` |
 | 2026-03-02 | `2.11` | `2.40` | `0.96` | `0.00` | `0.03` | `0.01` | `0.00` | `0.00` | `0.00` | `38.18` |
 | 2026-03-03 | `2.11` | `2.40` | `0.96` | `0.00` | `0.03` | `0.00` | `0.00` | `0.00` | `0.00` | `33.43` |
 | 2026-03-04 | `2.11` | `2.40` | `0.96` | `0.00` | `0.03` | `0.18` | `0.00` | `0.00` | `0.00` | `34.82` |
@@ -1635,24 +1636,99 @@ Caveat:
 | 2026-03-10 | `4.24` | `2.40` | `0.96` | `0.00` | `0.14` | `0.16` | `0.07` | `0.00` | `0.00` | `275.10` |
 | 2026-03-11 | `5.89` | `2.40` | `0.96` | `0.00` | `0.16` | `0.00` | `0.07` | `0.00` | `0.00` | `533.49` |
 | 2026-03-12 | `5.42` | `2.40` | `0.96` | `0.00` | `0.10` | `0.09` | `0.07` | `0.03` | `0.00` | `317.49` |
-| 2026-03-13 | `3.87` | `1.40` | `0.56` | `0.00` | `0.07` | `0.07` | `0.04` | `0.00` | `0.00` | `302.72` |
+| 2026-03-13 | `6.80` | `2.40` | `0.96` | `0.00` | `0.19` | `0.10` | `0.08` | `0.00` | `0.00` | `521.75` |
 
 Cost-table note:
 - the two per-day service matrices are convenience breakouts of the material families, not exhaustive per-day service inventories
 - the `Daily total USD` column is the authoritative Cost Explorer daily total for that date
 - small residual differences between visible service sums and `Daily total USD` come from omitted low-cost families and Cost Explorer rounding
 
+### Cost interpretation by era
+
+#### `2026-03-01` to `2026-03-05` - retained substrate and pre-proving background spend
+
+This window is not the real proving-plane execution yet. It is mostly standing substrate and finance noise:
+
+- total for this era: `882.16 USD`
+- `Tax = 708.38 USD` on `2026-03-01`; that is a billing artifact, not runtime platform work
+- the real runtime floor in this era was modest and stable:
+  - `MSK = 108.62 USD`
+  - `EC2 Compute = 19.68 USD`
+  - `EKS = 12.00 USD`
+  - `VPC = 10.56 USD`
+  - `RDS = 8.78 USD`
+- interpretation:
+  - the platform was still carrying a standing substrate before the proving-plane method was fully engaged
+  - this is exactly the kind of floor that later teardown and standby work were meant to control
+
+#### `2026-03-06` to `2026-03-09` - transition from older proving posture into the real production-readiness method
+
+This is the most expensive non-green window and should be read as mixed spend:
+
+- total for this era: `1571.40 USD`
+- dominant families:
+  - `DynamoDB = 552.54 USD`
+  - `ECS = 376.89 USD`
+  - `MSK = 134.36 USD`
+  - `RDS = 131.89 USD`
+  - `CloudWatch = 118.25 USD`
+  - `S3 = 79.85 USD`
+- truthful interpretation:
+  - this era includes legacy `road_to_prod` and adjacent pre-green proving receipts that helped expose the shape of the real ingress/runtime boundary but did not yet benefit from the full phase-first hardening method
+  - `2026-03-07` and `2026-03-08` are the clearest examples of costly pre-methodology pressure:
+    - large `DynamoDB` write spend from the ingress hot-path receipt posture before the compact-row remediation
+    - large `ECS` spend from WSP replay / Fargate runtime while the proof shape was still being tightened
+    - large `RDS` and `CloudWatch` spend from heavier checkpoint / IO / log volume
+  - `2026-03-09` dropping to `190.50 USD` is the visible break in posture after teardown / rebuild / narrowing; it marks the point where cost discipline started to materially bite
+
+#### `2026-03-10` to `2026-03-13` - actual proving-plane execution from Phase 0 through bounded full-platform closure
+
+This is the cost that most honestly belongs to the production-readiness run itself.
+
+- total for this era: `1647.82 USD`
+- dominant families:
+  - `DynamoDB = 354.49 USD`
+  - `Lambda = 290.53 USD`
+  - `API Gateway = 237.58 USD`
+  - `S3 = 170.41 USD`
+  - `RDS = 142.94 USD`
+  - `MSK = 130.19 USD`
+- day-level interpretation:
+  - `2026-03-10` (`275.10 USD`) was mainly `Phase 0` ingress hardening:
+    - truthful APIGW -> Lambda proof windows
+    - active diagnosis of the ingress hot path
+    - live `DynamoDB` cost investigation and the compact-`ddb_hot` remediation
+  - `2026-03-11` (`533.49 USD`) was the heaviest coupled-plane execution day inside the green path:
+    - `DynamoDB`, `Lambda`, and `API Gateway` all rose together because the platform was no longer just admitting traffic; it was proving live coupled participation across more of the network
+    - `S3` and `RDS` also rose materially, which matches the object-store, evidence, and checkpoint / Aurora pressure seen during that expansion
+  - `2026-03-12` (`317.49 USD`) shifted more of the spend mix toward learning surfaces and cost cleanup:
+    - `S3` and `RDS` led the day, which is consistent with bounded learning basis work, Databricks / OFS materialization, and storage-heavy evaluation paths
+    - this was also the day where explicit whole-platform cost hygiene was applied before moving on
+  - `2026-03-13` (`521.75 USD`) is the bounded integrated / stress authorization day:
+    - `DynamoDB`, `Lambda`, `API Gateway`, `RDS`, and `S3` all remained materially high because all promoted planes were now participating together under widened bounded pressure
+    - this is not idle waste; it is the cost of the full-platform proof that underwrites the final green judgment
+
+### Service-family explanation
+
+The top service families in this window each mean something different operationally:
+
+| Service family | What it mostly represented in this hardening window |
+|---|---|
+| `Amazon DynamoDB` | ingress idempotency and receipt writes, especially before the compact-row fix removed needless write amplification |
+| `Amazon Elastic Container Service` | WSP replay / producer runtime and earlier retained ingress-side compute while the proving posture was still narrowing |
+| `Amazon Managed Streaming for Apache Kafka` | standing Kafka serverless floor plus traffic-driven bytes during active proof windows |
+| `AWS Lambda` | truthful active ingress hot-path execution once the real external boundary was pinned as `API Gateway -> Lambda` |
+| `Amazon Relational Database Service` | Aurora ACU and IO pressure, especially from checkpoints / write churn during replay and bounded proofs |
+| `Amazon API Gateway` | real ingress admission once Phase 0 was pinned to the live front door rather than retained internal ingress surfaces |
+| `Amazon Simple Storage Service` | request-heavy hardening traffic, evidence / artifact movement, and later bounded learning basis materialization rather than simple static GB-month storage alone |
+| `AmazonCloudWatch` | live telemetry and log volume, especially before the telemetry-first posture had fully reduced blind rerun noise |
+
 ### Cost judgment from this snapshot
 
-- the biggest month-to-date AWS accumulator is `Amazon DynamoDB`
-- the next material cost families are:
-  - `Amazon Elastic Container Service`
-  - `Amazon Managed Streaming for Apache Kafka`
-  - `AWS Lambda`
-  - `Amazon Relational Database Service`
-  - `Amazon API Gateway`
-  - `Amazon Simple Storage Service`
-- `2026-03-09` reflects the materially lower post-teardown / rebuild day compared with the heavier `2026-03-07`, `2026-03-08`, `2026-03-11`, `2026-03-12`, and `2026-03-13` hardening windows
+- the most expensive *runtime* family in the whole window was `Amazon DynamoDB`, not because storage was large, but because the ingress hot path originally wrote too much per request
+- `2026-03-07` and `2026-03-08` are the clearest examples of expensive transition-era spend that taught us how to harden the platform but were not yet the mature production-readiness method
+- `2026-03-10` through `2026-03-13` is the most honest view of what the bounded production-readiness execution actually cost
+- `2026-03-09` is the key inflection day because it shows the cost impact of narrowing the posture and tearing down / rebuilding instead of continuing with the broader earlier shape
 - the `Tax` line on `2026-03-01` is a billing artifact, not a runtime service family
 
 ---

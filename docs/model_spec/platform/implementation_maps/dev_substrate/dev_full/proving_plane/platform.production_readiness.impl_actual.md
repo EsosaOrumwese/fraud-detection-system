@@ -8062,3 +8062,130 @@ After that prune, the remaining S3 cost is no longer an evidence-bucket story. I
 - normal request and KMS overhead
 
 The `artifacts` bucket is now small by comparison (`~67.6 MiB`), so the main storage bill that remains is the retained object-store data, not certification evidence.
+
+## 2026-03-18 15:48:28 +00:00 - The cost story from the start of hardening to the final `Phase 9` closeout needed to be written as engineering reasoning, not left as a raw Cost Explorer dump
+
+The user is right to ask for this explicitly. The plan already had a cost snapshot table, but that by itself is not enough to explain what happened. A serious production-readiness record should distinguish three things:
+
+- standing substrate or finance noise
+- expensive but still exploratory / legacy proving spend
+- the narrower spend that actually belongs to the accepted proving-plane execution
+
+So I rebuilt the cost section from two authorities together:
+
+- the repo trail from the implementation notebook and logbooks
+- a fresh Cost Explorer query for `2026-03-01` through `2026-03-13`
+
+The first thing that mattered was correcting the numbers themselves. The earlier snapshot in the plan had drifted because Cost Explorer had continued to settle. The refreshed authoritative daily totals are now:
+
+- `2026-03-01 = 742.39 USD`
+- `2026-03-02 = 38.18 USD`
+- `2026-03-03 = 33.43 USD`
+- `2026-03-04 = 34.82 USD`
+- `2026-03-05 = 33.34 USD`
+- `2026-03-06 = 196.21 USD`
+- `2026-03-07 = 619.83 USD`
+- `2026-03-08 = 564.86 USD`
+- `2026-03-09 = 190.50 USD`
+- `2026-03-10 = 275.10 USD`
+- `2026-03-11 = 533.49 USD`
+- `2026-03-12 = 317.49 USD`
+- `2026-03-13 = 521.75 USD`
+
+for a refreshed window total of `4101.39 USD`.
+
+The second thing that mattered was splitting the spend into honest eras.
+
+`2026-03-01` through `2026-03-05` is mostly background cost, not the proving-plane story. The big line here is `Tax = 708.38 USD` on March 1, which is not runtime truth at all. The real technical story in that window is the standing substrate floor:
+
+- `MSK = 108.62 USD`
+- `EC2 Compute = 19.68 USD`
+- `EKS = 12.00 USD`
+- `VPC = 10.56 USD`
+- `RDS = 8.78 USD`
+
+That is useful because it shows what the environment cost even before the serious bounded proofs started. It also explains why later teardown and standby work mattered so much.
+
+`2026-03-06` through `2026-03-09` is the transition window where legacy `road_to_prod` style proving and the newer production-readiness posture overlap. This is the most expensive non-green era in the whole run:
+
+- era total `= 1571.40 USD`
+- `DynamoDB = 552.54 USD`
+- `ECS = 376.89 USD`
+- `MSK = 134.36 USD`
+- `RDS = 131.89 USD`
+- `CloudWatch = 118.25 USD`
+
+This is where the repo history and the cost lines match each other well. The earlier proving style was still discovering too much under load:
+
+- ingress was writing too much into DynamoDB hot rows
+- WSP replay was burning more ECS/Fargate runtime than the later narrowed proofs
+- Aurora and CloudWatch were absorbing heavier churn because the telemetry posture and the proof boundary had not yet been cleaned up enough
+
+The March 7 and March 8 totals are therefore not "fake" spend, but they are not the cost shape I would use to represent the final methodology either. They are the bill for learning why the earlier posture was too broad. The big visual break is March 9 at `190.50 USD`. That day is the first obvious cost result of teardown / rebuild / narrowing rather than continuing to push on the older proving shape.
+
+`2026-03-10` through `2026-03-13` is the most honest cost window for the actual accepted production-readiness execution. This is the part of the story that runs from truthful `Phase 0` ingress proof through bounded full-platform stress authorization:
+
+- era total `= 1647.82 USD`
+- `DynamoDB = 354.49 USD`
+- `Lambda = 290.53 USD`
+- `API Gateway = 237.58 USD`
+- `S3 = 170.41 USD`
+- `RDS = 142.94 USD`
+- `MSK = 130.19 USD`
+
+Day by day, the meaning is more useful than the raw number alone.
+
+`2026-03-10` (`275.10 USD`) is the ingress day. This is where the external boundary was pinned to `API Gateway -> Lambda`, the stale internal ingress drift was removed, and the DynamoDB hot-receipt amplification problem was handled with the compact `ddb_hot` write instead of the rejected `object_store` shortcut. That is why the cost mix looks like:
+
+- `DynamoDB = 77.04 USD`
+- `Lambda = 59.86 USD`
+- `API Gateway = 42.20 USD`
+
+This is a good example of valid proving spend plus active cost remediation inside the same day.
+
+`2026-03-11` (`533.49 USD`) is where the platform started paying for real coupled-plane work. The cost mix is no longer just ingress:
+
+- `DynamoDB = 119.42 USD`
+- `Lambda = 100.14 USD`
+- `API Gateway = 82.79 USD`
+- `S3 = 56.88 USD`
+- `RDS = 32.58 USD`
+
+The reason I wanted this written explicitly is that this day can look "bad" in a finance table if you ignore the engineering context. In reality it is the day where more of the promoted network was materially participating, so the cost went up because the platform was finally doing more of the real job.
+
+`2026-03-12` (`317.49 USD`) is the learning and cost-discipline day. The mix shifts noticeably:
+
+- `S3 = 51.60 USD`
+- `RDS = 46.90 USD`
+- `Lambda = 44.54 USD`
+- `DynamoDB = 42.73 USD`
+- `API Gateway = 34.87 USD`
+
+That is exactly what I would expect from bounded learning basis work, Databricks / OFS materialization, and a day that also included deliberate cost hygiene before moving onward.
+
+`2026-03-13` (`521.75 USD`) is the bounded integrated and stress-authorization day. The mix proves that all the promoted planes are active together:
+
+- `DynamoDB = 115.29 USD`
+- `Lambda = 85.99 USD`
+- `API Gateway = 77.72 USD`
+- `RDS = 54.65 USD`
+- `S3 = 46.56 USD`
+- `MSK = 35.41 USD`
+
+This is the day where the bill most honestly belongs to the final platform proof. The cost is high because the platform is doing the integrated work we wanted it to prove under bounded pressure.
+
+The service-family explanation also needed to be made explicit because the raw AWS names can be misleading if left uninterpreted:
+
+- `Amazon DynamoDB` here mostly means ingress idempotency / receipt write pressure, not a giant retained table story
+- `Amazon Elastic Container Service` mostly means WSP replay / producer runtime and older proving-side compute, not the final external ingress path
+- `Amazon Managed Streaming for Apache Kafka` carries a standing serverless floor even when other runtime pieces are quieter
+- `AWS Lambda` and `Amazon API Gateway` together are the truthful external ingress proof path once the platform was pinned correctly
+- `Amazon Relational Database Service` is Aurora ACU and IO churn, not big storage volume
+- `Amazon Simple Storage Service` is request-heavy hardening, evidence movement, and later learning-basis materialization, not just "a lot of GB stored"
+- `AmazonCloudWatch` is the bill for visibility and logs, especially before the telemetry-first posture eliminated some blind reruns
+
+The plan now carries both the refreshed cost table and the explanatory write-up. That leaves the repository in a better state:
+
+- someone reading the plan can see the raw numbers
+- someone reading the notebook can understand why the expensive days happened
+- the cost story now distinguishes legacy spend, valid proving spend, and standing-substrate drift instead of flattening them together
