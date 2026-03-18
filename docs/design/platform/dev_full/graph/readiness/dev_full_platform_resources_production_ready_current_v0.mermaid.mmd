@@ -200,9 +200,10 @@ flowchart LR
   IEG --> OFP
   OFP --> DF
   DF --> DL
-  DL --> DLA
+  DL --> AL
+  AL --> DLA
   DL --> ARCH
-  DL --> CASETRIG
+  AL --> CASETRIG
   CASETRIG --> CASEMGMT
   CASEMGMT --> LABELSTORE
   AURORA --> AURORAWRITER
@@ -211,6 +212,7 @@ flowchart LR
   OFP -->|reads/writes runtime state in| AURORA
   DF -->|reads/writes runtime state in| AURORA
   DL -->|reads/writes runtime state in| AURORA
+  AL -->|reads/writes action state in| AURORA
   DLA -->|reads/writes runtime state in| AURORA
   CASETRIG -->|reads/writes case-trigger state in| AURORA
   CASEMGMT -->|reads/writes case state in| AURORA

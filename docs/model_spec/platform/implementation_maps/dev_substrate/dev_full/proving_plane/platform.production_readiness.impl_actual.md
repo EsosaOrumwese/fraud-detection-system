@@ -7794,3 +7794,43 @@ This leaves an important distinction in the repo:
 - the notebook / logbook still carry the fact that the runtime was intentionally idled afterward for review and cost control
 
 That separation is cleaner and better matches the user-facing purpose of the graphs.
+
+## 2026-03-18 12:10:31 +00:00 - I checked the repo authority after the user was told there is \"no action layer\" and found that the real issue was graph inconsistency, not absence of the component
+
+The proving-plane authority is clear: `AL` is part of the accepted RTDL boundary in `dev_full`.
+
+That is explicit in:
+
+- `platform.production_readiness.md`
+- `platform.production_readiness.plan.md`
+- `platform.production_readiness.phase1.md`
+
+and it is also reflected concretely in the implementation/runtime surfaces:
+
+- code under `src/fraud_detection/action_layer/`
+- runtime deployment `fp-pr3-al`
+
+So the truthful conclusion is not "there is no action layer." The truthful conclusion is:
+
+- there is no separate top-level **plane** called Action Layer
+- but there **is** an implemented and accepted RTDL **component** called `Action Layer (AL)`
+
+The confusion was helped by the readiness graphs themselves:
+
+- the resource graph already showed `fp-pr3-al`
+- the network graph had omitted `AL` from the decision-lane path
+
+That left the user exposed to exactly the wrong takeaway: the component looked half-real.
+
+I corrected both graphs so they now tell one coherent story:
+
+- `DF -> DL -> AL -> DLA`
+- `AL -> CaseTrigger`
+
+and the resource graph now also makes `AL` a first-class part of the RTDL runtime path rather than a named deployment with weak path context.
+
+So the right answer to the user is:
+
+- yes, `AL` exists in the repo and in the accepted `dev_full` RTDL runtime
+- no, it should not be mistaken for a separate production-readiness plane
+- the graphs now reflect that distinction more clearly
