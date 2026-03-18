@@ -117,17 +117,17 @@ flowchart LR
     RUNBOOK["Runbook doc<br>docs/runbooks/dev_full_phase7_ops_gov_runbook.md"]
   end
 
-  N1 --> CONTROL
-  N1 --> EDGE
-  N1 --> WSP
-  N1 --> TRANSPORT
-  N1 --> RTDL
-  N1 --> CASELABEL
-  N1 --> DATASTATE
-  N1 --> LEARNING
-  N1 --> STATE
-  N1 --> IDENTITY
-  N1 --> OBS
+  N1 -->|includes control seats| CONTROL
+  N1 -->|includes ingress edge seats| EDGE
+  N1 -->|includes replay seats| WSP
+  N1 -->|includes transport seats| TRANSPORT
+  N1 -->|includes RTDL seats| RTDL
+  N1 -->|includes case/label seats| CASELABEL
+  N1 -->|includes runtime data-state seats| DATASTATE
+  N1 -->|includes learning seats| LEARNING
+  N1 -->|includes evidence / handle seats| STATE
+  N1 -->|depends on identity seats| IDENTITY
+  N1 -->|includes ops/governance seats| OBS
 
   GHA -->|authenticates through| OIDC
   GHA -->|dispatches| SFN
@@ -206,7 +206,7 @@ flowchart LR
   AL --> CASETRIG
   CASETRIG --> CASEMGMT
   CASEMGMT --> LABELSTORE
-  AURORA --> AURORAWRITER
+  AURORA -->|exposes writer through| AURORAWRITER
   CSFB -->|reads/writes runtime state in| AURORA
   IEG -->|reads/writes runtime state in| AURORA
   OFP -->|reads/writes runtime state in| AURORA
@@ -218,23 +218,23 @@ flowchart LR
   CASEMGMT -->|reads/writes case state in| AURORA
   LABELSTORE -->|reads/writes label state in| AURORA
 
-  DBWS --> DBBUILD
-  DBWS --> DBQUALITY
-  DBWS --> MLFLOW
-  ROLEDBX --> DBCRED
-  DBCRED --> DBBUILD
-  DBCRED --> DBQUALITY
+  DBWS -->|hosts dataset-basis job| DBBUILD
+  DBWS -->|hosts quality-gate job| DBQUALITY
+  DBWS -->|hosts lineage / promotion backend| MLFLOW
+  ROLEDBX -->|authorizes external location through| DBCRED
+  DBCRED -->|grants object-store read path to| DBBUILD
+  DBCRED -->|grants object-store read path to| DBQUALITY
   OBJ -->|authoritative bounded basis| DBBUILD
   OBJ -->|quality readback| DBQUALITY
   DLA -->|runtime decision evidence| DBBUILD
   CASEMGMT -->|case-linked truth| DBBUILD
   LABELSTORE -->|authoritative supervision| DBBUILD
-  DBBUILD --> SMTRAIN
-  ROLESM --> SMTRAIN
-  SMTRAIN --> SMBATCH
-  SMTRAIN --> SMPKG
-  SMTRAIN --> MLFLOW
-  SMBATCH --> MLFLOW
+  DBBUILD -->|materializes admitted basis for| SMTRAIN
+  ROLESM -->|executes managed train/eval for| SMTRAIN
+  SMTRAIN -->|produces inference artifact for| SMBATCH
+  SMTRAIN -->|registers candidate into| SMPKG
+  SMTRAIN -->|logs train/eval lineage into| MLFLOW
+  SMBATCH -->|logs batch evaluation lineage into| MLFLOW
   MLFLOW --> REGISTRY
   REGISTRY -->|active bundle resolved by| DF
 
@@ -249,7 +249,7 @@ flowchart LR
   CWLAMBDA -->|feeds| CW
   CWWSP -->|feeds| CW
   EKS -->|feeds runtime telemetry to| CW
-  SFN -->|feeds metrics to| CW
+  SFN -->|feeds control metrics to| CW
   CW -->|materializes| ALARMS
   ALARMS -->|drive operator action through| RUNBOOK
   EVID -->|feeds operational evidence to| DASHOPS
