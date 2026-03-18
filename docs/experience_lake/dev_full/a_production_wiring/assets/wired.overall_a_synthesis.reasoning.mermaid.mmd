@@ -1,0 +1,87 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph CLAIM["1. Single architecture claim"]
+    C1["A now supports one clear claim"]
+    C2["The current wired platform is a real, bounded, intentional, materially seated full-lifecycle system whose major truth boundaries are explicit, owned, and governable"]
+    C3["It is not just a set of cloud services or a project diagram"]
+    C4["It is a managed-first platform with explicit phase closure, explicit evidence, and explicit runtime and evidence roots across spine, learning and evolution, and operational closure under one run and process contract"]
+  end
+
+  subgraph OBJECT["2. Object of A and boundary with Bi"]
+    O1["The object of this claim is the current wired platform as it exists now"]
+    O2["Target posture, repin history, and later hardening or proof history explain why the wired object has this shape, but they are not the primary object of A"]
+    O3["A is not the same as production-readiness"]
+    O4["A proves the architecture and ownership are real; it does not yet claim that every boundary has been pressure-proven at the intended production envelope"]
+  end
+
+  subgraph CHAIN["3. End-to-end lifecycle chain"]
+    L1["Run legitimacy and source legitimacy"]
+    L2["Canonical behavioural traffic becomes governed runtime entry truth"]
+    L3["Real-time decision truth is built through explicit RTDL boundaries"]
+    L4["Runtime behavior becomes durable audit and archive truth"]
+    L5["Some of that truth becomes operational case truth and authoritative label truth"]
+    L6["Archive plus label truth becomes governed learning and promotion truth"]
+    L7["The whole run closes through reconstruction, verdict, idle-safe teardown, and cost accountability"]
+    L8["That is the current wired architecture A has surfaced"]
+  end
+
+  subgraph OWNERSHIP["4. Deepest thing A proves: truth-boundary ownership"]
+    T1["The platform is not treating data moved as enough"]
+    T2["Ingress truth stays ingress truth"]
+    T3["RTDL decision, action, and lineage truth stays RTDL truth"]
+    T4["Case truth stays case-management truth"]
+    T5["Label truth stays label truth"]
+    T6["Dataset truth stays offline-dataset truth"]
+    T7["Model-eval truth stays train-and-eval truth"]
+    T8["Active model or policy truth stays registry truth"]
+    T9["That is the clearest single sign that the current wired system is architected intentionally rather than accreted service by service"]
+    T10["A also proves material existence, not just conceptual design: the platform is seated on explicit managed and runtime surfaces across all major planes, with durable evidence roots and explicit pass gates plus commit evidence for closure"]
+  end
+
+  subgraph PROOF["5. Proof-category closure"]
+    P1["Across the proof categories, A is now strong"]
+    P2["Completeness closes because A covers all major planes: control and ingress, RTDL, case and label, learning and evolution, operations, governance, and meta, and ties them together under one closure map"]
+    P3["Existence closes because every major boundary is materially seated"]
+    P4["Uniqueness closes because the run and process law insists on one active runtime path per phase or run, explicit active-bundle resolution, explicit append-only ownership, and explicit gates and evidence"]
+    P5["Continuity closes because the architecture now reads as one causal chain from source world to runtime to supervision to learning to governed activation to run closure"]
+    P6["Safety closes because the whole design is fail-closed on the right things: no future leakage, no silent defaulting, no read without pass, no shadow truth ownership, no phase closure without evidence, and no advancement on unattributed spend"]
+  end
+
+  subgraph AMBIG["6. Remaining A ambiguities and Bi boundary"]
+    A1["The remaining A ambiguities are narrower than the core claim"]
+    A2["The main ones are explanatory: keeping platform run identity distinct from sealed source-world identity"]
+    A3["Keeping current wired runtime seating distinct from target or retained runtime posture where those differ"]
+    A4["Keeping audit truth, archive truth, replay-reference closure, case truth, label truth, dataset truth, and runtime authority truth separate in the reader-facing story instead of collapsing them into convenience labels"]
+    A5["Those are now clarity risks rather than existence risks"]
+    A6["Bi remains the place to prove whether these boundaries hold under production pressure, intended envelopes, and harder operational conditions"]
+  end
+
+  subgraph VERDICT["7. Honest verdict"]
+    V1["A is substantively achieved as a systems-design argument"]
+    V2["That does not mean nothing remains to test"]
+    V3["It means the core architectural claim now stands: the current wired platform is a real, intentional, full-lifecycle engineered system with explicit truth boundaries, explicit runtime and evidence seating, and explicit closure and governance laws"]
+    V4["The next step is the skeptical reviewer pass: pressure the overall A argument by asking whether any major part still looks accidental, hand-wavy, unjustified, or unmapped"]
+  end
+
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1 --> O2 --> O3 --> O4
+  O4 --> L1 --> L2 --> L3 --> L4 --> L5 --> L6 --> L7 --> L8
+  L8 --> T1 --> T2 --> T3 --> T4 --> T5 --> T6 --> T7 --> T8 --> T9 --> T10
+  T10 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6
+  P6 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6
+  A6 --> V1 --> V2 --> V3 --> V4
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class C1,C2,C3,C4,O1,O2,O3,O4 base;
+  class L1,L2,L3,L4,L5,L6,L7,L8 spine;
+  class T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,P1,P2,P3,P4,P5,P6,A1,A2,A3,A4,A5,A6 reason;
+  class V1,V2,V3,V4 close;
