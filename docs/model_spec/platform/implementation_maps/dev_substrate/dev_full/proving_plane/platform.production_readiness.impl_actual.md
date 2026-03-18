@@ -7834,3 +7834,43 @@ So the right answer to the user is:
 - yes, `AL` exists in the repo and in the accepted `dev_full` RTDL runtime
 - no, it should not be mistaken for a separate production-readiness plane
 - the graphs now reflect that distinction more clearly
+
+## 2026-03-18 12:18:31 +00:00 - The user wants a second, uncompressed graph family for the promoted platform, so I am adding expanded network and resource companions instead of overloading the primary readiness graphs
+
+The existing readiness network/resource pair is still doing the right job:
+
+- show the currently promoted production-ready platform
+- stay readable at plane / component level
+- avoid turning into a proof-ledger or object map
+
+But the user is right that there is also a real need for a second view that preserves more of the earned internal distinctions once the platform is green. The right correction is not to replace the current pair. That would make the primary readiness view less usable. The better move is to add an explicit second graph family:
+
+- `dev_full_platform_network_production_ready_expanded_current_v0.*`
+- `dev_full_platform_resources_production_ready_expanded_current_v0.*`
+
+The design rule for these expanded companions is:
+
+- same promoted platform scope
+- more explicit internal handoffs and responsibility boundaries
+- still truthful to implemented runtime seats
+- still not a one-to-one rendering of every `A` / `Bi` object
+
+So for the network view I am expanding:
+
+- ingress from replay basis -> APIGW throttle/access-log boundary -> Lambda invoke -> dedupe -> fail-closed -> publish
+- RTDL from intake admissibility through projections, context binding, graph resolution, feature admissibility, active-bundle resolution, decision guardrail, decision formation, publication, action intent/outcome, append, and archive
+- case/label from trigger selection through case open/reuse, timeline commit, label admissibility, and authoritative truth commit
+- learning from dataset admission through OFS build, OFS quality/leakage gate, train/eval, lineage, promotion, rollback validation, and active-bundle publication
+- ops/governance from live watch to alert chain, drift challenge, cost-control boundary, and runbook mitigation
+
+For the resource view I am keeping concrete seats primary, but mapping them more tightly to owned meaning:
+
+- each main RTDL deployment carries its earned boundary ownership
+- case/label deployments carry trigger / timeline / label-truth ownership explicitly
+- Databricks, SageMaker, MLflow, and registry surfaces are separated by dataset-basis, quality, train/eval, and promotion ownership
+- evidence and operator resources are tied more clearly to the boundaries they support
+
+That is the right compromise:
+
+- the primary readiness graphs remain user-readable promoted-platform views
+- the expanded companions expose much more of the internal earned structure without pretending to be the proof notebook itself

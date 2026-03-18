@@ -1,0 +1,284 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Expanded concrete-resource view for the currently promoted working-platform core
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["This is the expanded companion to the primary production-ready resource graph"]
+    L2["It keeps the same promoted scope, but maps more certified meaning onto concrete runtime seats"]
+    L3["Resources are still grouped for readability, but boundary ownership is less compressed"]
+    L4["If a resource or boundary is absent here, it is not part of the accepted promoted-platform claim"]
+  end
+
+  subgraph NOTE["Scope"]
+    N1["Expanded concrete resource view for the promoted full dev_full platform<br>Accepted stress authority: phase9_full_platform_stress_20260313T203100Z<br>Envelope: 3000 steady eps / 6000 burst eps<br>This graph supplements, but does not replace, the primary ready-resource graph"]
+  end
+
+  subgraph CONTROL["Control / Proof Resources"]
+    GHA["GitHub Actions dispatch"]
+    OIDC["GitHub OIDC trust"]
+    ROLETF["IAM identity fraud-dev"]
+    SFN["Step Functions<br>fraud-platform-dev-full-platform-run-v0"]
+    ROLESFN["IAM role<br>fraud-platform-dev-full-stepfunctions-orchestrator"]
+    RUNID["Run identity pins"]
+    RUNCTL["Run control receipts / reconciliation"]
+  end
+
+  subgraph INGRESS["Ingress Resources"]
+    WSPCLUSTER["ECS cluster<br>fraud-platform-dev-full-wsp-ephemeral"]
+    WSPTASK["WSP task family<br>bounded replay producer"]
+    ROLEWSPEXEC["IAM role<br>fraud-platform-dev-full-ecs-task-exec-wsp"]
+    ROLEWSPRUN["IAM role<br>fraud-platform-dev-full-ecs-task-runtime-wsp"]
+    CWWSP["CloudWatch log group<br>/ecs/fraud-platform-dev-full-wsp-ephemeral"]
+    APIGW["HTTP API Gateway<br>fraud-platform-dev-full-ig-edge"]
+    APISTAGE["Stage v1<br>3000 rps / 6000 burst<br>detailed metrics + access logs"]
+    ROLEAPIGW["IAM role<br>fraud-platform-dev-full-apigw-ig-invoke"]
+    IGLAMBDA["Lambda<br>fraud-platform-dev-full-ig-handler"]
+    ROLELAMBDA["IAM role<br>fraud-platform-dev-full-lambda-ig-execution"]
+    IGINCFG["Ingress publish contract<br>kafka timeout 5000 ms / retries 5"]
+    DDB["DynamoDB<br>fraud-platform-dev-full-ig-idempotency"]
+    ROLEDDB["IAM role<br>fraud-platform-dev-full-ddb-ig-idempotency-rw"]
+    DLQ["SQS<br>fraud-platform-dev-full-ig-dlq"]
+    CWLAMBDA["CloudWatch log group<br>/aws/lambda/fraud-platform-dev-full-ig-handler"]
+  end
+
+  subgraph TRANSPORT["Transport Resources"]
+    MSK["MSK Serverless<br>fraud-platform-dev-full-msk"]
+    GLUE["Glue Schema Registry<br>fraud-platform-dev-full"]
+    TCTRL["fp.bus.control.v1"]
+    TTRAFFIC["fp.bus.traffic.fraud.v1"]
+    TCTXA["fp.bus.context.arrival_events.v1"]
+    TCTXE["fp.bus.context.arrival_entities.v1"]
+    TFLOW["fp.bus.context.flow_anchor.fraud.v1"]
+  end
+
+  subgraph RTDL["RTDL Resources + Boundary Owners"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NODEGROUP["Nodegroup<br>fraud-platform-dev-full-m6f-workers<br>m6i.xlarge<br>min 2 / desired 4 / max 8"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    CSFB["fp-pr3-csfb<br>projection + context binding owner"]
+    IEG["fp-pr3-ieg<br>entity / graph resolution owner"]
+    OFP["fp-pr3-ofp<br>online feature materialization owner"]
+    DF["fp-pr3-df<br>bundle resolution + decision guardrail owner"]
+    DL["fp-pr3-dl<br>decision publication owner"]
+    AL["fp-pr3-al<br>action intent / outcome owner"]
+    DLA["fp-pr3-dla<br>decision continuity owner"]
+    ARCH["fp-pr3-archive-writer<br>archive evidence owner"]
+    RTDLIMG["Pinned image family<br>fraud-platform-dev-full@sha256:c984..."]
+  end
+
+  subgraph CASELABEL["Case + Label Resources + Boundary Owners"]
+    NSCASE["Namespace<br>fraud-platform-case-labels"]
+    CASETRIG["fp-pr3-case-trigger<br>case-worthy trigger owner"]
+    CASEMGMT["fp-pr3-case-mgmt<br>case open / timeline append owner"]
+    LABELSTORE["fp-pr3-label-store<br>label admissibility / truth owner"]
+  end
+
+  subgraph DATASTATE["Runtime Data-State Resources"]
+    AURORA["Aurora PostgreSQL cluster<br>fraud-platform-dev-full-aurora"]
+    AURORAWRITER["Writer<br>fraud-platform-dev-full-aurora-writer-1"]
+  end
+
+  subgraph LEARNING["Learning / MLOps Resources + Boundary Owners"]
+    OBJ["S3 object / oracle store<br>fraud-platform-dev-full-object-store"]
+    DBWS["Databricks workspace"]
+    ROLEDBX["IAM role<br>fraud-platform-dev-full-databricks-cross-account-access"]
+    DBCRED["UC external location + storage credential<br>fraud_platform_dev_full_object_store_v0"]
+    DBBUILD["Databricks job<br>fraud-platform-dev-full-ofs-build-v0<br>dataset-basis owner"]
+    DBQUALITY["Databricks job<br>fraud-platform-dev-full-ofs-quality-v0<br>quality / leakage gate owner"]
+    ROLESM["SageMaker execution role"]
+    SMTRAIN["SageMaker training<br>fraud-platform-dev-full-mtrain"]
+    SMBATCH["SageMaker batch transform<br>fraud-platform-dev-full-mbatch"]
+    SMPKG["Model package group<br>fraud-platform-dev-full-models"]
+    MLFLOW["Databricks-backed MLflow<br>lineage / promotion / rollback owner"]
+    REGISTRY["Active bundle truth<br>bundle da1b8f...@v0-29d2b27919a7"]
+  end
+
+  subgraph EVIDENCE["Evidence / Handle Resources"]
+    EVID["S3 evidence bucket<br>fraud-platform-dev-full-evidence"]
+    SSM["SSM Parameter Store<br>active handles / brokers / api key"]
+  end
+
+  subgraph OPSGOV["Ops / Gov / Meta Resources"]
+    CW["CloudWatch logs / metrics / alarms"]
+    DASHOPS["Dashboard<br>fraud-platform-dev-full-operations"]
+    DASHCOST["Dashboard<br>fraud-platform-dev-full-cost-guardrail"]
+    ALARMS["Critical alarms<br>ingress / eks / billing"]
+    BUDGET["Budget<br>fraud-platform-dev-full-monthly"]
+    RUNBOOK["Runbook<br>dev_full_phase7_ops_gov_runbook.md"]
+  end
+
+  N1 --> CONTROL
+  N1 --> INGRESS
+  N1 --> TRANSPORT
+  N1 --> RTDL
+  N1 --> CASELABEL
+  N1 --> DATASTATE
+  N1 --> LEARNING
+  N1 --> EVIDENCE
+  N1 --> OPSGOV
+
+  GHA --> OIDC
+  GHA --> ROLETF
+  GHA --> SFN
+  SFN --> ROLESFN
+  SFN --> RUNID
+  SFN --> RUNCTL
+  SFN --> TCTRL
+  RUNCTL --> EVID
+
+  WSPCLUSTER --> WSPTASK
+  WSPTASK --> ROLEWSPEXEC
+  WSPTASK --> ROLEWSPRUN
+  WSPTASK --> OBJ
+  WSPTASK --> SSM
+  WSPTASK --> APIGW
+  WSPTASK --> CWWSP
+
+  APIGW --> APISTAGE
+  APIGW --> ROLEAPIGW
+  APIGW --> IGLAMBDA
+  APIGW --> CW
+  IGLAMBDA --> ROLELAMBDA
+  IGLAMBDA --> IGINCFG
+  IGLAMBDA --> DDB
+  IGLAMBDA --> DLQ
+  IGLAMBDA --> SSM
+  IGLAMBDA --> TTRAFFIC
+  IGLAMBDA --> CWLAMBDA
+  DDB --> ROLEDDB
+  CWLAMBDA --> CW
+
+  TCTRL --> MSK
+  TTRAFFIC --> MSK
+  TCTXA --> MSK
+  TCTXE --> MSK
+  TFLOW --> MSK
+  GLUE -. governs .-> TTRAFFIC
+  GLUE -. governs .-> TCTXA
+  GLUE -. governs .-> TCTXE
+  GLUE -. governs .-> TFLOW
+
+  EKS --> NODEGROUP
+  EKS --> NSRTDL
+  EKS --> NSCASE
+  NSRTDL --> CSFB
+  NSRTDL --> IEG
+  NSRTDL --> OFP
+  NSRTDL --> DF
+  NSRTDL --> DL
+  NSRTDL --> AL
+  NSRTDL --> DLA
+  NSRTDL --> ARCH
+  NSCASE --> CASETRIG
+  NSCASE --> CASEMGMT
+  NSCASE --> LABELSTORE
+  RTDLIMG --> CSFB
+  RTDLIMG --> IEG
+  RTDLIMG --> OFP
+  RTDLIMG --> DF
+  RTDLIMG --> DL
+  RTDLIMG --> AL
+  RTDLIMG --> DLA
+  RTDLIMG --> ARCH
+  RTDLIMG --> CASETRIG
+  RTDLIMG --> CASEMGMT
+  RTDLIMG --> LABELSTORE
+
+  TTRAFFIC --> CSFB
+  CSFB --> TCTXA
+  CSFB --> TCTXE
+  CSFB --> TFLOW
+  TCTXA --> CSFB
+  TCTXE --> CSFB
+  TFLOW --> CSFB
+  CSFB --> IEG
+  IEG --> OFP
+  OFP --> DF
+  DF --> DL
+  DL --> AL
+  AL --> DLA
+  DL --> ARCH
+  AL --> CASETRIG
+  CASETRIG --> CASEMGMT
+  CASEMGMT --> LABELSTORE
+  REGISTRY --> DF
+
+  AURORA --> AURORAWRITER
+  CSFB --> AURORA
+  IEG --> AURORA
+  OFP --> AURORA
+  DF --> AURORA
+  DL --> AURORA
+  AL --> AURORA
+  DLA --> AURORA
+  CASETRIG --> AURORA
+  CASEMGMT --> AURORA
+  LABELSTORE --> AURORA
+
+  ROLEDBX --> DBCRED
+  DBWS --> DBBUILD
+  DBWS --> DBQUALITY
+  DBWS --> MLFLOW
+  DBCRED --> DBBUILD
+  DBCRED --> DBQUALITY
+  OBJ --> DBBUILD
+  OBJ --> DBQUALITY
+  DLA --> DBBUILD
+  CASEMGMT --> DBBUILD
+  LABELSTORE --> DBBUILD
+  DBBUILD --> DBQUALITY
+  DBQUALITY --> SMTRAIN
+  ROLESM --> SMTRAIN
+  SMTRAIN --> SMBATCH
+  SMTRAIN --> SMPKG
+  SMTRAIN --> MLFLOW
+  SMBATCH --> MLFLOW
+  MLFLOW --> REGISTRY
+
+  DLA --> EVID
+  ARCH --> EVID
+  CASEMGMT --> EVID
+  LABELSTORE --> EVID
+  DBQUALITY --> EVID
+  SMTRAIN --> EVID
+  MLFLOW --> EVID
+
+  SFN --> CW
+  CWWSP --> CW
+  EKS --> CW
+  DBWS --> CW
+  SMTRAIN --> CW
+  CW --> ALARMS
+  CW --> DASHOPS
+  EVID --> DASHOPS
+  EVID --> DASHCOST
+  BUDGET --> DASHCOST
+  ALARMS --> RUNBOOK
+  DASHOPS --> RUNBOOK
+  DASHCOST --> RUNBOOK
+
+  classDef note fill:#fff8e1,stroke:#f9a825,color:#111,stroke-width:1.3px;
+  classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
+  classDef ingress fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
+  classDef transport fill:#ede7f6,stroke:#5e35b1,color:#111,stroke-width:1.3px;
+  classDef rtdl fill:#e0f2f1,stroke:#00695c,color:#111,stroke-width:1.3px;
+  classDef caselabel fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef datastate fill:#f9fbe7,stroke:#827717,color:#111,stroke-width:1.3px;
+  classDef learning fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef evidence fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
+  classDef opsgov fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class N1 note;
+  class GHA,OIDC,ROLETF,SFN,ROLESFN,RUNID,RUNCTL control;
+  class WSPCLUSTER,WSPTASK,ROLEWSPEXEC,ROLEWSPRUN,CWWSP,APIGW,APISTAGE,ROLEAPIGW,IGLAMBDA,ROLELAMBDA,IGINCFG,DDB,ROLEDDB,DLQ,CWLAMBDA ingress;
+  class MSK,GLUE,TCTRL,TTRAFFIC,TCTXA,TCTXE,TFLOW transport;
+  class EKS,NODEGROUP,NSRTDL,CSFB,IEG,OFP,DF,DL,AL,DLA,ARCH,RTDLIMG rtdl;
+  class NSCASE,CASETRIG,CASEMGMT,LABELSTORE caselabel;
+  class AURORA,AURORAWRITER datastate;
+  class OBJ,DBWS,ROLEDBX,DBCRED,DBBUILD,DBQUALITY,ROLESM,SMTRAIN,SMBATCH,SMPKG,MLFLOW,REGISTRY learning;
+  class EVID,SSM evidence;
+  class CW,DASHOPS,DASHCOST,ALARMS,BUDGET,RUNBOOK opsgov;

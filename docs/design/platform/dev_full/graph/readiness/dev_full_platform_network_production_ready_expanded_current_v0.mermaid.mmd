@@ -1,0 +1,233 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Expanded logical topology for the currently promoted working-platform core
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    L1["This is the expanded companion to the primary production-ready network graph"]
+    L2["It preserves the same promoted scope, but expands internal earned boundaries and handoffs"]
+    L3["It is still a promoted-platform graph, not a complete proof-ledger or Bi-object map"]
+    L4["If a boundary is absent here, it is not part of the accepted promoted platform claim"]
+  end
+
+  subgraph READYNOTE["Promoted Platform Scope"]
+    NOTE["Expanded logical view of the promoted dev_full platform after final Phase 9 closure<br>Planes promoted: Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta<br>Envelope: 3000 steady eps / 6000 burst eps<br>Accepted longer-stress authority: phase9_full_platform_stress_20260313T203100Z"]
+  end
+
+  subgraph CONTROL["Control Plane - Expanded Logical Boundaries"]
+    GHA["GitHub Actions dispatch"]
+    OIDC["OIDC trust"]
+    SFN["Step Functions orchestration"]
+    RUNID["Run identity authority<br>platform_run_id / scenario_run_id / phase_id / trace_id / config_digest"]
+    RCPT["Run-control receipt boundary"]
+    RECON["Run reconstruction boundary"]
+    CTRLBUS[["fp.bus.control.v1"]]
+  end
+
+  subgraph INGRESS["Ingress Plane - Expanded Logical Boundaries"]
+    REPLAY["Replay-basis resolution"]
+    WSP["WSP remote bounded replay"]
+    APIGW["HTTP API Gateway throttle / access-log boundary"]
+    IGINVOKE["Ingress Lambda invoke boundary"]
+    IGDEDUPE["Ingress idempotency / dedupe gate"]
+    IGFAIL["Fail-closed / DLQ disposition"]
+    IGPUBLISH["Ingress publish boundary"]
+    TTRAFFIC[["fp.bus.traffic.fraud.v1"]]
+  end
+
+  subgraph RTDL["RTDL Plane - Expanded Logical Boundaries"]
+    RINTAKE["RTDL intake admissibility"]
+    APROJ["arrival_events projection"]
+    EPROJ["arrival_entities projection"]
+    FPROJ["flow_anchor.fraud projection"]
+    CSFB["Context-store flow binding"]
+    IEG["Identity / entity graph resolution"]
+    OFP["Online feature admissibility + materialization"]
+    BUNDLE["Active bundle / policy resolution"]
+    DFGUARD["Decision guardrail boundary"]
+    DECIDE["Decision formation"]
+    DLPUB["Decision publication"]
+    ALINTENT["Action intent emission"]
+    ALOUTCOME["Action outcome publication"]
+    DLA["Decision continuity append"]
+    ARCH["Archive evidence append"]
+    TCTXA[["fp.bus.context.arrival_events.v1"]]
+    TCTXE[["fp.bus.context.arrival_entities.v1"]]
+    TFLOW[["fp.bus.context.flow_anchor.fraud.v1"]]
+    TDEC[["RTDL decision / archive outputs"]]
+  end
+
+  subgraph CASELABEL["Case + Label Plane - Expanded Logical Boundaries"]
+    CTRIG["Case-worthy trigger selection"]
+    COPEN["Case open / reuse boundary"]
+    CTIMELINE["Append-only case timeline commit"]
+    LADM["Label admissibility / maturity boundary"]
+    LTRUTH["Authoritative label truth commit"]
+  end
+
+  subgraph LEARNING["Learning + Evolution / MLOps Plane - Expanded Logical Boundaries"]
+    DSADMIT["Dataset admission boundary<br>interface-pack + 6B.S5 + time law"]
+    OFSBUILD["Offline feature basis build"]
+    OFSQUAL["Dataset quality / leakage gate"]
+    TRAIN["Managed train / eval"]
+    LINEAGE["Lineage + experiment truth"]
+    PROMOTE["Promotion / rollback validation"]
+    ABUNDLE["Active bundle truth publication"]
+  end
+
+  subgraph OPSGOV["Ops / Gov / Meta Plane - Expanded Logical Boundaries"]
+    OPSVIEW["Live dashboard / alarm watch surface"]
+    ALERT["Alert fire / clear chain"]
+    DRIFT["Bundle / policy / receipt challenge"]
+    COST["Idle / restore / cost-control boundary"]
+    RUNBOOK["Runbook-directed mitigation path"]
+  end
+
+  subgraph SUPPORT["Shared Support / Evidence Boundaries"]
+    MSK[("MSK Serverless transport")]
+    GLUE["Glue Schema Registry"]
+    SSM["SSM handle resolution"]
+    OBJ[("S3 object / oracle store")]
+    EVID[("S3 evidence store")]
+    CW["CloudWatch logs / metrics / alarms"]
+  end
+
+  NOTE --> CONTROL
+  NOTE --> INGRESS
+  NOTE --> RTDL
+  NOTE --> CASELABEL
+  NOTE --> LEARNING
+  NOTE --> OPSGOV
+
+  GHA --> OIDC
+  GHA --> SFN
+  SFN --> RUNID
+  SFN --> RCPT
+  RCPT --> RECON
+  SFN --> CTRLBUS
+  CTRLBUS --> MSK
+
+  OBJ --> REPLAY
+  REPLAY --> WSP
+  RUNID --> WSP
+  RUNID --> APIGW
+  RUNID --> RINTAKE
+  RUNID --> DSADMIT
+  RUNID --> RECON
+  WSP --> APIGW
+  APIGW --> IGINVOKE
+  IGINVOKE --> IGDEDUPE
+  IGINVOKE --> IGFAIL
+  IGDEDUPE --> IGPUBLISH
+  IGPUBLISH --> TTRAFFIC
+  TTRAFFIC --> MSK
+  GLUE -. schema boundary .-> TTRAFFIC
+
+  TTRAFFIC --> RINTAKE
+  RINTAKE --> APROJ
+  RINTAKE --> EPROJ
+  RINTAKE --> FPROJ
+  APROJ --> TCTXA
+  EPROJ --> TCTXE
+  FPROJ --> TFLOW
+  TCTXA --> CSFB
+  TCTXE --> CSFB
+  TFLOW --> CSFB
+  GLUE -. schema boundary .-> TCTXA
+  GLUE -. schema boundary .-> TCTXE
+  GLUE -. schema boundary .-> TFLOW
+  CSFB --> IEG
+  IEG --> OFP
+  OFP --> BUNDLE
+  BUNDLE --> DFGUARD
+  DFGUARD --> DECIDE
+  DECIDE --> DLPUB
+  DLPUB --> ALINTENT
+  ALINTENT --> ALOUTCOME
+  ALOUTCOME --> DLA
+  DLPUB --> ARCH
+  DLPUB --> TDEC
+  ALOUTCOME --> CTRIG
+
+  CTRIG --> COPEN
+  COPEN --> CTIMELINE
+  CTIMELINE --> LADM
+  LADM --> LTRUTH
+
+  DLA --> DSADMIT
+  CTIMELINE --> DSADMIT
+  LTRUTH --> DSADMIT
+  DSADMIT --> OFSBUILD
+  OFSBUILD --> OFSQUAL
+  OFSQUAL --> TRAIN
+  TRAIN --> LINEAGE
+  LINEAGE --> PROMOTE
+  PROMOTE --> ABUNDLE
+  ABUNDLE --> BUNDLE
+
+  RCPT --> EVID
+  RECON --> EVID
+  IGFAIL --> EVID
+  DLA --> EVID
+  ARCH --> EVID
+  CTIMELINE --> EVID
+  LTRUTH --> EVID
+  OFSQUAL --> EVID
+  TRAIN --> EVID
+  PROMOTE --> EVID
+
+  IGINVOKE --> SSM
+  WSP --> SSM
+  BUNDLE --> SSM
+  TRAIN --> OBJ
+  OFSBUILD --> OBJ
+  REPLAY --> OBJ
+
+  APIGW --> CW
+  IGINVOKE --> CW
+  WSP --> CW
+  CSFB --> CW
+  IEG --> CW
+  OFP --> CW
+  DFGUARD --> CW
+  DECIDE --> CW
+  ALOUTCOME --> CW
+  CTIMELINE --> CW
+  LTRUTH --> CW
+  OFSQUAL --> CW
+  TRAIN --> CW
+  LINEAGE --> CW
+  RECON --> CW
+
+  CW --> OPSVIEW
+  OPSVIEW --> ALERT
+  EVID --> DRIFT
+  ABUNDLE --> DRIFT
+  RCPT --> DRIFT
+  ALERT --> RUNBOOK
+  DRIFT --> RUNBOOK
+  OPSVIEW --> COST
+  COST --> RUNBOOK
+  RUNBOOK --> BUNDLE
+  RUNBOOK --> CTIMELINE
+
+  classDef note fill:#fff8e1,stroke:#f9a825,color:#111,stroke-width:1.3px;
+  classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;
+  classDef ingress fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.3px;
+  classDef rtdl fill:#e0f2f1,stroke:#00695c,color:#111,stroke-width:1.3px;
+  classDef caselabel fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef learning fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.3px;
+  classDef opsgov fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+  classDef support fill:#f1f8e9,stroke:#558b2f,color:#111,stroke-width:1.3px;
+
+  class NOTE note;
+  class GHA,OIDC,SFN,RUNID,RCPT,RECON,CTRLBUS control;
+  class REPLAY,WSP,APIGW,IGINVOKE,IGDEDUPE,IGFAIL,IGPUBLISH,TTRAFFIC ingress;
+  class RINTAKE,APROJ,EPROJ,FPROJ,CSFB,IEG,OFP,BUNDLE,DFGUARD,DECIDE,DLPUB,ALINTENT,ALOUTCOME,DLA,ARCH,TCTXA,TCTXE,TFLOW,TDEC rtdl;
+  class CTRIG,COPEN,CTIMELINE,LADM,LTRUTH caselabel;
+  class DSADMIT,OFSBUILD,OFSQUAL,TRAIN,LINEAGE,PROMOTE,ABUNDLE learning;
+  class OPSVIEW,ALERT,DRIFT,COST,RUNBOOK opsgov;
+  class MSK,GLUE,SSM,OBJ,EVID,CW support;
