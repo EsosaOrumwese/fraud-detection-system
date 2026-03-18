@@ -83,13 +83,13 @@ flowchart LR
     CW["CloudWatch<br>APIGW / Lambda / WSP / RTDL logs + metrics"]
   end
 
-  NOTE --> CONTROL
-  NOTE --> INGRESS
-  NOTE --> RTDL
-  NOTE --> CASELABEL
-  NOTE --> LEARNING
-  NOTE --> OPSGOV
-  NOTE --> TRANSPORT
+  NOTE -->|promotes control core| CONTROL
+  NOTE -->|promotes ingress core| INGRESS
+  NOTE -->|promotes RTDL core| RTDL
+  NOTE -->|promotes case/label core| CASELABEL
+  NOTE -->|promotes learning core| LEARNING
+  NOTE -->|promotes ops/governance core| OPSGOV
+  NOTE -->|depends on transport core| TRANSPORT
 
   GHA -->|authenticates through| OIDC
   GHA -->|dispatches| SFN
@@ -116,9 +116,9 @@ flowchart LR
   GLUEREG -. enforces schema compatibility for .-> TTRAFFIC
 
   TTRAFFIC -->|feeds promoted RTDL intake boundary| RINTAKE
-  RINTAKE --> TCTXA
-  RINTAKE --> TCTXE
-  RINTAKE --> TFLOW
+  RINTAKE -->|projects arrival events to| TCTXA
+  RINTAKE -->|projects arrival entities to| TCTXE
+  RINTAKE -->|projects fraud flow anchors to| TFLOW
   TCTXA -->|consumed by| CSFB
   TCTXE -->|consumed by| CSFB
   TFLOW -->|consumed by| CSFB
@@ -129,7 +129,7 @@ flowchart LR
   DL -->|emits action intent to| AL
   AL -->|appends action-linked decision truth to| DLA
   DL -->|feeds archival evidence to| ARCH
-  DL --> TDEC
+  DL -->|publishes decision/archive outputs to| TDEC
   AL -->|emits case-worthy outcome truth to| CTRIG
   CTRIG -->|opens or reuses cases in| CM
   CM -->|commits authoritative labels to| LS

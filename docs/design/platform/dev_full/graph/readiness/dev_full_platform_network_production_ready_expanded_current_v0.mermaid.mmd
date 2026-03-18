@@ -95,124 +95,124 @@ flowchart LR
     CW["CloudWatch logs / metrics / alarms"]
   end
 
-  NOTE --> CONTROL
-  NOTE --> INGRESS
-  NOTE --> RTDL
-  NOTE --> CASELABEL
-  NOTE --> LEARNING
-  NOTE --> OPSGOV
+  NOTE -->|expands control scope into| CONTROL
+  NOTE -->|expands ingress scope into| INGRESS
+  NOTE -->|expands RTDL scope into| RTDL
+  NOTE -->|expands case/label scope into| CASELABEL
+  NOTE -->|expands learning scope into| LEARNING
+  NOTE -->|expands ops/governance scope into| OPSGOV
 
-  GHA --> OIDC
-  GHA --> SFN
-  SFN --> RUNID
-  SFN --> RCPT
-  RCPT --> RECON
-  SFN --> CTRLBUS
-  CTRLBUS --> MSK
+  GHA -->|authenticates through| OIDC
+  GHA -->|dispatches bounded orchestration to| SFN
+  SFN -->|pins run identity in| RUNID
+  SFN -->|writes proof receipts to| RCPT
+  RCPT -->|supports later reconstruction in| RECON
+  SFN -->|publishes control signals to| CTRLBUS
+  CTRLBUS -->|rides control transport on| MSK
 
-  OBJ --> REPLAY
-  REPLAY --> WSP
-  RUNID --> WSP
-  RUNID --> APIGW
-  RUNID --> RINTAKE
-  RUNID --> DSADMIT
-  RUNID --> RECON
-  WSP --> APIGW
-  APIGW --> IGINVOKE
-  IGINVOKE --> IGDEDUPE
-  IGINVOKE --> IGFAIL
-  IGDEDUPE --> IGPUBLISH
-  IGPUBLISH --> TTRAFFIC
-  TTRAFFIC --> MSK
+  OBJ -->|supplies replay source world to| REPLAY
+  REPLAY -->|materializes bounded replay for| WSP
+  RUNID -->|scopes replay activity for| WSP
+  RUNID -->|scopes ingress access-log truth for| APIGW
+  RUNID -->|scopes RTDL intake truth for| RINTAKE
+  RUNID -->|scopes dataset admission truth for| DSADMIT
+  RUNID -->|scopes later evidence challenge for| RECON
+  WSP -->|pushes bounded ingress load to| APIGW
+  APIGW -->|invokes ingress function at| IGINVOKE
+  IGINVOKE -->|checks idempotency in| IGDEDUPE
+  IGINVOKE -->|routes failed-closed outcomes to| IGFAIL
+  IGDEDUPE -->|hands admitted traffic to| IGPUBLISH
+  IGPUBLISH -->|publishes fraud traffic to| TTRAFFIC
+  TTRAFFIC -->|rides traffic transport on| MSK
   GLUE -. schema boundary .-> TTRAFFIC
 
-  TTRAFFIC --> RINTAKE
-  RINTAKE --> APROJ
-  RINTAKE --> EPROJ
-  RINTAKE --> FPROJ
-  APROJ --> TCTXA
-  EPROJ --> TCTXE
-  FPROJ --> TFLOW
-  TCTXA --> CSFB
-  TCTXE --> CSFB
-  TFLOW --> CSFB
+  TTRAFFIC -->|feeds admitted fraud traffic into| RINTAKE
+  RINTAKE -->|derives arrival-event projection in| APROJ
+  RINTAKE -->|derives arrival-entity projection in| EPROJ
+  RINTAKE -->|derives flow-anchor projection in| FPROJ
+  APROJ -->|publishes arrival-events context to| TCTXA
+  EPROJ -->|publishes arrival-entities context to| TCTXE
+  FPROJ -->|publishes fraud-flow anchors to| TFLOW
+  TCTXA -->|supplies projected arrival events to| CSFB
+  TCTXE -->|supplies projected arrival entities to| CSFB
+  TFLOW -->|supplies projected flow anchors to| CSFB
   GLUE -. schema boundary .-> TCTXA
   GLUE -. schema boundary .-> TCTXE
   GLUE -. schema boundary .-> TFLOW
-  CSFB --> IEG
-  IEG --> OFP
-  OFP --> BUNDLE
-  BUNDLE --> DFGUARD
-  DFGUARD --> DECIDE
-  DECIDE --> DLPUB
-  DLPUB --> ALINTENT
-  ALINTENT --> ALOUTCOME
-  ALOUTCOME --> DLA
-  DLPUB --> ARCH
-  DLPUB --> TDEC
-  ALOUTCOME --> CTRIG
+  CSFB -->|binds resolved context for| IEG
+  IEG -->|supplies entity/graph truth to| OFP
+  OFP -->|requests active-bundle policy through| BUNDLE
+  BUNDLE -->|hands governed bundle truth to| DFGUARD
+  DFGUARD -->|permits decision formation in| DECIDE
+  DECIDE -->|publishes decision outcome through| DLPUB
+  DLPUB -->|emits action intent through| ALINTENT
+  ALINTENT -->|commits action outcomes in| ALOUTCOME
+  ALOUTCOME -->|appends continuity truth to| DLA
+  DLPUB -->|appends archive evidence to| ARCH
+  DLPUB -->|publishes decision/archive stream to| TDEC
+  ALOUTCOME -->|emits case-worthy outcome into| CTRIG
 
-  CTRIG --> COPEN
-  COPEN --> CTIMELINE
-  CTIMELINE --> LADM
-  LADM --> LTRUTH
+  CTRIG -->|opens or reuses case through| COPEN
+  COPEN -->|commits append-only case truth in| CTIMELINE
+  CTIMELINE -->|submits candidate labels to| LADM
+  LADM -->|commits authoritative supervision in| LTRUTH
 
-  DLA --> DSADMIT
-  CTIMELINE --> DSADMIT
-  LTRUTH --> DSADMIT
-  DSADMIT --> OFSBUILD
-  OFSBUILD --> OFSQUAL
-  OFSQUAL --> TRAIN
-  TRAIN --> LINEAGE
-  LINEAGE --> PROMOTE
-  PROMOTE --> ABUNDLE
-  ABUNDLE --> BUNDLE
+  DLA -->|contributes runtime decision evidence to| DSADMIT
+  CTIMELINE -->|contributes case-timeline evidence to| DSADMIT
+  LTRUTH -->|contributes supervision truth to| DSADMIT
+  DSADMIT -->|admits bounded learning slice into| OFSBUILD
+  OFSBUILD -->|hands dataset basis to| OFSQUAL
+  OFSQUAL -->|releases leakage-safe basis to| TRAIN
+  TRAIN -->|commits managed train/eval results into| LINEAGE
+  LINEAGE -->|submits governed candidate to| PROMOTE
+  PROMOTE -->|publishes active-bundle truth in| ABUNDLE
+  ABUNDLE -->|resolves active runtime bundle for| BUNDLE
 
-  RCPT --> EVID
-  RECON --> EVID
-  IGFAIL --> EVID
-  DLA --> EVID
-  ARCH --> EVID
-  CTIMELINE --> EVID
-  LTRUTH --> EVID
-  OFSQUAL --> EVID
-  TRAIN --> EVID
-  PROMOTE --> EVID
+  RCPT -->|stores receipt evidence in| EVID
+  RECON -->|reads and challenges evidence in| EVID
+  IGFAIL -->|stores fail-closed evidence in| EVID
+  DLA -->|stores decision continuity evidence in| EVID
+  ARCH -->|stores archive evidence in| EVID
+  CTIMELINE -->|stores case evidence in| EVID
+  LTRUTH -->|stores label truth evidence in| EVID
+  OFSQUAL -->|stores dataset-quality evidence in| EVID
+  TRAIN -->|stores train/eval evidence in| EVID
+  PROMOTE -->|stores promotion/rollback evidence in| EVID
 
-  IGINVOKE --> SSM
-  WSP --> SSM
-  BUNDLE --> SSM
-  TRAIN --> OBJ
-  OFSBUILD --> OBJ
-  REPLAY --> OBJ
+  IGINVOKE -->|reads active handles from| SSM
+  WSP -->|reads replay handles from| SSM
+  BUNDLE -->|reads active bundle handles from| SSM
+  TRAIN -->|reads bounded learning basis from| OBJ
+  OFSBUILD -->|reads admitted source world from| OBJ
+  REPLAY -->|reads promoted replay world from| OBJ
 
-  APIGW --> CW
-  IGINVOKE --> CW
-  WSP --> CW
-  CSFB --> CW
-  IEG --> CW
-  OFP --> CW
-  DFGUARD --> CW
-  DECIDE --> CW
-  ALOUTCOME --> CW
-  CTIMELINE --> CW
-  LTRUTH --> CW
-  OFSQUAL --> CW
-  TRAIN --> CW
-  LINEAGE --> CW
-  RECON --> CW
+  APIGW -->|emits edge metrics and logs to| CW
+  IGINVOKE -->|emits ingress telemetry to| CW
+  WSP -->|emits replay telemetry to| CW
+  CSFB -->|emits context-binding telemetry to| CW
+  IEG -->|emits graph-resolution telemetry to| CW
+  OFP -->|emits feature-plane telemetry to| CW
+  DFGUARD -->|emits decision-guard telemetry to| CW
+  DECIDE -->|emits decision telemetry to| CW
+  ALOUTCOME -->|emits action telemetry to| CW
+  CTIMELINE -->|emits case telemetry to| CW
+  LTRUTH -->|emits label telemetry to| CW
+  OFSQUAL -->|emits dataset-quality telemetry to| CW
+  TRAIN -->|emits managed-learning telemetry to| CW
+  LINEAGE -->|emits lineage/promote telemetry to| CW
+  RECON -->|emits reconstruction telemetry to| CW
 
-  CW --> OPSVIEW
-  OPSVIEW --> ALERT
-  EVID --> DRIFT
-  ABUNDLE --> DRIFT
-  RCPT --> DRIFT
-  ALERT --> RUNBOOK
-  DRIFT --> RUNBOOK
-  OPSVIEW --> COST
-  COST --> RUNBOOK
-  RUNBOOK --> BUNDLE
-  RUNBOOK --> CTIMELINE
+  CW -->|feeds live operator view in| OPSVIEW
+  OPSVIEW -->|materializes alert state in| ALERT
+  EVID -->|supports evidence challenge in| DRIFT
+  ABUNDLE -->|supports active-bundle challenge in| DRIFT
+  RCPT -->|supports receipt challenge in| DRIFT
+  ALERT -->|routes alert response into| RUNBOOK
+  DRIFT -->|routes drift response into| RUNBOOK
+  OPSVIEW -->|surfaces idle/cost posture in| COST
+  COST -->|routes cost-control action into| RUNBOOK
+  RUNBOOK -->|returns governed bundle control to| BUNDLE
+  RUNBOOK -->|returns governed case control to| CTIMELINE
 
   classDef note fill:#fff8e1,stroke:#f9a825,color:#111,stroke-width:1.3px;
   classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;

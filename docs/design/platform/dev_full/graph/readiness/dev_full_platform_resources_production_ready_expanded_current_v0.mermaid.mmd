@@ -111,155 +111,155 @@ flowchart LR
     RUNBOOK["Runbook<br>dev_full_phase7_ops_gov_runbook.md"]
   end
 
-  N1 --> CONTROL
-  N1 --> INGRESS
-  N1 --> TRANSPORT
-  N1 --> RTDL
-  N1 --> CASELABEL
-  N1 --> DATASTATE
-  N1 --> LEARNING
-  N1 --> EVIDENCE
-  N1 --> OPSGOV
+  N1 -->|includes control/proof seats| CONTROL
+  N1 -->|includes ingress seats| INGRESS
+  N1 -->|includes transport seats| TRANSPORT
+  N1 -->|includes RTDL seats| RTDL
+  N1 -->|includes case/label seats| CASELABEL
+  N1 -->|includes runtime data-state seats| DATASTATE
+  N1 -->|includes learning seats| LEARNING
+  N1 -->|includes evidence/handle seats| EVIDENCE
+  N1 -->|includes ops/governance seats| OPSGOV
 
-  GHA --> OIDC
-  GHA --> ROLETF
-  GHA --> SFN
-  SFN --> ROLESFN
-  SFN --> RUNID
-  SFN --> RUNCTL
-  SFN --> TCTRL
-  RUNCTL --> EVID
+  GHA -->|authenticates through| OIDC
+  GHA -->|assumes dispatch identity through| ROLETF
+  GHA -->|dispatches bounded runs to| SFN
+  SFN -->|executes under| ROLESFN
+  SFN -->|pins run identity in| RUNID
+  SFN -->|writes run-control truth to| RUNCTL
+  SFN -->|publishes control signals to| TCTRL
+  RUNCTL -->|stores proof receipts in| EVID
 
-  WSPCLUSTER --> WSPTASK
-  WSPTASK --> ROLEWSPEXEC
-  WSPTASK --> ROLEWSPRUN
-  WSPTASK --> OBJ
-  WSPTASK --> SSM
-  WSPTASK --> APIGW
-  WSPTASK --> CWWSP
+  WSPCLUSTER -->|hosts replay task family| WSPTASK
+  WSPTASK -->|uses execution identity| ROLEWSPEXEC
+  WSPTASK -->|uses runtime identity| ROLEWSPRUN
+  WSPTASK -->|reads replay basis from| OBJ
+  WSPTASK -->|reads active handles from| SSM
+  WSPTASK -->|pushes replay load to| APIGW
+  WSPTASK -->|emits replay logs to| CWWSP
 
-  APIGW --> APISTAGE
-  APIGW --> ROLEAPIGW
-  APIGW --> IGLAMBDA
-  APIGW --> CW
-  IGLAMBDA --> ROLELAMBDA
-  IGLAMBDA --> IGINCFG
-  IGLAMBDA --> DDB
-  IGLAMBDA --> DLQ
-  IGLAMBDA --> SSM
-  IGLAMBDA --> TTRAFFIC
-  IGLAMBDA --> CWLAMBDA
-  DDB --> ROLEDDB
-  CWLAMBDA --> CW
+  APIGW -->|materializes stage throttle/log posture in| APISTAGE
+  APIGW -->|invokes through| ROLEAPIGW
+  APIGW -->|routes admitted calls into| IGLAMBDA
+  APIGW -->|emits edge telemetry to| CW
+  IGLAMBDA -->|executes under| ROLELAMBDA
+  IGLAMBDA -->|uses ingress publish contract in| IGINCFG
+  IGLAMBDA -->|checks idempotency in| DDB
+  IGLAMBDA -->|routes failed-closed events to| DLQ
+  IGLAMBDA -->|reads active handles from| SSM
+  IGLAMBDA -->|publishes fraud traffic to| TTRAFFIC
+  IGLAMBDA -->|emits function logs to| CWLAMBDA
+  DDB -->|is governed by access role| ROLEDDB
+  CWLAMBDA -->|feeds Lambda telemetry to| CW
 
-  TCTRL --> MSK
-  TTRAFFIC --> MSK
-  TCTXA --> MSK
-  TCTXE --> MSK
-  TFLOW --> MSK
+  TCTRL -->|rides control transport on| MSK
+  TTRAFFIC -->|rides fraud traffic transport on| MSK
+  TCTXA -->|rides arrival-events context transport on| MSK
+  TCTXE -->|rides arrival-entities context transport on| MSK
+  TFLOW -->|rides fraud-flow context transport on| MSK
   GLUE -. governs .-> TTRAFFIC
   GLUE -. governs .-> TCTXA
   GLUE -. governs .-> TCTXE
   GLUE -. governs .-> TFLOW
 
-  EKS --> NODEGROUP
-  EKS --> NSRTDL
-  EKS --> NSCASE
-  NSRTDL --> CSFB
-  NSRTDL --> IEG
-  NSRTDL --> OFP
-  NSRTDL --> DF
-  NSRTDL --> DL
-  NSRTDL --> AL
-  NSRTDL --> DLA
-  NSRTDL --> ARCH
-  NSCASE --> CASETRIG
-  NSCASE --> CASEMGMT
-  NSCASE --> LABELSTORE
-  RTDLIMG --> CSFB
-  RTDLIMG --> IEG
-  RTDLIMG --> OFP
-  RTDLIMG --> DF
-  RTDLIMG --> DL
-  RTDLIMG --> AL
-  RTDLIMG --> DLA
-  RTDLIMG --> ARCH
-  RTDLIMG --> CASETRIG
-  RTDLIMG --> CASEMGMT
-  RTDLIMG --> LABELSTORE
+  EKS -->|scales worker capacity through| NODEGROUP
+  EKS -->|hosts RTDL namespace| NSRTDL
+  EKS -->|hosts case/label namespace| NSCASE
+  NSRTDL -->|runs projection/context owner| CSFB
+  NSRTDL -->|runs entity-graph owner| IEG
+  NSRTDL -->|runs feature owner| OFP
+  NSRTDL -->|runs decision owner| DF
+  NSRTDL -->|runs publication owner| DL
+  NSRTDL -->|runs action owner| AL
+  NSRTDL -->|runs continuity owner| DLA
+  NSRTDL -->|runs archive owner| ARCH
+  NSCASE -->|runs trigger owner| CASETRIG
+  NSCASE -->|runs case owner| CASEMGMT
+  NSCASE -->|runs label owner| LABELSTORE
+  RTDLIMG -->|pins runtime image for| CSFB
+  RTDLIMG -->|pins runtime image for| IEG
+  RTDLIMG -->|pins runtime image for| OFP
+  RTDLIMG -->|pins runtime image for| DF
+  RTDLIMG -->|pins runtime image for| DL
+  RTDLIMG -->|pins runtime image for| AL
+  RTDLIMG -->|pins runtime image for| DLA
+  RTDLIMG -->|pins runtime image for| ARCH
+  RTDLIMG -->|pins runtime image for| CASETRIG
+  RTDLIMG -->|pins runtime image for| CASEMGMT
+  RTDLIMG -->|pins runtime image for| LABELSTORE
 
-  TTRAFFIC --> CSFB
-  CSFB --> TCTXA
-  CSFB --> TCTXE
-  CSFB --> TFLOW
-  TCTXA --> CSFB
-  TCTXE --> CSFB
-  TFLOW --> CSFB
-  CSFB --> IEG
-  IEG --> OFP
-  OFP --> DF
-  DF --> DL
-  DL --> AL
-  AL --> DLA
-  DL --> ARCH
-  AL --> CASETRIG
-  CASETRIG --> CASEMGMT
-  CASEMGMT --> LABELSTORE
-  REGISTRY --> DF
+  TTRAFFIC -->|feeds admitted fraud events into| CSFB
+  CSFB -->|publishes arrival-events projection to| TCTXA
+  CSFB -->|publishes arrival-entities projection to| TCTXE
+  CSFB -->|publishes fraud-flow anchors to| TFLOW
+  TCTXA -->|supplies projected arrival events to| CSFB
+  TCTXE -->|supplies projected arrival entities to| CSFB
+  TFLOW -->|supplies projected fraud-flow anchors to| CSFB
+  CSFB -->|hands bound context to| IEG
+  IEG -->|hands resolved graph truth to| OFP
+  OFP -->|hands feature set to| DF
+  DF -->|hands governed decisions to| DL
+  DL -->|hands action intents to| AL
+  AL -->|hands action outcomes to| DLA
+  DL -->|hands archive stream to| ARCH
+  AL -->|hands case-worthy outcomes to| CASETRIG
+  CASETRIG -->|opens/reuses cases in| CASEMGMT
+  CASEMGMT -->|commits supervision to| LABELSTORE
+  REGISTRY -->|resolves active bundle for| DF
 
-  AURORA --> AURORAWRITER
-  CSFB --> AURORA
-  IEG --> AURORA
-  OFP --> AURORA
-  DF --> AURORA
-  DL --> AURORA
-  AL --> AURORA
-  DLA --> AURORA
-  CASETRIG --> AURORA
-  CASEMGMT --> AURORA
-  LABELSTORE --> AURORA
+  AURORA -->|exposes writer through| AURORAWRITER
+  CSFB -->|reads/writes runtime state in| AURORA
+  IEG -->|reads/writes graph state in| AURORA
+  OFP -->|reads/writes feature state in| AURORA
+  DF -->|reads/writes decision state in| AURORA
+  DL -->|reads/writes publication state in| AURORA
+  AL -->|reads/writes action state in| AURORA
+  DLA -->|reads/writes continuity state in| AURORA
+  CASETRIG -->|reads/writes trigger state in| AURORA
+  CASEMGMT -->|reads/writes case state in| AURORA
+  LABELSTORE -->|reads/writes label state in| AURORA
 
-  ROLEDBX --> DBCRED
-  DBWS --> DBBUILD
-  DBWS --> DBQUALITY
-  DBWS --> MLFLOW
-  DBCRED --> DBBUILD
-  DBCRED --> DBQUALITY
-  OBJ --> DBBUILD
-  OBJ --> DBQUALITY
-  DLA --> DBBUILD
-  CASEMGMT --> DBBUILD
-  LABELSTORE --> DBBUILD
-  DBBUILD --> DBQUALITY
-  DBQUALITY --> SMTRAIN
-  ROLESM --> SMTRAIN
-  SMTRAIN --> SMBATCH
-  SMTRAIN --> SMPKG
-  SMTRAIN --> MLFLOW
-  SMBATCH --> MLFLOW
-  MLFLOW --> REGISTRY
+  ROLEDBX -->|authorizes external location through| DBCRED
+  DBWS -->|hosts dataset-basis job| DBBUILD
+  DBWS -->|hosts quality-gate job| DBQUALITY
+  DBWS -->|hosts lineage/promotion backend| MLFLOW
+  DBCRED -->|grants object-store access to| DBBUILD
+  DBCRED -->|grants object-store access to| DBQUALITY
+  OBJ -->|supplies admitted source world to| DBBUILD
+  OBJ -->|supplies quality readback source to| DBQUALITY
+  DLA -->|supplies runtime decision evidence to| DBBUILD
+  CASEMGMT -->|supplies case-linked truth to| DBBUILD
+  LABELSTORE -->|supplies label truth to| DBBUILD
+  DBBUILD -->|hands bounded basis to| DBQUALITY
+  DBQUALITY -->|releases leakage-safe basis to| SMTRAIN
+  ROLESM -->|executes managed learning for| SMTRAIN
+  SMTRAIN -->|produces inference artifact for| SMBATCH
+  SMTRAIN -->|registers candidate into| SMPKG
+  SMTRAIN -->|logs train/eval lineage into| MLFLOW
+  SMBATCH -->|logs batch-eval lineage into| MLFLOW
+  MLFLOW -->|publishes active bundle truth as| REGISTRY
 
-  DLA --> EVID
-  ARCH --> EVID
-  CASEMGMT --> EVID
-  LABELSTORE --> EVID
-  DBQUALITY --> EVID
-  SMTRAIN --> EVID
-  MLFLOW --> EVID
+  DLA -->|stores continuity evidence in| EVID
+  ARCH -->|stores archive evidence in| EVID
+  CASEMGMT -->|stores case evidence in| EVID
+  LABELSTORE -->|stores label evidence in| EVID
+  DBQUALITY -->|stores dataset-quality evidence in| EVID
+  SMTRAIN -->|stores train/eval evidence in| EVID
+  MLFLOW -->|stores promotion/rollback evidence in| EVID
 
-  SFN --> CW
-  CWWSP --> CW
-  EKS --> CW
-  DBWS --> CW
-  SMTRAIN --> CW
-  CW --> ALARMS
-  CW --> DASHOPS
-  EVID --> DASHOPS
-  EVID --> DASHCOST
-  BUDGET --> DASHCOST
-  ALARMS --> RUNBOOK
-  DASHOPS --> RUNBOOK
-  DASHCOST --> RUNBOOK
+  SFN -->|emits orchestration telemetry to| CW
+  CWWSP -->|feeds replay logs into| CW
+  EKS -->|feeds runtime telemetry into| CW
+  DBWS -->|feeds managed Databricks telemetry into| CW
+  SMTRAIN -->|feeds managed SageMaker telemetry into| CW
+  CW -->|materializes alert posture in| ALARMS
+  CW -->|feeds live operations dashboard| DASHOPS
+  EVID -->|feeds evidence-backed operator view into| DASHOPS
+  EVID -->|feeds proof-cost evidence into| DASHCOST
+  BUDGET -->|feeds budget posture into| DASHCOST
+  ALARMS -->|routes alert response into| RUNBOOK
+  DASHOPS -->|routes ops response into| RUNBOOK
+  DASHCOST -->|routes cost-control response into| RUNBOOK
 
   classDef note fill:#fff8e1,stroke:#f9a825,color:#111,stroke-width:1.3px;
   classDef control fill:#e8eaf6,stroke:#3949ab,color:#111,stroke-width:1.3px;

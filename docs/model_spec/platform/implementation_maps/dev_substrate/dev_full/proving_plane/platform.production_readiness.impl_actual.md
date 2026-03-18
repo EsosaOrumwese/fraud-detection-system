@@ -7874,3 +7874,39 @@ That is the right compromise:
 
 - the primary readiness graphs remain user-readable promoted-platform views
 - the expanded companions expose much more of the internal earned structure without pretending to be the proof notebook itself
+
+## 2026-03-18 12:27:49 +00:00 - The user pointed out that both the compressed and expanded graph pairs were still too implicit in their edge semantics, so I brought their flow-label posture closer to the production-wiring reference style
+
+The user is right. The graphs had nodes with meaningful names, but too many edges still depended on the reader to infer what was happening from adjacency alone. That is weaker than the style used in the production-wiring reference where the edge itself states the action:
+
+- dispatches
+- authenticates through
+- stores receipts in
+- commits
+
+That style matters because the platform is already complex. When the edge is unlabeled, the graph quietly shifts cognitive load back to the reader and risks making the path look like a generic topology rather than a truthful flow.
+
+So I refreshed all four promoted-platform graph sources:
+
+- compressed network
+- compressed resources
+- expanded network
+- expanded resources
+
+with a stronger edge-label posture. I did not try to label decorative containment or class structure. I focused on meaningful flow/action edges:
+
+- promoted scope edges out of the note blocks
+- ingress replay / invoke / dedupe / fail-closed / publish edges
+- RTDL projection / context / feature / guardrail / decision / action / archive edges
+- case open / timeline / label truth edges
+- learning dataset admission / basis build / quality gate / train / lineage / promotion edges
+- ops/governance alert / drift / cost / runbook edges
+- concrete resource ownership and data-movement edges in the resource views
+
+This leaves the graphs in a better place:
+
+- the compressed pair remains readable
+- the expanded pair remains more traceable
+- both now say more explicitly what each handoff actually does
+
+That is closer to the right standard for these user-facing readiness artifacts.
