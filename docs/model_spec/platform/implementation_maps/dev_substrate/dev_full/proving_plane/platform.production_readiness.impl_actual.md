@@ -8031,3 +8031,34 @@ What intentionally remains is the low-cost substrate needed to keep the environm
 - Terraform backend bucket + lock table
 
 That is a much cleaner review posture than the earlier one because the standing cost is now dominated by retained storage rather than forgotten active runtime.
+
+## 2026-03-18 14:40:00 +00:00 - The user only wants relevant evidence retained, so I pruned the remote evidence bucket aggressively and kept the certification spine locally
+
+The important discovery here was that the accepted late-phase authority receipts were never mirrored into `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/...` in the first place. The authoritative accepted evidence for the final production-ready claim is already local under `runs/dev_substrate/dev_full/proving_plane/run_control/`.
+
+That means the remote evidence bucket had become almost pure hardening debris:
+
+- old `_scrapped` certification attempts
+- pre-green road-to-prod staging outputs
+- historical `m*` and `pr3_*` run-control bundles
+- legacy `evidence/runs/platform_*` payloads that are no longer needed for the review posture
+
+So I deleted:
+
+- `s3://fraud-platform-dev-full-evidence/evidence/dev_full/` recursively
+- `s3://fraud-platform-dev-full-evidence/evidence/runs/` recursively
+
+and verified the `evidence/` root is now empty.
+
+I deliberately did **not** treat "keep the last two phases" as a remote S3 retention rule because the final accepted run-control receipts live locally, not in that bucket. The honest retention policy is:
+
+- keep the certification spine locally in the repo workspace
+- drop the stale remote evidence history that was only adding storage cost
+
+After that prune, the remaining S3 cost is no longer an evidence-bucket story. It is mainly:
+
+- retained object-store dataset storage
+- bucket versioning / noncurrent storage where enabled
+- normal request and KMS overhead
+
+The `artifacts` bucket is now small by comparison (`~67.6 MiB`), so the main storage bill that remains is the retained object-store data, not certification evidence.
