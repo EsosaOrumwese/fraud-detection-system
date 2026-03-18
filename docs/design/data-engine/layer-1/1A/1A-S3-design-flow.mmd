@@ -1,0 +1,45 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 hurdle gate<br/>must be multi-site"]
+    I2["S2 nb_final<br/>provides accepted N"]
+    I3["merchant scope, ISO refs,<br/>and optional currency-to-country map"]
+    I4["rule ladder, thresholds,<br/>base-weight and integerisation policies"]
+  end
+
+  subgraph core["Actual S3 design"]
+    C1["Evaluate deterministic rule ladder<br/>for allow, deny, class and legal filters"]
+    C2["Construct admissible cross-border candidate universe<br/>with reason codes and filter tags"]
+    C3["Assign total contiguous candidate_rank<br/>with home fixed at rank 0"]
+    C4["Optionally compute deterministic base-weight priors"]
+    C5["Optionally integerise priors into counts that sum to N"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["Actual design moved away from near-global open-world admission;<br/>P2 remediation made candidate breadth profile-conditioned"]
+    S2["candidate_rank became the explicit sole inter-country order authority,<br/>not just a by-product of implementation order"]
+    S3["Later bridge passes broadened recoverable domains without reopening<br/>frozen S1 or S2 realism surfaces"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["s3_candidate_set"]
+    O2["optional s3_base_weight_priors"]
+    O3["optional s3_integerised_counts"]
+    O4["candidate_rank authority for S4, S6, S7 and S8"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  I4 --> C1
+  C1 --> C2 --> C3
+  C3 --> C4
+  C4 --> C5
+
+  C3 --> O1
+  C4 --> O2
+  C5 --> O3
+  O1 --> O4
+
+  S1 -.-> C2
+  S2 -.-> C3
+  S3 -.-> C2

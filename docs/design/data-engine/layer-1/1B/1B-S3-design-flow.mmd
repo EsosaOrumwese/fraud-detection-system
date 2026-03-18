@@ -1,0 +1,5 @@
+flowchart LR
+  A["Authority inputs<br/>s0_gate_receipt_1B<br/>1A outlet_catalogue<br/>tile_weights coverage<br/>iso3166_canonical_2024"] --> B["Owned transformation<br/>Derive exact n_sites per merchant-country pair<br/>preserve outlet_catalogue site-order legality<br/>assert every active country is covered by tile_weights<br/>remain order-free across countries"]
+  B --> C["Authority outputs<br/>s3_requirements<br/>country-level site-count frame<br/>for S4 integer allocation"]
+
+  D["Implemented design shifts<br/>requirements became policy-sensitive in later lanes<br/>staged runs had to respect active S3 policy state<br/>so S3 is not just a thin count table,<br/>it is the controlled country-requirements boundary"] -.-> B

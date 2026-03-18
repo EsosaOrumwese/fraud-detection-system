@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>merchant_zone_profile_5A<br/>shape-related policies from S0 sealed world"]
+  I2["Policies<br/>shape_library_5A<br/>shape_time_grid_policy_5A<br/>optional zone modifiers"]
+
+  S2["S2<br/>Weekly shape library"]
+
+  O1["Outputs<br/>shape_grid_definition_5A<br/>class_zone_shape_5A<br/>optional class_shape_catalogue_5A"]
+  O2["Authority<br/>S2 is the sole unit-mass weekly-shape<br/>authority for class-zone templates"]
+
+  R1["Implemented shift<br/>S2 did not become a merchant-specific lane;<br/>it stayed template-level and deterministic,<br/>with bucket ordering as the binding authority"]
+  R2["Implemented shift<br/>The actual output posture locked to a mixed-channel representation,<br/>so S2 became the place where channel diversity was deliberately compressed<br/>into one template family for the segment"]
+
+  I1 --> S2
+  I2 --> S2
+  S2 --> O1
+  S2 --> O2
+  R1 -.-> S2
+  R2 -.-> S2

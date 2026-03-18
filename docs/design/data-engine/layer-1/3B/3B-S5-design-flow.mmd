@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>s0_gate_receipt_3B<br/>sealed_inputs_3B<br/>all S1 through S4 outputs"]
+  I2["Audit surfaces<br/>S2 RNG logs<br/>component digests and coherence checks"]
+
+  S5["S5<br/>Validation bundle and PASS gate"]
+
+  O1["Outputs<br/>validation_bundle_3B<br/>validation_bundle_index_3B<br/>validation_passed_flag_3B"]
+  O2["Authority<br/>S5 alone decides whether downstream<br/>may read any 3B virtual surfaces"]
+
+  R1["Implemented shift<br/>S5 stayed an integrity rail, not a realism lane:<br/>it re-audits the full 3B world and fails closed on incoherence"]
+  R2["Implemented shift<br/>Later freeze work relied on scoring-only recertification,<br/>which made S5 the place where certified authority could be restored<br/>without mutating already-accepted state outputs"]
+
+  I1 --> S5
+  I2 --> S5
+  S5 --> O1
+  S5 --> O2
+  R1 -.-> S5
+  R2 -.-> S5

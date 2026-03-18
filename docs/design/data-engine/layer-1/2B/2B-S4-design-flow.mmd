@@ -1,0 +1,23 @@
+flowchart LR
+  I1["s0_gate_receipt_2B"]
+  I2["s1_site_weights"]
+  I3["site_timezones"]
+  I4["s3_day_effects"]
+
+  S4["S4 Group-mix authority<br/>Aggregate base shares by tzid<br/>combine with gamma<br/>renormalise to per-day group truth"]
+
+  O1["s4_group_weights"]
+
+  I1 --> S4
+  I2 --> S4
+  I3 --> S4
+  I4 --> S4
+  S4 --> O1
+
+  R1["Actual design recovery<br/>S4 became the main anti-collapse realism surface"]
+  R2["This is where multi-group routing either survives<br/>or collapses toward single-group dominance"]
+  R3["Later blocker analysis proved that many final realism failures<br/>showed up here even when the true causal floor lived upstream"]
+
+  R1 -.-> S4
+  R2 -.-> S4
+  R3 -.-> S4

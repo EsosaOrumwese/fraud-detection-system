@@ -1,0 +1,70 @@
+flowchart LR
+  subgraph L1["Layer-1 - Merchant operating world"]
+    direction LR
+    A1["1A<br/>Outlet-world authority<br/>merchant-country membership, order, and allocation law"]
+    B1["1B<br/>Site-location authority<br/>tile universe, quota topology, and lawful placement"]
+    A2["2A<br/>Civil-time authority<br/>timezone assignment, transition horizon, legality proof"]
+    B2["2B<br/>Routing-realism authority<br/>merchant mass, temporal modulation, live routing evidence"]
+    A3["3A<br/>Zone-allocation authority<br/>escalation, zone priors, sampled share, conserved counts"]
+    B3["3B<br/>Virtual-routing authority<br/>virtual merchants, CDN edge world, routing semantics"]
+  end
+
+  subgraph L2["Layer-2 - Traffic world"]
+    direction LR
+    A5["5A<br/>Deterministic intensity authority<br/>merchant-zone demand identity, weekly shape, scenario projection"]
+    B5["5B<br/>Arrival-realisation authority<br/>latent intensity field, bucket counts, arrivals, routing"]
+  end
+
+  subgraph L3["Layer-3 - Entity, behaviour, and supervision world"]
+    direction LR
+    A6["6A<br/>Entity and static-risk authority<br/>parties, products, credentials, graph, static posture"]
+    B6["6B<br/>Behaviour and supervision authority<br/>attachment, flows, fraud overlay, labels, cases"]
+  end
+
+  A1 -->|lawful outlet world| B1
+  B1 -->|site world| A2
+
+  A1 -->|merchant-country world| A3
+  A2 -->|civil-time legality| A3
+
+  A1 -->|merchant and outlet authority| B2
+  B1 -->|site_locations and geometry| B2
+  A2 -->|time and transition context| B2
+
+  A1 -->|merchant and outlet world| B3
+  B1 -->|site geometry| B3
+  A2 -->|time context| B3
+  A3 -->|zone_alloc closure| B3
+
+  A3 -->|merchant-zone semantics| A5
+  B2 -->|routing-realism context| A5
+  B3 -->|virtual-edge semantics| A5
+
+  A5 -->|scenario-local intensity truth| B5
+
+  A1 -->|merchant world| A6
+  B1 -->|site world| A6
+  A2 -->|civil-time world| A6
+  B2 -->|routing evidence context| A6
+  A3 -->|zone structure| A6
+  B3 -->|virtual edge world| A6
+  A5 -->|deterministic demand priors| A6
+  B5 -->|arrival events and route context| A6
+
+  A6 -->|sealed entity, graph, and static-risk world| B6
+  B5 -->|sealed arrivals| B6
+
+  W1["Engine design reading"] --> W2["Layer-1 does not just place merchants.<br/>It certifies the lawful merchant operating world:<br/>outlets, sites, time, routing, zones, and virtual reachability."]
+  W1 --> W3["Layer-2 does not just sample traffic.<br/>It turns that merchant world into deterministic demand truth<br/>and then into realised arrivals with routing evidence."]
+  W1 --> W4["Layer-3 does not just decorate arrivals.<br/>It turns arrivals plus the merchant world into parties, graph structure,<br/>static fraud posture, behavioural flows, labels, and case chronology."]
+  W1 --> W5["Every segment is a fail-closed authority boundary.<br/>No PASS gate means no lawful downstream read."]
+
+  W2 -.-> A1
+  W2 -.-> B3
+  W3 -.-> A5
+  W3 -.-> B5
+  W4 -.-> A6
+  W4 -.-> B6
+  W5 -.-> B3
+  W5 -.-> B5
+  W5 -.-> B6

@@ -1,0 +1,27 @@
+flowchart LR
+  I1["s0_gate_receipt_2A"]
+  I2["site_locations<br/>seed + manifest_fingerprint"]
+  I3["sealed tz_world polygons"]
+  I4["sealed tz_nudge policy"]
+  I5["tz_overrides<br/>ambiguity fallback only"]
+  I6["merchant_mcc_map<br/>only when MCC fallback is active"]
+
+  S1["S1 Provisional timezone authority<br/>Point-in-polygon first<br/>Single deterministic epsilon nudge second<br/>Fallback only when ambiguity persists"]
+
+  O1["s1_tz_lookup<br/>One provisional tzid per site<br/>with nudge and provenance fields"]
+
+  I1 --> S1
+  I2 --> S1
+  I3 --> S1
+  I4 --> S1
+  I5 --> S1
+  I6 --> S1
+  S1 --> O1
+
+  R1["Actual design recovery<br/>S1 is not just geometry lookup;<br/>it became the first governance choke-point"]
+  R2["Fallback and override behavior were hardened,<br/>measured, capped, and fail-closed"]
+  R3["The implemented design also added<br/>country-singleton rescue and explicit reason codes<br/>so unresolved border logic could not hide"]
+
+  R1 -.-> S1
+  R2 -.-> S1
+  R3 -.-> S1

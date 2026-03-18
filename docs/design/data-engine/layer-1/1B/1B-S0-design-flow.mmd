@@ -1,0 +1,5 @@
+flowchart LR
+  A["Authority inputs<br/>1A validation bundle<br/>1A passed flag<br/>outlet_catalogue authority<br/>shared reference surfaces"] --> B["Owned transformation<br/>Verify 1A final bundle by fingerprint<br/>seal 1B-readable inputs<br/>fix manifest and parameter lineage<br/>fail closed on gate mismatch"]
+  B --> C["Authority outputs<br/>s0_gate_receipt_1B<br/>sealed_inputs_1B<br/>1A read authorization for later 1B states"]
+
+  D["Implemented design shifts<br/>license_map added to make governance real<br/>receipt became durable consumer proof<br/>manifest_fingerprint naming was standardized<br/>hash reuse plus explicit sealing replaced looser intent"] -.-> B

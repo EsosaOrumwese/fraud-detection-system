@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>S1 settlement and virtual semantics<br/>S2 edge world<br/>S3 alias and universe-hash closure"]
+  I2["Policies<br/>virtual_validation_policy<br/>cdn_key_digest<br/>routing-field and alias policy surfaces"]
+
+  S4["S4<br/>Virtual routing semantics and validation contracts"]
+
+  O1["Outputs<br/>virtual_routing_policy_3B<br/>virtual_validation_contract_3B"]
+  O2["Authority<br/>S4 alone defines how 2B must route<br/>virtual merchants and how the path<br/>must later be validated"]
+
+  R1["Implemented shift<br/>S4 stopped being a descriptive contract writer<br/>and became realism-governance authority:<br/>observe and enforce semantics were added so unrealistic runs<br/>could no longer pass quietly"]
+  R2["Implemented shift<br/>P3 made S4 the owner of validation-family coverage,<br/>while keeping S1 through S3 frozen;<br/>that made S4 a governance surface, not another generator"]
+
+  I1 --> S4
+  I2 --> S4
+  S4 --> O1
+  S4 --> O2
+  R1 -.-> S4
+  R2 -.-> S4

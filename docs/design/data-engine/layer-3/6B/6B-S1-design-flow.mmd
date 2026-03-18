@@ -1,0 +1,20 @@
+flowchart LR
+  U1["Inputs<br/>arrival_events_5B<br/>sealed_inputs_6B"]
+  U2["Entity world from 6A<br/>parties<br/>accounts<br/>credentials<br/>devices and IPs<br/>static posture where needed"]
+  U3["Policies<br/>attachment, home-country bias,<br/>session rules, device and IP fallback laws"]
+
+  S1["S1<br/>Attach arrivals to entities and sessionise"]
+
+  O1["Outputs<br/>s1_arrival_entities_6B<br/>s1_session_index_6B"]
+  O2["Authority<br/>S1 alone decides<br/>which entity world each arrival belongs to<br/>and which session it lives in"]
+
+  R1["Implemented shift<br/>S1 became a vectorized deterministic attachment rail:<br/>heavy per-row scoring and stochastic session boundaries were deliberately avoided"]
+  R2["Implemented shift<br/>Home-country bias only applies when both sides exist,<br/>and merchant-linked device/IP is preferred for POS and ATM before party fallback"]
+
+  U1 --> S1
+  U2 --> S1
+  U3 --> S1
+  S1 --> O1
+  S1 --> O2
+  R1 -.-> S1
+  R2 -.-> S1

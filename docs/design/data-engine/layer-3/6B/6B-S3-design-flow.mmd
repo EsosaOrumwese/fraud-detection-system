@@ -1,0 +1,22 @@
+flowchart LR
+  U1["Inputs<br/>s2_flow_anchor_baseline_6B<br/>s2_event_stream_baseline_6B"]
+  U2["Fraud authority from 6A<br/>static posture and entity context"]
+  U3["Policies<br/>campaign, targeting, abuse,<br/>overlay, and fraud RNG laws"]
+
+  S3["S3<br/>Overlay fraud campaigns and abuse behaviour"]
+
+  O1["Outputs<br/>s3_campaign_catalogue_6B<br/>s3_flow_anchor_with_fraud_6B<br/>s3_event_stream_with_fraud_6B"]
+  O2["Evidence<br/>rng_event_fraud_campaign_pick<br/>rng_event_fraud_overlay_apply<br/>audit and trace"]
+  O3["Authority<br/>S3 alone defines campaign provenance<br/>and the fraud-bearing behavioural world"]
+
+  R1["Implemented shift<br/>S3 became a real campaign multiplicity and targeting surface,<br/>not a thin fraud-tag decoration step"]
+  R2["Implemented shift<br/>The overlay is expressed through separate S3 outputs,<br/>so S2 baseline legitimacy remains readable and auditable"]
+
+  U1 --> S3
+  U2 --> S3
+  U3 --> S3
+  S3 --> O1
+  S3 --> O2
+  S3 --> O3
+  R1 -.-> S3
+  R2 -.-> S3

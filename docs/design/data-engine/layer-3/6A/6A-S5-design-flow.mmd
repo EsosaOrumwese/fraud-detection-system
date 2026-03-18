@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>s0 gate and sealed world<br/>all S1 through S4 bases and links"]
+  I2["Priors and policies<br/>fraud-role priors<br/>taxonomy_fraud_roles_6A<br/>validation_policy_6A"]
+
+  S5["S5<br/>Static fraud posture and 6A HashGate"]
+
+  O1["Outputs<br/>party, account, merchant, device, and IP fraud-role surfaces<br/>s5_validation_report_6A<br/>optional issue table<br/>validation bundle, index, and _passed.flag<br/>role RNG events plus audit and trace"]
+  O2["Authority<br/>S5 alone decides static fraud posture<br/>and whether downstream may read any 6A world"]
+
+  R1["Implemented shift<br/>S5 became a real remediation owner surface:<br/>risk-propagation coupling and role-family traceability<br/>were raised to hard realism burdens, not narrative qualities"]
+  R2["Implemented shift<br/>S5 is also the sole segment-closure surface:<br/>it signs the 6A world only after full cross-state validation and RNG reconciliation"]
+
+  I1 --> S5
+  I2 --> S5
+  S5 --> O1
+  S5 --> O2
+  R1 -.-> S5
+  R2 -.-> S5

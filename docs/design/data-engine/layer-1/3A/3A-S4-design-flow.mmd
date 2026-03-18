@@ -1,0 +1,16 @@
+flowchart LR
+  I1["Reads<br/>s3_zone_shares<br/>1A outlet totals for each merchant-country"]
+
+  S4["S4<br/>Conserved integerisation"]
+
+  O1["Outputs<br/>s4_zone_counts"]
+  O2["Authority<br/>S4 turns share truth into integer zone counts<br/>without breaking total conservation"]
+
+  R1["Implemented shift<br/>S4 stayed narrow: it is not a new realism surface,<br/>it must preserve upstream dispersion while enforcing<br/>integer closure"]
+  R2["Implemented shift<br/>P3 anti-collapse work ended as a NOOP lock;<br/>S4 mainly serves as deterministic conservation authority"]
+
+  I1 --> S4
+  S4 --> O1
+  S4 --> O2
+  R1 -.-> S4
+  R2 -.-> S4

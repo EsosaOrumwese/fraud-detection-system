@@ -1,0 +1,32 @@
+flowchart LR
+  I1["s0_gate_receipt_2B + sealed_inputs_2B"]
+  I2["s7_audit_report<br/>one PASS report per discovered seed"]
+  I3["s2_alias_index + blob"]
+  I4["s3_day_effects"]
+  I5["s4_group_weights"]
+  I6["sealed policy snapshots"]
+
+  S8["S8 Publish-legitimacy authority<br/>Discover required seed set<br/>require PASS audits for all of them<br/>seal 2B with indexed bundle plus flag"]
+
+  O1["validation_bundle_2B"]
+  O2["index.json"]
+  O3["_passed.flag<br/>No PASS -> No read"]
+
+  I1 --> S8
+  I2 --> S8
+  I3 --> S8
+  I4 --> S8
+  I5 --> S8
+  I6 --> S8
+
+  S8 --> O1
+  S8 --> O2
+  S8 --> O3
+
+  R1["Actual design recovery<br/>S8 is the only consumer gate for 2B"]
+  R2["It does not rerun audits;<br/>it packages already-earned evidence<br/>under one manifest-scoped proof"]
+  R3["That makes S8 the publish-legitimacy boundary,<br/>not another data state"]
+
+  R1 -.-> S8
+  R2 -.-> S8
+  R3 -.-> S8

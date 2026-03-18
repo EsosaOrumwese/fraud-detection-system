@@ -1,0 +1,30 @@
+flowchart LR
+  subgraph intent["Recovered Segment 2B design"]
+    A0["S0 Gate and environment seal<br/>Verifies upstream PASS and seals<br/>routing policy authority"]
+    A1["S1 Site-weight freezing<br/>Turns site world into deterministic<br/>per-merchant site mass authority"]
+    A2["S2 Alias artefacts<br/>Turns site masses into byte-stable<br/>O(1) decode authority"]
+    A3["S3 Day effects<br/>Turns timezone groups into<br/>RNG-bounded temporal modulation authority"]
+    A4["S4 Group weights<br/>Turns base shares plus gamma into<br/>per-day tz-group routing authority"]
+    A5["S5 Router core<br/>Per-arrival two-stage pick:<br/>group then site"]
+    A6["S6 Virtual edge branch<br/>Per-virtual-arrival edge pick<br/>without changing S5 decision truth"]
+    A7["S7 Audit and CI gate<br/>Checks artefact coherence,<br/>optional log evidence, and replayability"]
+    A8["S8 Validation bundle<br/>Publishes final consumer PASS legitimacy"]
+  end
+
+  A0 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7 --> A8
+
+  B0["Actual design shifts that matter"] --> B1["S0 became a true routing-authority seal:<br/>2B starts from frozen 1B and pinned 2A truth,<br/>not from free-floating router config"]
+  B0 --> B2["S1, S3, and S4 became the realism-control surfaces:<br/>spatial heterogeneity, temporal heterogeneity,<br/>and anti-collapse group mix"]
+  B0 --> B3["S2 became mostly a mechanical authority:<br/>byte-stable decode truth rather than a realism-tuning state"]
+  B0 --> B4["S5 and S6 became the replayable runtime-evidence surfaces:<br/>strict Philox budgets, event ordering,<br/>and trace reconciliation"]
+  B0 --> B5["S7 and S8 became the legitimacy closure:<br/>audit first, then indexed PASS gate"]
+
+  B1 -.-> A0
+  B2 -.-> A1
+  B3 -.-> A2
+  B2 -.-> A3
+  B2 -.-> A4
+  B4 -.-> A5
+  B4 -.-> A6
+  B5 -.-> A7
+  B5 -.-> A8

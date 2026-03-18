@@ -1,0 +1,20 @@
+flowchart LR
+  U1["Required upstream authority<br/>1A outlet_catalogue plus 1A PASS"]
+  U2["Optional bounded civil-time surfaces<br/>2A site_timezones, tz_timetable_cache,<br/>S4 legality report"]
+  U3["Sealed policy and reference authority<br/>zone_mixture_policy<br/>country_zone_alphas<br/>zone_floor_policy<br/>day_effect_policy_v1<br/>canonical refs"]
+
+  S0["S0<br/>Gate and seal 3A inputs"]
+
+  O1["Outputs<br/>s0_gate_receipt_3A<br/>sealed_inputs_3A"]
+  O2["Owned meaning<br/>3A may only proceed from a verified<br/>outlet-world and policy world"]
+
+  R1["Implemented shift<br/>S0 became a real cross-segment gate,<br/>not a light setup state"]
+  R2["Implemented shift<br/>Manifest-scoped sealing is what makes<br/>later stochastic states replayable and attributable"]
+
+  U1 --> S0
+  U2 --> S0
+  U3 --> S0
+  S0 --> O1
+  S0 --> O2
+  R1 -.-> S0
+  R2 -.-> S0

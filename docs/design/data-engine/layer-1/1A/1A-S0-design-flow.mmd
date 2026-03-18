@@ -1,0 +1,45 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["merchant_ids ingress"]
+    I2["ISO canonical list"]
+    I3["GDP vintage and bucket map"]
+    I4["JSON schema packs and registry or dictionary refs"]
+    I5["governed parameter artefacts and seed config"]
+  end
+
+  subgraph core["Actual S0 design"]
+    C1["Resolve canonical merchant universe<br/>and map channel plus merchant_u64"]
+    C2["Freeze schema authority and reference scope<br/>before any RNG use"]
+    C3["Derive parameter_hash, manifest_fingerprint,<br/>and run_id under deterministic hashing law"]
+    C4["Emit non-consuming RNG anchor,<br/>audit and trace roots"]
+    C5["Build deterministic prep surfaces:<br/>GDP features, design matrices,<br/>eligibility flags, numeric policy attestation"]
+    C6["Seal inputs and publish s0_gate_receipt_1A"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["ContractSource abstraction lets dev use model_spec<br/>while preserving later contracts-root switching"]
+    S2["Run-local staged input precedence was constrained by run_id timing;<br/>S0 resolves external inputs first, then run-local where legal"]
+    S3["validation_bundle_1A emission was disabled by default in S0;<br/>S9 became the canonical validation publisher"]
+    S4["validation_policy and numeric policy surfaces were pulled into<br/>sealed lineage so downstream states stay deterministic"]
+  end
+
+  subgraph outputs["Owned outputs"]
+    O1["sealed_inputs_1A"]
+    O2["s0_gate_receipt_1A"]
+    O3["parameter-scoped prep surfaces<br/>used by S1, S2, S3 and S5"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  I4 --> C2
+  I5 --> C3
+  C1 --> C2 --> C3 --> C4 --> C5 --> C6
+  C6 --> O1
+  C6 --> O2
+  C5 --> O3
+
+  S1 -.-> C2
+  S2 -.-> C3
+  S3 -.-> C6
+  S4 -.-> C5

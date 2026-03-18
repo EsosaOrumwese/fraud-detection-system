@@ -1,0 +1,5 @@
+flowchart LR
+  A["Authority inputs<br/>s3_requirements counts<br/>tile_weights fixed-dp mass<br/>tile_index eligible universe<br/>iso3166_canonical_2024"] --> B["Owned transformation<br/>Integerise country requirements over tiles<br/>preserve exact sum-to-n<br/>use deterministic largest-remainder logic<br/>emit only positive per-tile quotas"]
+  B --> C["Authority outputs<br/>s4_alloc_plan<br/>quota-exact tile allocation plan<br/>for assignment and downstream site synthesis"]
+
+  D["Implemented design shifts<br/>S4 became the main runtime hotspot<br/>anti-collapse logic and floor-aware scoring<br/>changed how the state is judged<br/>then fast-compute-safe caching and allocation rewrites<br/>made performance part of the actual implemented design"] -.-> B

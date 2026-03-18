@@ -1,0 +1,20 @@
+flowchart LR
+  U1["Required upstream authority<br/>1A through 3B validation bundles and PASS flags"]
+  U2["Pinned Layer-1 egress surfaces<br/>merchant, location, civil-time,<br/>routing, zone, and virtual-world inputs"]
+  U3["Pinned Layer-2 policy world<br/>classing, scaling, shapes,<br/>scenario horizon, overlays, validation configs"]
+
+  S0["S0<br/>Gate and sealed inputs"]
+
+  O1["Outputs<br/>s0_gate_receipt_5A<br/>sealed_inputs_5A<br/>optional scenario_manifest_5A"]
+  O2["Authority<br/>S0 alone defines what 5A may read<br/>and whether S1+ may start"]
+
+  R1["Implemented shift<br/>S0 became a real multi-law gate:<br/>it needed segment-specific verification,<br/>including the 3B members-based bundle form"]
+  R2["Implemented shift<br/>The final design locks a split rule:<br/>S0 may record FAIL or MISSING upstream states,<br/>but S1+ must fail-fast unless all required segments are PASS"]
+
+  U1 --> S0
+  U2 --> S0
+  U3 --> S0
+  S0 --> O1
+  S0 --> O2
+  R1 -.-> S0
+  R2 -.-> S0

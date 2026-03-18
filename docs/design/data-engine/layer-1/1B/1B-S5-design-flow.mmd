@@ -1,0 +1,5 @@
+flowchart LR
+  A["Authority inputs<br/>s4_alloc_plan quotas<br/>tile_index universe<br/>iso3166_canonical_2024<br/>seed plus parameter_hash plus manifest identity"] --> B["Owned transformation<br/>Assign each site_order to a tile_id<br/>spend exactly one draw per site<br/>preserve S4 counts exactly<br/>remain the sole site-to-tile randomization boundary"]
+  B --> C["Authority outputs<br/>s5_site_tile_assignment<br/>rng_event_site_tile_assign<br/>quota-exact assignment truth"]
+
+  D["Implemented design shifts<br/>S5 became a major performance surface<br/>validation mode split strict vs signature vs off<br/>buffered event emission and reduced read amplification<br/>changed implementation sharply without changing semantic authority"] -.-> B

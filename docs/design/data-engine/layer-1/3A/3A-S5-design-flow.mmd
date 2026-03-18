@@ -1,0 +1,16 @@
+flowchart LR
+  I1["Reads<br/>s4_zone_counts<br/>sealed_inputs_3A"]
+
+  S5["S5<br/>Deterministic egress and universe closure"]
+
+  O1["Outputs<br/>zone_alloc<br/>zone_alloc_universe_hash"]
+  O2["Authority<br/>S5 is the readable egress surface,<br/>but in v1 it intentionally publishes<br/>escalated pairs only"]
+
+  R1["Implemented shift<br/>S5 binds the downstream universe-hash contract;<br/>consumers must not infer a larger world than it publishes"]
+  R2["Implemented shift<br/>S5 is not the validation authority;<br/>it materialises egress but legitimacy stays downstream"]
+
+  I1 --> S5
+  S5 --> O1
+  S5 --> O2
+  R1 -.-> S5
+  R2 -.-> S5

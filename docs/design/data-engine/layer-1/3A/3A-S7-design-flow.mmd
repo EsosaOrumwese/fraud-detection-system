@@ -1,0 +1,16 @@
+flowchart LR
+  I1["Reads<br/>s6_receipt_3A and validation artefacts"]
+
+  S7["S7<br/>Final publish legitimacy"]
+
+  O1["Outputs<br/>validation_bundle_3A<br/>index.json<br/>_passed.flag"]
+  O2["Authority<br/>S7 seals whether downstream may read<br/>3A outputs at all"]
+
+  R1["Implemented shift<br/>S7 requires S6 PASS and publishes the<br/>manifest-scoped bundle of legitimacy"]
+  R2["Implemented shift<br/>Digest-of-digests closure plus JSON _passed.flag<br/>make the read contract explicit for consumers"]
+
+  I1 --> S7
+  S7 --> O1
+  S7 --> O2
+  R1 -.-> S7
+  R2 -.-> S7

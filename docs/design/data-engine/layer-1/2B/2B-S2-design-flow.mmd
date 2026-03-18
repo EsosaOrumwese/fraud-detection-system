@@ -1,0 +1,23 @@
+flowchart LR
+  I1["s0_gate_receipt_2B"]
+  I2["s1_site_weights"]
+  I3["alias_layout_policy_v1"]
+
+  S2["S2 Alias authority<br/>Turn deterministic site masses into<br/>byte-stable O(1) decode artefacts"]
+
+  O1["s2_alias_index"]
+  O2["s2_alias_blob"]
+
+  I1 --> S2
+  I2 --> S2
+  I3 --> S2
+  S2 --> O1
+  S2 --> O2
+
+  R1["Actual design recovery<br/>S2 is a mechanical authority surface,<br/>not a primary realism-tuning surface"]
+  R2["Its burden is layout truth, digest parity,<br/>and replayable decode law"]
+  R3["That is why remediation treated S2 mostly as<br/>non-regression support while realism work happened elsewhere"]
+
+  R1 -.-> S2
+  R2 -.-> S2
+  R3 -.-> S2

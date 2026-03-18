@@ -1,0 +1,5 @@
+flowchart LR
+  A["Authority inputs<br/>s5_site_tile_assignment<br/>tile_index geometry<br/>world_countries<br/>s0_gate_receipt_1B"] --> B["Owned transformation<br/>Generate in-cell jitter<br/>reconstruct candidate point inside assigned pixel<br/>enforce point-in-country<br/>spend one event per attempt until acceptance or bounded abort"]
+  B --> C["Authority outputs<br/>s6_site_jitter<br/>rng_event_in_cell_jitter<br/>accepted in-country per-site spatial realization"]
+
+  D["Implemented design shifts<br/>S6 stayed semantically strict while performance pressure moved here later<br/>mixture-jitter experimentation happened in remediation<br/>but the accepted design remained governed acceptance,<br/>not convenience coordinate generation"] -.-> B

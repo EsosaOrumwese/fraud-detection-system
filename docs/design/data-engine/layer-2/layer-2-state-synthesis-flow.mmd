@@ -1,0 +1,39 @@
+flowchart LR
+  subgraph SEG5A["5A - Deterministic demand-intensity authority"]
+    direction LR
+    A5_0["S0<br/>Seal Layer-1 and Layer-2 world"]
+    A5_1["S1<br/>Define merchant-zone demand identity and scale"]
+    A5_2["S2<br/>Define class-zone weekly shape law"]
+    A5_3["S3<br/>Compose baseline weekly intensity"]
+    A5_4["S4<br/>Project baseline into scenario-horizon truth"]
+    A5_5["S5<br/>Audit full segment and seal PASS"]
+  end
+
+  subgraph SEG5B["5B - Stochastic arrival-realisation authority"]
+    direction LR
+    B5_0["S0<br/>Seal Layer-1 plus 5A world and scenario set"]
+    B5_1["S1<br/>Define time-grid and grouping plan"]
+    B5_2["S2<br/>Realise latent intensity field"]
+    B5_3["S3<br/>Turn realised intensity into bucket counts"]
+    B5_4["S4<br/>Expand counts into arrivals and route them"]
+    B5_5["S5<br/>Audit full segment and seal PASS"]
+  end
+
+  A5_0 --> A5_1 --> A5_2 --> A5_3 --> A5_4 --> A5_5
+  B5_0 --> B5_1 --> B5_2 --> B5_3 --> B5_4 --> B5_5
+
+  A5_5 -->|5A PASS gate and scenario legitimacy| B5_0
+  A5_4 -->|scenario-local intensity truth| B5_2
+  A5_4 -->|scenario horizon semantics| B5_1
+
+  L2["Layer-2 design reading"] --> L2A["5A is not raw forecasting.<br/>It certifies deterministic demand identity, weekly shape, and scenario-local intensity truth."]
+  L2 --> L2B["5B is not generic sampling.<br/>It turns certified intensity truth into latent fields, bucket counts, arrivals, and route-aware realisation."]
+  L2 --> L2C["Together, 5A and 5B make Layer-2 a traffic-world authority chain:<br/>first deterministic demand law, then stochastic arrival law."]
+  L2 --> L2D["Both segments remain fail-closed.<br/>No PASS gate means no lawful downstream arrival read."]
+
+  L2A -.-> A5_5
+  L2B -.-> B5_5
+  L2C -.-> A5_4
+  L2C -.-> B5_4
+  L2D -.-> A5_5
+  L2D -.-> B5_5

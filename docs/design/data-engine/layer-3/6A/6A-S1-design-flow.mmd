@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>s0_gate_receipt_6A<br/>sealed_inputs_6A<br/>population and segmentation priors"]
+  I2["Taxonomies and contextual hints<br/>taxonomy_party_6A<br/>coarse upstream regional context when sealed"]
+
+  S1["S1<br/>Customer and party base population"]
+
+  O1["Outputs<br/>s1_party_base_6A<br/>optional s1_party_summary_6A<br/>party RNG events plus audit and trace"]
+  O2["Authority<br/>S1 alone decides who exists<br/>and how parties are statically segmented"]
+
+  R1["Implemented shift<br/>S1 adopted a lean but deterministic posture:<br/>aggregated RNG evidence and streaming summaries<br/>replaced unrealistic per-party trace expectations"]
+  R2["Implemented shift<br/>The actual design also introduced deterministic region mapping<br/>when no sealed country-to-region taxonomy existed,<br/>which became part of the real population contract"]
+
+  I1 --> S1
+  I2 --> S1
+  S1 --> O1
+  S1 --> O2
+  R1 -.-> S1
+  R2 -.-> S1

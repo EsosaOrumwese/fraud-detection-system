@@ -1,0 +1,31 @@
+flowchart LR
+  I1["s0_gate_receipt_2B"]
+  I2["route_rng_policy_v1"]
+  I3["virtual_edge_policy_v1"]
+  I4["S5 runtime arrival context<br/>including is_virtual"]
+  I5["rng core logs<br/>shared append-only evidence"]
+
+  S6["S6 Virtual-edge authority<br/>If is_virtual=1 choose one edge<br/>If not virtual consume no RNG<br/>and bypass entirely"]
+
+  O1["rng_event_cdn_edge_pick"]
+  O2["rng_audit_log"]
+  O3["rng_trace_log"]
+  O4["s6_edge_log<br/>optional"]
+
+  I1 --> S6
+  I2 --> S6
+  I3 --> S6
+  I4 --> S6
+  I5 --> S6
+  S6 --> O1
+  S6 --> O2
+  S6 --> O3
+  S6 --> O4
+
+  R1["Actual design recovery<br/>S6 is a strict branch, not an extension of S5 site choice"]
+  R2["Its importance is the bounded exception law:<br/>virtual merchants get one extra draw,<br/>physical merchants get none"]
+  R3["Later idempotence work here mattered because<br/>replayable runtime truth had to survive full-segment reruns"]
+
+  R1 -.-> S6
+  R2 -.-> S6
+  R3 -.-> S6

@@ -1,0 +1,43 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 hurdle event with is_multi = true"]
+    I2["mean and dispersion design vectors<br/>plus beta_mu and beta_phi"]
+    I3["GDP home-country term for dispersion lane"]
+    I4["seed, parameter_hash, run_id and validation policy"]
+  end
+
+  subgraph core["Actual S2 design"]
+    C1["Admit only multi-site merchants;<br/>singles must never emit S2 events"]
+    C2["Compute mu and phi under deterministic binary64 rules"]
+    C3["Sample Gamma component for NB mixture"]
+    C4["Sample Poisson component from mixture intensity"]
+    C5["Accept only outlet counts N >= 2 for the multi-site path"]
+    C6["Emit gamma_component, poisson_component,<br/>and non-consuming nb_final authority"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["validation_policy was added to S0 sealed inputs<br/>so S2 can stay deterministic"]
+    S2["CUSUM alpha-cap support was introduced for corridor validation,<br/>not as a change to NB ownership itself"]
+    S3["P1 remediation accepted a corrected S2 sampler posture<br/>and locked the coefficient bundle as the downstream baseline"]
+    S4["S1 and S2 validators were aligned to the no-finalize-row trace format<br/>using highest cumulative totals"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["rng_event_gamma_component"]
+    O2["rng_event_poisson_component"]
+    O3["rng_event_nb_final<br/>accepted multi-site outlet count N"]
+  end
+
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  I4 --> C1
+  C1 --> C2 --> C3 --> C4 --> C5 --> C6
+  C6 --> O1
+  C6 --> O2
+  C6 --> O3
+
+  S1 -.-> C1
+  S2 -.-> C6
+  S3 -.-> C2
+  S4 -.-> C6

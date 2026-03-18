@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>s0_gate_receipt_5A<br/>sealed_inputs_5A<br/>all S1 through S4 outputs"]
+  I2["Validation surfaces<br/>per-state invariants<br/>issue tables<br/>bundle index laws"]
+
+  S5["S5<br/>Segment validation and HashGate"]
+
+  O1["Outputs<br/>validation_bundle_5A<br/>validation_bundle_index_5A<br/>_passed.flag"]
+  O2["Authority<br/>S5 alone decides whether any 5A<br/>traffic world may be consumed downstream"]
+
+  R1["Implemented shift<br/>S5 stayed the final validation rail:<br/>it re-audits S0 through S4 and never becomes a modelling fix lane"]
+  R2["Implemented shift<br/>Later freeze and recertification work made S5 the place where<br/>integrated `PASS_B`, then `PASS_BPLUS_ROBUST`, could be declared or repaired<br/>without mutating accepted modelling outputs"]
+
+  I1 --> S5
+  I2 --> S5
+  S5 --> O1
+  S5 --> O2
+  R1 -.-> S5
+  R2 -.-> S5

@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>s0_gate_receipt_3B<br/>sealed_inputs_3B<br/>merchant reference world"]
+  I2["Policies and refs<br/>mcc_channel_rules<br/>virtual_settlement_coords<br/>pelias bundle and supporting refs"]
+
+  S1["S1<br/>Virtual classification and settlement-node construction"]
+
+  O1["Outputs<br/>virtual_classification_3B<br/>virtual_settlement_3B"]
+  O2["Authority<br/>S1 alone decides who is virtual<br/>and what the legal settlement anchor is"]
+
+  R1["Implemented shift<br/>S1 remained RNG-free and authoritative,<br/>but later remediation made lineage realism explicit:<br/>rule_id, rule_version, and active-rule diversity became real design burdens"]
+  R2["Implemented shift<br/>A later bounded reopen also changed S1 from a simple<br/>binary classifier into the owner surface for hybrid-share shape<br/>when downstream proving exposed that missing path"]
+
+  I1 --> S1
+  I2 --> S1
+  S1 --> O1
+  S1 --> O2
+  R1 -.-> S1
+  R2 -.-> S1

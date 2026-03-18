@@ -1,0 +1,42 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S3 candidate_set and candidate_rank"]
+    I2["eligibility flags"]
+    I3["S4 ztp_final gives K_target"]
+    I4["S5 weights cache plus merchant_currency"]
+    I5["seed, parameter_hash and run_id"]
+  end
+
+  subgraph core["Actual S6 design"]
+    C1["Build legal foreign domain as S3 candidates<br/>intersected with positive S5 support"]
+    C2["Take order only from candidate_rank<br/>and weights only from S5"]
+    C3["Generate Gumbel-key selection over domain<br/>for top-K realized foreign membership"]
+    C4["Optionally emit s6_membership convenience surface"]
+    C5["Publish S6 receipt gate for convenience consumers"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S6 was explicitly prevented from becoming a new order authority;<br/>it selects membership only"]
+    S2["Convenience membership became gated output,<br/>not a replacement for event-level truth"]
+    S3["Actual selection domain is the legal intersection of S3 and S5,<br/>not an unconstrained foreign set"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["rng_event_gumbel_key"]
+    O2["optional s6_membership"]
+    O3["1A.S6 receipt and _passed.flag"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C3
+  I4 --> C1
+  I5 --> C3
+  C1 --> C2 --> C3 --> C4 --> C5
+  C3 --> O1
+  C4 --> O2
+  C5 --> O3
+
+  S1 -.-> C2
+  S2 -.-> C4
+  S3 -.-> C1

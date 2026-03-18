@@ -1,0 +1,5 @@
+flowchart LR
+  A["Authority inputs<br/>tile_index universe<br/>s2_tile_weights_policy<br/>optional population basis<br/>parameter_hash identity"] --> B["Owned transformation<br/>Assign deterministic fixed-dp mass per eligible tile<br/>normalize per country<br/>quantize by governed dp<br/>become the canonical tile-weight authority"]
+  B --> C["Authority outputs<br/>tile_weights<br/>per-country fixed-dp mass<br/>coverage surface for later S3 and S4 checks"]
+
+  D["Implemented design shifts<br/>S2 became the main realism lever in remediation<br/>blend_v2 policy, floors, caps, and penalties<br/>changed actual design posture<br/>not just implementation detail"] -.-> B

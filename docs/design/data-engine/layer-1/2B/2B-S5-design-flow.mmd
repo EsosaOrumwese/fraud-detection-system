@@ -1,0 +1,40 @@
+flowchart LR
+  I1["s0_gate_receipt_2B"]
+  I2["s4_group_weights"]
+  I3["s1_site_weights"]
+  I4["site_timezones"]
+  I5["s2_alias_index + blob"]
+  I6["alias_layout_policy_v1"]
+  I7["route_rng_policy_v1"]
+  I8["arrival roster or caller arrivals"]
+
+  S5["S5 Router core authority<br/>Stage A: pick tz_group<br/>Stage B: pick site within group<br/>Exactly two Philox draws per arrival"]
+
+  O1["rng_event_alias_pick_group"]
+  O2["rng_event_alias_pick_site"]
+  O3["rng_audit_log"]
+  O4["rng_trace_log"]
+  O5["s5_selection_log<br/>optional"]
+
+  I1 --> S5
+  I2 --> S5
+  I3 --> S5
+  I4 --> S5
+  I5 --> S5
+  I6 --> S5
+  I7 --> S5
+  I8 --> S5
+
+  S5 --> O1
+  S5 --> O2
+  S5 --> O3
+  S5 --> O4
+  S5 --> O5
+
+  R1["Actual design recovery<br/>S5 is the segment's live routing truth surface"]
+  R2["Its real burden is not just O(1) choice;<br/>it is ordered, replayable, fully budgeted routing evidence"]
+  R3["Performance work later concentrated here,<br/>but without relaxing the two-draw law or trace reconciliation burden"]
+
+  R1 -.-> S5
+  R2 -.-> S5
+  R3 -.-> S5

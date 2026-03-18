@@ -1,0 +1,20 @@
+flowchart LR
+  U1["Required upstream authority<br/>1A, 1B, 2A, 3A PASS gates<br/>plus egress metadata surfaces"]
+  U2["Sealed 3B externals and policies<br/>merchant universe refs<br/>virtual settlement refs<br/>CDN weights and digests<br/>RNG, alias, validation, and logging policy"]
+  U3["Sealed spatial and tz assets<br/>hrsl_raster<br/>pelias bundle<br/>tile/tz surfaces when required"]
+
+  S0["S0<br/>Gate and environment seal"]
+
+  O1["Outputs<br/>s0_gate_receipt_3B<br/>sealed_inputs_3B"]
+  O2["Authority<br/>3B may only execute inside the<br/>closed input world that S0 sealed"]
+
+  R1["Implemented shift<br/>S0 became a real multi-upstream gate<br/>with segment-specific bundle-law handling,<br/>not a light prerequisite state"]
+  R2["Implemented shift<br/>S0 had to expand sealing to cover the actual<br/>spatial/tz assets S2 and S4 need, so later states<br/>never read outside the sealed universe"]
+
+  U1 --> S0
+  U2 --> S0
+  U3 --> S0
+  S0 --> O1
+  S0 --> O2
+  R1 -.-> S0
+  R2 -.-> S0

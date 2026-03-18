@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>virtual_classification_3B<br/>virtual_settlement_3B<br/>sealed spatial/tz assets"]
+  I2["Policies<br/>cdn_country_weights<br/>route_rng_policy_v1<br/>supporting geography and tz overrides"]
+
+  S2["S2<br/>CDN edge catalogue construction"]
+
+  O1["Outputs<br/>edge_catalogue_3B<br/>edge_catalogue_index_3B<br/>edge_tile_assign RNG events<br/>edge_jitter RNG events<br/>audit and trace logs"]
+  O2["Authority<br/>S2 is the sole source of the static<br/>virtual edge world and S2 RNG evidence"]
+
+  R1["Implemented shift<br/>S2 became the real realism engine of 3B:<br/>merchant-conditioned topology and settlement-coupled weighting<br/>replaced the earlier degenerate global-template posture"]
+  R2["Implemented shift<br/>S2 also became the dominant performance surface;<br/>material redesign was required to make tile preparation memory-safe,<br/>repeatable, and fast enough without changing contracts"]
+
+  I1 --> S2
+  I2 --> S2
+  S2 --> O1
+  S2 --> O2
+  R1 -.-> S2
+  R2 -.-> S2

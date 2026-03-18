@@ -1,0 +1,20 @@
+flowchart LR
+  U1["Required upstream PASS authority<br/>1A through 3B<br/>5A and 5B<br/>6A"]
+  U2["Pinned upstream bundle references<br/>arrival world, entity world,<br/>contracts, priors, and policies"]
+  U3["Segment-wide control laws<br/>closed input universe<br/>partition law<br/>read scope<br/>fail-closed rules"]
+
+  S0["S0<br/>Gate and sealed inputs for the behavioural world"]
+
+  O1["Outputs<br/>s0_gate_receipt_6B<br/>sealed_inputs_6B"]
+  O2["Authority<br/>S0 alone defines the lawful 6B world<br/>that S1 through S5 may read"]
+
+  R1["Implemented shift<br/>S0 became a strict schema and config repair gate:<br/>it had to stabilize contracts and path forms before the segment could run at all"]
+  R2["Implemented shift<br/>The actual design stayed lean:<br/>S0 verifies gates and sealed references without becoming a data-plane scan state"]
+
+  U1 --> S0
+  U2 --> S0
+  U3 --> S0
+  S0 --> O1
+  S0 --> O2
+  R1 -.-> S0
+  R2 -.-> S0
