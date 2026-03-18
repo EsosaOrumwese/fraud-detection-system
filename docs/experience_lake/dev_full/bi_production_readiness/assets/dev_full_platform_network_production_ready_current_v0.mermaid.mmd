@@ -14,7 +14,7 @@ flowchart LR
   end
 
   subgraph READYNOTE["Current Working Platform"]
-    NOTE["Currently promoted working platform:<br>Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta<br>Phase 0 closed green on 2026-03-10<br>Phase 1 closed green on 2026-03-11<br>Phase 3 closed green on 2026-03-11<br>Phase 4 closed green on 2026-03-12<br>Phase 5 closed green on 2026-03-12<br>Phase 6 closed green on 2026-03-12<br>Phase 7 rebuilt green on 2026-03-13<br>Phase 8 closed green on 2026-03-13<br>Phase 9 closed green on 2026-03-13<br>Declared envelope: 3000 steady eps / 6000 burst eps<br>Bounded longer-stress authorization now granted<br>Live runtime may be intentionally idled for review without changing the accepted readiness claim"]
+    NOTE["Currently promoted working platform:<br>Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta<br>Phase 0 closed green on 2026-03-10<br>Phase 1 closed green on 2026-03-11<br>Phase 3 closed green on 2026-03-11<br>Phase 4 closed green on 2026-03-12<br>Phase 5 closed green on 2026-03-12<br>Phase 6 closed green on 2026-03-12<br>Phase 7 rebuilt green on 2026-03-13<br>Phase 8 closed green on 2026-03-13<br>Phase 9 closed green on 2026-03-13<br>Declared envelope: 3000 steady eps / 6000 burst eps<br>Bounded longer-stress authorization now granted"]
   end
 
   subgraph CONTROL["Control Network - Promoted Core"]
@@ -41,6 +41,7 @@ flowchart LR
     OFP["OFP<br>online_feature_provider"]
     DF["DF<br>decision function"]
     DL["Decision Lane<br>decision publication"]
+    AL["Action Layer<br>action intent / outcome publication"]
     DLA["Decision Ledger Append"]
     ARCH["Archive Writer"]
   end
@@ -125,10 +126,11 @@ flowchart LR
   IEG -->|supplies graph truth to| OFP
   OFP -->|supplies features to| DF
   DF -->|emits decisions to| DL
-  DL -->|appends decision truth to| DLA
+  DL -->|emits action intent to| AL
+  AL -->|appends action-linked decision truth to| DLA
   DL -->|feeds archival evidence to| ARCH
   DL --> TDEC
-  DL -->|emits case-worthy decision truth to| CTRIG
+  AL -->|emits case-worthy outcome truth to| CTRIG
   CTRIG -->|opens or reuses cases in| CM
   CM -->|commits authoritative labels to| LS
 
@@ -184,7 +186,7 @@ flowchart LR
   class NOTE note;
   class GHA,SFN,CTRLBUS,RUNID,RUNCTL control;
   class WSP,HTTPAPI,IGLAMBDA,IGDLQ,IGDDB,TTRAFFIC ingress;
-  class RINTAKE,CSFB,IEG,OFP,DF,DL,DLA,ARCH rtdl;
+  class RINTAKE,CSFB,IEG,OFP,DF,DL,AL,DLA,ARCH rtdl;
   class CTRIG,CM,LS caselabel;
   class OFS,MF,MPR,ACTIVEBUNDLE learning;
   class OPSDASH,RUNBOOK,DRIFTCHK,IDLECTRL opsgov;

@@ -14,7 +14,7 @@ flowchart LR
   end
 
   subgraph NOTE["Scope"]
-    N1["Concrete resource view for the promoted full dev_full platform<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted bounded stress authority: phase9_full_platform_stress_20260313T203100Z<br>Fresh widened backbone: phase6_learning_coupled_20260313T203100Z<br>Live runtime may be intentionally idled for review; that standby posture does not change the accepted readiness claim"]
+    N1["Concrete resource view for the promoted full dev_full platform<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted bounded stress authority: phase9_full_platform_stress_20260313T203100Z<br>Fresh widened backbone: phase6_learning_coupled_20260313T203100Z"]
   end
 
   subgraph CONTROL["Control Resources"]
@@ -52,7 +52,7 @@ flowchart LR
 
   subgraph RTDL["RTDL Runtime Resources"]
     EKS["EKS cluster<br>fraud-platform-dev-full"]
-    NODEGROUP["Managed nodegroup<br>fraud-platform-dev-full-m6f-workers<br>m6i.xlarge<br>review standby: min 0 / desired 0 / max 8"]
+    NODEGROUP["Managed nodegroup<br>fraud-platform-dev-full-m6f-workers<br>m6i.xlarge<br>min 2 / desired 4 / max 8"]
     NSRTDL["Namespace<br>fraud-platform-rtdl"]
     CSFB["Deployment<br>fp-pr3-csfb"]
     IEG["Deployment<br>fp-pr3-ieg"]
@@ -73,7 +73,7 @@ flowchart LR
   end
 
   subgraph DATASTATE["Runtime data-state resources"]
-    AURORA["Aurora PostgreSQL cluster<br>fraud-platform-dev-full-aurora<br>serverless v2 0.5 to 4 ACU<br>review standby: stopping"]
+    AURORA["Aurora PostgreSQL cluster<br>fraud-platform-dev-full-aurora<br>serverless v2 0.5 to 4 ACU"]
     AURORAWRITER["Writer instance<br>fraud-platform-dev-full-aurora-writer-1<br>db.serverless"]
   end
 
@@ -200,9 +200,10 @@ flowchart LR
   IEG --> OFP
   OFP --> DF
   DF --> DL
-  DL --> DLA
+  DL --> AL
+  AL --> DLA
   DL --> ARCH
-  DL --> CASETRIG
+  AL --> CASETRIG
   CASETRIG --> CASEMGMT
   CASEMGMT --> LABELSTORE
   AURORA --> AURORAWRITER
@@ -211,6 +212,7 @@ flowchart LR
   OFP -->|reads/writes runtime state in| AURORA
   DF -->|reads/writes runtime state in| AURORA
   DL -->|reads/writes runtime state in| AURORA
+  AL -->|reads/writes action state in| AURORA
   DLA -->|reads/writes runtime state in| AURORA
   CASETRIG -->|reads/writes case-trigger state in| AURORA
   CASEMGMT -->|reads/writes case state in| AURORA
