@@ -7910,3 +7910,61 @@ This leaves the graphs in a better place:
 - both now say more explicitly what each handoff actually does
 
 That is closer to the right standard for these user-facing readiness artifacts.
+
+## 2026-03-18 13:20:49 +00:00 - The user wants a real way to stop standing MSK cost while the platform is under review, so I added an explicit streaming-substrate teardown and restore control instead of leaving it as an operator memory problem
+
+The cause of the cost leak is straightforward: the runtime had been put into standby, but the streaming substrate was still materially alive.
+
+That means:
+
+- EKS nodegroup can be `0`
+- Aurora can be stopped
+- replay tasks can be absent
+- and the bill can still keep moving because `infra/terraform/dev_full/streaming` seats an always-on MSK Serverless cluster
+
+The important part is not just recognizing that. It is giving the operator a safe path that avoids turning `terraform destroy` into folklore.
+
+So I added:
+
+- `scripts/dev_substrate/dev_full_streaming_standby.py`
+- `docs/runbooks/dev_full_streaming_standby.md`
+
+The script has two explicit actions:
+
+- `teardown`
+- `restore`
+
+and its default teardown posture is intentionally conservative:
+
+- refuse to destroy streaming unless the runtime is already in standby
+- require EKS nodegroup `min=0` and `desired=0`
+- require Aurora to be `stopped` or `stopping`
+
+That is the right safety line because tearing down Kafka while the runtime is still active is not cost control, it is live substrate breakage.
+
+The script snapshots the streaming stack before destroy:
+
+- Terraform outputs
+- current cluster presence
+- current bootstrap-SSM parameter presence
+
+then destroys only the `dev_full/streaming` Terraform stack and verifies afterward that:
+
+- the MSK cluster is gone
+- the bootstrap parameter is gone
+- the streaming Terraform state is empty
+
+The matching `restore` action reapplies the same stack and checks that the cluster and bootstrap parameter are back.
+
+This is a much better operator posture than the previous one:
+
+- before: runtime standby could still leave standing Kafka cost and the only real answer was "remember that MSK is separate"
+- now: the repo has a durable, explicit control for stopping and later restoring that standing-cost substrate
+
+That is the right kind of cost discipline because it is:
+
+- explicit
+- reversible
+- artifacted
+- narrow
+- and does not weaken the accepted production-ready topology; it only governs how the operator idles it between review windows
