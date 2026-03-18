@@ -7727,3 +7727,41 @@ I also wrote a durable standby snapshot into:
 so the repo keeps one small machine-readable record of the review standby boundary instead of leaving that evidence only in transient CLI output.
 
 The reason I wanted this written explicitly is that teardown periods can otherwise create false historical confusion later: someone reads the graphs, sees a green full-platform claim, then looks at the cloud console and sees zero pods and a stopping database. The graphs now make that relationship explicit instead of forcing an inference.
+
+## 2026-03-18 12:07:50 +00:00 - I re-checked the production-ready network/resource graphs against the live standby cloud posture and found one stale resource-state detail
+
+The user asked me to confirm once again that the readiness network and resource graphs still capture everything. The only honest way to answer that is not to re-read the Mermaid files in isolation but to compare them against:
+
+- the accepted final readiness authority
+- the current live cloud posture
+
+I re-checked the final accepted basis in the proving docs and then queried the live runtime surfaces that matter for the readiness graphs:
+
+- EKS nodegroup `fraud-platform-dev-full-m6f-workers`
+- current Kubernetes deployment replica posture
+- Aurora cluster `fraud-platform-dev-full-aurora`
+- ingress Lambda reserved concurrency
+- MSK cluster state
+
+That comparison came back mostly clean:
+
+- the network graph still correctly captures the full promoted platform after final `Phase 9` bounded stress closure
+- the resource graph still correctly captures the promoted concrete resource set
+- the live review-standby posture is still real:
+  - nodegroup `min=0 / desired=0 / max=8`
+  - RTDL and Case + Label deployments `0/0`
+  - `coredns` `0/0`
+  - Lambda reserved concurrency `600`
+  - MSK serverless still `ACTIVE`
+
+The one stale detail was Aurora state wording:
+
+- the graph still said `review standby: stopping`
+- the live cluster is now actually `stopped`
+
+So I corrected the resource graph source and regenerated its PNG. That means the answer to the user is:
+
+- yes, the two readiness graphs still capture the accepted platform correctly
+- no, they were not perfectly current until this refresh because Aurora standby state had advanced from `stopping` to `stopped`
+
+That is exactly the kind of small truth drift the notebook should record, because otherwise the graphs slowly become "mostly right" instead of exact.
