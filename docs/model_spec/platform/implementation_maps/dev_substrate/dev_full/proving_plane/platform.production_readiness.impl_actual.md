@@ -7765,3 +7765,32 @@ So I corrected the resource graph source and regenerated its PNG. That means the
 - no, they were not perfectly current until this refresh because Aurora standby state had advanced from `stopping` to `stopped`
 
 That is exactly the kind of small truth drift the notebook should record, because otherwise the graphs slowly become "mostly right" instead of exact.
+
+## 2026-03-18 12:09:01 +00:00 - The user wants the readiness graphs to show the platform in its accepted warm production-ready shape, not the temporary stopped review posture, so I removed the standby annotations
+
+The user clarified the intended meaning of these two long-lived graphs:
+
+- they should show the production-ready platform as if the accepted ready surfaces are warm and present
+- they should not narrate the temporary stopped / idled review posture inside the readiness view itself
+
+That is a fair correction for these particular graphs because their role is not to be a live operations dashboard. Their role is to show:
+
+- the accepted production-ready working platform
+- the concrete resources backing that accepted claim
+
+So I removed the review-standby wording from:
+
+- `dev_full_platform_network_production_ready_current_v0.mermaid.mmd`
+- `dev_full_platform_resources_production_ready_current_v0.mermaid.mmd`
+
+and restored the resource graph to the accepted warm posture:
+
+- nodegroup shown at the proven ready shape `min 2 / desired 4 / max 8`
+- Aurora shown as the accepted resource with its provisioned ACU range, without the temporary stopped-state note
+
+This leaves an important distinction in the repo:
+
+- readiness graphs show accepted warm production-ready posture
+- the notebook / logbook still carry the fact that the runtime was intentionally idled afterward for review and cost control
+
+That separation is cleaner and better matches the user-facing purpose of the graphs.
