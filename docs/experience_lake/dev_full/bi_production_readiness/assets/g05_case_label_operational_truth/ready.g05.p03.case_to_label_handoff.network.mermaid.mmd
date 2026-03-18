@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 5 / Path 3
+%% Case-to-label handoff path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat, contract, or owned supervision-request closure"]
+    LG2(("Round node = named handoff or supervision-request surface"))
+    LG3["This graph closes at explicit production-ready supervision-request truth on the real Case Management to Label Store handshake boundary, before authoritative label commit begins"]
+  end
+
+  subgraph ENTRY["Operational case basis"]
+    CASE(("Operational case truth"))
+    TIMELINE(("Append-only case timeline truth"))
+  end
+
+  subgraph PATH["Bi / Group 5 / Path 3 - Case-to-label handoff"]
+    HANDOFF["Case-to-label handoff boundary<br/>Case Management -> Label Store supervision-request handshake"]
+    CONTRACT["Handoff discipline<br/>clean truth ownership<br/>case truth stays with Case Management<br/>label truth begins only at Label Store<br/>duplicate-safe and replay-safe request continuity"]
+    PROOF["Production-ready handoff proof posture<br/>bounded slice already proved clean supervision-request movement<br/>case_to_label timing judged on the authoritative handshake clock<br/>the earlier LABEL_PENDING timeline marker is not the owning boundary<br/>later coupled and enlarged-platform proof kept the seam timely and non-regressed"]
+    REQUEST(("Owned outcome<br/>production-ready explicit supervision-request truth"))
+    LINTAKE(("Later handoff<br/>Label Store intake"))
+  end
+
+  CASE -->|feeds owned case truth into| HANDOFF
+  TIMELINE -->|feeds adjudication and timeline basis into| HANDOFF
+  CONTRACT -->|governs supervision-request creation for| HANDOFF
+  PROOF -->|governs accepted production-ready posture for| HANDOFF
+  HANDOFF -->|materially closes explicit label-request basis as| REQUEST
+  REQUEST -->|later feeds intake into| LINTAKE

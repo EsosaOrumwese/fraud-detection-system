@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 1 / Path 3
+%% Ready authorization path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or control identity"]
+    LG2[("Round node = durable topic, storage, or committed ready artifact surface")]
+    LG3["This graph names the concrete seats that materially realize production-ready READY authorization"]
+  end
+
+  ENTRY["Ready-eligible run + source basis"]
+
+  subgraph CONTROL["Control resources"]
+    SFN["Step Functions<br/>fraud-platform-dev-full-platform-run-v0"]
+    ROLESFN["IAM role<br/>fraud-platform-dev-full-stepfunctions-orchestrator"]
+    TCTRL[("MSK topic<br/>fp.bus.control.v1")]
+    RUNCTL["Run-control receipts / reconciliation"]
+    EVID[("S3 evidence bucket<br/>fraud-platform-dev-full-evidence")]
+  end
+
+  subgraph OUTCOME["Committed ready artifacts"]
+    READYPUB[("READY publication artifact")]
+    READYRCPT[("READY receipt artifact")]
+    OUT[("Owned outcome<br/>production-ready authorized ready state")]
+  end
+
+  ENTRY -->|hands ready authorization to| SFN
+  ROLESFN -->|executes| SFN
+  SFN -->|publishes READY control signal to| TCTRL
+  SFN -->|writes ready receipt facts into| RUNCTL
+  TCTRL -->|materializes authoritative READY publication as| READYPUB
+  RUNCTL -->|materializes durable ready receipt as| READYRCPT
+  READYPUB -->|is stored under run evidence root in| EVID
+  READYRCPT -->|is stored under run evidence root in| EVID
+  READYPUB -->|together materially close this path as| OUT
+  READYRCPT -->|together materially close this path as| OUT

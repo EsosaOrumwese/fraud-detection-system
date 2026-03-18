@@ -1,0 +1,50 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 / Path 5
+%% Decision formation path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active promoted runtime seat"]
+    LG2(("Round node = runtime-consumed authority surface or concrete output truth"))
+    LG3["This graph names the concrete seats that materially realize production-ready explicit decision truth"]
+  end
+
+  subgraph ENTRY["Decision-formable runtime inputs"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NODEGROUP["Nodegroup<br/>fraud-platform-dev-full-m6f-workers<br/>m6i.xlarge<br/>min 2 / desired 4 / max 8"]
+    NSRTDL["Namespace<br/>fraud-platform-rtdl"]
+    SADEC["ServiceAccount<br/>decision-lane"]
+    CSFB["Deployment<br/>fp-pr3-csfb"]
+    OFP["Deployment<br/>fp-pr3-ofp"]
+    DL["Deployment<br/>fp-pr3-dl"]
+    REGISTRY(("Active bundle truth<br/>bundle da1b8f...@v0-29d2b27919a7"))
+    SSM(("SSM Parameter Store<br/>active handles / runtime authority"))
+  end
+
+  subgraph RTDL["Production-ready decision formation resources"]
+    RTDLIMG["Pinned image family<br/>fraud-platform-dev-full@sha256:c984..."]
+    DF["Deployment<br/>fp-pr3-df"]
+    CONTRACT["Decision contract seam<br/>bundle / policy identity<br/>decision latency / quarantine semantics"]
+    PROVENANCE["Explainability and provenance seam<br/>decision identity / authority identity / explanation fields"]
+    TRTDL(("Topic<br/>fp.bus.rtdl.v1"))
+    TAUDIT(("Topic<br/>fp.bus.audit.v1"))
+  end
+
+  EKS -->|contains| NODEGROUP
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity through| SADEC
+  NSRTDL -->|runs| DF
+  RTDLIMG -->|pins deployment family for| DF
+  CSFB -->|supplies joined runtime context basis to| DF
+  OFP -->|supplies feature-ready basis to| DF
+  DL -->|supplies adjudicated posture to| DF
+  REGISTRY -->|supplies active bundle truth to| DF
+  SSM -->|supplies active runtime handles to| DF
+  CONTRACT -->|governs explicit decision formation for| DF
+  PROVENANCE -->|governs explainability completeness for| DF
+  DF -->|publishes decision truth to| TRTDL
+  DF -->|publishes decision audit truth to| TAUDIT

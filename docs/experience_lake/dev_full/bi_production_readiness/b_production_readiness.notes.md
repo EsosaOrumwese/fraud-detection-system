@@ -10105,3 +10105,1053 @@ Yes. For `S5`, the `Bi` claim mix is this.
 
 `Compressed Bi claim`
 `S5` shows that you can turn a separately meaningful closure layer into a production-ready operational-closure object by insisting that reconstruction, verdict traceability, alertability, ML day-2 readback, idle and restore, and cost accountability are all real live truths first on their own boundary, and then only promoting them once they still cohere when coupled back into one full-platform proof story.
+
+## 2026-03-18 09:38:08 +00:00 - Open S6 as the capstone integrated-whole boundary by framing full-platform bounded integrated validation as its own enlarged-network object
+`S6` — `Full-platform bounded integrated validation`
+
+For `S6`, the object frame should stay on the **coherent-whole integrated boundary itself**. It should **not** drift backward into `S5` operational closure, and it should **not** drift forward into `S7` widened stress authorization. The secondary-layer matrix is explicit that `S6` is a **capstone enlarged-network object** whose job is the coherent-whole proof: truth continuity, timing continuity, no hidden handoff defect, and one explainable platform story.
+
+`Object`
+
+`S6` is the first capstone full-platform object after the working platform has already been promoted through `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta`. So this object is **not** asking whether an additional plane can be made operable. That question was already answered by `S5`. `S6` asks the harder question: once every promoted plane is active inside the same bounded proof story, does the platform still behave as **one** production system rather than a pile of separately green receipts? The plan defines this as `Phase 8`: all planes, all critical cross-plane paths, one run identity, one truth-continuity story, one timing-continuity story, and one bounded recovery story.
+
+`A posture`
+
+In `A`, the strongest inherited posture is already present: the wired platform is a real, intentional, full-lifecycle engineered system with explicit truth-boundary ownership, explicit runtime and evidence seating, explicit continuity, and explicit governance laws. But `A` deliberately stops before production-pressure claims. So the right inherited `A` posture for `S6` is **not** `the platform already proved integrated bounded correctness.` It is: **there already exists one real whole-system object whose boundaries are explicit enough that integrated proof now has something meaningful to test.**
+
+`Bi posture`
+
+The `Bi` posture of `S6` is:
+
+the full promoted working platform is now validated as one bounded coherent production system, where all active planes materially participate on the same run, truth continuity across critical paths holds, timing continuity across those paths holds, no silent starvation or hidden handoff defect is allowed, and the whole run story remains explainable and auditable rather than only technically green.
+
+That is exactly why `Phase 8` exists. It is the boundary where the platform stops being `all major planes have individually and pairwise gone green` and must prove `the whole promoted platform is bounded-correct as one integrated object.`
+
+`Why this object matters`
+
+`S6` matters because without it the platform can still look impressive while remaining only a stack of separately green things:
+
+* ingress is green
+* RTDL is green
+* case and label are green
+* learning is green
+* ops and governance is green
+
+But that still leaves the hardest readiness question open: **are those truths still true together when every critical boundary is active at once, or is one plane only looking healthy because another plane stopped doing real work?** The `Phase 8` fail-fast and boundary-health rules are written specifically to catch that false whole-platform confidence.
+
+It also matters strongly for the meta goal, because this is where the work stops looking like `many competent subsystems` and starts looking like **whole-platform engineering judgment**: the ability to prove that the integrated platform has one coherent operational story rather than disconnected local wins.
+
+`What changed at S6`
+
+The accepted `Phase 8` authority says that once the fresh runtime backbone, the fresh integrated operator coupling, and the corrected integrated rollup all agreed on one bounded full-platform story, the platform could honestly be treated as bounded-correct as a whole. The accepted closure recorded steady `3049.811 eps`, burst `6188.000 eps`, recovery `3019.217 eps`, zero bounded integrity regressions, intact decision-to-case and case-to-label continuity, active runtime bundle still matching promoted truth, and operator/governance continuity remaining readable and attributable. That is why `S6` is not merely `integrated validation happened.` It is the point where the whole platform becomes one earned coherent object.
+
+`Compressed object frame`
+
+`S6` is the capstone integrated-whole boundary where the already-promoted working platform must prove, on one bounded run, that all of its critical truths coexist coherently, participate materially, remain explainable, and do not hide cross-plane defects; only after that does widened stress authorization in `S7` become an honest next question.
+
+This is the frame I'd carry into the actual `concern`, `measurement`, and `pressure episodes` for `S6`.
+
+## 2026-03-18 09:38:45 +00:00 - Derive the system-design questions for S6 so the interrogation stays on coherent whole-platform integrated truth rather than drifting backward into operational closure or forward into widened stress
+For `S6`, the system-design questions should stay on **coherent whole-platform integrated truth**, not drift backward into `S5` operational closure or forward into `S7` widened stress authorization. `S6` is the `Phase 8` boundary where the already-promoted working platform is validated as **one network** before heavier stress is authorized.
+
+`S6 - Full-platform bounded integrated validation` - `system-design questions`
+
+1. `What exactly counts as full-platform integrated truth here?`
+
+This object is not satisfied because all planes have individual green receipts. Its owned outcome is stronger: one bounded run in which the whole promoted platform carries one run identity, preserves truth continuity across critical paths, preserves timing continuity across those paths, avoids silent starvation, stays within bounded recovery, and remains explainable and auditable for accepted decisions and promoted bundles.
+
+2. `Why is this a separate object from S5 and from S7?`
+
+`S5` already proved the platform can be operated and governed as one system; `S6` asks whether that now-promoted working platform still behaves as one coherent production network when everything is live together on the same bounded proof story. `S7` is a different question again: it widens only the pressure window from the accepted `S6` story and asks whether the platform deserves longer stress or soak, not whether integrated correctness exists in the first place.
+
+3. `What is the allowed entry into this object, and why is it constrained?`
+
+The entry is not `many earlier phases were green.` The entry is the already-promoted working platform: `Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta`, then one fresh integrated execution where the runtime-serving backbone and the ops and governance slices are coupled on the same proof scope. The implementation note is explicit that `Phase 8` should open from a fresh integrated boundary, not by stacking old receipts.
+
+4. `What has to be true before we can honestly say the platform is telling one coherent story rather than many local green stories?`
+
+The platform has to show more than local health. It has to show that ingress envelope, RTDL participation, case and label continuity, governed learning truth, operator and governance continuity, and audit and explainability all still agree on one bounded full-platform story. The accepted `Phase 8` closure is written exactly in those terms: the fresh runtime backbone, fresh integrated operator coupling, and corrected integrated rollup all had to agree before the whole platform could be treated as bounded-correct.
+
+5. `How do we know no plane only looks green because another plane stopped doing real work?`
+
+This is one of the core `S6` questions. The plan pins it directly: all critical cross-plane paths must materially participate on the same run, no active plane may go dark while upstream remains hot, and silent starvation must stay at `0`. That is why the telemetry plan requires one watch surface covering ingress, RTDL, case and label, learning, and ops and gov together instead of letting each plane report health in isolation.
+
+6. `What are the exact proof surfaces that make the integrated verdict honest?`
+
+The proof surfaces are not generic `system seems fine` signals. `S6` is judged through integrated live telemetry, integrated summaries, integrated recovery telemetry, and integrated evidence readback. The plan also requires one run manifest, one integrated live summary, and optional whole-platform metric snapshots, with fail-fast triggers for any active plane going dark, any critical path losing run identity or truth continuity, or any evidence hole large enough to invalidate the verdict.
+
+7. `How do we distinguish a real integrated-platform defect from a scorer or rollup defect?`
+
+This is a central `S6` question because the implementation history shows that the first expensive `Phase 8` work came back green on the live runtime-serving backbone and the fresh integrated ops and gov slices, while the remaining red was in the new integrated rollup boundary rather than in the platform itself. The accepted posture was not to rerun the whole proof blindly or weaken the gate, but to correct the smallest legitimate scoring boundary and rerun honestly. So `S6` has to keep asking: is the red in the whole platform, or is it in how the integrated verdict is being computed?
+
+8. `What constraints shape the accepted solution and stop easy shortcuts?`
+
+`S6` is constrained by the bounded-production method. It must preserve production shape, use the coupled-network validation slice at full working-platform scope, execute learning and ops and governance activity inside the same bounded proof story where relevant, and avoid replacing the object with a giant one-off certification runner. The implementation note explicitly rejects that shortcut and insists on building `Phase 8` from truthful existing boundaries coupled on one fresh scope.
+
+9. `What trade-off is the design accepting here?`
+
+The design accepts a more expensive and more coupled proof in exchange for a much stronger claim. It would be cheaper to keep separate plane receipts and speak loosely about the full platform. `S6` rejects that. It pays the cost of proving the whole promoted network together so the final claim is not `many things went green,` but `the whole platform remained coherent, continuous, explainable, and auditable as one system.`
+
+10. `What claim does this object need to support for the meta goal?`
+
+The strongest `S6` claim is not that the platform passed another phase. It is that the platform can now be defended as one coherent production system before any widened stress is authorized: one run story, one truth story, one timing story, one evidence story, with no hidden handoff defect across the active planes. That is exactly the kind of systems judgment the `Bi` notebook is supposed to surface for the meta goal.
+
+Compressed into one line:
+
+For `S6`, the system-design interrogation is about whether the already-promoted working platform can be judged as **one bounded, coherent, explainable production system** on a single integrated proof story, rather than as a pile of separately green planes.
+
+The next clean move is to map `S6` to the pressure episodes that actually changed its posture.
+
+## 2026-03-18 09:39:17 +00:00 - Map the few posture-changing episodes that turned S6 from many promoted parts into one coherent bounded full-platform object
+Yes. For `S6`, only a small number of episodes actually changed its posture.
+
+This object is not changed by every Phase 8 event. It is changed only by the episodes that altered the answer to the real `S6` question:
+
+**does the already-promoted working platform behave as one coherent bounded production system, or are we still looking at separately green local receipts?**
+
+`S6 - pressure episodes that actually changed its posture`
+
+### 1. `Phase 8 had to be opened from a fresh integrated boundary rather than by stacking earlier green receipts`
+
+This is the first real posture-changing episode for `S6`.
+
+Before this, the platform already had earlier promoted objects and a plane-ready `Ops / Gov / Meta` story. But that still did **not** answer the integrated question. The implementation note is explicit: `Phase 8` had to be opened from a **fresh integrated boundary**, and the real question became whether one fresh runtime-serving proof plus fresh operator coupling still described **one coherent platform story**. That is the moment `S6` becomes a distinct object rather than just `later after S5`.
+
+`Why it changed S6`
+
+Because `S6` stopped being `the platform has many green things` and became:
+
+**the whole promoted platform must now prove itself as one integrated bounded object.**
+
+---
+
+### 2. `The first integrated red showed that the live platform could already be green while the integrated verdict was still wrong`
+
+The next posture-changing episode is the first important integrated red.
+
+The notebook records that the fresh integrated execution was already live-green in substance, but the first red, `PHASE8_B_IDLE_NOT_ZERO`, turned out to be a **self-inflicted rollup defect** because the drill artifact already showed `node count after idle = 0`. So the red was not proving that the full platform lacked integrated coherence; it was proving that the integrated scorer or rollup boundary was still asking the wrong question.
+
+`Why it changed S6`
+
+Because this is where `S6` moves from:
+
+* maybe the whole platform is still incoherent
+
+to:
+
+* the whole platform may already be coherent, and the integrated verdict surface is now the thing lying
+
+That is one of the most important posture changes in the object, because `S6` is exactly where you must separate **real whole-platform red** from **false integrated-scoring red**.
+
+---
+
+### 3. `The accepted bridge was to fix the smallest legitimate integrated boundary, not rerun or weaken the whole proof`
+
+Once that false integrated red was identified, the next posture-changing episode was the bridge choice itself.
+
+The implementation note is explicit:
+
+* no rerun of the whole integrated proof
+* no weakening of the gate
+* just fix the scorer and rerun the smallest legitimate boundary
+
+This matters because `S6` is a capstone object. A weak method here would have destroyed its value:
+
+* either rerun the entire expensive platform blindly
+* or weaken the integrated gate to get a convenient green
+
+The accepted move did neither. It preserved the integrated object and production shape, but repaired the narrow rollup boundary that was mis-scoring the already-green live proof.
+
+`Why it changed S6`
+
+Because `S6` stopped being `the integrated proof is still blocked` and became:
+
+**the integrated object is now being judged through the corrected whole-platform boundary rather than through a false one.**
+
+---
+
+### 4. `S6 closed only when the fresh runtime backbone, fresh integrated operator coupling, and corrected integrated rollup all agreed on one bounded full-platform story`
+
+This is the decisive closure episode for `S6`.
+
+The accepted `Phase 8` closure authority says the platform became integrated-green because:
+
+* the **fresh runtime backbone**
+* the **fresh integrated operator coupling**
+* and the **corrected integrated rollup**
+
+all agreed on one bounded full-platform story. The accepted integrated metrics were strong across the whole platform:
+
+* steady `3049.811 eps`
+* burst `6188.000 eps`
+* recovery `3019.217 eps`
+* integrity deltas all `0`
+* `decision_to_case p95 = 0.0 s`
+* `case_to_label p95 = 0.1982594 s`
+* runtime participation stayed material across DF, AL, DLA, Case, and Label
+* active runtime bundle still matched promoted learning truth
+* governance and operator continuity still held with `10 / 10` required local evidence, `18 / 18` readable Phase 5 refs, `6` critical alarms, runbook-linked dashboards, and `node count after idle = 0`
+
+`Why it changed S6`
+
+Because this is the moment `S6` stops being `integrated validation we are still trying to trust` and becomes:
+
+**the whole promoted platform is now bounded-correct as one coherent production system.**
+
+---
+
+### 5. `After S6 closed, the next honest question changed completely`
+
+The last posture-changing episode is not another red. It is the state change created by closure.
+
+Once `Phase 8` closed, the implementation note says:
+
+* `Ops / Gov / Meta` is now promoted into the working platform
+* the whole `dev_full` platform is now bounded-correct
+* the next honest question is no longer integrated correctness
+* it is bounded full-platform stress authorization in `Phase 9`
+
+That means `S6` is a true capstone object. It does not leave the platform in an ambiguous `more integration work later` posture. It changes the platform's status materially and hands the story forward to `S7`.
+
+---
+
+## `What this mapping says in one line`
+
+`S6` became production-ready not because more planes existed, but because the platform refused to stack local greens, exposed and corrected a false integrated red at the rollup boundary, and then closed only when the fresh runtime backbone, fresh operator coupling, and corrected integrated verdict all agreed on one bounded whole-platform story.
+
+`Compressed posture change`
+
+So the real `S6` transformation is:
+
+* from **`the working platform has many proven parts`**
+* to **`the whole promoted platform is now proven as one coherent bounded production system.`**
+
+The next clean move is `episode interrogation` for `S6`.
+
+## 2026-03-18 09:39:57 +00:00 - Interrogate the few S6 episodes that turned the promoted platform into one bounded coherent production system before widened stress
+Yes. For `S6`, the interrogation has to stay on the **integrated whole-platform object** itself, not collapse back into separate stories about RTDL, Case + Label, Learning, or Ops / Gov / Meta in isolation. The question in each episode is:
+
+**what changed whether the already-promoted working platform deserved to count as one bounded coherent production system, with one run story, one truth-continuity story, one timing-continuity story, and no hidden handoff defect across active planes?** That is the exact `Phase 8` question in the plan.
+
+`S6 - episode interrogation`
+
+### `Episode 1 - integrated validation had to become a fresh whole-platform proof rather than stacked green reuse`
+
+**What surfaced**
+
+`S6` did not open because one more plane needed local hardening. It opened because the platform had already reached the promoted working-platform state, and the next honest question was no longer `are these planes separately green?` but `do they still describe one coherent system when they are all live together on the same bounded proof scope?` The implementation note is explicit here: `Phase 8` had to be opened from a **fresh integrated boundary**, using a fresh Phase 6 runtime-serving backbone plus fresh operator and governance coupling, rather than by stacking earlier Phase 6 and Phase 7 receipts.
+
+**Challenge class**
+
+A **whole-platform integration-authority** challenge, not another plane defect.
+
+**Why it changed `S6`**
+
+Because this is the moment `S6` becomes a real object. Before this, the platform could still only claim that the working platform had many promoted members. After this, `S6` asks the harder thing: whether those members remain one bounded coherent production system when they are judged on one run identity and one integrated live story.
+
+**Accepted bridge**
+
+The accepted bridge was to build `Phase 8` from the already-earned truthful boundaries, not from a giant one-off certification runner:
+
+* fresh runtime backbone from `Phase 6`
+* fresh integrated operator and governance slices from `Phase 7`
+* one fresh execution scope
+* then one integrated rollup over that shared scope
+
+**Why that bridge was right**
+
+Because it preserved production shape and object meaning. It did not replace the working platform with an artificial test harness. It asked the true integrated question on the same kinds of live surfaces the platform was already using.
+
+**What readiness property improved**
+
+`S6` gained **truthful integrated-scope testability**. The full platform could now be judged as one object rather than as a pile of local closures.
+
+---
+
+### `Episode 2 - the first integrated red showed the platform could already be green while the integrated verdict surface was still wrong`
+
+**What surfaced**
+
+The first fresh integrated execution already came back green on the live platform boundary in the ways that mattered most:
+
+* fresh `Phase 6` backbone was `PHASE6_READY`
+* fresh integrated `Phase 7` slices were green
+* alert drill green
+* ML day-2 operator surface green
+* idle and restore drill green
+* bounded assessor green
+
+But the first integrated rollup still went red on `PHASE8_B_IDLE_NOT_ZERO`. The important detail is that this was **not** a real idle failure. The drill artifact itself already showed `node count after idle = 0`. The red came from the new integrated rollup path treating valid `0` as falsey and converting it into a default red value.
+
+**Challenge class**
+
+A **whole-platform verdict-surface defect**: integrated scorer and rollup error, not live platform incoherence.
+
+**Why it changed `S6`**
+
+Because this is where `S6` learned the central distinction it exists to protect:
+
+* a real integrated platform defect
+* versus a false integrated red produced by the scoring boundary itself
+
+That distinction is crucial at this object level. If you cannot separate those two, `S6` becomes worthless because every false integrated rollup red would be misread as proof that the whole platform is still incoherent.
+
+**Accepted bridge**
+
+The accepted bridge was very narrow and very disciplined:
+
+* no rerun of the whole integrated proof
+* no weakening of the gate
+* just fix the scorer
+* rerun the smallest legitimate boundary
+
+**Why that bridge was right**
+
+Because the stronger truth had already been established: the live integrated platform was green. The defect was in the new rollup boundary, not in the platform. Reopening the whole run or weakening the standard would have been the wrong move. The right move was to make the integrated verdict surface catch up to the already-proven live truth.
+
+**What readiness property improved**
+
+`S6` gained **truthful integrated verdict discipline**. The object stopped being blocked by a self-inflicted false red and became judgeable on the real whole-platform evidence.
+
+---
+
+### `Episode 3 - corrected integrated closure turned S6 into bounded whole-platform correctness rather than many local greens`
+
+**What surfaced**
+
+After the narrow scorer correction, `Phase 8` closed green because the three things that had to agree finally did agree:
+
+* the fresh runtime backbone
+* the fresh integrated operator coupling
+* the corrected integrated rollup
+
+And the accepted closure metrics are exactly the kind of evidence `S6` needed:
+
+* steady `3049.811 eps`
+* burst `6188.000 eps`
+* recovery `3019.217 eps`
+* bounded integrity deltas all `0`
+* `decision_to_case p95 = 0.0 s`
+* `case_to_label p95 = 0.1982594 s`
+* material runtime participation across DF, AL, DLA, CaseTrigger, Case Management, and Label Store
+* active runtime bundle still matched promoted truth
+* `10 / 10` required local evidence
+* `18 / 18` readable Phase 5 refs
+* `6` critical alarms present
+* dashboards still runbook-linked
+* `node count after idle = 0` persisted cleanly into the integrated story
+
+**Challenge class**
+
+A **coherent-whole closure** episode.
+
+**Why it changed `S6`**
+
+Because this is the moment `S6` stops meaning `integrated validation we are still trying to trust` and becomes `the whole promoted platform is now bounded-correct as one coherent production system.` It is not merely that the planes were still green. It is that the integrated object answered the actual Phase 8 question: one run identity, one truth-continuity story, one timing-continuity story, no silent starvation, and explainable auditable closure across the active planes.
+
+**Accepted bridge**
+
+The accepted bridge was not a redesign. It was acceptance of the corrected integrated authority itself:
+
+`phase8_full_platform_integrated_20260313T010847Z`
+
+as the bounded whole-platform closure boundary.
+
+**Why that bridge was right**
+
+Because it answered the real `S6` question directly. It did not close on separate local receipts, and it did not close on narrative optimism. It closed only once the fresh runtime backbone, fresh operator and governance coupling, and integrated rollup all told the same whole-platform story.
+
+**What readiness property improved**
+
+`S6` gained **bounded whole-platform correctness**. This is the actual capstone property of the object.
+
+---
+
+### `Episode 4 - closure then had to change the next question, or S6 would drift into pointless re-litigation`
+
+**What surfaced**
+
+Once `Phase 8` closed, the implementation note changes the platform state materially:
+
+* `Ops / Gov / Meta` is now promoted into the working platform
+* the whole `dev_full` platform is now bounded-correct
+* the next honest question is no longer integrated correctness
+* it is bounded full-platform stress authorization in `Phase 9`
+
+The plan enforces the same boundary. `Phase 8` exists to validate the full platform as one network before heavier stress; `Phase 9` exists to determine whether that now-working platform deserves longer stress or soak. The stress-authorization posture is narrower: do not widen scope, do not reintroduce unrelated operator work, do not drag old idle drills back in just because they exist.
+
+**Challenge class**
+
+A **post-closure boundary-discipline** episode.
+
+**Why it changed `S6`**
+
+Because a capstone object is not complete until it changes what the next question is allowed to be. If `S6` closed green but the notebook kept re-asking integrated-correctness questions, then `S6` would not really have transformed the platform state. This episode proves it did. `S6` closed the integrated-correctness question and handed the story forward to widened stress authorization.
+
+**Accepted bridge**
+
+The accepted bridge was to open `Phase 9` by widening only the pressure window from the accepted `Phase 8` story, while keeping the same full-platform truth path and not reintroducing unrelated earlier operator work.
+
+**Why that bridge was right**
+
+Because the whole platform was already bounded-correct after `S6`. The next honest uncertainty was not `is the platform integrated at all?` but `does this already-integrated platform remain production-credible under a longer bounded stress slice?` That is a different object, and the method had to respect that boundary.
+
+**What readiness property improved**
+
+`S6` gained **clean handoff discipline into `S7`**. Its closure became operationally meaningful instead of just ceremonially green.
+
+---
+
+## `What this interrogation says about S6`
+
+So the real story of `S6` is not:
+
+> all planes were already green, then the full-platform test also went green.
+
+It is:
+
+> the platform first had to make integrated validation a fresh whole-platform proof, then separate real whole-platform red from a false integrated rollup defect, then close only when the fresh runtime backbone, fresh operator coupling, and corrected integrated verdict all agreed on one bounded whole-platform story, and finally use that closure to change the next honest question from integrated correctness to widened stress authorization.
+
+That means `S6` is doing exactly what it should do in the `Bi` notebook: it is not another phase summary, and it is not a bag of metrics. It is the point where the platform earns the claim that it behaves as **one coherent bounded production system** before any longer stress story is allowed.
+
+The next clean move is the `S6 transformation synthesis`.
+
+## 2026-03-18 09:40:32 +00:00 - Synthesize how S6 moved from a promoted multi-plane working platform into one bounded coherent full-platform object
+`S6 - Full-platform bounded integrated validation`
+
+`object transformation synthesis`
+
+In `A`, `S6` did not yet exist as an earned object. What already existed was a real full-lifecycle platform with explicit truth boundaries and a path structure strong enough that a later whole-platform integrated question would actually mean something. By the time `S6` opens in `Bi`, the platform already has a promoted working core across `Control + Ingress`, `RTDL`, `Case + Label`, `Learning + Evolution / MLOps`, and the rebuilt `Ops / Gov / Meta` layer. What it still does **not** have is one fresh bounded proof that all of those truths still cohere as **one** production system rather than a pile of separately green closures.
+
+So the real transformation of `S6` is not:
+
+> all the planes went green, and then later the full platform also went green.
+
+It is:
+
+> the platform had to move from a promoted multi-plane working platform into a **single bounded integrated object** whose run identity, truth continuity, timing continuity, recovery continuity, and explainability could all be judged together on one fresh proof story. `Phase 8` is written exactly that way: validate the entire working platform as one network before authorizing heavier stress, with fail-fast on dark planes, broken cross-plane continuity, or observability defects large enough to invalidate the verdict.
+
+To get from that pre-integrated posture to the final `Bi` posture, `S6` had to resolve a small number of decisive things.
+
+1. `Integrated validation had to stop being a stacked-receipts story and become a fresh whole-platform proof`
+
+The first thing that had to change was the proof shape itself. `S6` could not honestly be earned by stacking earlier local greens from runtime, learning, and ops and governance and then narrating them as a whole-platform claim. The object had to be reopened from a **fresh integrated boundary**, because the real question was whether one fresh runtime-serving proof plus fresh operator and governance coupling still told one coherent platform story. That is what turns `S6` into a real object rather than just `the next phase after S5.`
+
+2. `The platform had to separate real whole-platform red from a false integrated verdict red`
+
+Once `S6` was asked honestly, the next thing that had to be resolved was not another component defect. It was whether the integrated verdict surface itself was telling the truth. The implementation note is explicit on the accepted posture here: no rerun of the whole integrated proof, no weakening of the gate, just fix the scorer and rerun the smallest legitimate boundary. That only makes sense because the live integrated platform had already gone far enough to show that the remaining blocker was in the integrated rollup boundary, not in the whole platform object itself. This is one of the most important changes in `S6`: it stopped being `maybe the whole platform is still incoherent` and became `the whole platform may already be coherent, and the integrated scorer is now the thing that must catch up.`
+
+3. `The closure boundary had to require agreement across the three authoritative integrated surfaces`
+
+`S6` did not close because one summary turned green. It closed only when the three things that actually matter for this object agreed: the **fresh runtime backbone**, the **fresh integrated operator coupling**, and the **corrected integrated rollup**. The implementation note states that directly, and the accepted integrated metrics show why that agreement was strong enough to support the claim: steady `3049.811 eps`, burst `6188.000 eps`, recovery `3019.217 eps`, bounded integrity deltas all `0`, `decision_to_case p95 = 0.0 s`, `case_to_label p95 = 0.1982594 s`, material runtime participation across the major downstream surfaces, active runtime bundle still matching promoted truth, and governance and operator continuity still intact.
+
+4. `The object had to prove coherent whole-platform continuity, not just local plane health`
+
+The decisive change at `S6` is that the platform is no longer being judged as a collection of healthy parts. `Phase 8` explicitly asks for run identity continuity across active planes, truth continuity across critical paths, timing continuity across those paths, silent starvation count `0`, bounded full-platform recovery, and explainability and audit completeness for accepted decisions and promoted bundles. That means the object becomes stronger than `all planes are green.` It becomes `all critical truths coexist coherently on one bounded run story.` That is the real systems-design move.
+
+5. `Closure had to change platform state materially, or S6 would be ceremonial`
+
+A true capstone object changes what the next honest question is. The accepted `Phase 8` closure does exactly that. The implementation note says that after this closure, `Ops / Gov / Meta` is now promoted into the working platform, the whole `dev_full` platform is now bounded-correct, and the next honest question is no longer integrated correctness but bounded full-platform stress authorization in `Phase 9`. That matters because it shows `S6` is not just a report. It actually changes the platform's state and hands the story forward.
+
+So the shortest honest synthesis is this:
+
+To move `S6` from its pre-integrated posture to its final `Bi` posture, the platform had to resolve five things:
+
+* stop treating integrated validation as stacked local green receipts
+* ask the whole-platform question on a fresh integrated boundary
+* separate real platform incoherence from false integrated-rollup red
+* close only when fresh runtime backbone, fresh operator coupling, and corrected integrated verdict all agreed
+* and let that closure materially change the next allowed question from integrated correctness to widened stress authorization
+
+That yields the final `Bi` posture of `S6`:
+
+a **bounded full-platform integrated-validation object** in which the already-promoted working platform is now proven as one coherent production system, with shared run identity, truth continuity, timing continuity, no silent starvation, bounded recovery, and explainable and auditable closure across the active planes.
+
+And that is why `S6` serves the meta goal well. It is not a story that many things happened to be green. It is a story that the platform was forced to answer the harder engineering question:
+
+**does this entire promoted network still behave as one bounded, coherent, production system when everything that matters is live together?**
+
+At `S6`, the answer becomes yes.
+
+The next clean move is the `S6 Bi claim mix`.
+
+## 2026-03-18 09:41:12 +00:00 - Extract the Bi claim mix for S6 so the notebook states exactly what integrated whole-platform judgment this capstone object now supports
+`S6 - Bi claim mix`
+
+Yes. For `S6`, the `Bi` claim mix is this.
+
+1. `Readiness-reasoning claim`
+
+`S6` supports the claim that you can reason **full-platform integrated correctness** as its own production-readiness boundary, rather than treating many separate green phase receipts as enough. `Phase 8` exists precisely to validate the entire promoted working platform as **one network**, with one run identity, one truth-continuity story, one timing-continuity story, one recovery story, and no hidden handoff defect across active planes. It is explicitly opened from a **fresh integrated boundary**, not by stacking old local greens.
+
+2. `Systems-design judgment claim`
+
+`S6` supports the claim that you understood **whole-platform integrated correctness** as a different object from both **plane readiness** and **later stress authorization**. `Ops / Gov / Meta` is allowed to close as a plane-ready object in `Phase 7`, but it is deliberately **not** promoted into the working platform until `Phase 8` answers the harder question: does the platform still behave as one coherent bounded production system once the ops and governance plane is coupled into the live story? And once that question is closed, `Phase 9` becomes a different object again: widened stress authorization, not re-litigation of integrated correctness.
+
+3. `Measurement / evidence claim`
+
+`S6` supports the claim that you made integrated whole-platform correctness **directly judgeable on live evidence surfaces** rather than inferred from narrative. The plan pins explicit Phase 8 proof surfaces: integrated live telemetry, integrated summaries, integrated recovery telemetry, and integrated evidence readback, with targets for run-identity continuity, truth continuity, timing continuity, silent starvation `= 0`, bounded recovery, and explainability and audit completeness. The accepted integrated authority then closes on concrete whole-platform evidence: steady `3049.811 eps`, burst `6188.000 eps`, recovery `3019.217 eps`, integrity deltas all `0`, `decision_to_case p95 = 0.0 s`, `case_to_label p95 = 0.1982594 s`, active runtime participation across the major downstream surfaces, active bundle continuity to promoted learning truth, and governance and operator continuity staying readable and attributable.
+
+4. `Constraint / trade-off claim`
+
+`S6` supports the claim that you preferred **truthful integrated proof** over easier green narratives. The method explicitly avoids treating wiring as readiness, avoids giant expensive runs to discover basic defects, avoids helper scripts standing in for the platform, and requires `fix narrow, rerun narrow` instead of thrashing the whole system. That posture shows up directly in the `Phase 8` implementation history: you refused a giant one-off certification runner, opened the object from existing truthful boundaries, and when the first integrated red was traced to the rollup boundary rather than to the live platform, the accepted bridge was **not** to weaken the gate or rerun everything blindly, but to fix the scorer and rerun the smallest legitimate boundary.
+
+5. `Production-relevant challenge claim`
+
+`S6` supports the claim that the challenges were genuinely **production-shaped whole-platform problems**, not toy defects. The live integrated question was whether any active plane only looked green because another plane stopped doing real work, whether any critical cross-plane path lost run identity or truth continuity, whether observability holes invalidated the integrated verdict, and whether operator and governance and governed-learning truth still remained live on the same bounded run story. Even the decisive red in `Phase 8` was production-relevant in the right way: it forced the platform to distinguish a **real whole-platform defect** from a **false integrated verdict-surface defect**.
+
+6. `Promotion / final-posture claim`
+
+`S6` supports the claim that the final ready posture is **not** merely `all planes are green.` It is: the already-promoted working platform has now been proven as **one bounded-correct coherent production system**; the fresh runtime backbone, fresh integrated operator coupling, and corrected integrated rollup all agree on one whole-platform story; `Ops / Gov / Meta` is now promoted into the working platform; and the next honest question is no longer integrated correctness but bounded full-platform stress authorization. That is a much stronger and more senior claim than `integration testing passed.`
+
+`Compressed Bi claim`
+
+`S6` shows that you can take an already-promoted multi-plane working platform and force it through a truthful integrated-proof boundary until it becomes one bounded-correct coherent production system, judged on shared run identity, cross-plane truth and timing continuity, bounded recovery, explainability, and auditable evidence, rather than on a pile of separately green local receipts.
+
+The next clean move is the object frame for `S7 - Full-platform bounded stress authorization`.
+
+## 2026-03-18 09:41:49 +00:00 - Open S7 as the bounded full-platform stress-authorization boundary by framing widened pressure as its own enlarged-network object
+`S7 - Full-platform bounded stress authorization`
+
+`object frame`
+
+For `S7`, the object frame should stay on the **widened-pressure authorization boundary itself**. It should not drift backward into `S6` integrated correctness, and it should not drift forward into later long stress or soak. `S7` is the bounded authorization object that asks whether the already-bounded-correct full platform deserves that later class of pressure at all. The plan is explicit: `Phase 9` exists to determine whether the now-working platform deserves a longer stress or soak run, not to re-ask whether the platform is integrated in the first place.
+
+`Object`
+
+`S7` is the full platform under the **stress-authorization slice**: same promoted working platform, same production ingress envelope, same full-platform truth path, but a widened pressure window of roughly `2M to 5M` admitted events over `10 to 15` minutes with bounded burst and recovery preserved. Its owned question is not `can the platform still be called coherent?` That was `S6`. Its owned question is narrower and harsher: **does the already-coherent platform still remain production-credible when the pressure window is widened, with latency tails, participation, integrity, recovery, and semantic meaning all still holding?**
+
+`A posture`
+
+In `A`, there is not yet any earned stress-authorization claim. What `A` contributes is the existence of one real, intentional, full-lifecycle platform with explicit truth-boundary ownership, explicit runtime and evidence seating, and one causal chain from source world to runtime to supervision to learning to governed activation to run closure. That matters for `S7` because widened pressure is only meaningful if there is already one real whole-platform object whose truth boundaries remain explicit under stress rather than collapsing into vague `traffic moved` storytelling.
+
+So the inherited `A` posture for `S7` is:
+
+**one real whole-platform object already exists, with explicit cross-plane truth ownership and continuity strong enough that widened pressure can test something meaningful rather than a pile of disconnected services.**
+
+`Bi posture`
+
+In `Bi`, `S7` becomes the widened-pressure authorization boundary. The implementation note is explicit that once `Phase 8` closed, the next honest question was no longer integrated correctness. It was: **if I keep the same production envelope and the same full-platform truth path, but hold pressure much longer, does the platform still deserve later long stress or soak?** That is why `Phase 9` is opened by widening only the pressure window from the accepted `Phase 8` story, while refusing to widen scope or drag unrelated earlier operator work back in.
+
+So the `Bi` posture is:
+
+a production-ready full-platform stress-authorization boundary where the already-bounded-correct platform is tested under a widened but still bounded production-shaped pressure window, and must keep latency tails, participation, integrity, timing continuity, operator challengeability, and semantic truth all alive on the same run story before any later longer stress or soak can be called honest.
+
+`Why this object matters`
+
+`S7` matters because without it, `S6` could still leave you with a platform that is integrated and explainable only on a shorter bounded slice. That is not enough to authorize later longer runs. The plan is explicit that bounded proof must come before long stress, and that later longer stress or soak is authorized only if this widened bounded stress phase is green. So `S7` is the point where the platform stops merely saying `the full platform is coherent` and starts being able to say `the full platform remains production-credible when the pressure window is widened.`
+
+It also matters strongly for the meta goal, because the engineering judgment here is not `we ran more traffic.` It is that the platform keeps the hard things live under widened pressure: RTDL decision and action truth remain explainable, Case + Label truth remains authoritative, the active runtime bundle remains attributable to governed learning truth rather than becoming a hollow runtime artifact, and no plane only appears green because another plane silently stopped doing real work. That is exactly the kind of whole-platform operations judgment `Bi` is supposed to surface.
+
+`What changed at S7`
+
+The important change at `S7` is that the authorization question itself had to become honest. The first widened attempts did not fail because the platform started making meaningless decisions under volume; they failed because the widened run shape was not yet truthful and the carried stress scorer was still too thin on semantic handling. The implementation notes keep insisting on the right posture here: do not rerun the whole platform blindly, do not weaken the gate, and do not close on a widened run whose source boundary is not yet real. That is exactly what makes `S7` a real object rather than just `more load`.
+
+The accepted closure then shows what `S7` became once that boundary was made truthful enough. The final accepted widened posture used an `84`-lane source, `ig_push_concurrency = 1`, `presteady_seconds = 150`, `steady_seconds = 600`, and an explicit widened burst seed, and it closed with materially strong stress metrics: admitted `2,360,103`, steady `3007.053 eps`, burst `6359.000 eps`, recovery `3017.517 eps`, steady `p95 = 47.9935 ms`, steady `p99 = 59.9765 ms`, critical integrity deltas staying `0`, material runtime participation across RTDL, case, label, and audit surfaces, and the active bundle still attributable to governed learning truth. That is why the plan's final judgment says later longer stress and soak is now authorized from the accepted `Phase 9` authority rather than by reopening earlier bounded questions.
+
+`Compressed object frame`
+
+`S7` is the bounded full-platform stress-authorization boundary where the already-bounded-correct platform must prove that, under a widened production-shaped pressure window, it still holds the same full-platform truth path, the same semantic meaning, the same operator challengeability, and the same bounded recovery strongly enough that later longer stress or soak is deserved rather than merely hoped for.
+
+The next clean move is to derive the `system-design questions` for `S7`.
+
+## 2026-03-18 09:42:29 +00:00 - Derive the system-design questions for S7 so the interrogation stays on widened-pressure authorization rather than drifting back into integrated correctness or forward into long soak
+`S7 - Full-platform bounded stress authorization`
+`system-design questions`
+
+For `S7`, the questions have to stay on the **authorization boundary** itself. This object is not asking whether the platform is integrated at all; `S6` already answered that. `S7` asks whether that already-bounded-correct platform still deserves **later longer stress / soak** once the pressure window is widened, while the same full-platform truth path stays live.
+
+1. `What exactly is being authorized here?`
+
+Not `more traffic` in the abstract. `S7` exists to determine whether the now-working platform deserves a **longer stress or soak run**. So the object is specifically about **authorization of the next class of pressure**, not about rediscovering whether the full platform works at all.
+
+2. `Why is S7 a distinct object from S6?`
+
+Because `S6` asked whether the full platform behaves as **one coherent production system**. `S7` starts only after that bounded-correct whole-platform claim already exists, and then narrows the next question to: if the same production envelope and the same full-platform truth path are held longer, does the platform remain production-credible enough to justify longer stress or soak?
+
+3. `What is the allowed entry posture into S7?`
+
+The allowed entry is not `some earlier phases were green.` The allowed entry is the already-promoted working platform:
+
+`Control + Ingress + RTDL + Case + Label + Learning + Evolution / MLOps + Ops / Gov / Meta`
+
+plus the accepted `Phase 8` closure that made the full platform bounded-correct. Only from there can the widened stress question be asked honestly.
+
+4. `What pressure shape makes this an honest bounded stress-authorization question rather than a generic rerun?`
+
+The pressure shape is the `Stress authorization slice`: roughly `2M to 5M` admitted events over `10 to 15` minutes, at the retained production target, and only after bounded correctness and earlier bounded stress are already clean. So `S7` is a **widened bounded slice**, not an unstructured long run and not a soak disguised as a short phase.
+
+5. `What must stay true under widened pressure for the authorization to be meaningful?`
+
+The platform must stay **semantically trustworthy** under the widened window: outputs must remain meaningful, explainable, and auditable; RTDL decision and action truth must stay explainable; Case + Label truth must remain authoritative; the active runtime bundle must remain tied to a meaningful governed learning basis; and no plane may appear green only because another plane silently stopped doing real work.
+
+6. `What proof surfaces actually make the S7 verdict honest?`
+
+Not narrative. The plan pins the proof surfaces: integrated stress summary, latency tails, recovery behavior, fail-closed, quarantine, lineage, case, label, learning, and ops metrics, and the Phase 9 stress-authorization posture of **no red plane, no red critical path, no invalidating telemetry blind spot**. The accepted authority then closes with concrete widened metrics and material participation across DF, AL, DLA, Case, and Label, plus governed bundle attribution.
+
+7. `How do we distinguish a real platform stress failure from a source-boundary or scorer defect?`
+
+This is a central `S7` question, because the implementation history shows `Phase 9` was first blocked not by meaningless decisions under volume, but by the widened source boundary failing to prove the declared envelope truthfully and repeatably, and by carried scoring surfaces being too thin or advisory-shaped. So `S7` must keep asking: is the platform failing under widened pressure, or is the widened run shape itself still dishonest?
+
+8. `What is the right widened-stress posture once S7 opens?`
+
+The implementation note makes this very explicit:
+
+* reuse the truthful fresh `Phase 6` runtime backbone
+* widen the steady window into the `2M to 5M` band
+* keep the same bundle-truth and operator-readback challenge alive
+* score only what matters for stress authorization:
+
+  * latency tails
+  * participation
+  * integrity
+  * timing continuity
+  * operator challengeability under the widened slice
+
+That is the design posture of `S7`, and it is much sharper than `run the full system harder.`
+
+9. `What constraints and trade-offs define an honest S7 bridge?`
+
+`S7` must preserve production shape while avoiding waste and false-green tricks. The plan explicitly avoids lowering throughput just to get green, avoids giant expensive runs to rediscover basic defects, and avoids helper-script reality replacing platform reality. So the accepted bridge inside `S7` is allowed to repin the **source topology or proof boundary** if that is the truthful blocker, but not to soften the platform target or narrow the semantic burden.
+
+10. `What claim must S7 support for the meta goal?`
+
+Not `we survived a bigger run.` The stronger claim is: the already-bounded-correct full platform remained production-credible under widened bounded pressure, with throughput, latency, integrity, recovery, semantic continuity, governed runtime-bundle attribution, and operator and governance challenge all still live enough that later longer stress or soak is now deserved. That is the real whole-platform judgment `S7` is supposed to earn.
+
+`Compressed reading`
+
+So the real system-design interrogation for `S7` is:
+
+**Can the already-integrated and bounded-correct platform carry a widened production-shaped pressure window while preserving semantic truth, cross-plane participation, latency and recovery discipline, governed runtime meaning, and operator challengeability strongly enough that later longer stress and soak is now an earned next step rather than a hopeful gamble?**
+
+The next clean move is to map the `S7` pressure episodes that actually changed its posture.
+
+## 2026-03-18 09:43:14 +00:00 - Map the few posture-changing episodes that turned S7 from a widened-pressure question into earned bounded stress authorization
+Yes. For `S7`, only a few episodes actually **reclassified the object**.
+
+The important thing is that `S7` is **not** changed by every widened run, every tuning step, or every metric wobble. It is changed only by the episodes that altered the answer to this specific question:
+
+**does the already-bounded-correct full platform now deserve later longer stress and soak, or is the widened stress boundary itself still not truthful enough to authorize that claim?**
+
+`S7 - pressure episodes that actually changed its posture`
+
+### 1. `S7 only truly opened once S6 closed and changed the question`
+
+The first posture-changing episode is the handoff from `S6`.
+
+Before that handoff, the platform was still answering the integrated-whole question:
+is the promoted multi-plane platform actually one coherent bounded production system?
+
+Once the bounded integrated authority closed, that question was no longer open. That is what created `S7` as a distinct object. From that point onward, the question changed to:
+
+* not `is the platform integrated?`
+* but `does this already-integrated platform still remain production-credible when the pressure window is widened enough to justify later longer stress or soak?`
+
+That is the first real change in posture. `S7` becomes a **stress-authorization** object rather than a leftover integration phase.
+
+---
+
+### 2. `The first widened attempts showed that the stress question itself was still malformed`
+
+The next real posture-changing episode was when the first widened attempts proved that the widened run shape was **not yet a trustworthy stress-authorization question**.
+
+This is crucial. The early red did **not** primarily mean:
+
+* the platform is semantically broken under pressure
+* the full platform cannot survive widened load
+* Case, Label, Learning, and Ops are collapsing
+
+Instead, the more important truth was:
+
+* the widened source boundary was not yet proving the declared pressure truthfully
+* the carried stress scorer and receipt surface was still too thin or too poorly shaped
+* the widened proof was still mixing source and control defects with real platform judgment
+
+That changed `S7` from:
+
+* `we are now genuinely judging stress-worthiness`
+
+to:
+
+* `we are still building a truthful widened proof boundary for stress-worthiness`
+
+That is a major posture change.
+
+---
+
+### 3. `S7 then separated proof-surface red from real platform red`
+
+This is the most important middle episode.
+
+As the widened attempts continued, the object learned to distinguish:
+
+* **real full-platform stress failure**
+* from **false or misleading widened-proof failure**
+
+That distinction matters even more at `S7` than it did at `S6`, because the object is now judging whether the platform deserves later longer stress. If the widened source, control, or receipt boundary is dishonest, then `S7` can falsely make the platform look weaker than it really is.
+
+So this middle phase changed `S7` again:
+
+it stopped being `maybe the platform still is not pressure-worthy` and became:
+
+**the platform's semantic whole may already be strong enough; the remaining work is to remove widened-proof falsehood without weakening the standard.**
+
+That is why the implementation history for this object matters so much. The point was never to `keep rerunning bigger traffic.` The point was to make the widened stress question itself honest enough that a green would actually mean something.
+
+---
+
+### 4. `The accepted Phase 9 authority finally turned S7 into an earned authorization`
+
+This is the decisive closure episode.
+
+Once the widened bounded stress authority closed in the plan ledger, `S7` stopped being an ongoing widened-pressure experiment and became an **earned authorization state**.
+
+The accepted closure is strong precisely because it is not just `throughput looked okay.` The final accepted Phase 9 posture showed, together, that the widened bounded stress story held on the actual full-platform path:
+
+* admitted `2,360,103`
+* steady `3007.053 eps`
+* burst `6359.000 eps`
+* recovery `3017.517 eps`
+* steady `p95 = 47.9935 ms`
+* steady `p99 = 59.9765 ms`
+* critical integrity deltas stayed `0`
+* runtime participation stayed material across `DF`, `AL`, `DLA`, `CaseTrigger`, `Case Management`, and `Label Store`
+* the active runtime bundle remained attributable to governed learning truth (`bundle_version = v0-29d2b27919a7`, `policy_revision = r3`)
+
+That is the real posture change:
+
+`S7` becomes **full-platform bounded stress authorization**, not because one more run happened, but because the widened proof boundary became truthful enough and the platform then held the stress question cleanly enough to justify later longer stress and soak.
+
+---
+
+### 5. `After closure, S7 changed the next allowed question`
+
+The last posture-changing episode is what happens **after** the accepted bounded stress authority closes.
+
+A real capstone object must change what the next honest question is. `S7` does that.
+
+After this closure, the platform no longer needs to keep re-asking:
+
+* is the full platform integrated?
+* is the bounded widened stress proof itself believable?
+* does the platform deserve later longer stress?
+
+Those questions are now closed.
+
+So the next honest question becomes:
+
+* **later longer stress and soak from the accepted bounded stress authority**, not another re-litigation of the same widened bounded proof
+
+That is the final posture change. `S7` is complete only once it changes the platform's state in that way.
+
+---
+
+## `What actually changed S7, in one line`
+
+So the real `S7` transformation is:
+
+* from **`the full platform is already integrated, but we do not yet know whether widened stress is being asked truthfully or survived meaningfully`**
+* to **`the widened bounded stress question is now both truthful and green, so later longer stress and soak is deserved rather than guessed.`**
+
+`Compressed synthesis`
+
+`S7` was changed by five real episodes:
+
+1. `S6` closure created the stress-authorization question
+2. early widened attempts proved the widened proof itself was still malformed
+3. the object learned to separate proof-surface red from real platform red
+4. the accepted Phase 9 authority turned widened stress into an earned green state
+5. that closure changed the next honest question to later longer stress and soak
+
+That is the right pressure-episode map for `S7`.
+
+The next clean move is the `S7 episode interrogation`.
+
+## 2026-03-18 09:44:08 +00:00 - Interrogate the few S7 episodes that turned widened pressure from a malformed question into earned full-platform stress authorization
+Yes. For `S7`, the interrogation has to stay on the **widened-stress authorization boundary** itself.
+
+This object is **not** re-asking whether the platform is integrated; `S6` already closed that. `S7` asks whether the already-bounded-correct full platform now deserves the next class of pressure: a wider bounded stress slice that is strong enough to justify later longer stress or soak. The plan defines `Phase 9` exactly that way, and the implementation note opening repeats the same posture: widen only the pressure window from the accepted `Phase 8` story, keep the same full-platform truth path, and do not drag unrelated earlier operator work back in.
+
+`S7 - episode interrogation`
+
+### `Episode 1 - S7 first became a real object only when the question changed after S6`
+
+**What surfaced**
+
+After `Phase 8` closed, the platform was already bounded-correct as one coherent integrated system. That meant the next honest question was no longer `does the whole platform integrate at all?` It became: **if I hold the same full-platform truth path under a wider bounded pressure window, does the platform now deserve later longer stress and soak?** The plan's accepted authority later records that `Phase 9` is exactly the stress-authorization layer above the accepted integrated authority, not another integrated-correctness rerun.
+
+**Challenge class**
+
+Boundary-discipline after integrated closure.
+
+**Why it changed `S7`**
+
+Because this is where `S7` stopped being `the next phase after S6` and became its own object. From here onward, the platform is not trying to prove integration. It is trying to prove **deserved wider pressure authorization**.
+
+**Accepted bridge**
+
+Widen only the pressure window from the accepted `Phase 8` story. Keep the same governed bundle truth, the same operator challenge surfaces, and the same semantic path alive while asking the narrower stress-authorization question.
+
+**Why that bridge was right**
+
+Because it preserved the integrity of `S6`. It did not let `Phase 9` silently reopen earlier solved questions.
+
+**What readiness property improved**
+
+`S7` gained a **clean authorization boundary**. The object now knew what it owned and what it did not.
+
+---
+
+### `Episode 2 - the first widened attempt proved the widened question itself was still malformed`
+
+**What surfaced**
+
+The first widened attempt did not yet answer the intended stress question honestly. The implementation note is explicit that the widened run shape was not yet real: the reused backbone still scored only `covered_seconds = 90.0` for steady, so it was not yet the intended `10-15 minute / 2M-5M` authorization slice. At the same time, the carried `Phase 6` scorecard still flagged a `DLA` red even though the same run showed clean DLA replay posture: append success present, append failure `0`, replay divergence `0`, checkpoint age fresh. So the first widened red was partly a **widened-shape truth defect** and partly a **too-thin stress scorer / advisory defect**, not yet an honest failure of the full stressed platform.
+
+**Challenge class**
+
+Widened-proof-boundary truth defect.
+
+**Why it changed `S7`**
+
+Because it stopped `S7` from being read as `the platform failed widened stress.` The more truthful reading became: **the stress question itself is not yet being asked correctly.**
+
+**Accepted bridge**
+
+Fix the inherited envelope path so `Phase 9` really widens duration; fix the carried DLA advisory classification; strengthen the stress gate so it proves semantic handling as well as volume and latency. The notes say that explicitly before the next spend.
+
+**Why that bridge was right**
+
+Because it corrected the proof boundary before spending again, instead of blaming the platform for a question the harness was not yet asking truthfully.
+
+**What readiness property improved**
+
+`S7` gained a **truthful widened question** rather than a premature widened red.
+
+---
+
+### `Episode 3 - once the widened source became real enough, the semantic path stayed clean and the blocker moved outside the platform`
+
+**What surfaced**
+
+After the widened source was corrected enough to become real, the notes separate two things very clearly. What stayed good was the semantic platform path itself:
+
+* the full integrated semantic path kept working
+* RTDL kept emitting governed decision and action truth
+* Case + Label stayed active with accepted labels and no anomaly drift
+* learning and runtime continuity stayed attributable
+* and whenever the widened source held steady, the runtime semantics stayed clean with `4xx = 0`, `5xx = 0`, integrity deltas `0`, and bounded case and label timing
+
+At the same time, the remaining widened burst miss had a very important property: `request_count_total` exactly matched `admitted_request_count`, with no admission loss and no `4xx / 5xx`. So the miss was not ingress capacity failure and not semantic runtime failure. It was **generator burst-transition under-drive** on the widened source boundary.
+
+**Challenge class**
+
+Source-boundary truth defect rather than platform-capacity or semantic defect.
+
+**Why it changed `S7`**
+
+Because this is the decisive moment where `S7` stopped being `maybe the full platform cannot survive widened pressure` and became `the full platform remains semantically trustworthy; the widened source is still not truthful enough.`
+
+**Accepted bridge**
+
+Repin the widened source itself rather than remediate platform runtime. The notes first tested explicit widened burst-step seeding because the widened long run was sagging at the burst step before the platform even had a chance to reject anything.
+
+**Why that bridge was right**
+
+Because it targeted the actual failure surface. The platform was not the thing lying; the widened source was.
+
+**What readiness property improved**
+
+`S7` gained **semantic confidence under widened pressure** even before full stress authorization closed.
+
+---
+
+### `Episode 4 - the real blocker then became repeatability of the widened source topology, not one more timing knob`
+
+**What surfaced**
+
+The implementation note later says this plainly: the last real blocker was **source repeatability under the widened burst boundary**. The accepted final posture matters because the rejected postures were not vague experiments; they taught exactly what would not anchor honest authorization:
+
+* `60` lanes could go green once but not repeat cleanly enough
+* `72` lanes improved the source but still fell red on the full wrapper repeat
+* `ig_push_concurrency = 2` created real `4xx / 5xx`, burst-tail damage, and recovery collapse, so it was rejected outright rather than `rescued`
+
+So the problem had changed again. It was no longer `find one more clever timing tweak.` It was: **the widened source is not yet repeatable enough on the inherited topology.**
+
+**Challenge class**
+
+Widened-source repeatability and topology truth.
+
+**Why it changed `S7`**
+
+Because `S7` stopped being about a single burst-step correction and became about whether the widened source itself was **repeatably truthful** enough to authorize the next class of stress.
+
+**Accepted bridge**
+
+Repin the source topology rather than keep oscillating within the same unstable shape. The final accepted widened posture was:
+
+* `lane_count = 84`
+* `ig_push_concurrency = 1`
+* `presteady_seconds = 150`
+* `steady_seconds = 600`
+* `burst_step_initial_tokens = 17.8571428571` per lane
+
+**Why that bridge was right**
+
+Because it removed the real blocker without lowering the platform target. The note is explicit on that point: the production shape was preserved; the source fan-out changed so the same envelope could finally be expressed truthfully and repeatably.
+
+**What readiness property improved**
+
+`S7` gained a **repeatable widened source boundary**, not just a one-off lucky run.
+
+---
+
+### `Episode 5 - the final accepted stress authority turned S7 into an earned authorization state`
+
+**What surfaced**
+
+Once the widened source repeatability problem was removed, the final accepted stress authority became explicit in the plan:
+
+* accepted bounded stress authority:
+
+  * `phase9_full_platform_stress_20260313T203100Z`
+* widened backbone:
+
+  * `phase6_learning_coupled_20260313T203100Z`
+
+And the accepted metrics are strong enough that `S7` is no longer just a good narrative:
+
+* admitted `= 2,360,103`
+* steady `= 3007.053 eps`
+* burst `= 6359.000 eps`
+* recovery `= 3017.517 eps`
+* steady `p95 = 47.9935 ms`
+* steady `p99 = 59.9765 ms`
+
+More importantly, the semantic burden stayed live on the same accepted stress story:
+
+* `df_decisions_total_delta = 9095`
+* `al_intake_total_delta = 6061`
+* `dla_append_success_total_delta = 11066`
+* `case_trigger_triggers_seen_delta = 8505`
+* `case_mgmt_cases_created_delta = 2079`
+* `label_store_accepted_delta = 2693`
+* critical integrity deltas stayed `0`
+* `decision_to_case p95 = 0.0 s`
+* `case_to_label p95 = 0.1976141 s`
+* active bundle remained attributable to governed learning truth:
+
+  * `bundle_version = v0-29d2b27919a7`
+  * `policy_revision = r3`
+
+And the operator chain stayed live too:
+
+* required local evidence `10 / 10`
+* readable Phase 5 refs `18 / 18`
+* critical alarms present
+* dashboards remained runbook-linked
+
+**Challenge class**
+
+Final authorization closure.
+
+**Why it changed `S7`**
+
+Because at this point `S7` no longer means `we are trying to see if the platform might deserve long stress.` It means **the platform now does deserve later longer stress and soak**.
+
+**Accepted bridge**
+
+Keep the semantic burden and operator challengeability fully alive while widening only the pressure window. The accepted authority in the plan explicitly records that this is not wiring alone, but one continuous stress story where throughput, latency, integrity, recovery, bundle truth, Case + Label truth, RTDL truth, and operator challenge all remained attributable.
+
+**Why that bridge was right**
+
+Because it answered the real `S7` question directly. It did not close on `the runtime did not crash.` It closed on a bounded stress story where the platform stayed production-credible under widened pressure.
+
+**What readiness property improved**
+
+`S7` gained **earned long-stress authorization**.
+
+---
+
+## `What this interrogation says about S7`
+
+The real story of `S7` is not:
+
+> we widened the run, things stayed mostly green, and then Phase 9 passed.
+
+It is:
+
+> the platform first had to turn widened stress into a truthful object; then it had to separate semantic platform health from widened-source truth; then it had to discover that the last real blocker was repeatability of the widened source topology rather than one more clever timing tweak; and only after that did the accepted stress authority become strong enough to authorize later longer stress and soak.
+
+So the mature `Bi` reading of `S7` is:
+
+**the already-bounded-correct full platform remained semantically trustworthy under widened bounded pressure, and the final work was not rescuing a weak platform but making the widened source truthful and repeatable enough that the authorization claim became honest.**
+
+The next clean move is the `S7 transformation synthesis`.
+
+## 2026-03-18 09:44:57 +00:00 - Synthesize how S7 moved from a bounded-correct integrated platform into an earned full-platform stress-authorization object
+`S7 - Full-platform bounded stress authorization`
+
+`object transformation synthesis`
+
+In `A`, there is not yet any earned stress-authorization object. What already exists is a real whole-platform system with explicit truth ownership, explicit handoff boundaries, and a full-lifecycle causal chain strong enough that later pressure can test something meaningful rather than a pile of disconnected services. By the time `S7` opens in `Bi`, that base has already been enlarged and `S6` has already closed the harder integrated-whole question: the full promoted platform is bounded-correct as one coherent production system. What `S7` still does **not** have at that point is authorization to claim that later longer stress or soak is deserved.
+
+So the real transformation of `S7` is not:
+
+> the integrated platform passed, and then later it ran harder.
+
+It is:
+
+> the bounded-correct full platform had to move from `integrated and coherent` into `truthfully stress-authorized,` where the pressure window is widened without widening scope, the same full-platform truth path stays alive, and the platform proves it still deserves the next class of pressure. That is exactly how `Phase 9` is defined in the plan and in the implementation opening: determine whether the now-working platform deserves a longer stress or soak run, not whether it is integrated in the first place.
+
+To get from that post-`S6` posture to the final `Bi` posture, `S7` had to resolve five decisive things.
+
+First, the object had to become a **cleanly separated authorization question**. After `Phase 8` closed, the implementation note explicitly changes the platform state: the whole `dev_full` platform is bounded-correct, and the next honest question is bounded full-platform stress authorization. That matters because it prevents `S7` from drifting into a generic rerun or from silently reopening integrated-correctness work that `S6` had already settled.
+
+Second, the widened stress question itself had to become **truthful**. The first `Phase 9` attempt did not yet answer the intended question honestly because the widened run shape had not really widened to the declared `10-15 minute / 2M-5M` slice, and the carried stress scorer was still too thin on semantic handling. That changed the object from `the platform might be failing widened stress` into `the widened proof boundary is still malformed, so the authorization question itself is not yet being asked correctly.`
+
+Third, `S7` had to separate **semantic platform health** from **widened-source truth defects**. The middle `Phase 9` history is very strong on this. Under widened attempts, the full semantic platform path stayed materially good: RTDL continued to emit decision and action truth, Case and Label stayed active and authoritative, learning and runtime continuity remained attributable, and when the widened source held steady the runtime semantics stayed clean with `4xx = 0`, `5xx = 0`, integrity deltas `0`, and bounded case and label timing. The blocker was therefore not that the platform had become meaningless under pressure. The blocker was that the widened WSP-driven source still could not prove the declared stress envelope truthfully and repeatably.
+
+Fourth, the object had to stop treating the last blocker as `one more timing tweak` and recognize it as a **repeatability / topology problem** on the widened source boundary. The accepted final posture records that shift very clearly. `60` lanes could go green once but not repeat cleanly enough, `72` lanes improved the source but still fell red on the full wrapper repeat, and `ig_push_concurrency = 2` was rejected because it reintroduced real `4xx / 5xx`, burst-tail damage, and recovery collapse. The accepted bridge was therefore not to lower the platform target or to weaken the standard, but to repin the source topology to `84` lanes with `ig_push_concurrency = 1`, `presteady_seconds = 150`, `steady_seconds = 600`, and the explicit burst-step seed, so the same production-shaped question could finally be expressed truthfully and repeatably.
+
+Fifth, closure had to become an **earned authorization state**, not just a widened green run. The accepted `Phase 9` authority in the plan and implementation note is explicit: `phase9_full_platform_stress_20260313T203100Z`, backed by the widened `phase6_learning_coupled_20260313T203100Z` runtime-learning backbone. It closed with admitted `2,360,103`, steady `3007.053 eps`, burst `6359.000 eps`, recovery `3017.517 eps`, steady `p95 = 47.9935 ms`, steady `p99 = 59.9765 ms`, critical integrity deltas all `0`, material runtime participation across DF, AL, DLA, Case, and Label, and the active runtime bundle still attributable to governed learning truth through `bundle_version = v0-29d2b27919a7` and `policy_revision = r3`. The operator chain also remained live and attributable. That is why the final plan judgment can say later longer stress and soak is now authorized, and that the authorization is based on one continuous stress story rather than on wiring alone.
+
+So the shortest honest synthesis is this:
+
+To move `S7` from its post-`S6` posture to its final `Bi` posture, the platform had to stop treating widened stress as a generic rerun, make the stress question truthful, separate semantic platform health from widened-source proof defects, repin the widened source topology until repeatability became honest, and then close only when the full platform stayed semantically trustworthy, attributable, and operationally challengeable under the widened bounded slice.
+
+That yields the final `Bi` posture of `S7`:
+
+a **bounded full-platform stress-authorization object** in which the already-bounded-correct platform is now proven credible under widened production-shaped pressure, with throughput, latency tails, integrity, recovery, semantic continuity, case and label truth, governed runtime-bundle attribution, and operator and governance challenge all remaining live enough that later longer stress and soak is deserved rather than guessed.
+
+And that is why `S7` matters for the meta goal. It is not just `we ran the platform harder.` It is the proof that you can take an already-integrated system, discover when the widened proof itself is still lying, refuse to weaken the standard, fix the smallest truthful boundary that is still wrong, and only then authorize the next class of production-shaped pressure.
+
+The next clean move is the `S7 Bi claim mix`.
+
+## 2026-03-18 09:45:36 +00:00 - Extract the Bi claim mix for S7 so the notebook states exactly what bounded stress-authorization judgment this object now supports
+`S7 - Bi claim mix`
+
+Yes. For `S7`, the `Bi` claim mix is this.
+
+1. `Readiness-reasoning claim`
+   `S7` supports the claim that you can reason **bounded stress authorization** as its own readiness boundary, instead of treating `the full platform integrated` as the end of the story. `Phase 9` exists to decide whether the now-working platform deserves a longer stress or soak run, and it defines that question around widened pressure with semantic trustworthiness, explainability, auditability, and no silent non-participation still intact.
+
+2. `Systems-design judgment claim`
+   `S7` supports the claim that you understood stress authorization as a **narrower object than generic load testing**. The platform keeps the same production envelope and the same full-platform truth path, while widening only the pressure window; it does not reopen solved integrated-correctness questions, and it does not soften production shape just to get a green. That is visible both in the plan's preserved-production-shape doctrine and in the final accepted `84`-lane posture, which is justified precisely because it removed the real blocker without lowering the target.
+
+3. `Measurement / evidence claim`
+   `S7` supports the claim that widened stress worthiness was made **directly judgeable** on real evidence surfaces rather than inferred from narrative. The plan pins the `Phase 9` verdict through integrated stress summary and cross-plane stress-authorization posture, and the accepted closure records concrete full-platform metrics: admitted `2,360,103`, steady `3007.053 eps`, burst `6359.000 eps`, recovery `3017.517 eps`, steady `p95 = 47.9935 ms`, steady `p99 = 59.9765 ms`, material runtime participation across RTDL, audit, case, and label surfaces, critical integrity deltas at `0`, and active-bundle attribution to governed learning truth.
+
+4. `Constraint / trade-off claim`
+   `S7` supports the claim that you preferred **truthful repeatable authorization** over convenient greens. The final posture is stronger because the rejected source shapes are still visible: `60` lanes could green once but not anchor repeatability, `72` lanes improved the source but still failed the full repeat, and `ig_push_concurrency = 2` was rejected because it reintroduced real `4xx / 5xx`, burst-tail damage, and recovery collapse. The accepted bridge therefore tightened truthfulness instead of weakening the standard.
+
+5. `Production-relevant challenge claim`
+   `S7` supports the claim that the challenges here were genuinely **production-shaped whole-platform problems**, not toy throughput defects. The object had to prove that widened pressure still preserved semantic runtime meaning, authoritative Case + Label truth, governed runtime-bundle attribution, and operator challengeability. The final closure explicitly records that RTDL stayed meaningful, case and label truth stayed live, the active bundle remained attributable to the bounded learning basis, and the full operator chain completed with `PHASE7_ALERT_DRILL_READY`, `PHASE7_ML_DAY2_READY`, `PHASE9_OPERATOR_READY`, and `PHASE9_READY`.
+
+6. `Promotion / final-posture claim`
+   `S7` supports the claim that the end state is not merely `the platform survived a bigger run.` The end state is that `dev_full` is production-ready on the bounded authorization standard of the plan, and that later longer stress and soak is now authorized because the full platform remained production-credible under widened bounded pressure. The plan makes that claim in one continuous stress story: throughput, latency, integrity, and recovery stayed green; RTDL decision and action truth remained explainable; Case + Label truth remained authoritative; active bundle truth stayed tied to governed learning basis; and operator and governance challenge stayed live and attributable.
+
+`Compressed Bi claim`
+`S7` shows that you can take an already-bounded-correct full platform and turn widened stress into an **earned authorization object**: not just `run it harder,` but prove that under a wider production-shaped pressure window the platform still carries semantic meaning, cross-plane participation, governed bundle truth, operator challengeability, and bounded recovery strongly enough that later longer stress and soak is now deserved rather than guessed.
+
+The next clean move is the `S7 overall synthesis role in Bi` if you want to close the secondary layer properly.

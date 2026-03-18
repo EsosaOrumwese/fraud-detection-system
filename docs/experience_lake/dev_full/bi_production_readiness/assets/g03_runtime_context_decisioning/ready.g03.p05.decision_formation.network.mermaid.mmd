@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 / Path 5
+%% Decision formation path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat or operator-visible proof boundary"]
+    LG2(("Round node = runtime-consumed truth or governed authority surface"))
+    LG3["This graph closes at explicit production-ready decision truth, before action intent and audit continuity begin"]
+  end
+
+  subgraph ENTRY["Decision-formable runtime truth"]
+    CONTEXT(("Joined runtime context"))
+    FEATURES(("Feature-ready runtime truth"))
+    POSTURE(("Adjudicated decision posture"))
+    AUTH(("Runtime-consumed active bundle / policy authority"))
+  end
+
+  subgraph PATH["Bi / Group 3 / Path 5 - Decision formation"]
+    DF["Decision formation boundary<br/>runtime truth + governed authority -> explicit decision truth"]
+    CONTRACT["Decision-boundary discipline<br/>bundle / policy correctness<br/>decision latency bounded enough for accepted RTDL slice<br/>quarantine and fail-closed semantics stay explicit"]
+    PROVENANCE["Decision provenance discipline<br/>decision identity / authority identity / explanation completeness"]
+    DECISION(("Owned outcome<br/>production-ready explicit decision truth"))
+    FIELDS(("Decision identity / provenance / explanation fields"))
+    TDEC(("RTDL decision output truth"))
+  end
+
+  CONTEXT -->|supplies joined runtime context to| DF
+  FEATURES -->|supplies usable feature truth to| DF
+  POSTURE -->|supplies adjudicated guardrail posture to| DF
+  AUTH -->|supplies governed runtime authority to| DF
+  CONTRACT -->|governs explicit decision formation for| DF
+  PROVENANCE -->|governs explainable decision truth for| DF
+  DF -->|materializes explicit decision truth as| DECISION
+  DF -->|materializes identity and explanation fields as| FIELDS
+  DECISION -->|hands decision truth into| TDEC
+  FIELDS -->|travel with decision truth into| TDEC

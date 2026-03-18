@@ -1,0 +1,40 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 6 / Path 4
+%% Promotion and rollback-governance path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, managed promotion seat, or active governance control"]
+    LG2(("Round node = durable promotion / rollback evidence or later handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready governed promotion and rollback closure"]
+  end
+
+  subgraph ENTRY["Eligible candidate resources"]
+    SMPKG(("Model package group<br/>fraud-platform-dev-full-models"))
+    CAND["Eligible candidate bundle<br/>candidate truth already closed upstream"]
+  end
+
+  subgraph PATH["Production-ready promotion / rollback resources"]
+    DBWS["Databricks workspace"]
+    MLFLOW["Databricks-backed MLflow<br/>promotion / rollback corridor owner"]
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    REGISTRY(("Active bundle truth<br/>bundle da1b8f...@v0-29d2b27919a7"))
+    SSM["SSM Parameter Store<br/>active handles / compatibility inputs"]
+    RECEIPTS(("Promotion-governance evidence<br/>promotion receipt<br/>broker transport proof<br/>consumer readback parity<br/>rollback drill report<br/>bounded-restore evidence<br/>governance append / P15 verdict"))
+    PROMTRUTH(("Owned outcome<br/>production-ready committed promotion truth"))
+    RBTRUTH(("Owned outcome<br/>production-ready rollback-governance truth"))
+  end
+
+  SMPKG -->|supplies eligible candidate basis into| MLFLOW
+  CAND -->|opens governed promotion corridor in| MLFLOW
+  DBWS -->|hosts managed promotion lane for| MLFLOW
+  SSM -->|supplies pinned handles and compatibility inputs to| MLFLOW
+  MLFLOW -->|checks active-resolution posture against| REGISTRY
+  MLFLOW -->|stores promotion / rollback evidence in| EVID
+  MLFLOW -->|commits durable corridor artifacts as| RECEIPTS
+  RECEIPTS -->|anchor explicit promotion state in| PROMTRUTH
+  RECEIPTS -->|anchor rollback and governance closure in| RBTRUTH

@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 6 / Path 3
+%% Train / eval and candidate-bundle path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat, train/eval control, or owned candidate-bundle closure"]
+    LG2(("Round node = authoritative train/eval truth or downstream handoff surface"))
+    LG3["This graph closes at production-ready provenance-complete candidate-bundle truth with safe-disable and rollback readiness, before promotion begins"]
+  end
+
+  subgraph ENTRY["Authoritative dataset basis"]
+    DATASET(("Committed offline dataset truth"))
+  end
+
+  subgraph PATH["Bi / Group 6 / Path 3 - Train / eval and candidate-bundle"]
+    MF["Managed train/eval boundary<br/>candidate formation on the admitted governed dataset basis"]
+    CONTRACT["Candidate-truth discipline<br/>train and eval stay on the admitted bounded basis<br/>metrics / leakage / stability gates must pass<br/>candidate provenance carries dataset fingerprint plus replay and as_of controls<br/>safe-disable and rollback readiness close before promotion"]
+    PROOF["Production-ready candidate proof posture<br/>managed corridor became honest rather than convenience training on the wrong basis<br/>a superficially green run was rejected when the sampled event horizon exceeded the admitted feature_asof_utc law<br/>accepted closure kept the same managed corridor while tightening the sample inside the admitted time law"]
+    CAND(("Owned outcome<br/>production-ready provenance-complete candidate bundle"))
+    SAFE(("Owned outcome<br/>production-ready safe-disable and rollback readiness"))
+    PROMO(("Later handoff<br/>promotion and rollback-governance path"))
+  end
+
+  DATASET -->|feeds authoritative dataset basis into| MF
+  CONTRACT -->|governs train, eval, and candidate closure for| MF
+  PROOF -->|governs accepted production-ready posture for| MF
+  MF -->|materially closes candidate truth as| CAND
+  MF -->|materially closes pre-promotion operability as| SAFE
+  CAND -->|later feeds eligible candidate into| PROMO

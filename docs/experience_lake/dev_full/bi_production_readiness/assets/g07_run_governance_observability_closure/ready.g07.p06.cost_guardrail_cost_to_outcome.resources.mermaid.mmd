@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 6
+%% Cost guardrail and cost-to-outcome closure path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, cost-control seat, or active attribution control"]
+    LG2(("Round node = durable cost basis or closure surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready attributable spend truth and cost-to-outcome closure"]
+  end
+
+  subgraph ENTRY["Post-run cost resources"]
+    DASHCOST["Dashboard<br/>fraud-platform-dev-full-cost-guardrail"]
+    BUDGETRES["Budget<br/>fraud-platform-dev-full-monthly"]
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    RUNCTL["Run control receipts / summaries"]
+  end
+
+  subgraph PATH["Production-ready cost-accountability resources"]
+    COST["M13.I cost-closure lane<br/>windowed spend capture + budget interpretation + outcome receipt"]
+    SNAP(("Cost-guardrail snapshot<br/>run-scoped post-idle spend truth"))
+    BUDGET(("Phase budget envelope<br/>run-control truth"))
+    RECEIPT(("Phase cost-to-outcome receipt<br/>spend window + service-family attribution + artifacts + decision / risk retired"))
+  end
+
+  DASHCOST -->|supplies live post-idle guardrail posture into| COST
+  BUDGETRES -->|supplies budget-envelope basis into| COST
+  EVID -->|stores run-scoped cost snapshots in| SNAP
+  RUNCTL -->|stores budget envelope and outcome receipt through| COST
+  COST -->|materializes post-idle cost snapshot as| SNAP
+  COST -->|materializes committed budget truth as| BUDGET
+  COST -->|materializes attributable spend truth as| RECEIPT

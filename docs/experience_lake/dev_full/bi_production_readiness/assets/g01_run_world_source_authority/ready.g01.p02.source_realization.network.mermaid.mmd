@@ -1,0 +1,40 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 1 / Path 2
+%% Source realization path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted realization boundary or path-owned surface"]
+    LG2[("Round node = durable source / realized-basis truth surface")]
+    LG3["This graph closes at production-ready realized source basis, before ready authorization begins"]
+  end
+
+  ENTRY["Producer-owned source world<br/>admitted oracle basis + bounded replayable truth"]
+
+  subgraph PATH["Bi / Group 1 / Path 2 - Source realization"]
+    OBJ[("S3 object / oracle store<br/>fraud-platform-dev-full-object-store")]
+    REPLAY["Replay-basis resolution<br/>promoted source world into bounded replay basis"]
+    LEARNBASIS["Learning-basis admission seed<br/>promoted source world into bounded learning basis"]
+    WSP["WSP remote bounded replay<br/>runtime-serving realization consumer"]
+    OFSBUILD["Offline feature basis build<br/>learning-serving realization consumer"]
+    EVID[("S3 evidence root<br/>realization receipts / parity / readability")]
+    STREAM[("Committed replay-basis truth")]
+    TRUTH[("Committed learning-basis truth")]
+    OUT[("Owned outcome<br/>production-ready realized source basis")]
+  end
+
+  ENTRY -->|is durably seated in| OBJ
+  OBJ -->|is resolved into runtime replay basis by| REPLAY
+  OBJ -->|is resolved into bounded learning basis by| LEARNBASIS
+  REPLAY -->|materializes promoted replay world for| WSP
+  LEARNBASIS -->|materializes promoted learning basis for| OFSBUILD
+  REPLAY -->|commits replay-basis proof as| STREAM
+  LEARNBASIS -->|commits learning-basis proof as| TRUTH
+  STREAM -->|stores realization evidence under| EVID
+  TRUTH -->|stores realization evidence under| EVID
+  STREAM -->|together close this path as| OUT
+  TRUTH -->|together close this path as| OUT

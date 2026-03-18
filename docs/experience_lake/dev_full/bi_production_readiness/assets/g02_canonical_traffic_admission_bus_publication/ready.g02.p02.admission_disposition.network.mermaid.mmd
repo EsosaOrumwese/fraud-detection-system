@@ -1,0 +1,35 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 2 / Path 2
+%% Admission and disposition path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted ingress-truth boundary or owned closure"]
+    LG2[("Round node = durable ingress truth / evidence surface")]
+    LG3["This graph closes at ingress-owned disposition truth, before authoritative bus publication begins"]
+  end
+
+  ENTRY["Boundary-valid request<br/>correct front door / route / auth already satisfied"]
+
+  subgraph PATH["Bi / Group 2 / Path 2 - Admission and disposition"]
+    IGLAMBDA["Ingress Lambda handler<br/>owned admission / disposition boundary"]
+    DEDUPE["Deterministic ingress basis<br/>platform_run_id / event_class / event_id<br/>duplicate-safe identity + TTL"]
+    HEALTH["Truthful fail-closed health semantics<br/>local sickness separated from neighboring contention"]
+    IGDDB[("Durable ingress idempotency + admission truth")]
+    RECEIPTS[("Receipt / quarantine evidence surface")]
+    QUAR[("Quarantine truth")]
+    OUT[("Owned outcome<br/>production-ready ingress-owned disposition truth")]
+  end
+
+  ENTRY -->|hands valid request to| IGLAMBDA
+  IGLAMBDA -->|computes canonical disposition basis in| DEDUPE
+  DEDUPE -->|is judged through| HEALTH
+  HEALTH -->|writes durable ingress truth to| IGDDB
+  IGLAMBDA -->|emits receipt and quarantine refs to| RECEIPTS
+  RECEIPTS -->|closes quarantine evidence in| QUAR
+  IGDDB -->|commits admitted / duplicate-safe / invalid-reject / retry-governed truth as| OUT
+  QUAR -->|contributes quarantined truth to| OUT

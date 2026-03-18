@@ -1,0 +1,46 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 5 synthesis
+%% Case and label operational truth - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active operational boundary, ownership-clean corridor, or group-owned closure"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3(("Round node = later handoff or downstream consumer"))
+    LG4["This graph synthesizes the four real Group 5 paths only and closes at production-ready case and label truth"]
+  end
+
+  subgraph G5["Bi / Group 5 - Case and label operational truth"]
+    RTDL[("RTDL decision-worthy + audit-worthy outputs")]
+    ESCALATE["Case-intent escalation corridor<br/>selection / suppression / replay-safe operational escalation"]
+    INTENT[("Group closure<br/>production-ready case-intent truth")]
+    CASEFLOW["Case-creation corridor<br/>deterministic case creation + append-only operational timeline"]
+    CASE[("Group closure<br/>production-ready operational case truth")]
+    HANDOFF["Case-to-label handoff corridor<br/>supervision-request truth kept distinct from case truth and label truth"]
+    REQUEST[("Group closure<br/>production-ready supervision-request truth")]
+    LABELFLOW["Authoritative label corridor<br/>append-only, provenance-complete, temporally visible supervision truth"]
+    LABEL[("Group closure<br/>production-ready authoritative label truth")]
+    G6(("Later handoff<br/>group 6 learning-input basis"))
+  end
+
+  CLAIM["Group claim<br/>the production-ready platform turns selected RTDL outputs into operational case truth and authoritative label truth through bounded ownership-clean boundaries"]
+
+  RTDL -->|enters operational escalation through| ESCALATE
+  ESCALATE -->|materially closes| INTENT
+  INTENT -->|opens deterministic case truth through| CASEFLOW
+  CASEFLOW -->|materially closes| CASE
+  CASE -->|opens supervision handoff through| HANDOFF
+  HANDOFF -->|materially closes| REQUEST
+  REQUEST -->|opens authoritative label commit through| LABELFLOW
+  LABELFLOW -->|materially closes| LABEL
+
+  INTENT -->|together prove| CLAIM
+  CASE -->|together prove| CLAIM
+  REQUEST -->|together prove| CLAIM
+  LABEL -->|together prove| CLAIM
+
+  LABEL -->|later opens| G6

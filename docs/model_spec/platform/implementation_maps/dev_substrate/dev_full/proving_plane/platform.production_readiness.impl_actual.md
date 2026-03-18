@@ -7968,3 +7968,66 @@ That is the right kind of cost discipline because it is:
 - artifacted
 - narrow
 - and does not weaken the accepted production-ready topology; it only governs how the operator idles it between review windows
+
+## 2026-03-18 14:24:00 +00:00 - I carried the actual teardown through the real cost-bearing stacks instead of leaving the repo at "runtime standby" folklore
+
+The runtime destroy had one real operational snag: Terraform could not remove the Aurora cluster while it was still in the AWS `stopped` state. That is not a platform bug, just an ordering fact the destroy path has to respect. I started the cluster, waited until it returned to `available`, then reran the bounded runtime destroy. After that second pass the expensive runtime seats were actually gone:
+
+- ingress Lambda missing
+- EKS cluster missing
+- Aurora cluster missing
+
+That mattered because the previous "standby" posture was still paying for more than it looked like if the runtime stack itself still existed.
+
+## 2026-03-18 14:24:00 +00:00 - The first real test of the new streaming standby tool exposed a force-bypass defect, so I fixed the tool before using it to tear down Kafka
+
+When I tried to destroy streaming after runtime was already gone, `dev_full_streaming_standby.py teardown --force` still failed. The reason was straightforward:
+
+- the script always ran the EKS/Aurora standby probe first
+- `--force` only bypassed the blocker verdict afterward
+- with runtime already destroyed, the EKS probe itself raised `ResourceNotFoundException`
+
+That meant the "force" flag was not actually a force path.
+
+I fixed two things in the script:
+
+- `terraform init` now uses the working `-backend-config backend.hcl` argument form for this workspace
+- `--force` now truly bypasses the runtime standby probe and records that the precheck was intentionally skipped
+
+With that corrected, the streaming teardown executed cleanly and removed the standing MSK floor:
+
+- MSK cluster absent
+- bootstrap-brokers SSM parameter absent
+- streaming Terraform state empty
+
+The durable destroy receipt is under `runs/dev_substrate/dev_full/proving_plane/run_control/streaming_teardown_20260318T132500Z/`.
+
+## 2026-03-18 14:24:00 +00:00 - I continued the teardown past compute and streaming, because the next meaningful residual cost was stale observability and small management surfaces
+
+After runtime and streaming were gone, the residuals that still mattered were:
+
+- `ops` Terraform state: dashboards, budget, bootstrap log group, lightweight management roles and SSM parameters
+- `data_ml` Terraform state: SageMaker / Databricks IAM roles and SSM handles
+- stale CloudWatch log groups carrying stored bytes from the proving run
+
+I destroyed `infra/terraform/dev_full/ops` and `infra/terraform/dev_full/data_ml`, then removed the stale `fraud-platform-dev-full` CloudWatch log groups, including the heavy ingress Lambda log group and the WSP ECS log group. That was the right cost move because log-storage drift was now more material than any remaining control-plane object.
+
+The post-teardown residual scan is now the truthful one:
+
+- no Lambda functions
+- no EKS cluster
+- no MSK cluster
+- no Aurora cluster
+- no active `dev_full` SSM handles from `ops` or `data_ml`
+- no remaining `fraud-platform-dev-full` CloudWatch `/aws/*` log groups
+- ECS cluster object removed (`INACTIVE`)
+
+What intentionally remains is the low-cost substrate needed to keep the environment reconstructable without deleting the buckets the user asked to retain:
+
+- S3 buckets and their contents
+- core VPC / subnet / route / security-group topology
+- core IAM roles
+- KMS key / alias used by the retained buckets
+- Terraform backend bucket + lock table
+
+That is a much cleaner review posture than the earlier one because the standing cost is now dominated by retained storage rather than forgotten active runtime.

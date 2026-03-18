@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 4 / Path 1
+%% Audit append path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat or operator-visible proof boundary"]
+    LG2(("Round node = append-only audit truth or downstream handoff seat"))
+    LG3["This graph closes at production-ready append-only audit and lineage truth, before audit publication or archive preservation begin"]
+  end
+
+  subgraph ENTRY["Committed runtime truth basis"]
+    DECISION(("Committed decision truth"))
+    OUTCOME(("Committed action / outcome truth"))
+    CHAIN(("Decision-chain closure law<br/>decision lane + action/outcome evidence + append-only audit evidence must all commit together"))
+  end
+
+  subgraph PATH["Bi / Group 4 / Path 1 - Audit append"]
+    DLA["Decision continuity append boundary<br/>append-only runtime audit writer"]
+    CONTRACT["Audit-append discipline<br/>append-only semantics<br/>replay divergence visible<br/>lineage completeness and readback integrity explicit"]
+    PROOF["Production-ready audit proof posture<br/>append truth is materially current-run<br/>non-regressed under accepted RTDL and learning-coupled proofs<br/>not inferred indirectly from later case or archive surfaces"]
+    AUDIT(("Owned outcome<br/>production-ready append-only audit and lineage truth"))
+    TAUDIT(("Downstream audit handoff seat<br/>fp.bus.audit.v1"))
+  end
+
+  DECISION -->|supplies committed decision truth to| DLA
+  OUTCOME -->|supplies committed action / outcome truth to| DLA
+  CHAIN -->|makes append-only audit evidence mandatory for| DLA
+  CONTRACT -->|governs authoritative append behavior for| DLA
+  PROOF -->|governs accepted production-ready posture for| DLA
+  DLA -->|materially closes this path as| AUDIT
+  AUDIT -->|later feeds downstream audit publication into| TAUDIT

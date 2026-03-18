@@ -1,0 +1,82 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 2 synthesis
+%% Canonical traffic admission and bus publication - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, managed ingress seat, or active proof control"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3["Dashed edge = present but explicitly excluded stale route"]
+  end
+
+  subgraph EDGE["Active ingress resources"]
+    APIGW["HTTP API<br/>fraud-platform-dev-full-ig-edge"]
+    ROUTE["Route<br/>POST /ingest/push"]
+    APIKEY["Pinned API key handle"]
+    SSM["SSM Parameter Store"]
+    IGLAMBDA["Lambda<br/>fraud-platform-dev-full-ig-handler"]
+    ALB["Internal ALB<br/>fp-dev-full-ig-svc"]
+    IGSVC["ECS service<br/>fraud-platform-dev-full-ig-service"]
+  end
+
+  subgraph INGRESS["Ingress truth resources"]
+    DDB[("DynamoDB table<br/>fraud-platform-dev-full-ig-idempotency")]
+    DLQ["SQS queue<br/>fraud-platform-dev-full-ig-dlq"]
+    RECEIPTS[("IG receipts / quarantine refs")]
+  end
+
+  subgraph BUS["Authoritative bus handoff resources"]
+    TTRAFFIC[("Topic<br/>fp.bus.traffic.fraud.v1")]
+    TCTXE[("Topic<br/>fp.bus.context.arrival_events.v1")]
+    TCTXT[("Topic<br/>fp.bus.context.arrival_entities.v1")]
+    TFLOW[("Topic<br/>fp.bus.context.flow_anchor.fraud.v1")]
+    MSK[("MSK Serverless cluster<br/>fraud-platform-dev-full-msk")]
+    GLUE["Glue Schema Registry<br/>fraud-platform-dev-full"]
+    RTDL(("Later handoff<br/>group 3 RTDL intake"))
+  end
+
+  subgraph COMMIT["Committed ingest truth resources"]
+    RUNCTL["Run control receipts / summaries"]
+    MODE["Pinned proof mode<br/>admission-index proxy for current ingress edge"]
+    EVID[("S3 evidence bucket<br/>fraud-platform-dev-full-evidence")]
+    INGEST[("Committed ingest truth<br/>receipt summary / quarantine summary / offset-proof / verdict")]
+  end
+
+  SSM -->|supplies secret-backed contract for| APIKEY
+  APIKEY -->|authorizes boundary request into| ROUTE
+  APIGW -->|serves| ROUTE
+  ROUTE -->|invokes| IGLAMBDA
+  IGLAMBDA -->|writes ingress disposition truth to| DDB
+  IGLAMBDA -->|routes failure-class overflow to| DLQ
+  IGLAMBDA -->|emits receipts and quarantine refs to| RECEIPTS
+
+  IGLAMBDA -->|publishes to| TTRAFFIC
+  IGLAMBDA -->|publishes to| TCTXE
+  IGLAMBDA -->|publishes to| TCTXT
+  IGLAMBDA -->|publishes to| TFLOW
+  TTRAFFIC -->|transported by| MSK
+  TCTXE -->|transported by| MSK
+  TCTXT -->|transported by| MSK
+  TFLOW -->|transported by| MSK
+  GLUE -. governs .-> TTRAFFIC
+  GLUE -. governs .-> TCTXE
+  GLUE -. governs .-> TCTXT
+  GLUE -. governs .-> TFLOW
+
+  DDB -->|supplies admission basis to| RUNCTL
+  RECEIPTS -->|supplies receipt and quarantine basis to| RUNCTL
+  MODE -->|governs edge-matched proof semantics for| RUNCTL
+  RUNCTL -->|materially closes ingest truth as| INGEST
+  INGEST -->|stored under| EVID
+
+  TTRAFFIC -->|later opens| RTDL
+  TCTXE -->|later opens| RTDL
+  TCTXT -->|later opens| RTDL
+  TFLOW -->|later opens| RTDL
+
+  ALB -. explicitly excluded from accepted active-boundary truth .-> IGSVC
+  ALB -. stale internal route does not count as the front door .-> ROUTE

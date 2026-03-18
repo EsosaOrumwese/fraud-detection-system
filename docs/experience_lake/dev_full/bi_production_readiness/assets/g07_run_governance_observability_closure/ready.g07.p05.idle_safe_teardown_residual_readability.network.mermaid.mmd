@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 5
+%% Idle-safe teardown and residual-readability path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active safe-idle corridor seat, teardown control, or owned closure"]
+    LG2(("Round node = post-run closure basis or later handoff surface"))
+    LG3["This graph closes at production-ready idle-safe teardown truth with residual and readability closure, before cost guardrail and cost-to-outcome closure begin"]
+  end
+
+  subgraph ENTRY["Fully closed run basis"]
+    VERDICT(("Published full-platform verdict bundle"))
+    OBS(("Observability attestation truth"))
+  end
+
+  subgraph PATH["Bi / Group 7 / Path 5 - Idle-safe teardown and residual-readability"]
+    TEARDOWN["Managed safe-idle corridor<br/>final verdict first, then teardown plan and teardown execution"]
+    RESIDUAL["Residual and readability discipline<br/>forbidden residuals absent or explicitly bounded<br/>post-teardown evidence remains readable<br/>command success alone does not count as closure"]
+    IDLE["Live idle and restore posture<br/>true idle on the working platform<br/>restart-safe / restore-safe state without corrupting the active platform story"]
+    BOUNDARY["Boundary discipline<br/>execution-authority defects and writer defects stay separate from safe-idle semantic failure<br/>later cost parser defects do not get stolen into this path"]
+    SAFE(("Owned outcome<br/>production-ready idle-safe teardown truth"))
+    COST(("Later handoff<br/>cost guardrail and cost-to-outcome closure path"))
+  end
+
+  VERDICT -->|opens the managed teardown corridor through| TEARDOWN
+  OBS -->|supplies trusted live-close context into| TEARDOWN
+  RESIDUAL -->|defines residual-zero and readability proof required for| TEARDOWN
+  IDLE -->|defines true idle / restore-safe posture required for| TEARDOWN
+  BOUNDARY -->|defines honest safe-idle interpretation required for| TEARDOWN
+  TEARDOWN -->|materially closes safe idle posture as| SAFE
+  SAFE -->|later feeds attributable spend closure into| COST

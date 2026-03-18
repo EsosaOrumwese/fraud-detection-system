@@ -1,0 +1,38 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 5 / Path 4
+%% Authoritative label commit and visibility path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active label-truth seat"]
+    LG2(("Round node = durable label-truth substrate or downstream topic"))
+    LG3["This graph names the concrete seats that materially realize production-ready authoritative label commit and temporal visibility at Label Store"]
+  end
+
+  subgraph ENTRY["Supervision-request resources"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NSCASE["Namespace<br/>fraud-platform-case-labels"]
+    LABELSTORE["Deployment<br/>fp-pr3-label-store<br/>request 1Gi / limit 4Gi"]
+    AURORA(("Aurora PostgreSQL cluster<br/>fraud-platform-dev-full-aurora"))
+  end
+
+  subgraph PATH["Production-ready authoritative label resources"]
+    READBACK["Temporal visibility discipline<br/>label_asof_utc pinned<br/>maturity visibility explicit<br/>future-boundary interpretation fail-closed"]
+    EVIDENCE["Boundary evidence surfaces<br/>label pending / accepted / rejected counts<br/>duplicate and conflict counters<br/>commit and readback health"]
+    TEVENTS(("Topic<br/>fp.bus.labels.events.v1"))
+    LABEL(("Owned outcome<br/>production-ready authoritative label truth"))
+    VIS(("Owned outcome<br/>production-ready as_of / maturity-readable label truth"))
+  end
+
+  EKS -->|contains| NSCASE
+  NSCASE -->|runs| LABELSTORE
+  LABELSTORE -->|writes authoritative label timeline truth to| AURORA
+  READBACK -->|governs truthful temporal visibility for| LABELSTORE
+  EVIDENCE -->|makes commit and readback directly judgeable for| LABELSTORE
+  LABELSTORE -->|publishes downstream label events to| TEVENTS
+  LABELSTORE -->|materially closes append-only label truth as| LABEL
+  LABELSTORE -->|materially closes temporal readback visibility as| VIS

@@ -1,0 +1,47 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 1 / Path 1
+%% Run legitimization path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, role, or active proof seat"]
+    LG2[("Round node = durable storage or committed artifact surface")]
+    LG3["This graph names the concrete seats that materially realize production-ready run legitimization"]
+  end
+
+  ENTRY["Bounded run dispatch intent"]
+
+  subgraph CONTROL["Control / proof resources"]
+    GHA["GitHub Actions<br/>bounded-run dispatch"]
+    OIDC["GitHub OIDC trust"]
+    ROLETF["IAM identity<br/>fraud-dev"]
+    SFN["Step Functions<br/>fraud-platform-dev-full-platform-run-v0"]
+    ROLESFN["IAM role<br/>fraud-platform-dev-full-stepfunctions-orchestrator"]
+    RUNCTL["Run-control receipts / reconciliation"]
+    TCTRL[("MSK topic<br/>fp.bus.control.v1")]
+    EVID[("S3 evidence bucket<br/>fraud-platform-dev-full-evidence")]
+  end
+
+  subgraph OUTCOME["Committed artifacts"]
+    RUNHDR[("Run header artifact<br/>authoritative run metadata")]
+    CFGDIG[("Config-digest artifact<br/>auditable config basis")]
+    BASIS[("Owned outcome<br/>production-ready committed run basis")]
+  end
+
+  ENTRY -->|initiates bounded dispatch through| GHA
+  GHA -->|authenticates through| OIDC
+  GHA -->|assumes control identity through| ROLETF
+  GHA -->|dispatches| SFN
+  SFN -->|executes under| ROLESFN
+  SFN -->|writes control receipts into| RUNCTL
+  SFN -->|publishes orchestration signals to| TCTRL
+  RUNCTL -->|stores receipts in| EVID
+  RUNCTL -->|commits| RUNHDR
+  RUNCTL -->|commits| CFGDIG
+  RUNHDR -->|is durably stored in| EVID
+  CFGDIG -->|is durably stored in| EVID
+  RUNCTL -->|materially closes this path as| BASIS

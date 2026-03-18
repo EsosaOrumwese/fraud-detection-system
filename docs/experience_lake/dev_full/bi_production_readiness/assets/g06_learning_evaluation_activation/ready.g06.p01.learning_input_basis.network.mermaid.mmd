@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 6 / Path 1
+%% Learning-input basis path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat, causal law, or owned learning-input closure"]
+    LG2(("Round node = authoritative basis or downstream learning handoff surface"))
+    LG3["This graph closes at production-ready causal learning-input basis, before offline dataset commitment begins"]
+  end
+
+  subgraph ENTRY["Closed spine basis"]
+    ARCHIVE(("Replay-referenceable archive truth"))
+    LABEL(("Authoritative label truth"))
+  end
+
+  subgraph PATH["Bi / Group 6 / Path 1 - Learning-input basis"]
+    ADMISSION["Learning-input admission boundary<br/>archive truth + label truth + replay references must resolve through declared semantic and gate surfaces"]
+    REPLAY["Replay-basis pin<br/>explicit origin-offset ranges<br/>mode-aware continuity from earlier ingest and archive proof law"]
+    TEMPORAL["Temporal law pin<br/>feature_asof_utc derived from replay basis<br/>label_asof_utc pinned to the same causal boundary at this stage<br/>maturity cutoff derived from the pinned maturity policy"]
+    GUARD["Anti-leakage and separation guardrails<br/>future-boundary policy fail-closed<br/>runtime-learning separation explicit<br/>managed-corridor continuity must stay attributable to the same admitted basis"]
+    BASIS(("Owned outcome<br/>production-ready committed learning-input readiness basis"))
+    OFS(("Later handoff<br/>offline dataset commitment path"))
+  end
+
+  ARCHIVE -->|supplies replayable historical truth into| ADMISSION
+  LABEL -->|supplies authoritative supervision truth into| ADMISSION
+  ADMISSION -->|pins admitted learning world for| REPLAY
+  REPLAY -->|pins bounded temporal source basis for| TEMPORAL
+  TEMPORAL -->|pins causal time law for| GUARD
+  GUARD -->|materially closes learning-safe causal basis as| BASIS
+  BASIS -->|later feeds managed offline dataset commitment into| OFS

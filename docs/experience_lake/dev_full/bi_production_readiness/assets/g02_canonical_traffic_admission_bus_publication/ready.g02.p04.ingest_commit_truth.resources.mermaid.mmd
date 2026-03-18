@@ -1,0 +1,43 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 2 / Path 4
+%% Ingest commit truth path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active closure seat"]
+    LG2[("Round node = durable evidence resource or committed proof artifact")]
+    LG3["This graph stays on production-ready ingest evidence closure and names the pinned artifact set"]
+  end
+
+  ENTRY["Run-scoped completed ingress activity"]
+
+  subgraph BASIS["Ingress evidence basis resources"]
+    DDB[("DynamoDB table<br/>fraud-platform-dev-full-ig-idempotency")]
+    RUNCTL["Run-control / ingest-commit closure"]
+    EVID[("S3 evidence bucket<br/>fraud-platform-dev-full-evidence")]
+    MODE["Pinned proof mode<br/>IG_ADMISSION_INDEX_PROXY for apigw_lambda_ddb edge"]
+  end
+
+  subgraph ARTIFACTS["Committed ingest artifacts"]
+    RECEIPT[("receipt_summary.json")]
+    QUAR[("quarantine_summary.json")]
+    OFFSETS[("kafka_offsets_snapshot.json")]
+    OUT[("Owned outcome<br/>production-ready mode-aware ingest-commit truth")]
+  end
+
+  ENTRY -->|begins managed ingest-commit closure through| RUNCTL
+  DDB -->|supplies durable admission basis to| RUNCTL
+  MODE -->|governs edge-matched proof semantics for| RUNCTL
+  RUNCTL -->|commits| RECEIPT
+  RUNCTL -->|commits| QUAR
+  RUNCTL -->|commits| OFFSETS
+  RECEIPT -->|is durably stored in| EVID
+  QUAR -->|is durably stored in| EVID
+  OFFSETS -->|is durably stored in| EVID
+  RECEIPT -->|together materially close this path as| OUT
+  QUAR -->|together materially close this path as| OUT
+  OFFSETS -->|together materially close this path as| OUT

@@ -1,0 +1,40 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 6 / Path 4
+%% Promotion and rollback-governance path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted corridor seat, control, or owned promotion-governance closure"]
+    LG2(("Round node = authoritative promotion / rollback truth or later handoff surface"))
+    LG3["This graph closes at production-ready committed promotion truth plus rollback-governance truth, before runtime consumes active-bundle authority"]
+  end
+
+  subgraph ENTRY["Eligible promotion basis"]
+    CAND(("Eligible candidate bundle"))
+  end
+
+  subgraph PATH["Bi / Group 6 / Path 4 - Promotion and rollback-governance"]
+    MPR["Governed promotion corridor<br/>strict fail-closed managed sequence on the eligible candidate basis"]
+    ENTRYGATE["Governed entry discipline<br/>authority and handle closure<br/>candidate eligibility precheck<br/>compatibility precheck closes before promotion commit"]
+    PROMO["Explicit promotion truth<br/>promotion became transport-backed governed event truth rather than a registry side effect<br/>promotion receipt, broker transport proof, and consumer readback parity must cohere"]
+    RBACK["Rollback-governance discipline<br/>rollback drill executed and recorded<br/>bounded restore evidence measured against pinned RTO / RPO contract"]
+    ACTIVE["Governed active-resolution checks<br/>one-active-per-scope determinism<br/>compatibility fail-closed checks<br/>active state resolvable on the governed side before runtime authority is claimed"]
+    GOV["Governance closure<br/>ordered append-safe evidence trail<br/>post-promotion observation and deterministic P15 verdict / handoff closure"]
+    PROMTRUTH(("Owned outcome<br/>production-ready committed promotion truth"))
+    RBTRUTH(("Owned outcome<br/>production-ready rollback-governance truth"))
+    AUTH(("Later handoff<br/>active-bundle authority feedback path"))
+  end
+
+  CAND -->|enters governed promotion corridor through| MPR
+  ENTRYGATE -->|governs admission into| MPR
+  PROMO -->|defines explicit promotion proof required for| MPR
+  RBACK -->|defines bounded restore truth required for| MPR
+  ACTIVE -->|defines governed resolution closure required for| MPR
+  GOV -->|defines deterministic corridor verdict required for| MPR
+  MPR -->|materially closes explicit governed promotion state as| PROMTRUTH
+  MPR -->|materially closes rollback and governance truth as| RBTRUTH
+  PROMTRUTH -->|later feeds governed promoted state into| AUTH

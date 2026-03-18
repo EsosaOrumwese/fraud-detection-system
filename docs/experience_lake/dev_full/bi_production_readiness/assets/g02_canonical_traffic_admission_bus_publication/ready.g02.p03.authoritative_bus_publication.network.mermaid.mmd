@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 2 / Path 3
+%% Authoritative bus publication path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted publish / continuity boundary or owned closure"]
+    LG2[("Round node = authoritative topic / transport surface")]
+    LG3["This graph closes at measurable bus handoff continuity, before ingest-commit evidence closure"]
+  end
+
+  ENTRY["Admitted ingress truth<br/>ready for runtime-entry handoff"]
+
+  subgraph PATH["Bi / Group 2 / Path 3 - Authoritative bus publication"]
+    IGPUB["Ingress publish boundary<br/>publish truth kept distinct from admission truth"]
+    AMBIG["Ambiguity-honest publish discipline<br/>success / retry / ambiguous handled explicitly"]
+    TTRAFFIC[("fp.bus.traffic.fraud.v1")]
+    TCTXA[("fp.bus.context.arrival_events.v1")]
+    TCTXE[("fp.bus.context.arrival_entities.v1")]
+    TFLOW[("fp.bus.context.flow_anchor.fraud.v1")]
+    TOPICMOVE["Topic-movement / transport continuity surface"]
+    RTDL["Fresh-scope RTDL current-run consumption"]
+    OUT[("Owned outcome<br/>production-ready transport-to-consumption bus handoff truth")]
+  end
+
+  ENTRY -->|hands admitted runtime-entry family to| IGPUB
+  IGPUB -->|is judged under| AMBIG
+  AMBIG -->|publishes canonical fraud traffic to| TTRAFFIC
+  AMBIG -->|publishes arrival-events context to| TCTXA
+  AMBIG -->|publishes arrival-entities context to| TCTXE
+  AMBIG -->|publishes fraud-flow anchors to| TFLOW
+  TTRAFFIC -->|feeds measurable topic movement into| TOPICMOVE
+  TCTXA -->|feeds measurable topic movement into| TOPICMOVE
+  TCTXE -->|feeds measurable topic movement into| TOPICMOVE
+  TFLOW -->|feeds measurable topic movement into| TOPICMOVE
+  TOPICMOVE -->|must be proven by fresh current-run downstream consumption in| RTDL
+  RTDL -->|closes this path as| OUT

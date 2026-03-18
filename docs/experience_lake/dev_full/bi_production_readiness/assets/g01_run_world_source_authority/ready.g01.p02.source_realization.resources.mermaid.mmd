@@ -1,0 +1,49 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 1 / Path 2
+%% Source realization path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, job, or promoted realization seat"]
+    LG2[("Round node = durable storage or committed realization artifact surface")]
+    LG3["This graph names the concrete seats that materially realize production-ready source realization"]
+  end
+
+  ENTRY["Producer-owned oracle world"]
+
+  subgraph SOURCE["Source realization resources"]
+    OBJ[("S3 object / oracle store<br/>fraud-platform-dev-full-object-store")]
+    WSPTASK["WSP task family<br/>remote bounded replay producer"]
+    DBWS["Databricks workspace"]
+    ROLEDBX["IAM role<br/>fraud-platform-dev-full-databricks-cross-account-access"]
+    DBCRED["UC external location + storage credential<br/>fraud_platform_dev_full_object_store_v0"]
+    DBBUILD["Databricks job<br/>fraud-platform-dev-full-ofs-build-v0"]
+    DBQUALITY["Databricks job<br/>fraud-platform-dev-full-ofs-quality-v0"]
+    EVID[("S3 evidence bucket<br/>fraud-platform-dev-full-evidence")]
+  end
+
+  subgraph OUTCOME["Committed realization artifacts"]
+    REPLAYART[("Replay-basis realization refs")]
+    LEARNART[("Learning-basis realization refs")]
+    OUT[("Owned outcome<br/>production-ready realized source basis")]
+  end
+
+  ENTRY -->|is seated in| OBJ
+  OBJ -->|supplies promoted replay basis to| WSPTASK
+  ROLEDBX -->|authorizes external location through| DBCRED
+  DBCRED -->|grants object-store access to| DBBUILD
+  DBCRED -->|grants object-store access to| DBQUALITY
+  DBWS -->|hosts bounded basis build in| DBBUILD
+  DBWS -->|hosts basis quality/readback in| DBQUALITY
+  OBJ -->|supplies admitted source world to| DBBUILD
+  OBJ -->|supplies quality readback source to| DBQUALITY
+  WSPTASK -->|materializes runtime replay basis refs as| REPLAYART
+  DBBUILD -->|materializes bounded learning basis refs as| LEARNART
+  DBBUILD -->|stores realization receipts in| EVID
+  DBQUALITY -->|stores parity / readability evidence in| EVID
+  REPLAYART -->|together materially close this path as| OUT
+  LEARNART -->|together materially close this path as| OUT

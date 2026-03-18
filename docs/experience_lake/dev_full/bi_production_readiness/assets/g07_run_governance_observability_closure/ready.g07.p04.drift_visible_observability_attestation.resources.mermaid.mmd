@@ -1,0 +1,40 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 4
+%% Drift-visible observability attestation path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, live observability seat, or active attestation control"]
+    LG2(("Round node = telemetry surface or later handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready truthful live visibility and drift attestation"]
+  end
+
+  subgraph ENTRY["Live observability resources"]
+    RUNCTL["Run control active-path evidence"]
+    CW["CloudWatch logs / metrics / alarms"]
+    DASHOPS["Dashboard<br/>fraud-platform-dev-full-operations"]
+    ALARMS["Critical alarms<br/>ingress / eks / billing"]
+  end
+
+  subgraph PATH["Production-ready observability-attestation resources"]
+    DASHCOST["Dashboard<br/>fraud-platform-dev-full-cost-guardrail"]
+    RUNBOOK["Runbook<br/>dev_full_phase7_ops_gov_runbook.md"]
+    SSM["SSM Parameter Store<br/>handle / secret resolution"]
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    ATTEST["Observability-attestation closure<br/>freshness + alert coverage + drift visibility + handle integrity + correlation proof"]
+    TEARDOWN(("Later handoff<br/>idle-safe teardown / residual-readability corridor"))
+  end
+
+  RUNCTL -->|supplies active-path declaration into| ATTEST
+  CW -->|supplies live logs, metrics, and alarms into| ATTEST
+  DASHOPS -->|supplies live operational views into| ATTEST
+  ALARMS -->|supply exercised critical-alert coverage into| ATTEST
+  DASHCOST -->|supplies live cost-guardrail visibility into| ATTEST
+  RUNBOOK -->|binds operator action chain to| ATTEST
+  SSM -->|supplies required handle and secret resolution to| ATTEST
+  ATTEST -->|stores attestation artifacts in| EVID
+  ATTEST -->|later feeds safe closeout context into| TEARDOWN

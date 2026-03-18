@@ -1,0 +1,42 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 6 / Path 2
+%% Offline dataset commitment path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, managed job, or active offline-dataset seat"]
+    LG2(("Round node = durable dataset-truth or downstream learning handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready offline dataset commitment on the managed OFS corridor"]
+  end
+
+  subgraph ENTRY["Pinned learning basis resources"]
+    DBWS["Databricks workspace"]
+    DBCRED["UC external location + storage credential<br/>fraud_platform_dev_full_object_store_v0"]
+    BASIS["Learning-input readiness closure<br/>replay / as_of / maturity / leakage pinned"]
+  end
+
+  subgraph PATH["Production-ready offline dataset resources"]
+    DBBUILD["Databricks job<br/>fraud-platform-dev-full-ofs-build-v0"]
+    DBQUALITY["Databricks job<br/>fraud-platform-dev-full-ofs-quality-v0"]
+    OBJ(("S3 object / oracle store<br/>fraud-platform-dev-full-object-store"))
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    CONTROLS["Dataset closure artifacts<br/>manifest + fingerprint + rollback recipe<br/>time-bound leakage audit<br/>bounded feature_asof_utc / label_asof_utc law"]
+    DATASET(("Owned outcome<br/>production-ready committed offline dataset truth"))
+    SMTRAIN["SageMaker training<br/>fraud-platform-dev-full-mtrain"]
+  end
+
+  BASIS -->|opens admitted basis in| DBWS
+  DBCRED -->|authorizes managed object-store access for| DBWS
+  DBWS -->|runs dataset build in| DBBUILD
+  DBWS -->|runs quality and leakage gate in| DBQUALITY
+  DBBUILD -->|reads bounded source world from| OBJ
+  DBQUALITY -->|reads built dataset and source evidence from| OBJ
+  DBBUILD -->|stores manifests and rollback artifacts in| OBJ
+  DBQUALITY -->|stores leakage and closure evidence in| EVID
+  CONTROLS -->|make committed dataset truth directly judgeable for| DBQUALITY
+  DBQUALITY -->|materially closes bounded dataset truth as| DATASET
+  DATASET -->|later feeds managed train and eval into| SMTRAIN

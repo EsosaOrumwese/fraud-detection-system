@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 / Path 4
+%% Decision guardrail path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat or operator-visible proof boundary"]
+    LG2(("Round node = upstream RTDL truth surface or adjudicated posture"))
+    LG3["This graph closes at production-ready decision posture truth, before decision formation begins"]
+  end
+
+  subgraph ENTRY["Typed upstream dependency truth"]
+    CONTEXT(("Joined-context readiness"))
+    FEATURES(("Feature readiness / freshness"))
+    PROJECTION(("Projection health / checkpoint posture"))
+    SIGNALS(("Required-signal health + run-scoped participation"))
+  end
+
+  subgraph PATH["Bi / Group 3 / Path 4 - Decision guardrail"]
+    DL["Decision guardrail boundary<br/>typed dependency truth -> decision posture"]
+    CLASSIFY["Advisory-versus-insufficiency discipline<br/>replay and stale advisories do not auto-force closure<br/>post-window idle decay kept separate from active-window insufficiency"]
+    PROOF["Production-ready guardrail proof posture<br/>NORMAL can remain trustworthy under advisories<br/>real insufficiency can become explicit FAIL_CLOSED<br/>fail-closed labels only accepted on the correct proof boundary"]
+    MODE(("Adjudicated decision posture<br/>NORMAL / ADVISORY / HOLD-BACK / FAIL_CLOSED"))
+    REASONS(("Typed guardrail reasons<br/>required-signal verdicts / dependency explanations"))
+    DF["Decision formation downstream consumer"]
+  end
+
+  CONTEXT -->|supplies joined-context readiness to| DL
+  FEATURES -->|supplies feature availability and freshness to| DL
+  PROJECTION -->|supplies projection and checkpoint posture to| DL
+  SIGNALS -->|supplies required-signal and run participation posture to| DL
+  CLASSIFY -->|governs typed posture judgment for| DL
+  PROOF -->|governs accepted production-ready posture for| DL
+  DL -->|materializes adjudicated decision posture as| MODE
+  DL -->|materializes typed explanations as| REASONS
+  MODE -->|hands decision posture to| DF
+  REASONS -->|explains decision posture consumed by| DF

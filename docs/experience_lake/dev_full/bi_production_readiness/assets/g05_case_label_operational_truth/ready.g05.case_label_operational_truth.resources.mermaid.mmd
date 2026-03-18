@@ -1,0 +1,47 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 5 synthesis
+%% Case and label operational truth - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, operational seat, or active ownership surface"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3(("Round node = later handoff or downstream consumer"))
+    LG4["This graph names the concrete seats that materially realize production-ready case and label truth"]
+  end
+
+  subgraph ENTRY["RTDL downstream sources"]
+    TRTDL[("Topic<br/>fp.bus.rtdl.v1")]
+    TAUDIT[("Topic<br/>fp.bus.audit.v1")]
+    MSK[("MSK Serverless cluster<br/>fraud-platform-dev-full-msk")]
+  end
+
+  subgraph G5["Production-ready case and label resources"]
+    CASETRIG["Deployment<br/>fp-pr3-case-trigger"]
+    TCASE[("Topic<br/>fp.bus.case.triggers.v1")]
+    CASEMGMT["Deployment<br/>fp-pr3-case-mgmt"]
+    LABELSTORE["Deployment<br/>fp-pr3-label-store"]
+    TLABELS[("Topic<br/>fp.bus.labels.events.v1")]
+    AURORA[("Aurora cluster<br/>fraud-platform-dev-full-aurora")]
+    CASETRUTH[("Case truth<br/>operational case identity + timeline")]
+    LABELTRUTH[("Authoritative label truth<br/>append-only + provenance-complete + temporally visible")]
+    G6(("Later handoff<br/>group 6 learning input"))
+  end
+
+  TRTDL -->|transported by| MSK
+  TAUDIT -->|transported by| MSK
+  MSK -->|feeds RTDL outputs into| CASETRIG
+  CASETRIG -->|publishes explicit case intents to| TCASE
+  TCASE -->|transported by| MSK
+  TCASE -->|consumed by| CASEMGMT
+  CASEMGMT -->|writes operational case truth to| AURORA
+  CASEMGMT -->|materializes| CASETRUTH
+  CASEMGMT -->|hands supervision requests into| LABELSTORE
+  LABELSTORE -->|writes authoritative label truth to| AURORA
+  LABELSTORE -->|publishes downstream label events to| TLABELS
+  LABELSTORE -->|materializes| LABELTRUTH
+  LABELTRUTH -->|later opens| G6

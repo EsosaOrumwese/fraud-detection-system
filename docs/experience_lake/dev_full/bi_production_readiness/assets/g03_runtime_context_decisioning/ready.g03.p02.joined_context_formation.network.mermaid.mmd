@@ -1,0 +1,46 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 / Path 2
+%% Joined context formation path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat or operator-visible proof boundary"]
+    LG2(("Round node = constrained source family or declared context truth"))
+    LG3["This graph closes at production-ready joined runtime context, before online feature readiness or decision formation begin"]
+  end
+
+  subgraph ENTRY["Current-run context inputs"]
+    TTRAFFIC(("fp.bus.traffic.fraud.v1"))
+    TCTXA(("fp.bus.context.arrival_events.v1"))
+    TCTXE(("fp.bus.context.arrival_entities.v1"))
+    TFLOW(("fp.bus.context.flow_anchor.fraud.v1"))
+    PROJ(("Current entity / relationship projection truth"))
+    ALLOWED(("Allowed time-safe join surfaces only<br/>arrival_events_5B<br/>s1_arrival_entities_6B<br/>s3_flow_anchor_with_fraud_6B"))
+  end
+
+  subgraph PATH["Bi / Group 3 / Path 2 - Joined context formation"]
+    CSFB["Context-store flow binding<br/>event-specific runtime context owner"]
+    JOINMAP["Pinned join posture<br/>declared key joins only<br/>no file-order inference or accidental seam fill"]
+    PROOF["Production-ready context proof posture<br/>live join activity visible<br/>join_misses / binding_conflicts / apply_failures_hard absent in healthy bounded runs<br/>checkpoint age bounded enough for accepted RTDL slice"]
+    HEALTH["Replay-aware operator truth<br/>replay-age watermark and checkpoint noise stay advisory when hard join defects remain absent"]
+    OUT(("Owned outcome<br/>production-ready joined, time-safe runtime context with honest readiness posture"))
+    IEG["Entity / graph downstream runtime consumer"]
+    OFP["Online feature downstream runtime consumer"]
+  end
+
+  TTRAFFIC -->|admitted traffic enters context binding through| CSFB
+  TCTXA -->|arrival-event context enters context binding through| CSFB
+  TCTXE -->|arrival-entity context enters context binding through| CSFB
+  TFLOW -->|flow-anchor context enters context binding through| CSFB
+  PROJ -->|supplies current projection state to| CSFB
+  ALLOWED -->|constrains runtime-readable join surfaces for| CSFB
+  JOINMAP -->|governs binding semantics for| CSFB
+  PROOF -->|governs accepted production-ready posture for| CSFB
+  HEALTH -->|keeps operator semantics truthful for| CSFB
+  CSFB -->|materially closes this path as| OUT
+  OUT -->|hands joined runtime context to| IEG
+  OUT -->|hands joined runtime context to| OFP

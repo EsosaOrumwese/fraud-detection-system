@@ -59,9 +59,9 @@ def tf_cmd(*args: str, timeout: int = 1800, check: bool = True) -> subprocess.Co
 
 
 def tf_init() -> dict[str, Any]:
-    proc = tf_cmd("init", "-reconfigure", f"-backend-config={BACKEND_HCL}", timeout=900)
+    proc = tf_cmd("init", "-backend-config", str(BACKEND_HCL), timeout=900)
     return {
-        "command": "terraform init -reconfigure -backend-config=backend.hcl",
+        "command": "terraform init -backend-config backend.hcl",
         "returncode": proc.returncode,
         "stdout_tail": proc.stdout[-2000:],
         "stderr_tail": proc.stderr[-2000:],
@@ -199,12 +199,23 @@ def do_teardown(args: argparse.Namespace) -> int:
         "precondition_force": bool(args.force),
     }
 
-    standby = runtime_standby_posture(
-        region=args.aws_region,
-        cluster_name=args.eks_cluster_name,
-        nodegroup_name=args.nodegroup_name,
-        aurora_cluster_id=args.aurora_cluster_id,
-    )
+    if args.force:
+        standby = {
+            "standby_ready": True,
+            "skipped": True,
+            "reason": "force_bypass",
+            "cluster_name": args.eks_cluster_name,
+            "nodegroup_name": args.nodegroup_name,
+            "aurora_cluster_id": args.aurora_cluster_id,
+            "blocker_ids": [],
+        }
+    else:
+        standby = runtime_standby_posture(
+            region=args.aws_region,
+            cluster_name=args.eks_cluster_name,
+            nodegroup_name=args.nodegroup_name,
+            aurora_cluster_id=args.aurora_cluster_id,
+        )
     receipt["runtime_standby_precheck"] = standby
     if not args.force and not standby["standby_ready"]:
         receipt["overall_pass"] = False

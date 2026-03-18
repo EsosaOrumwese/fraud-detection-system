@@ -1,0 +1,40 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 6
+%% Cost guardrail and cost-to-outcome closure path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active cost-accountability corridor seat, control, or owned closure"]
+    LG2(("Round node = post-run cost basis or closure surface"))
+    LG3["This graph closes at production-ready attributable spend truth for the run window, after safe idle and before final closure sync"]
+  end
+
+  subgraph ENTRY["Post-run cost basis"]
+    IDLE(("Idle-safe teardown truth"))
+    SNAP(("Run-scoped teardown cost snapshot"))
+    HANDLES(("Resolved budget and cost-control handles"))
+  end
+
+  subgraph PATH["Bi / Group 7 / Path 6 - Cost guardrail and cost-to-outcome closure"]
+    COST["Cost-accountability corridor<br/>post-idle spend becomes explicit platform truth rather than ambient cloud residue"]
+    ENVELOPE["Budget-envelope discipline<br/>pre-run spend envelope interpreted correctly<br/>numeric budget truth fail-closed if unreadable or malformed"]
+    ATTRIB["Attribution discipline<br/>visible major spend families remain attributable<br/>unattributed spend = 0 on the live operator boundary"]
+    OUTCOME["Cost-to-outcome discipline<br/>receipt ties spend to explicit artifacts emitted and proof / risk-retirement outcome<br/>no spend-only progress allowed"]
+    HONESTY["Boundary honesty<br/>teardown success does not count as economic closure<br/>cost truth stays separate from teardown execution and generic budget commentary"]
+    BUDGET(("Owned outcome<br/>production-ready committed phase budget envelope"))
+    RECEIPT(("Owned outcome<br/>production-ready phase cost-to-outcome receipt"))
+  end
+
+  IDLE -->|opens post-run cost closure through| COST
+  SNAP -->|supplies run-window spend basis into| COST
+  HANDLES -->|supply budget and capture scope into| COST
+  ENVELOPE -->|defines budget interpretation required for| COST
+  ATTRIB -->|defines attributable spend closure required for| COST
+  OUTCOME -->|defines proof-linked economic closure required for| COST
+  HONESTY -->|defines narrow truthful cost reading required for| COST
+  COST -->|materially closes bounded spend governance as| BUDGET
+  COST -->|materially closes attributable spend truth as| RECEIPT

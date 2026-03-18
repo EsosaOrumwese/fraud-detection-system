@@ -1,0 +1,60 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 2 / Path 3
+%% Authoritative bus publication path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active continuity seat"]
+    LG2[("Round node = authoritative topic or managed transport surface")]
+    LG3["This graph shows the concrete publish and fresh-consumer seats, not later ingest-commit receipts"]
+  end
+
+  ENTRY["Admitted ingress truth"]
+
+  subgraph PUBLISH["Ingress publish resources"]
+    IGLAMBDA["Lambda<br/>fraud-platform-dev-full-ig-handler"]
+    MSK[("MSK Serverless cluster<br/>fraud-platform-dev-full-msk")]
+    GLUE["Glue Schema Registry<br/>fraud-platform-dev-full"]
+    TTRAFFIC[("Topic<br/>fp.bus.traffic.fraud.v1")]
+    TCTXA[("Topic<br/>fp.bus.context.arrival_events.v1")]
+    TCTXE[("Topic<br/>fp.bus.context.arrival_entities.v1")]
+    TFLOW[("Topic<br/>fp.bus.context.flow_anchor.fraud.v1")]
+  end
+
+  subgraph DOWNSTREAM["Fresh current-run consumer seats"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br/>fraud-platform-rtdl"]
+    CSFB["Deployment<br/>fp-pr3-csfb"]
+    IEG["Deployment<br/>fp-pr3-ieg"]
+  end
+
+  subgraph OUTCOME["Committed handoff truth"]
+    HANDOFF[("Owned outcome<br/>production-ready transport-to-consumption handoff truth")]
+  end
+
+  ENTRY -->|is published by| IGLAMBDA
+  IGLAMBDA -->|writes fraud traffic to| TTRAFFIC
+  IGLAMBDA -->|writes arrival-events context to| TCTXA
+  IGLAMBDA -->|writes arrival-entities context to| TCTXE
+  IGLAMBDA -->|writes flow-anchor context to| TFLOW
+  TTRAFFIC -->|rides authoritative transport on| MSK
+  TCTXA -->|rides authoritative transport on| MSK
+  TCTXE -->|rides authoritative transport on| MSK
+  TFLOW -->|rides authoritative transport on| MSK
+  GLUE -. schema-governs .-> TTRAFFIC
+  GLUE -. schema-governs .-> TCTXA
+  GLUE -. schema-governs .-> TCTXE
+  GLUE -. schema-governs .-> TFLOW
+  EKS -->|hosts| NSRTDL
+  NSRTDL -->|runs fresh current-run consumers such as| CSFB
+  NSRTDL -->|runs downstream projection consumers such as| IEG
+  TTRAFFIC -->|is consumed on fresh scope by| CSFB
+  TCTXA -->|is consumed on fresh scope by| CSFB
+  TCTXE -->|is consumed on fresh scope by| CSFB
+  TFLOW -->|is consumed on fresh scope by| CSFB
+  CSFB -->|proves current-run handoff continuity toward| HANDOFF
+  IEG -->|supports current-run downstream participation for| HANDOFF

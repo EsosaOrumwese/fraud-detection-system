@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 6 / Path 5
+%% Active-bundle authority feedback path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, runtime authority seat, or live attribution control"]
+    LG2(("Round node = durable registry truth, runtime evidence, or later handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready registry-to-runtime active authority closure"]
+  end
+
+  subgraph ENTRY["Governed promotion resources"]
+    MLFLOW["Databricks-backed MLflow<br/>promotion / rollback authority source"]
+    PROMTRUTH(("Committed promotion truth"))
+    RBTRUTH(("Rollback-governance truth"))
+  end
+
+  subgraph PATH["Production-ready runtime-authority resources"]
+    REGISTRY(("Active bundle truth<br/>bundle da1b8f...@v0-29d2b27919a7"))
+    SSM["SSM Parameter Store<br/>active bundle / policy handles"]
+    DF["Deployment<br/>fp-pr3-df"]
+    DLA["Deployment<br/>fp-pr3-dla"]
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    ATTRIB(("Runtime-authority evidence<br/>candidate / rollback / restore attribution<br/>staged registry authority readback<br/>operator and integrated readback proof"))
+    AUTH(("Owned outcome<br/>production-ready runtime decision authority"))
+  end
+
+  MLFLOW -->|materializes governed active state into| REGISTRY
+  PROMTRUTH -->|anchors promoted state for| REGISTRY
+  RBTRUTH -->|anchors rollback-safe authority for| REGISTRY
+  SSM -->|supplies runtime-facing authority handles to| DF
+  REGISTRY -->|resolves active governed bundle for| DF
+  DF -->|stamps consumed bundle / policy authority into| DLA
+  REGISTRY -->|is read back for staged authority truth by| DLA
+  DLA -->|stores live runtime-authority evidence in| EVID
+  DLA -->|commits attributable authority artifacts as| ATTRIB
+  ATTRIB -->|anchor deterministic runtime-readable authority as| AUTH

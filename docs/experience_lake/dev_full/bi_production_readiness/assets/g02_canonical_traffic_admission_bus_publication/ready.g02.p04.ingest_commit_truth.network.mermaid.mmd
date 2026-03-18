@@ -1,0 +1,40 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 2 / Path 4
+%% Ingest commit truth path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted evidence boundary or owned closure"]
+    LG2[("Round node = durable ingest evidence / committed proof surface")]
+    LG3["This graph closes at mode-aware ingest-commit truth, before later replay or learning use begins"]
+  end
+
+  ENTRY["Completed ingress behavior<br/>admit / reject / quarantine / publication already happened"]
+
+  subgraph PATH["Bi / Group 2 / Path 4 - Ingest commit truth"]
+    RUNCTL["Managed ingest-commit corridor<br/>gate-owning remote closure surface"]
+    BASIS["Durable ingest evidence basis<br/>admission truth + receipt/quarantine truth"]
+    MODE["Edge-matched proof law<br/>strongest truthful mode per active ingress edge"]
+    RECEIPT[("Receipt-summary truth")]
+    QUAR[("Quarantine-summary truth")]
+    OFFSETS[("Offset-proof truth<br/>mode-aware / deterministic")]
+    EVID[("Run evidence root<br/>durable ingest evidence")]
+    OUT[("Owned outcome<br/>production-ready mode-aware ingest-commit truth")]
+  end
+
+  ENTRY -->|hands completed ingress activity to| RUNCTL
+  BASIS -->|supplies durable ingest basis to| RUNCTL
+  MODE -->|governs evidential strength for| RUNCTL
+  RUNCTL -->|commits receipt summary as| RECEIPT
+  RUNCTL -->|commits quarantine summary as| QUAR
+  RUNCTL -->|commits edge-matched offset proof as| OFFSETS
+  RECEIPT -->|stores durable ingest proof under| EVID
+  QUAR -->|stores durable ingest proof under| EVID
+  OFFSETS -->|stores durable ingest proof under| EVID
+  RECEIPT -->|together close this path as| OUT
+  QUAR -->|together close this path as| OUT
+  OFFSETS -->|together close this path as| OUT

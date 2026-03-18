@@ -1,0 +1,42 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 1
+%% Run reconstruction and receipt closure path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active reconstruction corridor seat, control, or owned closeout closure"]
+    LG2(("Round node = receipt / evidence basis or later handoff surface"))
+    LG3["This graph closes at production-ready committed run report plus reconciliation truth, before governance append and close-marker closure begin"]
+  end
+
+  subgraph ENTRY["Earlier closure basis"]
+    RECEIPTS(("Earlier lane receipts"))
+    EVIDENCE(("Closure-input evidence<br/>readable under one run scope"))
+    RUNID(("Run identity and scope continuity"))
+  end
+
+  subgraph PATH["Bi / Group 7 / Path 1 - Run reconstruction and receipt closure"]
+    M8["Governed reconstruction corridor<br/>dedicated M8 / P11 closeout lane rather than an operator summary"]
+    WRITER["Single-writer reconstruction discipline<br/>writer contention must fail closed<br/>one run scope, one authoritative closeout writer"]
+    REPORTER["Managed reporter realization<br/>one-shot managed runtime execution on EKS<br/>real lock / receipts surfaces rather than local fallback"]
+    BUNDLE["Closure-bundle completeness<br/>required artifacts readable and parseable<br/>run-scope conformance<br/>reconciliation status / checks / deltas coherent"]
+    JUDGMENT["Deterministic reconstruction judgment<br/>run_report and reconciliation refs projected deterministically<br/>publishable, verdict-bearing, handoff-safe run story"]
+    REPORT(("Owned outcome<br/>production-ready committed run report"))
+    RECON(("Owned outcome<br/>production-ready reconciliation truth"))
+    GOV(("Later handoff<br/>governance append and close-marker path"))
+  end
+
+  RECEIPTS -->|feed lane-level closure facts into| M8
+  EVIDENCE -->|feed readable closure artifacts into| M8
+  RUNID -->|pins one run scope across| M8
+  WRITER -->|governs authoritative closeout for| M8
+  REPORTER -->|materializes managed reconstruction on| M8
+  BUNDLE -->|defines exact reconstruction completeness required for| M8
+  JUDGMENT -->|defines deterministic publish / handoff closure required for| M8
+  M8 -->|materially closes exact run story as| REPORT
+  M8 -->|materially closes attributable reconciliation as| RECON
+  REPORT -->|later feeds governed formal closeout into| GOV

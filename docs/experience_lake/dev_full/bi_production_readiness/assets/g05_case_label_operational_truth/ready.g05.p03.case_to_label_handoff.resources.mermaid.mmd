@@ -1,0 +1,39 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 5 / Path 3
+%% Case-to-label handoff path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active supervision-request seat"]
+    LG2(("Round node = durable substrate or label-intake handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready supervision-request truth on the Case Management to Label Store handshake boundary"]
+  end
+
+  subgraph ENTRY["Operational case resources"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NSCASE["Namespace<br/>fraud-platform-case-labels"]
+    CASEMGMT["Deployment<br/>fp-pr3-case-mgmt"]
+    AURORA(("Aurora PostgreSQL cluster<br/>fraud-platform-dev-full-aurora"))
+  end
+
+  subgraph PATH["Production-ready case-to-label handoff resources"]
+    LABELSTORE["Deployment<br/>fp-pr3-label-store"]
+    CLOCKS["Authoritative timing basis<br/>case_to_label begins at cm_label_emissions.first_requested_at_utc<br/>not at the earlier LABEL_PENDING timeline marker"]
+    EVIDENCE["Boundary evidence surfaces<br/>label pending / accepted / rejected counts<br/>duplicate-safe and starvation-free handoff checks"]
+    REQUEST(("Owned outcome<br/>production-ready supervision-request / label-pending truth"))
+    LINTAKE(("Later handoff<br/>Label Store intake truth"))
+  end
+
+  EKS -->|contains| NSCASE
+  NSCASE -->|runs| CASEMGMT
+  NSCASE -->|runs| LABELSTORE
+  CASEMGMT -->|reads current case and timeline basis from| AURORA
+  CLOCKS -->|governs truthful timing interpretation for| CASEMGMT
+  EVIDENCE -->|makes the handoff directly judgeable for| CASEMGMT
+  CASEMGMT -->|hands explicit supervision requests into| LABELSTORE
+  CASEMGMT -->|materially closes this path as| REQUEST
+  LABELSTORE -->|accepts the request as| LINTAKE
