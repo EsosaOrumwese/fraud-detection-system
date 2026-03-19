@@ -4,57 +4,97 @@ config:
   layout: dagre
 ---
 flowchart TB
-    M["MASTER CLAIM<br><br>I build production-shaped ML platforms and MLOps systems end to end — from the governed data world they depend on, to the runtime and learning paths they operate through, to the controls, evidence, and operating discipline required to run them under pressure.<br><br>The fraud platform is the proof surface for that claim."] --> S1["1. SOLVE THE WORLD FIRST<br><br>I did not begin with a model or a thin pipeline. I began by building the world the platform would have to survive: a layered synthetic fraud engine that constructs merchant geography and demand, entities/accounts/devices, legitimate behaviour, fraud campaigns, labels, and case chronology with deterministic lineage and PASS/no-read legitimacy before anything becomes consumable downstream."]
-    S1 --> S2["2. TURN IT INTO ONE SHARED OPERATING WORLD<br><br>I used that engine to create one replayable three-month fraud world that runtime replay, stress, supervision, case history, and later ML all share. The accepted current slice carries 331.5M events, backed by a 473.4M-event raw horizon, so the whole platform works against one governed truth path instead of disconnected toy datasets."]
-    S2 --> S3["3. BUILD THE REAL PLATFORM<br><br>On top of that world, I built a production-shaped AWS ML platform across ingress/admission, event transport, real-time decisioning, action/output handling, case and label operations, governed learning and release, and governance/meta surfaces that can reconstruct and defend what happened."]
-    S3 --> S4["4. EARN BOUNDED PRODUCTION READINESS<br><br>I did not stop at wiring. I took the platform through bounded production readiness: integrated full-platform proof closed at ~3049.811 steady / 6188 burst / 3019 recovery EPS, then widened stress authorization held over 2.36M admitted events at ~3007 steady / 6359 burst / 3017 recovery, while semantic continuity remained intact across runtime, case/label, learning, and ops paths."]
-    S4 --> S5["5. CLOSE THE GOVERNED MLOps CORRIDOR<br><br>Runtime, label, and case truth became point-in-time-correct learning data on managed surfaces; train/eval became governed; candidate publication and rollback had to be real; and active runtime model authority stayed tied back to governed learning truth rather than drifting away from it."]
-    S5 --> S6["6. MAKE IT OPERABLE, CHALLENGEABLE, AND COST-REAL<br><br>Readiness had to mean more than green dashboards: alerts, runbooks, exact run reconstruction, audit-grade evidence readback, day-2 operator surfaces, safe idle/restore controls, and spend tied to proof or risk retired all became part of the engineering claim."]
-    S6 --> S7@{ label: "7. CURRENT PHASE: CAPSTONE OPERATING MISSION<br><br>The hard threshold has already been crossed. The current layer is not 'can the platform be built?' but 'can the already-ready system be run, challenged, changed, recovered, audited, and defended like a real production ML Platform / MLOps system?' That is what the live replay/load/incident/change/audit phase exists to prove." }
-    S1 -.-> Q1["Recruiter questions<br><br>• Why not public/mock data?<br>• What makes the synthetic world serious?<br>• Why solve the world before the model?"]
-    S2 -.-> Q2["Recruiter questions<br><br>• What scale were you operating at?<br>• Why one shared world?<br>• Why does that matter for runtime, ML, and case ops?"]
-    S3 -.-> Q3["Recruiter questions<br><br>• What exactly did you build?<br>• Why is this a platform and not a project?<br>• What did you own end to end?"]
-    S4 -.-> Q4["Recruiter questions<br><br>• How production-ready was it really?<br>• What changed between wiring and readiness?<br>• Which proof should I actually care about?"]
-    S5 -.-> Q5["Recruiter questions<br><br>• What makes your MLOps experience real?<br>• How did you handle point-in-time correctness and leakage?<br>• How did release/rollback become governed?"]
-    S6 -.-> Q6["Recruiter questions<br><br>• What made this more than a technical demo?<br>• What day-2 / incident evidence existed?<br>• Did you treat cost like a real engineering constraint?"]
-    S7 -.-> Q7@{ label: "Recruiter questions<br><br>• What are you doing now?<br>• Why is this senior-shaped work and not just 'another project'?<br>• What does the live phase prove beyond readiness?" }
-    S7 --> O["OUTWARD ASSET INHERITANCE<br><br>• Resume = compressed proof of the spine<br>• LinkedIn About = human-readable version of the spine<br>• Pitch stack = spoken posture derived from the spine<br>• Portfolio = visual walkthrough of the spine<br>• LinkedIn posts = zoom-ins on one stage or one branch at a time<br>• Interview discussion = branch questions + response anchors"]
+    M["MASTER CLAIM<br><br/>I build production-shaped ML platforms and MLOps systems end to end, from the governed data world they depend on, to the runtime and learning paths they operate through, to the controls, evidence, and operating discipline required to run them under pressure.<br><br/>The fraud platform is the evidence chain that makes that claim believable. A proves the platform is real. Bi proves it earned bounded production readiness. Bii is the current capstone layer where the already-ready platform is taken into live operating responsibility."]
 
-    S7@{ shape: rect}
-    Q7@{ shape: rect}
-     M:::spine
-     M:::spine
-     S1:::spine
-     S1:::spine
-     S2:::spine
-     S2:::spine
-     S3:::spine
-     S3:::spine
-     S4:::spine
-     S4:::spine
-     S5:::spine
-     S5:::spine
-     S6:::spine
-     S6:::spine
-     S7:::spine
-     S7:::spine
-     Q1:::questions
-     Q1:::questions
-     Q2:::questions
-     Q2:::questions
-     Q3:::questions
-     Q3:::questions
-     Q4:::questions
-     Q4:::questions
-     Q5:::questions
-     Q5:::questions
-     Q6:::questions
-     Q6:::questions
-     Q7:::questions
-     Q7:::questions
-     O:::meta
-     O:::meta
+    S1["1. SOLVE THE WORLD FIRST<br><br/>I did not begin with a model, a dashboard, or a thin pipeline. I began by building the world the platform would have to survive. That meant designing a layered synthetic fraud data engine that does not just generate fake data, but constructs a governed operating world in stages: merchant geography and demand, routing and civil-time realism, entities, accounts, devices, legitimate behaviour, fraud overlays, labels, and case chronology. Each stage is validated, each stage has explicit lineage, and downstream components are not allowed to consume outputs unless they have passed legitimacy gates.<br><br/><i>Before proving the platform, I engineered the reality the platform would be judged against.</i>"]
+
+    S2["2. TURN IT INTO ONE SHARED OPERATING REALITY<br><br/>The data engine was not built to feed one experiment. It was built to create one shared, replayable operating world that the whole platform could use. Runtime replay, stress, supervision, case history, and later ML training and evaluation all draw from the same world instead of from separate toy datasets for separate claims. The accepted current fraud slice alone carries about 331.5M events, backed by a 473.4M-event raw horizon, with linked label and case surfaces carried alongside it.<br><br/><i>I forced the platform, the supervision path, and the ML path to live inside one governed truth path.</i>"]
+
+    S3["3. BUILD THE SYSTEM AS A REAL ML PLATFORM<br><br/>On top of that world, I built the platform itself as one production-shaped ML platform rather than a loose stack of tools. The platform spans ingress and admission, event transport, real-time decisioning, downstream action and outcome handling, case and label operations, governed learning and release, and a governance and meta layer that can reconstruct what happened and defend the claim later. The learning path runs through managed tooling, Databricks, SageMaker, and MLflow, so runtime, learning, and governance are all part of one operating system instead of separate experiments.<br><br/><i>I did not build one pipeline. I built a real platform with owned boundaries and shared controls.</i>"]
+
+    S4["4. TAKE IT FROM WIRED TO EARNED BOUNDED PRODUCTION READINESS<br><br/>I did not stop at architecture or wiring. I took the platform through bounded production readiness using a proving method that starts plane-first and then re-proves the enlarged coupled platform, so the final claim is about one working platform rather than separately green components. The accepted integrated full-platform proof closed at roughly 3049.811 steady, 6188 burst, and 3019 recovery EPS with clean integrity and downstream timing still intact. Then widened bounded stress authorization held over 2.36M admitted events at roughly 3007 steady, 6359 burst, and 3017 recovery EPS, while runtime decisions, case and label truth, and governed runtime bundle authority all stayed alive on the same stress story.<br><br/><i>I earned the right to say the platform was production-ready on a bounded authorization standard.</i>"]
+
+    S5["5. CLOSE THE GOVERNED MLOps CORRIDOR<br><br/>A system like this is not real if runtime and learning are disconnected. So the next layer of the story is that I built the learning corridor as part of the same governed platform, not as a side script. Runtime, label, and case truth are converted into point-in-time-correct, leakage-safe learning data on managed surfaces. Train and evaluation are governed. Candidate publication is evidence-bearing. Rollback is tested. Runtime model authority is tied back to governed learning truth instead of drifting away from it.<br><br/><i>I owned the path from authoritative world, to bounded dataset basis, to train and evaluation, to governed promotion and rollback, to live runtime authority.</i>"]
+
+    S6["6. MAKE IT OPERABLE, CHALLENGEABLE, AND COST-REAL<br><br/>The system was not declared ready just because it was green. It had to become operable and defendable. The production standard expects alerting, runbooks, auditable controls, bounded recovery, rollback paths, evidence discipline, and cost realism, so the readiness story made those first-class concerns. That meant real alert and runbook drills, exact run reconstruction, audit-grade evidence readback, ML day-2 operator surfaces, safe idle and restore controls, and explicit cost-to-outcome discipline. The operator chain completed through stress backbone, alert drill, ML day-2 surface, operator-ready surface, and stress rollup; the platform could be left safe after the run; and spend was treated as attributable proof cost rather than ambient project spend.<br><br/><i>I made the platform something that could be monitored, challenged, recovered, audited, and paid for responsibly.</i>"]
+
+    S7["7. MOVE INTO THE CAPSTONE OPERATING LAYER ABOVE AN ALREADY-READY PLATFORM<br><br/>Because A and Bi are already earned, the current question is no longer can the platform be built, or can the planes couple. Those questions are already closed. The Bii layer begins from accepted authority and turns readiness into operating responsibility: live replay, stress windows, incidents and drills, controlled change, audit answerability, operator transferability, learning loops, and cost and evidence closure, all while preserving the same full-platform semantic burden already earned in readiness. At the same time, the current L4 proving doctrine still defines the stronger long-horizon sustained and endurance standard around a 7-day minimum and 30-day maximum wall-clock window.<br><br/><i>The hard threshold has already been crossed; now the work is live operating responsibility.</i>"]
+
+    SUM["SUMMARY<br><br/>I built the governed fraud world first, so the platform would never be proven on toy data. I then used that world to build one full AWS ML platform across streaming runtime, decisioning, case and label operations, and governed learning and release. I took that platform from wiring into earned bounded production readiness under integrated and widened stress proof, then made it operable through alerts, runbooks, audit-grade evidence, recovery discipline, and cost-aware controls. The current phase is the capstone operating layer above that ready system, where the real question is no longer whether it can be built, but whether it can be run, challenged, recovered, and defended like a real production ML platform."]
+
+    S1Q1["Why was the world built first instead of starting with the model?"]
+    S1Q2["Why was synthetic realism treated as an engineering surface rather than a convenience layer?"]
+    S1Q3["What makes the governed fraud world serious enough to support a real platform claim?"]
+    S1Q4["How do legitimacy gates change the credibility of everything downstream?"]
+
+    S2Q1["Why did runtime replay, supervision, case history, and ML all have to share one world?"]
+    S2Q2["What does the 331.5M accepted slice and 473.4M raw horizon say about seriousness and scale?"]
+    S2Q3["Why does one truth path matter more than multiple easier datasets?"]
+    S2Q4["What breaks if runtime truth and learning truth diverge?"]
+
+    S3Q1["What exactly was built across runtime, learning, and governance?"]
+    S3Q2["Why is this a platform and not a disconnected project stack?"]
+    S3Q3["What boundaries and controls were actually owned end to end?"]
+    S3Q4["Why do managed learning surfaces strengthen rather than weaken the platform claim?"]
+
+    S4Q1["What changed between a wired platform and a production-ready one?"]
+    S4Q2["What proof made readiness earned instead of asserted?"]
+    S4Q3["Which integrated stress numbers and coupled behaviours should matter to a reviewer?"]
+    S4Q4["Why is plane-first proving stronger than declaring the whole system green at once?"]
+
+    S5Q1["What made the MLOps corridor governed instead of manual?"]
+    S5Q2["How were point-in-time correctness and leakage control handled?"]
+    S5Q3["How were promotion, rollback, and runtime model authority kept inside one governed chain?"]
+    S5Q4["What makes this a delivery corridor instead of a one-off training workflow?"]
+
+    S6Q1["What made the platform operable instead of merely green?"]
+    S6Q2["What audit, incident, recovery, and day-2 surfaces existed?"]
+    S6Q3["How did cost become an engineering boundary instead of an afterthought?"]
+    S6Q4["What evidence shows the system could be challenged and recovered responsibly?"]
+
+    S7Q1["What is happening now that the readiness threshold is already crossed?"]
+    S7Q2["Why is the current phase about operating responsibility rather than basic legitimacy?"]
+    S7Q3["What does the capstone live phase prove beyond bounded readiness?"]
+    S7Q4["Why is long-horizon wall-clock operation the right next proof surface?"]
+
+    O["OUTWARD ASSET INHERITANCE<br><br/>Resume: compressed proof of the storyline spine.<br/>LinkedIn About: human-readable version of the spine.<br/>Pitch stack: spoken posture derived from the spine.<br/>Portfolio: visual walkthrough of the spine.<br/>LinkedIn posts: zoom-ins on one stage or one branch at a time.<br/>Interview discussion: branch questions and response anchors built off the spine."]
+
+    M --> S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> SUM
+
+    S1 -.-> S1Q1
+    S1 -.-> S1Q2
+    S1 -.-> S1Q3
+    S1 -.-> S1Q4
+    S2 -.-> S2Q1
+    S2 -.-> S2Q2
+    S2 -.-> S2Q3
+    S2 -.-> S2Q4
+    S3 -.-> S3Q1
+    S3 -.-> S3Q2
+    S3 -.-> S3Q3
+    S3 -.-> S3Q4
+    S4 -.-> S4Q1
+    S4 -.-> S4Q2
+    S4 -.-> S4Q3
+    S4 -.-> S4Q4
+    S5 -.-> S5Q1
+    S5 -.-> S5Q2
+    S5 -.-> S5Q3
+    S5 -.-> S5Q4
+    S6 -.-> S6Q1
+    S6 -.-> S6Q2
+    S6 -.-> S6Q3
+    S6 -.-> S6Q4
+    S7 -.-> S7Q1
+    S7 -.-> S7Q2
+    S7 -.-> S7Q3
+    S7 -.-> S7Q4
+    SUM -.-> O
+
     classDef spine fill:#E8F1FF,stroke:#1D4ED8,color:#0F172A,stroke-width:2px
     classDef questions fill:#FEF3C7,stroke:#D97706,color:#111827,stroke-width:1.5px
-    classDef answers fill:#ECFCCB,stroke:#65A30D,color:#111827,stroke-width:1.5px
     classDef meta fill:#F3E8FF,stroke:#7C3AED,color:#111827,stroke-width:1.5px
+
+    class M,S1,S2,S3,S4,S5,S6,S7,SUM spine
+    class S1Q1,S1Q2,S1Q3,S1Q4,S2Q1,S2Q2,S2Q3,S2Q4,S3Q1,S3Q2,S3Q3,S3Q4,S4Q1,S4Q2,S4Q3,S4Q4,S5Q1,S5Q2,S5Q3,S5Q4,S6Q1,S6Q2,S6Q3,S6Q4,S7Q1,S7Q2,S7Q3,S7Q4 questions
+    class O meta
