@@ -75,6 +75,9 @@ flowchart LR
     M0 --> M1 & S1H
     M1 --> M2
     M2 --> M3
+    M1 -.-> MQ1["What did you personally own end to end, and where did your ownership stop?"] & MQ2["What were the hardest tradeoffs you made to keep this production-shaped instead of academically ideal?"]
+    M2 -.-> MQ4["What evidence would you show first if a skeptical hiring manager said, 'this still sounds like a polished project'?"]
+    M3 -.-> MQ3["What part of this work most clearly separates you from someone who only built a pipeline or trained a model?"]
     S1H --> S1A & S2H
     S1A --> S1B
     S1B --> S1C
@@ -113,6 +116,7 @@ flowchart LR
     S1A -.-> S1Q1["Why was the world built first instead of starting with the model?"]
     S1B -.-> S1Q2["Why was synthetic realism treated as an engineering surface rather than a convenience layer?"] & S1Q3["What makes the governed fraud world serious enough to support a real platform claim?"]
     S1C -.-> S1Q4["How do legitimacy gates change the credibility of everything downstream?"]
+    S1B -.-> S1Q5["How did you decide what realism mattered and what realism was unnecessary?"] & S1Q6["What did you explicitly refuse to fake?"]
     S1Q1 --> S1R1["Because the credibility of everything downstream depends on the credibility of the world it is judged against. Building the world first let me define lawful behaviour, fraud, supervision, and case chronology before asking the platform or model to act on any of it."]
     S1Q2 --> S1R2["Because realism changes system meaning, not just data appearance. Realism is distributed across owned authorities such as party creation, credential and device realism, fraud posture, labels, and case chronology, so it had to be treated as engineering rather than convenience."]
     S1Q3 --> S1R3["Because the world is layered and law-bound, it carries supervision and case truth, and it is large and coherent enough to support one replayable operating world for runtime, supervision, and ML."]
@@ -120,6 +124,7 @@ flowchart LR
     S2B -.-> S2Q1["Why did runtime replay, supervision, case history, and ML all have to share one world?"] & S2Q4["What breaks if runtime truth and learning truth diverge?"]
     S2C -.-> S2Q2["What does the 331.5M accepted slice and 473.4M raw horizon say about seriousness and scale?"]
     S2P -.-> S2Q3["Why does one truth path matter more than multiple easier datasets?"]
+    S2P -.-> S2Q5["What was the cost of forcing one shared truth path?"] & S2Q6["Where did that decision make the system harder, but more credible?"]
     S2Q1 --> S2R1["Because the moment they diverge, the story fragments. One shared world forces runtime, supervision, and learning to answer to the same reality, which makes the later platform and MLOps claims harder but much more believable."]
     S2Q2 --> S2R2["It says the platform was not exercised on a toy batch or demo subset. The accepted slice is large enough to drive meaningful replay, stress, supervision, and runtime pressure, while the raw horizon shows the proof came from a materially larger world."]
     S2Q3 --> S2R3["Because easier datasets make easier claims, but weaker ones. One truth path forces runtime replay, stress, labels, case history, dataset build, train/eval, and later operating proof to answer to the same governed reality."]
@@ -127,6 +132,8 @@ flowchart LR
     S3B -.-> S3Q1["What exactly was built across runtime, learning, and governance?"]
     S3P -.-> S3Q2["Why is this a platform and not a disconnected project stack?"] & S3Q3["What boundaries and controls were actually owned end to end?"]
     S3C -.-> S3Q4["Why do managed learning surfaces strengthen rather than weaken the platform claim?"]
+    S3P -.-> S3Q5["What are the most important boundaries in the platform, and why do they matter operationally?"]
+    S3B -.-> S3Q6["Which component was most critical to get right for the rest of the system to stay defensible?"]
     S3Q1 --> S3R1["A full fraud decisioning platform, not just a service path: ingress and admission, event transport, real-time decisioning, action and output handling, case creation and labels, point-in-time dataset build, managed train/eval, promotion and rollback, exact run reconstruction, operator surfaces, and spend attribution."]
     S3Q2 --> S3R2["Because the parts are coupled by shared contracts, shared truth boundaries, and shared closure rules. Each plane is judged honestly on its own and then re-proved in coupling before promotion, which is a platform posture rather than a pile of green component receipts."]
     S3Q3 --> S3R3["The owned boundaries included ingress truth, decision and action lineage truth, case truth, label truth, offline dataset truth, model-evaluation truth, and active model or policy truth. Controls included fail-closed gates, operator surfaces, runbooks, evidence readback, alert coverage, idle and restore rules, and cost-to-outcome constraints."]
@@ -134,6 +141,8 @@ flowchart LR
     S4A -.-> S4Q1["What changed between a wired platform and a production-ready one?"] & S4Q4["Why is plane-first proving stronger than declaring the whole system green at once?"]
     S4B -.-> S4Q2["What proof made readiness earned instead of asserted?"]
     S4C -.-> S4Q3["Which integrated stress numbers and coupled behaviours should matter to a reviewer?"]
+    S4A -.-> S4Q5["What was the biggest issue you uncovered during readiness work that wiring alone would never have exposed?"]
+    S4P -.-> S4Q6["What did readiness force you to change in the system design or operating posture?"]
     S4Q1 --> S4R1@{ label: "Wiring proved architecture and intended boundaries. Production readiness proved that those boundaries could carry the platform's real job on their real runtime surfaces without breaking semantic correctness, timing correctness, auditability, operability, or cost discipline." }
     S4Q2 --> S4R2["The key proof is explicit integrated and stress closure: declared envelopes held, integrity deltas stayed clean, timing stayed intact, runtime participation was real across coupled components, and live bundle truth remained attributable to governed learning truth."]
     S4Q3 --> S4R3["The headline numbers matter because they prove the platform operated at its intended shape, but the coupled behaviours matter just as much: no integrity deltas, intact decision-to-case and case-to-label timing, real participation across runtime components, and governed learning truth still matching active runtime truth."]
@@ -141,6 +150,8 @@ flowchart LR
     S5B -.-> S5Q1["What made the MLOps corridor governed instead of manual?"] & S5Q2["How were point-in-time correctness and leakage control handled?"]
     S5C -.-> S5Q3["How were promotion, rollback, and runtime model authority kept inside one governed chain?"]
     S5P -.-> S5Q4["What makes this a delivery corridor instead of a one-off training workflow?"]
+    S5C -.-> S5Q5["What would model governance failure actually look like in this system?"]
+    S5B -.-> S5Q6["What makes rollback meaningful here rather than just technically possible?"]
     S5Q1 --> S5R1["Governance was enforced at every transition. The learning basis had to come from authoritative runtime and label truth, point-in-time and maturity controls had to pass, train/eval happened on managed surfaces, candidate publication carried lineage, rollback was proven, and active runtime authority remained attributable after release."]
     S5Q2 --> S5R2["By making them part of platform law, not a best-effort convention. Future leakage into runtime decisions, case and label truth, or learning datasets was treated as a correctness violation, not as notebook hygiene."]
     S5Q3 --> S5R3["By refusing to treat the registry as the whole truth. Runtime model or policy truth, promoted bundle truth, rollback drills, and active runtime authority were kept tied together so runtime attribution stayed meaningful after promotion and rollback."]
@@ -149,6 +160,8 @@ flowchart LR
     S6C -.-> S6Q2["What audit, incident, recovery, and day-2 surfaces existed?"]
     S6B -.-> S6Q3["How did cost become an engineering boundary instead of an afterthought?"]
     S6P -.-> S6Q4["What evidence shows the system could be challenged and recovered responsibly?"]
+    S6P -.-> S6Q5["If I woke another operator up at 2 a.m., what could they actually do without you?"]
+    S6C -.-> S6Q6["What did you put in place so the platform could be audited, not just observed?"]
     S6Q1 --> S6R1["Operability meant the platform could be understood, challenged, and run by evidence rather than memory. Ready now meant usable logs, metrics, receipts, diagnosis, restart behaviour, safe teardown, alert drills, operator surfaces, run reconstruction, and idle or restore proof."]
     S6Q2 --> S6R2["The operator chain shows the answer directly: stress backbones, alert and runbook drills, ML day-2 operator surfaces, exact reconstruction and evidence readback, idle-to-zero proof, and restore proof on the active platform."]
     S6Q3 --> S6R3["Because the run process made cost part of the closure logic. Budget envelopes were declared, progression failed closed if spend happened without valid proof outcome, and AWS billing snapshots let spend be attributed to runtime truth rather than hidden inside generic project cost."]
@@ -156,6 +169,8 @@ flowchart LR
     S7A -.-> S7Q1["What is happening now that the readiness threshold is already crossed?"]
     S7B -.-> S7Q2["Why is the current phase about operating responsibility rather than basic legitimacy?"] & S7Q3["What does the capstone live phase prove beyond bounded readiness?"]
     S7C -.-> S7Q4["Why is long-horizon wall-clock operation the right next proof surface?"]
+    S7P -.-> S7Q5["What does 'operated credibly' mean in concrete terms?"]
+    S7B -.-> S7Q6["What would count as failure in the live operating phase, even if the system stayed up?"]
     S7Q1 --> S7R1["The question has moved up a level. The platform is already accepted as ready on the bounded standard, so the current work is to define and execute the operating program by which that ready platform is run as one live system through replay, variation, incidents, controlled change, auditability, operator transferability, and evidence and cost closure."]
     S7Q2 --> S7R2["Because basic legitimacy has already been earned. The current operating program starts from an accepted baseline, so the remaining senior-level work is to operate the platform, manage it, and defend that operation with evidence."]
     S7Q3 --> S7R3["It proves that readiness was not a bounded stunt. The live operating phase shows that the same ready system can be lived with through baseline operation, variation, incidents, change, audit answerability, operator handoff, learning loops, and defended post-run claims."]
@@ -212,10 +227,16 @@ flowchart LR
      O0:::header
      O1:::body
      O2:::body
+     MQ1:::questions
+     MQ2:::questions
+     MQ3:::questions
+     MQ4:::questions
      S1Q1:::questions
      S1Q2:::questions
      S1Q3:::questions
      S1Q4:::questions
+     S1Q5:::questions
+     S1Q6:::questions
      S1R1:::responses
      S1R2:::responses
      S1R3:::responses
@@ -224,6 +245,8 @@ flowchart LR
      S2Q4:::questions
      S2Q2:::questions
      S2Q3:::questions
+     S2Q5:::questions
+     S2Q6:::questions
      S2R1:::responses
      S2R2:::responses
      S2R3:::responses
@@ -232,6 +255,8 @@ flowchart LR
      S3Q2:::questions
      S3Q3:::questions
      S3Q4:::questions
+     S3Q5:::questions
+     S3Q6:::questions
      S3R1:::responses
      S3R2:::responses
      S3R3:::responses
@@ -240,6 +265,8 @@ flowchart LR
      S4Q4:::questions
      S4Q2:::questions
      S4Q3:::questions
+     S4Q5:::questions
+     S4Q6:::questions
      S4R1:::responses
      S4R2:::responses
      S4R3:::responses
@@ -248,6 +275,8 @@ flowchart LR
      S5Q2:::questions
      S5Q3:::questions
      S5Q4:::questions
+     S5Q5:::questions
+     S5Q6:::questions
      S5R1:::responses
      S5R2:::responses
      S5R3:::responses
@@ -256,6 +285,8 @@ flowchart LR
      S6Q2:::questions
      S6Q3:::questions
      S6Q4:::questions
+     S6Q5:::questions
+     S6Q6:::questions
      S6R1:::responses
      S6R2:::responses
      S6R3:::responses
@@ -264,6 +295,8 @@ flowchart LR
      S7Q2:::questions
      S7Q3:::questions
      S7Q4:::questions
+     S7Q5:::questions
+     S7Q6:::questions
      S7R1:::responses
      S7R2:::responses
      S7R3:::responses
