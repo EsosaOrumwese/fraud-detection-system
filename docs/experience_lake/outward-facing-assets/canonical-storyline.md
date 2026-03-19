@@ -14,9 +14,9 @@ That is the real claim.
 
 The fraud platform is the evidence chain that makes that claim believable.
 
-`A` proves the platform is real.
-`Bi` proves it earned bounded production readiness.
-`Bii` is the current capstone layer where the already-ready platform is taken into live operating responsibility.   
+First, it shows that I built a real platform, not just a project sketch.
+Then, it shows that the platform was pressure-tested enough to earn production-ready credibility.
+Now, it shows that the already-ready platform is being operated, challenged, and defended like a live system.   
 
 ---
 
@@ -63,7 +63,7 @@ On top of that world, I built the platform itself as one **production-shaped ML 
 
 The platform spans ingress/admission, event transport, real-time decisioning, downstream action and outcome handling, case and label operations, governed learning and release, and a governance/meta layer that can reconstruct what happened and defend the claim later. The learning path runs through managed tooling — Databricks, SageMaker, and MLflow — so runtime, learning, and governance are all part of one operating system instead of separate experiments.  
 
-This is exactly what `A` is for: proving that the current wired system is already a real, intentional, full-lifecycle engineered platform with explicit truth boundaries, runtime seating, and closure/governance laws. 
+This is exactly what that first proof layer is for: showing that the current wired system is already a real, intentional, full-lifecycle engineered platform with explicit truth boundaries, runtime seating, and closure/governance laws. 
 
 So the third part of the story is:
 
@@ -132,9 +132,9 @@ It proves day-2 ownership, incident posture, auditability, and cost-aware engine
 
 This is the forward edge of the story.
 
-Because `A` and `Bi` are already earned, the current question is no longer “can the platform be built?” or “can the planes couple?” Those questions are already closed. The Bii layer begins from accepted authority and turns readiness into operating responsibility: live replay, stress windows, incidents and drills, controlled change, audit answerability, operator transferability, learning loops, and cost/evidence closure — all while preserving the same full-platform semantic burden already earned in readiness.  
+Because the platform has already cleared the “is it real?” and “is it ready?” thresholds, the current question is no longer “can the platform be built?” or “can the planes couple?” Those questions are already closed. The current capstone layer starts from that accepted baseline and turns readiness into operating responsibility: live replay, stress windows, incidents and drills, controlled change, audit answerability, operator transferability, learning loops, and cost/evidence closure — all while preserving the same full-platform semantic burden already earned in readiness.  
 
-At the same time, the current L4 proving doctrine still defines the stronger long-horizon sustained/endurance standard around a **7-day minimum** and **30-day maximum** wall-clock window, so the honest present-tense claim is: the platform is already ready enough that the remaining work is to operate and defend it, and the capstone operating doctrine is being repinned/executed above that earned base.  
+At the same time, the stronger long-horizon operating standard still sits around a **7-day minimum** and **30-day maximum** wall-clock window, so the honest present-tense claim is: the platform is already ready enough that the remaining work is to operate and defend it, and the capstone operating program is being executed above that earned base.  
 
 So the seventh part of the story is:
 
@@ -245,7 +245,7 @@ This branches naturally into runtime, MLOps, or operations depending on who asks
 
 ### S3Q2. Why is this a platform and not a disconnected project stack?
 
-Because the parts are not only present; they are coupled by shared contracts, shared truth boundaries, and shared closure rules. The production-readiness plan explicitly treats planes separately so they can be judged honestly, but it also requires them to be re-proved in coupling as enlarged working networks before promotion. That is a platform posture: shared controls, shared runtime envelope, shared telemetry, shared recovery logic, and a promoted working-platform baseline rather than a pile of green component receipts.
+Because the parts are not only present; they are coupled by shared contracts, shared truth boundaries, and shared closure rules. The production-readiness program treats planes separately so they can be judged honestly, but it also requires them to be re-proved in coupling as enlarged working networks before promotion. That is a platform posture: shared controls, shared runtime envelope, shared telemetry, shared recovery logic, and a promoted working-platform baseline rather than a pile of green component receipts.
 
 This is your cleanest branch for “platform-as-product” language.
 
@@ -257,7 +257,7 @@ This opens a strong branch around “I owned system boundaries, not just code.�
 
 ### S3Q4. Why do managed learning surfaces strengthen rather than weaken the platform claim?
 
-Because they remove the easiest excuse for a fake MLOps story: hidden local authority. The Phase 5 readiness posture explicitly re-anchored the learning corridor to real managed surfaces — Databricks for dataset build, SageMaker for train/transform, MLflow for lineage — rather than inventing a new corridor or relying on notebook-era assumptions. That strengthens the claim because the same platform story had to survive on the same production-shaped managed surfaces that a real team would depend on.
+Because they remove the easiest excuse for a fake MLOps story: hidden local authority. The learning corridor was deliberately re-anchored to real managed surfaces — Databricks for dataset build, SageMaker for train/transform, MLflow for lineage — rather than inventing a new corridor or relying on notebook-era assumptions. That strengthens the claim because the same platform story had to survive on the same production-shaped managed surfaces that a real team would depend on.
 
 This is a valuable branch if someone doubts “real MLOps” versus “nice notebooks.”
 
@@ -335,7 +335,7 @@ This is your strongest operations branch.
 
 ### S6Q3. How did cost become an engineering boundary instead of an afterthought?
 
-Because the run process and proving doctrine made cost part of the closure logic. Budget envelopes were declared, phase progression was fail-closed if spend happened without valid proof outcome, and the readiness plan carried a real AWS billing snapshot by service family so spend could be attributed to runtime truth rather than hidden inside generic “project cost.” That changes cost from a retrospective metric to an engineering control surface.
+Because the run process and operating standard made cost part of the closure logic. Budget envelopes were declared, phase progression was fail-closed if spend happened without valid proof outcome, and the readiness work carried a real AWS billing snapshot by service family so spend could be attributed to runtime truth rather than hidden inside generic “project cost.” That changes cost from a retrospective metric to an engineering control surface.
 
 This is a very recruiter-useful branch because it screams “not toy.”
 
@@ -357,7 +357,7 @@ This opens the “current work” branch cleanly.
 
 ### S7Q2. Why is the current phase about operating responsibility rather than basic legitimacy?
 
-Because basic legitimacy has already been earned in A and Bi. The Bii doctrine explicitly starts from accepted authority, not from doubt: the platform is already real and already ready, so the remaining senior-level work is to operate it, manage it, and defend that operation with evidence. That is why the rhetoric shifts from “can it be built?” to “can it be run credibly?”
+Because basic legitimacy has already been earned. The current operating program starts from an accepted baseline, not from doubt: the platform is already real and already ready, so the remaining senior-level work is to operate it, manage it, and defend that operation with evidence. That is why the rhetoric shifts from “can it be built?” to “can it be run credibly?”
 
 This is your best “why this is senior-shaped” branch.
 
@@ -365,11 +365,11 @@ This is your best “why this is senior-shaped” branch.
 
 It proves that readiness was not a bounded stunt. Bounded readiness proves the platform can perform its real job under integrated and stress-authorized slices. The capstone operating phase proves that the same ready system can be lived with: baseline operation, variation, incidents, change, audit answerability, operator handoff, learning loops, and defended post-run claims. In other words, it upgrades “ready” into “operated and defensible.”
 
-This is a strong branch for explaining Bii to non-technical recruiters.
+This is a strong branch for explaining the live operating phase to non-technical recruiters.
 
 ### S7Q4. Why is long-horizon wall-clock operation the right next proof surface?
 
-Because some claims only become meaningful over real elapsed time. The current L4 proving authority is explicit that a 90-day replayed dataset in a few hours is not a 90-day operating proof, and that L4 requires sustained operation, operational learning loops, incident/change/audit evidence, and transferable operator posture. So while the capstone doctrine can be repinned around the immediate operating mission, the long-horizon wall-clock layer remains the right stronger next proof surface because it tests whether the system stays truthful over time, not just under bounded load.
+Because some claims only become meaningful over real elapsed time. A 90-day replayed dataset compressed into a few hours is not the same thing as a 90-day operating proof, and stronger operating proof requires sustained operation, operational learning loops, incident/change/audit evidence, and transferable operator posture. So while the current capstone program can focus on the immediate operating mission, the long-horizon wall-clock layer remains the right stronger next proof surface because it tests whether the system stays truthful over time, not just under bounded load.
 
 This opens the “why long-run still matters” branch without weakening your current claim.
 
