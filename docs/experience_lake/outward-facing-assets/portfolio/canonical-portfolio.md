@@ -804,3 +804,260 @@ The important recruiter consequence is simple: this was not “I trained a model
 Next we should build the **Section 8 visual** before moving to Section 9.
 
 ---
+
+Yes — for **Section 8**, the right visual is a **governed delivery corridor**, not a training workflow and not a tools slide.
+
+The source docs split this corridor into five distinct owned outcomes: **learning-input basis**, **offline dataset truth**, **train/eval + candidate truth**, **promotion/rollback governance**, and **active runtime authority**. The doctrine and trap sheet also say not to lead with tools, so **Databricks / SageMaker / MLflow** should appear only as quiet sublabels inside the corridor, not as the headline of the slide.   
+
+Use this as the **main-deck Section 8 visual**:
+
+```mermaid
+---
+config:
+  theme: base
+  layout: dagre
+---
+flowchart LR
+  A["Authoritative runtime, archive,<br/>case, and label truth"]
+
+  B["Bounded learning basis<br/>Replay basis · as-of · maturity<br/>anti-leakage controls"]
+
+  C["Authoritative offline dataset<br/>Point-in-time correct<br/>deterministic dataset identity"]
+
+  D["Managed train/eval + lineage<br/>Databricks · SageMaker · MLflow<br/>candidate truth"]
+
+  E["Governed promotion + rollback<br/>promotion evidence<br/>rollback proven"]
+
+  F["Active runtime bundle authority<br/>live runtime stays attributable<br/>after release"]
+
+  A --> B --> C --> D --> E --> F
+  F -. runtime authority feeds live decisions .-> G["Live runtime decisioning"]
+
+  H["Corridor law<br/>zero future leakage · lineage completeness<br/>no shadow training path · no shadow promotion path"]
+  H --- B
+  H --- C
+  H --- D
+  H --- E
+  H --- F
+```
+
+Why this fits the posture:
+
+It makes the claim readable in one glance: **authoritative world truth becomes governed learning truth, then becomes governed runtime authority again**. That is exactly the group-level claim in your wiring notes, and it is also how the canonical storyline distinguishes a real MLOps corridor from “we trained a model and registered it.”  
+
+It also keeps the most important recruiter-facing distinction visible: this corridor does **not** stop at train/eval. It continues through **promotion, rollback, and live runtime authority**, which is the precise reason your docs say this is a delivery corridor rather than a one-off training workflow.  
+
+And it avoids the trap you’ve been guarding against: sounding like a tool user instead of a system owner. The trap sheet explicitly says not to start with tools; the visual above leads with **governed world truth, bounded basis, dataset truth, candidate truth, promotion/rollback, and live runtime authority**. The managed tools are present, but subordinated. 
+
+---
+
+## Section 9 — Operable, Auditable, Recoverable
+
+**Section job**
+Prove that “ready” meant more than a green bounded run. This section exists to show that the platform was made **run-able, challengeable, reconstructable, auditable, and recoverable** as a real shared service. In the portfolio doctrine, this is part of the Stage 6 burden: the platform must be shown as something that can be **observed, challenged, reconstructed, recovered, and paid for responsibly**, with the core operability proof landing before the cost-realism slide takes over. 
+
+**Recruiter doubt this section kills**
+“Could a real team actually operate and defend this system day-2, or was it just proved once?”
+This section should kill that doubt directly. The doctrine’s example for the operability slide is explicit: alert/runbook/evidence/recovery map, with proof points like critical alarms, drill chain, exact readback, and zero residual compute after idle, leading to the recruiter consequence that **this could actually be run and recovered**. 
+
+**Section claim**
+You did not stop at building the platform and proving the envelope. You made the platform operable like a real shared service by adding **truthful live visibility, runbook-linked alerting, exact run reconstruction, audit-grade evidence readback, ML day-2 operator readback, and safe idle/restore discipline**. That means the platform could be challenged and defended from evidence rather than memory.  
+
+**Canonical section prose**
+By this point in the portfolio, the platform is already real and already earned-ready on the bounded readiness standard. The next question is different: can it be **operated and defended** like a serious system, or does it still collapse into “we ran it once and wrote down the metrics”? This section is where that doubt gets closed. The canonical storyline says the system had to become operable, challengeable, and cost-real, and the doctrine sharpens the first half of that into something concrete: the platform must be observable on the real live path it is actually using, reconstructable after the fact, auditable from evidence, and safe to recover or idle without leaving hidden state behind.  
+
+The wiring notes make clear that this was not treated as “dashboards and cleanup.” Group 7 exists because the platform cannot stop at “all the other planes worked.” It must also prove that the run can be **operated, observed, reconstructed, governed, closed, and idled safely** with the same seriousness as execution itself. In other words, the system had to produce run truth that operators could actually use later, not just execution truth that looked good while the run was active. 
+
+That group-level seriousness then breaks into the exact surfaces that matter here. One path owns **run reconstruction and receipt closure**, so earlier lane receipts become an exact run story rather than a hand-assembled summary. Another owns **drift-visible observability attestation**, which means live visibility had to be tied to the **actual active runtime path**, with freshness, alert coverage, correlation continuity, handle resolution, and active-path drift checks treated as closure truths rather than as decorative tooling. Another owns **idle-safe teardown and residual-readability**, which means the platform had to prove it could stop cleanly without hidden residual runtime, hidden cost, or unreadable post-run evidence. That is already enough to make this section read like day-2 responsibility rather than “pretty monitoring.”   
+
+The Bi readiness notes then show how that seriousness was earned. The operator chain was not accepted when the platform merely had dashboards and alarms. The first closure candidate was explicitly withdrawn because the operator boundary was incomplete: runbook linkage was missing, fresh alert-path evidence did not yet exist, and ML day-2 mitigation was still too implicit. The key transformation happened only after the platform moved from **“alarms exist”** to **“the alert path is exercised, attributable, and operator-usable on the real live surface”** through a live `OK → ALARM → OK` drill, runbook linkage, and fresh alert-path evidence. That is a stronger claim than “we had monitoring.” It is “operators could actually move from signal to action on the real live boundary.” 
+
+The same Bi material shows that observability here also meant **readback integrity**, not just metric freshness. The live operator surface had to prove exact run reconstruction, ML day-2 readback, full required handle and secret resolution, zero placeholder-like active handles, and enough drift visibility to block false certification. By accepted closure, the platform had earned a materially stronger claim than “we have dashboards”: it could now be seen on the same active runtime surfaces it actually used, with fresh metrics, real alert coverage, runbook linkage, clean live handles, and operator-actionable drift visibility.  
+
+The resume already compresses the recruiter-facing version of that evidence well. The readiness closure required reproducible dashboards and alerts, runbook-linked incident response, exact run reconstruction, ML day-2 model/runtime readback, and safe idle/restore controls; by closure the platform had **6 critical alarms**, a live **OK → ALARM → OK** drill, and **zero residual compute after idle**. That is the right proof set for this section because it demonstrates that the platform could be watched, challenged, reconstructed, and safely left behind in a clean post-run state. 
+
+What matters most is the recruiter consequence. This section should not feel like “look at my dashboards.” It should feel like: **this platform could be run, challenged, explained, recovered, and trusted after the run**. That is the real signal of day-2 ownership, and it is one of the strongest places where the portfolio stops reading like a strong project and starts reading like serious ML Platform / MLOps responsibility.  
+
+**Compressed version**
+I made the platform operable like a real shared service. Live visibility was tied to the actual active runtime path, alerts were runbook-linked and drill-proven, runs could be reconstructed exactly from evidence, ML day-2 readback was available, and the system could be brought to a safe idle state with zero forbidden residual compute and readable post-run evidence.  
+
+**Why this section matters**
+This is the section that turns readiness from “credible bounded proof” into **credible day-2 service posture**. The doctrine is explicit that the operability slide should make the recruiter conclude that the system could actually be run and recovered, and the canonical storyline says this is where the story becomes unmistakably senior-shaped: not just build and test, but monitor, challenge, recover, audit, and defend.  
+
+**Proof anchors allowed in this section**
+Use only the few proof points that change belief:
+
+* reproducible dashboards and alerts
+* runbook-linked incident response
+* exact run reconstruction
+* ML day-2 model/runtime readback
+* **6 critical alarms**
+* live **OK → ALARM → OK** drill
+* safe idle/restore controls
+* **zero residual compute after idle**. 
+
+**Approved visual surface**
+The best visual here is an **alert / runbook / evidence / recovery map**, not a topology graph and not a cost chart. It should make the operator chain visible in one glance:
+**live signal → alert → runbook → operator action → exact readback / reconstruction → safe idle / recovery**.
+That is also the visual the doctrine effectively prescribes for the operability slide. 
+
+**Tone guardrails**
+This section should feel calm, serious, and operational. It should not sound like a dashboard showcase, a list of controls, or a live-ops boast. The point is not “look at all the operational stuff I added.” The point is “this platform was made defensible and usable after the run.” 
+
+**What this section must not drift into**
+Do not let it become:
+
+* a general architecture slide
+* a raw metrics wall
+* a cost slide
+* the long-horizon live operating program
+* or a vague “we have observability” claim
+
+The line is important: **Section 9 proves operability surfaces already existed and mattered by readiness closure; Section 10 will prove cost realism; Section 11 will prove the later live operating mission above the ready baseline.**  
+
+**Slide extraction note**
+This section should map directly to **Slide 9 — Operable, auditable, recoverable**. The slide should carry:
+
+* one claim: the platform was made operable like a real shared service
+* one visual proof surface: alert/runbook/evidence/recovery map
+* a few proof points: 6 critical alarms, live drill, exact reconstruction, ML day-2 readback, zero residual compute after idle
+* one recruiter consequence: this system could actually be run, challenged, explained, and recovered. 
+
+## Draft-ready version for the canonical portfolio doc
+
+### 9. Operable, Auditable, Recoverable
+
+I did not treat “ready” as “we got a green bounded run.” I made the platform operable like a real shared service. Live visibility had to be truthful to the actual active runtime path; alerts had to be real, reproducible, and runbook-linked; runs had to be reconstructable exactly from receipts and evidence; ML day-2 model/runtime readback had to exist on the live surface; and the platform had to be left in a safe idle state without hidden residual runtime or unreadable post-run evidence. In other words, the platform had to become challengeable and defensible after the run, not just describable during it.  
+
+That posture was earned, not assumed. The operator boundary was not accepted when dashboards and alarms merely existed; it closed only once runbook linkage, exercised alert-path evidence, exact run reconstruction, ML day-2 readback, clean handle/secret resolution, and drift-visible live observability all lined up on the same boundary. By closure, the recruiter-facing proof was already strong: reproducible dashboards and alerts, runbook-linked incident response, exact run reconstruction, **6 critical alarms**, a live **OK → ALARM → OK** drill, and **zero residual compute after idle**.   
+
+The recruiter consequence this section must make unavoidable is simple: **this platform was not just built and proved; it was made operable, auditable, recoverable, and defendable like a real shared ML service.** 
+
+## VIsual
+
+For the **operable / auditable / recoverable** slide, I’d use a **single day-2 operator chain** — not a dashboard collage and not a topology graph.
+
+That matches your doctrine exactly: one claim, one visual proof surface, a few decisive proof points, and one recruiter consequence. The point of this slide is to make the recruiter feel, in one glance, that the platform could actually be **run, challenged, reconstructed, and recovered**. 
+
+Use this as the **main-deck visual**:
+
+```mermaid
+flowchart LR
+  A["Live platform signal<br/>Fresh dashboards · active-path visibility"]
+
+  B["Actionable alerting<br/>6 critical alarms<br/>real alert coverage"]
+
+  C["Runbook-linked triage<br/>named dashboard/log views<br/>operator-safe first steps"]
+
+  D["Operator action<br/>acknowledge · mitigate · recover"]
+
+  E["Exact readback + reconstruction<br/>run receipts · evidence chain<br/>ML day-2 runtime readback"]
+
+  F["Safe recovery / idle state<br/>restore discipline<br/>zero residual compute after idle"]
+
+  A --> B --> C --> D --> E --> F
+
+  G["Live drill proof<br/>OK → ALARM → OK"]
+  G -. exercised alert path .-> B
+
+  H["Operator-trust boundary<br/>truthful live visibility<br/>runbook linkage<br/>evidence-backed action"]
+  H --- C
+  H --- E
+```
+
+Why this works:
+
+* It makes the slide about **operability**, not architecture. Your doctrine explicitly says the operability slide should use an **alert / runbook / evidence / recovery map**, not a topology graph. 
+* It carries the strongest proof anchors without flooding the reader: **6 critical alarms**, a live **OK → ALARM → OK** drill, exact run reconstruction, ML day-2 readback, and **zero residual compute after idle**. Those are the precise proof points already pinned in your resume and readiness notes.
+* It expresses the stronger Bi posture too: the platform was not accepted because “dashboards existed,” but because the live operator chain became **fresh, attributable, runbook-linked, operator-usable, and evidence-backed** on the real active surface.
+
+The recruiter consequence this visual should silently land is:
+
+**This was not just built and proven once. It could actually be run, challenged, explained, and recovered like a real shared ML service.**
+
+After this, the next visual should be the **cost realism** slide, which should use a totally different grammar — likely a clean service-family cost concentration chart with the March 10–13 window as the lens.
+
+---
+
+Good — this is where **cost stops being background cloud spend** and becomes part of the platform claim.
+
+## Section 10 — Cost Realism
+
+**Section job**
+Prove that the platform was not only operable, but **economically governed** like a real AWS operating surface. This section should show that cost was treated as an engineering boundary with attributable spend, spend envelopes, cost-to-outcome receipts, waste retirement, and late-window proof concentration — not as vague project overhead. Your doctrine is explicit that cost must appear in the portfolio because it helps make the platform non-toy, and Stage 6 of the canonical ladder requires the system to be “paid for responsibly,” not just built and run. 
+
+**Recruiter doubt this section kills**
+“Was this just an expensive personal project with no cost discipline?”
+This section should kill that doubt by showing that cost was governed the same way technical closure was governed: with explicit envelopes, attributable spend, proof-linked receipts, fail-closed blockers on unattributed spend, and active waste retirement rather than after-the-fact bill watching. The readiness notes make this very sharp: the platform was designed to answer not just *what did we spend?* but *what proof or risk-retirement outcome did that spend buy?*  
+
+**Section claim**
+You treated cloud cost as a **platform-engineering boundary**, not project overhead. In the wired platform, cost accountability already existed as a distinct closure truth with spend envelopes and cost-to-outcome receipts; in readiness, that same boundary was widened into a live production-readiness concern where unattributed spend had to stay at zero, waste had to be retired, idle burn had to be prevented, and major spend families had to remain attributable on the operator surface. The recruiter-facing version of that story is strongest in the decisive late readiness window from **10–13 March 2026**, where about **$1.65k** of attributable AWS spend was concentrated in the runtime paths doing the real proof work.   
+
+**Canonical section prose**
+Cost realism matters in this portfolio for the same reason operability matters: it helps separate a serious platform from a polished project. Your doctrine is very explicit about the correct posture. The point is not “look how much I spent.” The point is that cost must appear as **attributable spend, runtime-proof concentration, cost-to-outcome logic, and an explicit late-window lens** that makes the cloud surface feel real without turning the deck into billing trivia. That is the exact recruiter-facing framing for this section. 
+
+The underlying system design is stronger than a slide about spend totals. In the readiness notes, cost is treated as its own object — the **cost guardrail and cost-to-outcome closure path**. That path exists because technical closure is not enough on its own. A phase may not start without a spend envelope, and a phase may not close without a cost-to-outcome receipt stating what was spent, what artifacts were emitted, and what decision or risk was retired. The notes are explicit that phase advancement should fail closed if spend exists without material proof outcome. That means cost discipline is part of the platform truth model, not an afterthought.  
+
+The readiness history makes the story more recruiter-useful because it shows how cost moved from **post-run receipt discipline** into a **live production-readiness boundary**. The important widening was not “we added cost receipts.” It was that the platform had to detect live waste, retire it, keep major spend families attributable, and prove an idle-safe cost posture on the same operator boundary as alerts, handle integrity, and recovery. The notes call this out very directly: `A` proves cost accountability is a real closure truth; `Bi` proves that truth now governs the live platform. That is exactly the level of seriousness this slide needs to convey.  
+
+That widening also produced the strongest engineering details for this section. The platform explicitly treated stale rejected learning artifacts, stale SageMaker resources, and the ingress Lambda zip pile as engineering waste. A later whole-platform cost review found a worse live waste shape: a stale ingress idempotency ledger and an idle EKS runtime floor that was still burning money and keeping other services hot. The response was operational rather than rhetorical: clear transient runtime waste, scale the EKS runtime into standby, and make the rebuilt operator plane show residual-runtime and service-family cost truth visibly instead of hiding it behind aggregate cloud billing. That is a serious ML Platform / MLOps story because it shows the system was being economically governed, not just billed.  
+
+For the main portfolio, though, the doctrine is right that the **late proving window** is the right lens. Your resume already compresses it well: in the decisive late readiness window from **10–13 March 2026**, about **$1.65k** of attributable AWS spend was concentrated in the runtime paths doing the real proof work, especially **DynamoDB** for idempotency and receipts, **Lambda + API Gateway** for external ingress, **Aurora/RDS** for write pressure, **S3** for evidence and learning materialization, and **MSK** for streaming. That is exactly the kind of cloud-cost picture a recruiter can recognize as real and platform-shaped without needing your internal notebooks. 
+
+What makes the section strong is not the dollar amount alone. It is the **logic around it**. The doctrine says the right claim is: this was a real AWS operating surface with real proof costs and explicit spend discipline. The readiness notes say the same thing in more technical language: cost should be bounded by an envelope, attributable by family, visible on the operator plane, honest about idle burn, and tied to proof or risk-retirement outcome rather than treated as ambient cloud residue. That is the right recruiter-facing synthesis.  
+
+So the section’s real conclusion is not “I spent money on AWS.” It is: **I treated spend the way a serious platform team should treat it — attributable, bounded, challengeable, and justified by proof outcome.** That is what makes the platform feel economically real rather than merely technically ambitious.  
+
+**Compressed version**
+Cost was part of the engineering boundary, not project overhead. The platform used spend envelopes, cost-to-outcome receipts, fail-closed attribution rules, live waste retirement, and idle-burn discipline; and in the decisive **10–13 March 2026** readiness window, about **$1.65k** of attributable AWS spend was concentrated in the runtime surfaces doing the real proof work.  
+
+**Why this section matters**
+Your doctrine is explicit that cost is one of the strongest “non-toy” signals when it is framed properly. It should not read as budget boasting. It should read as evidence that the platform was run on a real AWS surface, that spend remained attributable and bounded, and that you were already thinking in the language of **economic closure**, not just technical closure. That is a strong recruiter-facing signal because real teams care about the cost shape of proofs, not just whether a demo works. 
+
+**Proof anchors allowed in this section**
+Use only the few anchors that change belief:
+
+* the late readiness lens: **10–13 March 2026**
+* about **$1.65k** attributable AWS spend in that window
+* concentration in **DynamoDB**, **Lambda + API Gateway**, **Aurora/RDS**, **S3**, and **MSK**
+* explicit spend envelopes
+* cost-to-outcome receipts
+* unattributed spend treated as a blocker
+* live waste retirement and idle-burn prevention.   
+
+**Approved visual surface**
+The best visual here is a **service-family cost concentration chart** focused on the **late readiness window**, not month-to-date billing noise. A ranked bar chart is probably strongest: DynamoDB, Lambda + API Gateway, Aurora/RDS, S3, and MSK, with one small framing strip that says **“attributable spend • proof-window concentration • cost-to-outcome governed.”** That fits your doctrine exactly because it shows the right things without turning into a finance report. 
+
+**Tone guardrails**
+This section should feel controlled, economical, and serious. It should not sound proud of spending money. It should sound proud of **controlling and explaining** spend. The doctrine explicitly warns that “look how much I spent” weakens the claim; the stronger posture is “this was a real AWS operating surface with real proof costs and explicit spend discipline.” 
+
+**What this section must not drift into**
+Do not let it become:
+
+* a personal budget story
+* a finance/accounting slide
+* a raw AWS bill screenshot
+* an infrastructure tool slide
+* or a repeat of Section 9’s operability logic
+
+Its job is one thing: prove **cost realism** as part of the platform claim. Section 9 said the system could be operated and recovered; Section 10 says it could be **paid for responsibly and justified economically**.  
+
+**Slide extraction note**
+This section should map directly to **Slide 10 — Cost realism**. The slide should carry:
+
+* one claim: cost was part of the engineering boundary
+* one visual proof surface: late-window service-family cost concentration
+* a few proof points: **10–13 March 2026**, **$1.65k**, DynamoDB / Lambda+API Gateway / Aurora-RDS / S3 / MSK, cost-to-outcome framing
+* one recruiter consequence: this was a real AWS operating surface under real spend discipline, not a toy cloud project.  
+
+## Draft-ready version for the canonical portfolio doc
+
+### 10. Cost Realism
+
+I treated cloud cost as a platform-engineering boundary, not as project overhead. The platform already enforced spend envelopes, cost-to-outcome receipts, and fail-closed blockers on unattributed spend; then readiness widened that same boundary into a live operator concern, where waste had to be retired, idle burn had to be prevented, major spend families had to remain attributable, and cost truth had to sit on the same operator surface as alerts, recovery, and evidence closure. In other words, technical closure and economic closure were treated as different truths, and both had to be earned.  
+
+For the portfolio, the strongest lens is the decisive late readiness window. In **10–13 March 2026**, about **$1.65k** of attributable AWS spend was concentrated in the runtime paths doing the real proof work, especially **DynamoDB** for idempotency and receipts, **Lambda + API Gateway** for external ingress, **Aurora/RDS** for write pressure, **S3** for evidence and learning materialization, and **MSK** for streaming. That is not presented as “look how much I spent.” It is presented as: this was a real AWS operating surface with real proof costs and explicit spend discipline, judged against cost-to-outcome rules rather than left as ambient cloud billing.  
+
+The recruiter consequence this section must make clear is simple: **this platform was not only operable; it was economically real and economically governed.** 
+
+Next should be **Section 11 — Current Operating Mission**.
