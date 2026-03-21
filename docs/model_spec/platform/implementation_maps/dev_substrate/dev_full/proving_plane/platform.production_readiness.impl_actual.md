@@ -8239,3 +8239,45 @@ So the cost story is now better stated as:
 - then proving-plane closure cost.
 
 That is a more faithful explanation of what the implementation notes actually show.
+
+## 2026-03-21 00:00:00 +00:00 - Removed the stale Firehose direct-put probe because it was still billing after teardown, but it is not part of the accepted production-ready platform
+
+Post-teardown Cost Explorer still showed a residual `Amazon Kinesis` line of about `0.96 USD/day` on `2026-03-19` and `2026-03-20`, which was too large to leave unexplained once the runtime, streaming stack, Aurora, and log-heavy surfaces were already gone.
+
+The live cause was not Kinesis Data Streams. There were none. The residual came from a still-active Firehose delivery stream:
+
+- `m14f-directput-probe-20260302034609`
+
+Tracing it back through the repo showed why it existed:
+
+- it belongs to the older `M14.F` archive-connector proof lineage in the `dev_full` build track
+- it is associated with the Firehose archive role `fraud-platform-dev-full-firehose-archive-role`
+- its S3 destination was `s3://fraud-platform-dev-full-object-store/archive/_connector/directput/`
+
+The important part is what it is **not**:
+
+- it is not part of the accepted proving-plane authority
+- it is not represented as a required concrete seat in the promoted production-ready platform
+- the current readiness graphs carry the archive writer as an RTDL/runtime ownership surface, not a retained Firehose direct-put probe
+- there is no active Terraform reference to this delivery stream in `infra/`
+
+That means leaving it alive after teardown would only preserve stale build-phase spend, not a production-ready dependency.
+
+So I deleted the stream live:
+
+- `aws firehose delete-delivery-stream --delivery-stream-name m14f-directput-probe-20260302034609 --allow-force-delete --region eu-west-2`
+
+and verified afterward:
+
+- `describe-delivery-stream` now returns `ResourceNotFoundException`
+- `list-delivery-streams` now returns an empty set in `eu-west-2`
+
+The cost implication is straightforward:
+
+- Cost Explorer may still show the `Amazon Kinesis` line on already-recorded estimated days because CE lags and settles later
+- but there is now no live Firehose surface left to keep generating that residual charge going forward
+
+The Terraform implication is also now explicit:
+
+- this stream should **not** be expected to reappear in a future plan/apply for the accepted production-ready platform
+- if someone intentionally re-enters the old `M14.F` archive-connector build proof, they should treat it as a separate historical build-lane surface rather than as a hidden dependency of the current ready platform
