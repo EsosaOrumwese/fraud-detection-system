@@ -558,111 +558,40 @@ It keeps Section 6 as a **real-platform topology** built around the seven obliga
 ```mermaid
 ---
 config:
-  theme: default
-  layout: dagre
+  theme: base
+  look: neo
 ---
 flowchart LR
-  WORLD["Governed source world<br/>producer-owned · read-only · legitimacy-gated"]
+  W["Governed source world<br/>Replayable, legitimacy-gated operating world"]
 
-  subgraph G1["1. Run and world-source authority"]
-    direction TB
-    R1["Run legitimization<br/>run pin · config digest · evidence root"]
-    R2["Source realization<br/>oracle basis · stream/truth views · parity"]
-    R3["READY authorization<br/>control-plane commit"]
-    R1 --> R2 --> R3
-  end
+  I["Ingress + event transport<br/>Admission, publication, streaming handoff"]
 
-  subgraph G2["2. Canonical traffic admission and bus publication"]
-    direction TB
-    I1["Boundary access<br/>API edge · auth contract"]
-    I2["Admission / disposition<br/>idempotency · quarantine · dedupe truth"]
-    I3["Authoritative bus publication<br/>traffic + context topic family"]
-    I4["Ingest commit truth<br/>receipts · offset/proxy proof"]
-    I1 --> I2 --> I3 --> I4
-  end
+  R["Real-time decisioning<br/>Context, features, decision, action"]
 
-  subgraph G3["3. Runtime context formation and decisioning"]
-    direction TB
-    D1["Entity + relationship projection"]
-    D2["Joined context formation"]
-    D3["Online feature readiness"]
-    D4["Decision guardrail"]
-    D5["Decision formation"]
-    D6["Action + outcome emission"]
-    D1 --> D2 --> D3 --> D4 --> D5 --> D6
-  end
+  C["Case + label operations<br/>Operational review truth and supervision truth"]
 
-  subgraph G4["4. Durable audit, archive, and replay truth"]
-    direction TB
-    A1["Audit append"]
-    A2["Audit publication + durable refs"]
-    A3["Immutable archive preservation"]
-    A4["Archive closure + replay refs"]
-    A1 --> A2
-    A1 --> A3 --> A4
-  end
+  L["Governed learning + release<br/>Databricks → SageMaker → MLflow<br/>Promotion, rollback, active bundle authority"]
 
-  subgraph G5["5. Case and label operational truth"]
-    direction TB
-    C1["Case-intent escalation"]
-    C2["Case creation + timeline append"]
-    C3["Case-to-label handoff"]
-    C4["Authoritative label truth"]
-    C1 --> C2 --> C3 --> C4
-  end
+  O["Operations, audit, and evidence<br/>Run reconstruction, observability, recovery, cost control"]
 
-  subgraph G6["6. Learning, evaluation, and governed activation"]
-    direction TB
-    L1["Learning-input basis<br/>archive + labels + replay basis"]
-    L2["Offline dataset truth"]
-    L3["Train/eval + candidate bundle"]
-    L4["Promotion + rollback governance"]
-    L5["Active-bundle runtime authority"]
-    L1 --> L2 --> L3 --> L4 --> L5
-  end
+  N["One production-shaped ML platform<br/>Shared truth boundaries · shared controls · full lifecycle"]
 
-  subgraph G7["7. Run governance, observability, and evidence closure"]
-    direction TB
-    O1["Run reconstruction + receipt closure"]
-    O2["Governance append + close marker"]
-    O3["Drift-visible observability"]
-    O4["Proof matrix + final verdict"]
-    O5["Idle-safe teardown"]
-    O6["Cost-to-outcome closure"]
-    O1 --> O2 --> O4
-    O3 --> O4
-    O4 --> O5 --> O6
-  end
+  W --> I
+  I --> R
+  R --> C
+  C --> L
+  L -->|active runtime bundle| R
 
-  WORLD --> R1
-  WORLD --> I1
+  I --> O
+  R --> O
+  C --> O
+  L --> O
 
-  R3 --> I1
-  I3 --> D1
-  I3 --> D2
-
-  D5 --> A1
-  D6 --> A1
-  D6 --> C1
-  A2 --> C1
-
-  A4 --> L1
-  C4 --> L1
-  L5 --> D5
-
-  R3 -. run-scoped control/evidence .-> O1
-  I4 -. ingress evidence .-> O1
-  D6 -. runtime evidence .-> O1
-  A4 -. replay/archive evidence .-> O1
-  C4 -. supervision evidence .-> O1
-  L5 -. learning/release evidence .-> O1
-
-  R3 -. correlation/telemetry .-> O3
-  I3 -. transport telemetry .-> O3
-  D5 -. decision telemetry .-> O3
-  A1 -. audit telemetry .-> O3
-  C2 -. case telemetry .-> O3
-  L4 -. promotion telemetry .-> O3
+  N --- I
+  N --- R
+  N --- C
+  N --- L
+  N --- O
 ```
 
 ---
@@ -744,4 +673,134 @@ I did not stop at wiring the platform. I took the already-real full-lifecycle sy
 
 That is the important recruiter-facing consequence of this section: the platform was not merely built and then described as ready. It was **pressured into readiness**. And that readiness is the correct stopping point for this section. The later live operating program is a different layer that begins only after production-ready has already been earned. So the truthful claim here is strong and bounded: **the platform crossed the readiness threshold, and later longer stress/soak became deserved rather than guessed.**  
 
-Next is **Section 8 — Governed MLOps Corridor**.
+Yes — for **Section 7 / Slide 7**, I’d use a **proving-chain visual**, not a topology graph. The point of this section is that the platform moved from “wired” to **earned bounded readiness** through **integrated full-platform proof** and then **widened bounded stress authorization**, with the next honest question becoming longer stress/soak rather than re-litigating readiness.   
+
+```mermaid
+---
+config:
+  theme: default
+  layout: dagre
+---
+flowchart LR
+  A["Already-wired full platform<br/>Real platform exists<br/>Readiness not yet earned"]
+
+  subgraph B["Stage 1 — Integrated full-platform proof"]
+    direction TB
+    B1["Declared bounded production envelope"]
+    B2["~3049.811 steady EPS<br/>6188 burst EPS<br/>3019 recovery EPS"]
+    B3["No integrity deltas<br/>Decision→Case timing intact<br/>Case→Label timing intact"]
+  end
+
+  subgraph C["Stage 2 — Widened bounded stress authorization"]
+    direction TB
+    C1["Same full-platform truth path<br/>Wider bounded pressure window"]
+    C2["2,360,103 admitted events<br/>~3007.053 steady EPS<br/>6359 burst EPS<br/>3017.517 recovery EPS"]
+    C3["Runtime participation stayed material<br/>DF · AL · DLA · Case · Label"]
+    C4["Active runtime bundle<br/>still attributable to governed learning truth"]
+  end
+
+  D["Earned bounded production readiness<br/>Platform now deserves later longer stress / soak"]
+
+  E["Semantic burden preserved throughout<br/>runtime truth · case truth · label truth · active bundle truth"]
+
+  A --> B --> C --> D
+  E -.-> B
+  E -.-> C
+```
+
+This is the version I’d use because it makes the Section 7 claim visible in one glance: **measured integrated closure first, widened stress authorization second, earned readiness as the outcome**. It also keeps Section 7 clearly different from Section 6, because this is about **pressure, proof, and authorization**, not platform shape.  
+
+The numbers and readiness boundary in this visual come directly from your readiness materials and resume wording: integrated proof at about **3049.811 / 6188 / 3019**, widened stress at about **2,360,103 admitted events** and **3007.053 / 6359 / 3017.517**, with zero critical integrity deltas and active bundle attribution preserved. The “later longer stress/soak is now deserved” ending is also the exact posture your readiness notes pin after accepted widened stress closure.   
+
+---
+
+## Section 8 — Governed MLOps Corridor
+
+**Section job**
+Show that learning, release, rollback, and runtime model authority were part of the same governed system, not a side workflow bolted onto a runtime platform. In your doctrine and storyline, this is exactly what Stage 5 has to prove: the ML path is real only when runtime truth, dataset truth, candidate truth, promotion truth, rollback truth, and active runtime authority remain one continuous chain.  
+
+**Recruiter doubt this section kills**
+“Did he just train a model and add MLOps language around it?”
+This section should kill that doubt. Your storyline is explicit that the governed corridor is not “we trained a model and registered it.” It is runtime truth plus label truth becoming bounded learning basis, then governed dataset truth, then managed train/eval with lineage, then candidate publication, rollback discipline, and live runtime authority that still remains attributable after release. 
+
+**Section claim**
+You built a governed MLOps corridor on the same replayable fraud world as the runtime platform. Authoritative runtime, archive, case, and label truth became a pinned learning basis with replay, `as_of`, maturity, and anti-leakage controls; that basis became an authoritative offline dataset object; that dataset became a managed train/eval and candidate-bundle boundary; promotion and rollback stayed governed; and runtime resolved the active bundle deterministically after release. That is a delivery corridor, not a one-off training workflow.  
+
+**Canonical section prose**
+The MLOps part of this platform is real because it begins with authoritative platform truth and ends in runtime authority. The learning corridor does not start from a notebook convenience dataset. It starts from archive truth, authoritative labels, and replay references, with replay basis, label `as_of`, label maturity, and anti-leakage checks pinned before learning is even allowed to begin. Your own wiring notes treat that as a distinct owned boundary called the **learning-input basis path**, which already tells the recruiter something important: the system does not let learning choose its own truth ad hoc.  
+
+From there, the corridor becomes more governed, not less. The pinned learning basis is turned into authoritative offline dataset truth through the offline-feature system, with a committed dataset manifest, committed fingerprint, rollback recipe, point-in-time correctness, and future leakage violations forced to zero. Your readiness notes are very clear that the platform refused easy shortcuts here: no latest-data shortcut, no unmanaged file-emission shortcut, no hidden local fallback, and no ad hoc OFS basis selection. The point was to create one authoritative dataset object later model work could trust without redefining dataset truth for itself.  
+
+That dataset then feeds a distinct **train / eval and candidate-bundle** boundary on real managed surfaces. Your docs separate this carefully from both dataset truth upstream and promotion truth downstream. The corridor had to prove that SageMaker really consumed the immutable governed basis, that training and evaluation completed on that basis, that metrics and leakage checks were tied to that same admitted basis, that MLflow lineage stayed complete enough to trace dataset → train/eval → candidate, and that the result was a provenance-complete candidate bundle rather than just “a run completed.” That is exactly why the docs insist this boundary owns stronger truth than “job ran.”   
+
+This is also where the managed surfaces matter in the right way. Databricks, SageMaker, and MLflow strengthen the claim because they remove hidden local authority and force the corridor onto the same kind of managed surfaces a real team would depend on. Your readiness notes are explicit that helper scripts were allowed to orchestrate or probe, but not to secretly do the real work of the lane. The accepted closure only counted once SageMaker training and batch transform completed on the governed basis and MLflow lineage finished on the managed surface.  
+
+The promotion side is governed too. Your wiring notes separate **promotion and rollback-governance** from candidate creation, and then separate **active-bundle runtime authority** from promotion itself. That means the system does not confuse “candidate exists,” “candidate promoted,” and “runtime is now deterministically consuming the right active bundle.” Promotion had to commit explicit promotion truth, rollback drills had to be executed and recorded, compatibility and fail-closed checks had to pass, and runtime had to resolve the right active bundle or policy after release. That is a much stronger story than a registry-first narrative. 
+
+The metrics matter here, but only the ones that change belief. The recruiter-facing summary you already use is the right one: the governed basis produced a deployable candidate at about **AUC 0.91** and **Precision@50 1.00**, with **100% lineage completeness**, rollback discipline proved before promotion, and live runtime bundle resolution verified after release. Those are strong because they combine model quality, lineage quality, release control, and runtime attribution in one sentence.  
+
+What makes the corridor governed instead of manual is that governance is enforced at every transition. The storyline says this plainly: learning basis had to come from authoritative runtime plus label truth, point-in-time and maturity controls had to pass, train/eval had to happen on managed surfaces with pinned handles, candidate publication had to carry lineage, rollback had to be proven, and active runtime authority had to remain attributable after release. That is the exact recruiter-facing summary of why this counts as real MLOps rather than “model automation.” 
+
+This section also has to carry one very important truth-boundary. It is not just “I trained a model on Databricks and SageMaker.” It is “I owned the path from authoritative world → bounded learning basis → authoritative dataset object → candidate truth → governed promotion/rollback → live runtime authority.” That is the strongest recruiter consequence of the entire section, because it shows delivery ownership rather than tool familiarity.  
+
+**Compressed version**
+I built a governed MLOps corridor, not a one-off training workflow. Runtime, archive, case, and label truth became a replay-bounded, point-in-time-correct, leakage-safe learning basis; that basis became an authoritative dataset object; managed Databricks, SageMaker, and MLflow turned it into candidate truth with lineage; promotion and rollback remained governed; and runtime model authority stayed attributable after release.  
+
+**Why this section matters**
+This is the section that stops the portfolio from reading as “runtime system plus some ML.” Once this corridor is visible, the recruiter can see that runtime, supervision, dataset build, train/eval, release, rollback, and live serving all belong to one governed platform story. That is exactly the Stage 5 burden in your doctrine. 
+
+**Proof anchors allowed in this section**
+The decisive anchors here are:
+
+* authoritative runtime + label truth as the learning basis
+* point-in-time correctness and future leakage forced to zero
+* Databricks → SageMaker → MLflow as real managed surfaces
+* about **AUC 0.91**
+* **Precision@50 1.00**
+* **100% lineage completeness**
+* rollback proved before promotion
+* active runtime bundle resolution verified after release.   
+
+**Approved visual surface**
+The best visual here is a **governed corridor diagram**, not a platform topology and not a metrics table. It should show:
+runtime/archive truth + labels/cases
+→ learning-input basis
+→ offline dataset truth
+→ train/eval + candidate bundle
+→ promotion + rollback governance
+→ active runtime bundle authority.
+That visual will read immediately as “delivery corridor” instead of “training step.” The docs support that exact five-part split.  
+
+**Tone guardrails**
+This section should feel governed, deliberate, and lifecycle-aware. It should not sound like “look at my model metrics,” and it should not sound like a tooling showcase. The speaking posture is clear that the right framing is governed world, runtime path, learning corridor, and operating controls — using managed tooling to make that real, not leading with the tools themselves. 
+
+**What this section must not drift into**
+Do not let it become:
+
+* a notebook/training story
+* an isolated model-metrics slide
+* a tool list
+* a Section 6 platform slide in disguise
+* or a Section 9/10 operations slide in disguise
+
+Its job is one thing: prove that learning, release, rollback, and runtime authority are one governed chain. 
+
+**Slide extraction note**
+This section should map directly to **Slide 8 — Governed MLOps Corridor**. The slide should carry:
+
+* one claim: governed learning, release, rollback, and runtime authority
+* one visual: the corridor from runtime truth to active runtime bundle
+* a few proof points: leakage-safe basis, managed surfaces, metrics, lineage, rollback, runtime attribution
+* one recruiter consequence: this is real MLOps lifecycle ownership, not just model training. 
+
+## Draft-ready version for the canonical portfolio doc
+
+### 8. Governed MLOps Corridor
+
+I did not treat learning as a side workflow. I built a governed MLOps corridor on the same replayable fraud world as the runtime platform. Authoritative runtime, archive, case, and label truth became a replay-bounded learning-input basis with `as_of`, maturity, and anti-leakage controls pinned; that basis became an authoritative offline dataset object with deterministic identity and rollback semantics; and that dataset then fed real managed train/eval on Databricks, SageMaker, and MLflow, producing candidate truth with governed metrics, lineage, and pre-promotion operability. Promotion and rollback were explicit governed truths, and runtime bundle resolution remained attributable after release.    
+
+The important recruiter consequence is simple: this was not “I trained a model.” It was ownership of the corridor from authoritative world → bounded learning basis → dataset truth → candidate truth → governed promotion/rollback → live runtime authority. That is what makes the MLOps part of the portfolio real.  
+
+Next we should build the **Section 8 visual** before moving to Section 9.
+
+---
