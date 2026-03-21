@@ -1031,6 +1031,8 @@ The best visual here is a **service-family cost concentration chart** focused on
 **Visuals**
 Use the Section 10 cost bar chart derived from the accepted proving-window data rather than a live billing screenshot. The source CSV is light enough to stay legible and it shows a clear concentration pattern: **DynamoDB ($354.49)** is the largest family, followed by **Lambda ($290.53)** and **API Gateway ($237.58)**, which together make the ingress and hot-path execution story immediately visible. The next tier — **S3 ($170.41)**, **RDS / Aurora ($142.94)**, and **MSK ($130.19)** — shows that evidence movement, bounded state pressure, and streaming remained real cost-bearing parts of the proof window rather than decorative infrastructure. Read correctly, the chart is not saying “this platform was expensive”; it is saying the spend was concentrated in the exact runtime families that were doing the accepted readiness work, which is the recruiter consequence this section needs.
 
+![Section 10 cost bar chart](_assets/section10_cost_bar_chart.png)
+
 **Tone guardrails**
 This section should feel controlled, economical, and serious. It should not sound proud of spending money. It should sound proud of **controlling and explaining** spend. The doctrine explicitly warns that “look how much I spent” weakens the claim; the stronger posture is “this was a real AWS operating surface with real proof costs and explicit spend discipline.” 
 
@@ -1065,3 +1067,317 @@ The recruiter consequence this section must make clear is simple: **this platfor
 
 ---
 
+## Section 11 — Current Operating Mission
+
+**Section job**
+Show that the current phase is **not** “still building the platform” and **not** “already-finished long-horizon production proof.” It must present the truthful middle: the platform is already real, already earned-ready, and the current layer is the **capstone operating mission above that ready baseline**. In your doctrine, this is Stage 7: the move from “ready” to “operated and defensible.”  
+
+**Recruiter doubt this section kills**
+“So where is the work now — unfinished, or overstated?”
+This section should kill both downgrade paths at once. The doctrine says the portfolio must preserve these truths together: **A is complete, Bi is complete, Bii is the current capstone operating layer, and the long-horizon operating proof must not be presented as already concluded**. The success condition is that a recruiter already sees the current phase as **operating responsibility, not endless unfinished building**.  
+
+**Section claim**
+The platform has already crossed the hard thresholds of **real** and **ready**. The current phase begins from that accepted baseline and focuses on the operating questions that only exist after readiness: **live replay, production-shaped variation, stress windows, incident and drill handling, controlled change, audit answerability, operator transferability, learning loops, and cost/evidence closure**. The truthful claim is strong but bounded: the platform is already ready enough that the remaining senior-level work is to **operate it, manage it, and defend that operation with evidence**; the stronger long-horizon wall-clock proof remains a distinct layer, not a finished claim.   
+
+**Canonical section prose**
+By the time this section begins, the portfolio has already established the governed world, the shared truth path, the real platform, earned bounded readiness, the governed MLOps corridor, and the operable/cost-real surface. So the question changes. It is no longer “can the platform be built?” or “can the major planes couple?” Those questions are already closed. The current question is whether the already-ready system can be **run, challenged, observed, changed, audited, and defended like a live production-style ML platform**. That is the exact role the doctrine assigns to the current operating mission.  
+
+This section matters because it is the strongest correction your speaking posture makes. You are not supposed to sound like someone with an interesting platform who is hoping to prove something later. You are supposed to sound like someone speaking from a **real system, an earned-ready baseline, and a current operating mission**. The posture text says this directly: Bii is not vague future aspiration. It begins from the already-earned ready platform and exists to turn readiness into **live operating responsibility** — replay, load, incidents, controlled change, auditability, operator challengeability, learning loops, and cost/evidence closure.  
+
+The canonical storyline compresses the same point in recruiter-facing terms. The current phase is the capstone operating layer above the ready system, where the real question is no longer whether the platform can be built, but whether it can be **run, challenged, recovered, and defended** like a real production ML platform. That is why the story shifts from “can it be built?” to “can it be run credibly?” and why this stage is one of the strongest senior-shaped signals in the whole portfolio.   
+
+The Bii notes sharpen the operating burden further. This phase must preserve the **same full-platform semantic burden** that Bi already proved under bounded pressure. The claim is not “the services stayed up.” The claim is that, while live, RTDL decision and action truth remain explainable, Case and Label truth remain authoritative, the active runtime bundle remains tied to governed learning truth, and no plane looks green only because another plane silently stopped doing real work. That continuity is what makes the operating mission a live extension of the same truth path, rather than a new and weaker game.  
+
+This section also needs the clearest truth boundary in the whole deck. The portfolio doctrine and speaking posture both insist that the stronger long-horizon operating standard still exists and must **not** be presented as already concluded. The L4 proving document is explicit that wall-clock proof begins only after production-ready is already earned and measures sustained live operation over a **7-day minimum** and **30-day maximum** window. So the right present-tense claim is **not** “I have already completed long-horizon production proof.” The right present-tense claim is: **the hard threshold has already been crossed; now the work is live operating responsibility above that earned base.**   
+
+That is why the tone of this section has to be so carefully held. The Bii notes say the phase should be conveyed as an **authorized capstone mission, not an aspirational wish**. Without A and Bi, Bii would sound like “I hope to run this someday.” With A and Bi already complete, Bii becomes: the platform is now ready enough that the remaining senior-level work is to **operate it, manage it, and defend that operation with evidence**. That is not a weaker position. It is the exact position the earlier work earned.  
+
+**Compressed version**
+The platform is already real and already earned-ready. The current phase begins from that accepted baseline and turns readiness into live operating responsibility: replay, variation, incidents and drills, controlled change, audit answerability, operator transferability, learning loops, and cost/evidence closure. The stronger long-horizon operating proof remains a separate layer, so the truthful claim is strong but bounded: **the remaining work is to operate and defend the ready platform under live production-style conditions**.   
+
+**Why this section matters**
+This is the section that stops the whole portfolio from collapsing back into “strong build project.” The doctrine says the portfolio succeeds only if a recruiter can already see that the current phase is **operating responsibility**, not endless unfinished building. The speaking posture says the recruiter should leave feeling that you did not stop at design and are now in **operating territory**. This is the section that earns that emotional conclusion.  
+
+**Proof anchors allowed in this section**
+Keep these proof anchors structural, not over-numeric:
+
+* platform already crossed **real** and **ready**
+* current focus: **replay, load, incidents, controlled change, auditability, operator challengeability, learning loops, cost/evidence closure**
+* same accepted operating envelope stays alive
+* same full-platform semantic burden stays alive
+* long-horizon proof remains distinct and not yet concluded.   
+
+**Approved visual surface**
+The best visual here is a **mission-strip or transition view**, not a topology and not a scorecard. It should show:
+**earned-ready baseline → live operating mission**
+with the mission band containing: replay, variation, incidents/drills, controlled change, audit answerability, operator transferability, learning loops, and cost/evidence closure.
+That makes the section read as an **operating program above a ready platform**, which is exactly the intended posture.  
+
+**Tone guardrails**
+This section should feel calm, authorized, and forward-moving. It should not sound apologetic, vague, speculative, or triumphalist. The correct feeling is: **this platform has already earned legitimacy; the current work is the senior-shaped operating layer above that legitimacy**. That is the “measured force” version of Bii.  
+
+**What this section must not drift into**
+Do not let it become:
+
+* “still building”
+* “future plans”
+* “already-finished L4 proof”
+* a repeat of Section 7 readiness
+* a repeat of Section 9 operability controls
+* or a diary of tasks still to do
+
+Its job is one thing: present the current layer as **authorized live operating responsibility above an already-ready platform**.  
+
+**Slide extraction note**
+This section should map directly to **Slide 11 — Current operating mission**. The slide should carry:
+
+* one claim: the current phase is live operating responsibility above the ready baseline
+* one visual proof surface: ready baseline → operating mission strip
+* a few proof points: replay, incidents/drills, controlled change, auditability, operator transferability, cost/evidence closure
+* one recruiter consequence: this person is already beyond build-only work and is now operating and defending a ready ML platform.  
+
+## Draft-ready version for the canonical portfolio doc
+
+### 11. Current Operating Mission
+
+The platform is already real and already earned-ready. The current phase begins from that accepted baseline and turns readiness into live operating responsibility: replay, production-shaped variation, stress windows, incidents and drills, controlled change, audit answerability, operator transferability, learning loops, and cost/evidence closure. In other words, the question is no longer whether the platform can be built or hardened. The question is whether the already-ready system can be run, challenged, recovered, and defended like a real production-style ML platform.   
+
+That claim is strong, but it is also bounded correctly. The current layer should be conveyed as an **authorized capstone mission, not an aspirational wish** and not as already-finished long-horizon production proof. The hard threshold has already been crossed; the remaining senior-level work is to operate the platform, manage it, and defend that operation with evidence on top of the earned-ready baseline. That is the truthful posture this section must make unmistakable.  
+
+### VIsual
+
+Yes — exactly.
+
+From **Section 11 onward**, a network graph is no longer the right visual grammar. The docs are pretty clear that this stage is about **current operating mission above an already-ready platform**, so the best visual is a **mission strip / transition view**, not architecture. The point is to make the recruiter feel: **the hard threshold is already crossed; now the work is live operating responsibility**.
+
+This is the visual I’d use for **Section 11 / Slide 11**:
+
+```mermaid
+flowchart LR
+  A["Already-earned baseline<br/>Real platform · Earned readiness"]
+
+  B["Live replay + production-shaped variation"]
+
+  C["Incidents + drills<br/>challengeability under live conditions"]
+
+  D["Controlled change<br/>config · policy · model · runtime posture"]
+
+  E["Audit answerability + operator transferability"]
+
+  F["Learning loops + cost/evidence closure"]
+
+  G["Current claim<br/>Operated and defensible"]
+
+  A --> B --> C --> D --> E --> F --> G
+
+  T["Same full-platform truth path stays alive<br/>runtime truth · case truth · label truth · active bundle truth"]
+  T --- B
+  T --- C
+  T --- D
+  T --- E
+  T --- F
+
+  H["Long-horizon wall-clock proof<br/>remains a distinct stronger layer<br/>not presented as already concluded"]
+  G -. stronger next proof surface .-> H
+```
+
+Why this works:
+
+It starts from the **already-earned baseline**, which is the core rule for Bii in your doctrine and posture: this phase begins from accepted authority, not from doubt.
+
+It then shows the **actual operating program** the current phase is about: replay, variation, incidents, controlled change, audit answerability, operator transferability, learning loops, and cost/evidence closure. Those are the exact operating surfaces your Bii notes and storyline keep repeating.
+
+It also preserves the most important truth boundary: the section must be strong **without** pretending the longer wall-clock proving layer is already done. That is why the dashed branch to long-horizon proof belongs off to the side as a distinct stronger layer, not as part of the claimed completed strip.
+
+So yes — this is the point in the deck where the visuals should become more **posture-led and consequence-led**, not network-led.
+
+---
+
+## Section 12 — Why This Matters for the Role
+
+**Section job**
+Translate the whole evidence chain into **hiring meaning**. This section should not summarize the project again, and it should not sound like “please hire me.” Its job is to make the role-fit conclusion unavoidable: the portfolio has already shown governed data, shared runtime/learning truth, real platform shape, earned readiness, governed release/rollback, and day-2 operating discipline as one owned system. This is exactly what the portfolio doctrine says the artifact must achieve before a call. 
+
+**Recruiter doubt this section kills**
+“This is impressive, but how does it map to the role I’m hiring for?”
+This section exists to kill that final gap. The doctrine says the portfolio only succeeds if a recruiter can already conclude that you look like a fit for **ML Platform / MLOps work before speaking to you**, and the storyline’s business lens says the portfolio solves the hiring problem of **proving lifecycle ownership, not just technical familiarity**.  
+
+**Section claim**
+This portfolio proves fit for ML Platform / MLOps roles because it shows ownership of the exact lifecycle companies hire for: governed data foundations, streaming runtime systems, model delivery and rollback, observability, auditability, incident response, recovery, and cost-aware day-2 operation. The fraud platform is simply the proof surface that makes that broader scope visible.  
+
+**Canonical section prose**
+This section is not the place to restate every earlier claim. It is the place to translate them into the hiring problem they solve. Your own doctrine is very clear: the portfolio is not there to show that you built a project; it is there to make your ML Platform / MLOps claim visible, believable, and defensible. That means the final recruiter-facing move is not “here is more proof.” It is “here is what this proof means in role terms.”  
+
+The strongest translation is already present in your canonical storyline. This portfolio solves the problem of proving **lifecycle ownership**, not just technical familiarity. A hiring team is not only looking for someone who has touched AWS, trained a model, or wired a Kafka path. It is looking for someone who can help build and operate the paved road and the governed delivery corridor: shared controls, repeatable runtime behaviour, model release/rollback, observability, auditability, and day-2 operation as one system. That is exactly the form your evidence chain takes. 
+
+This is also where the speaking posture matters most. Your scope is not “fraud.” Fraud is the domain of the proof surface. Your scope is governed data foundations, shared runtime and control paths, streaming transport, real-time feature serving and decisioning, case and label operations, governed learning and release, rollback and runtime authority, observability, auditability, incidents, runbooks, recovery, and cost-aware operation. That is already very close to the language real ML Platform / MLOps roles use to define scope. 
+
+The role-fit translation becomes even stronger when stated in terms of what risk you could remove for a team. The storyline’s business lens is explicit here too: the clearest risk you could remove is **“we have ML components, but not one trustworthy operating system.”** In practical terms, that means clarifying boundaries, tightening runtime/learning continuity, improving observability and rollback realism, making audit/readback faster, and turning cost and idle behaviour into controlled surfaces instead of ambient noise. That is exactly the kind of risk reduction hiring managers care about in ML Platform and MLOps work. 
+
+This section also has to preserve the strongest correction from your posture. You are not saying “count this because it was hard.” You are saying the work was deliberately structured around the same lifecycle responsibilities these roles hire for. The support sheet says that is the correct replacement for apologetic framing, and the speaking posture says the recruiter should leave feeling that you did not stop at design and are now in operating territory. That is the emotional outcome this section should lock in.  
+
+So the real message of this section is not generic role alignment. It is sharper than that: **this portfolio is evidence that you can own the lifecycle of a production-shaped ML system end to end**, and that the current phase of your work already sits in operating responsibility rather than only in design or experimentation. That is why the portfolio reads like role-fit instead of like a polished technical hobby.  
+
+**Compressed version**
+This portfolio maps directly to ML Platform / MLOps role-fit because it proves lifecycle ownership across governed data, streaming runtime, release/rollback, observability, auditability, incident response, recovery, and cost-aware operation. The platform is the evidence surface; the capability being evidenced is the one hiring teams actually need.  
+
+**Why this section matters**
+Without this section, the recruiter may finish the deck respecting the work but still have to do the translation themselves. Your doctrine says not to leave that gap. The portfolio should make the recruiter feel that you already look like a fit for ML Platform / MLOps work before a call, and this section is where that inference becomes explicit without becoming needy.  
+
+**Proof anchors allowed in this section**
+Do not introduce a new flood of numbers here. The best anchors are capability categories:
+
+* governed data foundations
+* shared runtime and learning continuity
+* earned readiness under pressure
+* governed release / rollback / runtime authority
+* observability, auditability, and incident response
+* recovery and cost-aware day-2 operation
+* current operating responsibility above a ready baseline.  
+
+**Approved visual surface**
+The best visual here is a **proof-to-role-fit mapping**, not a network graph and not a metrics chart. A simple two-column or arrow-based layout works best:
+
+* governed world + shared truth path → governed data foundations / systems realism
+* real platform + readiness → runtime delivery / reliability / platform ownership
+* governed MLOps corridor → model delivery / rollback / runtime authority
+* operability + cost realism + current mission → day-2 operations / auditability / incident discipline / operating responsibility.  
+
+**Tone guardrails**
+This section should feel calm, direct, and professionally translated. It should not beg for the fit and it should not overstate seniority. The posture says you should sound like someone reporting on owned work, not like someone asking permission to count it. 
+
+**What this section must not drift into**
+Do not let it become:
+
+* a plea for employment
+* a biography slide
+* a re-summary of every technical section
+* a vague “my skills include…” list
+* or a salary/market-positioning argument
+
+Its job is simpler and stronger: make the hiring relevance of the evidence chain obvious. 
+
+**Slide extraction note**
+This section should map directly to **Slide 12 — Why this matters for the role**. The slide should carry:
+
+* one claim: this evidence maps directly to ML Platform / MLOps role scope
+* one visual proof surface: proof-to-role-fit mapping
+* a few proof anchors: governed data, readiness, governed delivery, day-2 operations
+* one recruiter consequence: this candidate already looks relevant to the role before the call. 
+
+## Draft-ready version for the canonical portfolio doc
+
+### 12. Why This Matters for the Role
+
+This portfolio matters because it does not just show technical activity; it shows lifecycle ownership in the exact shape ML Platform and MLOps teams hire for. The evidence chain covers governed data foundations, shared runtime and learning continuity, earned readiness under pressure, governed model delivery and rollback, observability, auditability, incident response, recovery, and cost-aware day-2 operation. The fraud platform is the proof surface for that scope, not the scope itself.  
+
+That is why the hiring translation is strong. A team looking for ML Platform or MLOps ownership is usually trying to solve a harder problem than “who has used the right tools?” It is trying to solve whether someone can help build and operate one trustworthy ML operating system. This portfolio shows that I have already worked through those concerns as one system rather than only owning one stage of the chain, and that my current edge is already in operating responsibility rather than only in build-phase legitimacy.  
+
+The recruiter consequence this section must make unavoidable is simple: **this evidence is directly relevant to the ML Platform / MLOps roles companies actually hire for.** 
+
+### Visual
+
+Yes — this is the right kind of visual for **Section 12**.
+
+It should be a **clean proof → role-fit translation**, not a network graph and not a final summary slide. The doctrine says this slide exists to make the hiring relevance of the evidence chain obvious before a call, and the storyline says the hiring problem it solves is **proving lifecycle ownership, not just technical familiarity**.  
+
+Use this as the **main-deck Section 12 visual**:
+
+```mermaid
+flowchart LR
+
+  subgraph P["What the portfolio already proved"]
+    direction TB
+    P1["Governed fraud world<br/>+ one shared truth path"]
+    P2["Real ML platform<br/>with owned lifecycle boundaries"]
+    P3["Earned readiness<br/>under bounded pressure"]
+    P4["Governed MLOps corridor<br/>release, rollback, runtime authority"]
+    P5["Operable, auditable,<br/>recoverable platform"]
+    P6["Cost-real platform<br/>+ current operating mission"]
+  end
+
+  subgraph R["What a hiring team can now infer"]
+    direction TB
+    R1["Governed data foundations<br/>and systems realism"]
+    R2["Streaming runtime delivery<br/>and platform ownership"]
+    R3["Reliability / readiness discipline<br/>under production-shaped pressure"]
+    R4["Model delivery, rollback,<br/>and runtime model authority"]
+    R5["Day-2 operations<br/>observability, auditability, incidents, recovery"]
+    R6["Cost-aware operating discipline<br/>and live ownership posture"]
+  end
+
+  P1 --> R1
+  P2 --> R2
+  P3 --> R3
+  P4 --> R4
+  P5 --> R5
+  P6 --> R6
+
+  FIT["Direct ML Platform / MLOps role fit<br/>Lifecycle ownership, not just tool familiarity"]
+
+  R1 --> FIT
+  R2 --> FIT
+  R3 --> FIT
+  R4 --> FIT
+  R5 --> FIT
+  R6 --> FIT
+```
+
+Why this works:
+
+* It keeps the slide **recruiter-facing** by translating your proof surfaces into the exact kinds of responsibilities hiring teams recognize: governed data, runtime delivery, readiness/reliability, release/rollback, day-2 operations, and cost-aware ownership.  
+* It matches your doctrine’s rule that the portfolio should make a recruiter feel you already look like a fit for **ML Platform / MLOps work before speaking to you**.  
+* It avoids the common trap of ending on tools or biography. The trap sheet explicitly says to frame the work as **governed data, runtime, learning/release, observability, auditability, incident response, and cost discipline on one system with one truth path**.  
+
+This is the version I’d freeze for **Slide 12**.
+
+---
+
+## Section 13 — Close / Links
+
+**Section job**
+End the portfolio cleanly and hand the reader to the rest of the asset stack without reopening the whole story. This section is not another proof section and it is not a summary dump. Its job is to close the recruiter-facing evidence pack in a way that preserves the doctrine: the portfolio sits between the resume and the deeper technical surfaces, and it should leave the reader feeling they already understand enough to take you seriously. 
+
+**Recruiter doubt this section kills**
+“I get the story, but what do I do next with this candidate?”
+This section should remove friction, not add content. The doctrine places the portfolio inside a broader outward-asset stack — resume as compressed proof, LinkedIn as broader public identity, portfolio as visual expansion, GitHub/docs as technical depth, and speaking posture as verbal expression of the same claim. The close slide should simply hand the recruiter to those next surfaces cleanly. 
+
+**Section claim**
+The evidence chain is complete, and the next step is clear. You are not ending on “thanks,” “questions,” or another plea for fit. You are ending on a clean asset handoff: the portfolio has done its job, and the recruiter can now move directly to the supporting surfaces that deepen or continue the same claim. That is an inference from the doctrine’s asset-stack rule and its emphasis on measured force rather than over-explaining. 
+
+**Canonical section prose**
+The portfolio should not end by trying to prove one more thing. By this point, the governed world, shared truth path, real platform, earned readiness, governed learning corridor, operability, cost realism, and current operating mission have already done the persuasive work. The closing section should therefore behave like a clean handoff surface rather than a final argument. The doctrine is explicit that the portfolio is the visual middle layer in the outward-asset stack, and that it should make the resume, LinkedIn, GitHub/docs, and speaking posture more believable rather than competing with them. 
+
+That means the strongest close is minimal and deliberate. It should point to the next surfaces a recruiter may reasonably want: the CV or resume for compressed claim-led proof, LinkedIn for public professional context, GitHub and technical docs for implementation depth, and a clear contact route for follow-up. The docs do not prescribe exact buttons, but they strongly support this shape because the portfolio is meant to stop before repo-native depth and then hand the reader onward cleanly. 
+
+The tone matters here as much as the content. Your speaking posture says the audience should leave feeling that you know what kind of engineer you are, that the platform is proof of broad responsibility, and that you are already in operating territory rather than explaining a student project. So the close should feel calm, matter-of-fact, non-apologetic, and lightly compressed. No “thank you for your time” energy, no biography, no extra tool stack, no final metrics blast. Just a serious finish that preserves identity, scope, proof surface, and current edge.  
+
+A good closing line should therefore sound like a continuation of the posture, not a different voice. Something as simple as “GitHub / technical docs, LinkedIn, CV, contact” is enough visually, with one short line underneath that keeps the claim alive without re-arguing it. The strongest reset line in your posture already gives the tone: you build production-shaped ML platforms and MLOps systems end to end, and this fraud platform is the proof surface for that scope under governed data, bounded readiness, and now live operating conditions. The close slide should inherit that same feeling, but in lighter form. 
+
+**Compressed version**
+The close slide should act as a clean handoff to the rest of the outward asset stack: CV, LinkedIn, GitHub/docs, and contact. It should end the portfolio with the same calm, serious, non-apologetic posture as the rest of the deck, not with a new summary or a plea for attention.  
+
+**Why this section matters**
+A weak ending can make a strong deck feel like a student presentation. The doctrine explicitly says the portfolio should feel calm, precise, serious, architected, selective, and high-signal — never loud, insecure, over-decorated, or tool-obsessed. The final slide is where that emotional rule either holds or breaks. 
+
+**Approved visual surface**
+The best visual here is a very clean link-and-handoff layout, not a graph. Four simple blocks or a horizontal band works best: **CV / Resume**, **LinkedIn**, **GitHub / Docs**, **Contact**. One short line underneath can reinforce the posture, such as: **ML Platform / MLOps engineer — governed world, real platform, earned readiness, live operating mission.** That last line is an inference from the doctrine and speaking-posture materials rather than a verbatim requirement, but it fits the asset-stack logic and emotional tone exactly.  
+
+**Tone guardrails**
+This section should feel finished, calm, and certain. It should not beg for a conversation, apologize, re-explain the portfolio, or try to sound impressive one last time. The posture says to speak like the engineer who carried the system, not like the person asking for credit for carrying it.  
+
+**What this section must not drift into**
+Do not let it become a final summary slide, a thank-you slide, a dense links page, a tool list, or a weak “happy to answer questions” ending. The close should lower friction and preserve the same professional stance the deck has been building all along.  
+
+**Slide extraction note**
+This section should map directly to **Slide 13 — Close / links**. The slide should carry one simple function: the proof is complete, and the next surfaces are easy to reach. No new claim is needed beyond that. 
+
+## Draft-ready version for the canonical portfolio doc
+
+### 13. Close / Links
+
+The portfolio should end as a clean handoff, not as another argument. By this point the evidence chain has already done its work: governed world, shared truth path, real platform, earned readiness, governed learning, operability, cost realism, and current operating mission. The closing section should therefore point cleanly to the rest of the outward asset stack — CV, LinkedIn, GitHub / technical docs, and contact — so a recruiter can move naturally from recruiter-facing proof into deeper validation without friction. 
+
+The tone of the close matters. It should feel calm, serious, non-apologetic, and lightly compressed, in the same posture as the rest of the portfolio. It should not turn into a thank-you slide, a final summary, or a plea for consideration. It should simply preserve the same message the deck has already made believable: this is an ML Platform / MLOps engineer using one fraud platform as the evidence surface for broader lifecycle ownership, and the next proof surfaces are now easy to reach.  
+
+That completes the **13-section canonical portfolio source structure**.
