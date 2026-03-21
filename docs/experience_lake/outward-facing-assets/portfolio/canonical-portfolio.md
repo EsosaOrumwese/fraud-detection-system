@@ -1028,6 +1028,9 @@ Use only the few anchors that change belief:
 **Approved visual surface**
 The best visual here is a **service-family cost concentration chart** focused on the **late readiness window**, not month-to-date billing noise. A ranked bar chart is probably strongest: DynamoDB, Lambda + API Gateway, Aurora/RDS, S3, and MSK, with one small framing strip that says **“attributable spend • proof-window concentration • cost-to-outcome governed.”** That fits your doctrine exactly because it shows the right things without turning into a finance report. 
 
+**Visuals**
+Use the Section 10 cost bar chart derived from the accepted proving-window data rather than a live billing screenshot. The source CSV is light enough to stay legible and it shows a clear concentration pattern: **DynamoDB ($354.49)** is the largest family, followed by **Lambda ($290.53)** and **API Gateway ($237.58)**, which together make the ingress and hot-path execution story immediately visible. The next tier — **S3 ($170.41)**, **RDS / Aurora ($142.94)**, and **MSK ($130.19)** — shows that evidence movement, bounded state pressure, and streaming remained real cost-bearing parts of the proof window rather than decorative infrastructure. Read correctly, the chart is not saying “this platform was expensive”; it is saying the spend was concentrated in the exact runtime families that were doing the accepted readiness work, which is the recruiter consequence this section needs.
+
 **Tone guardrails**
 This section should feel controlled, economical, and serious. It should not sound proud of spending money. It should sound proud of **controlling and explaining** spend. The doctrine explicitly warns that “look how much I spent” weakens the claim; the stronger posture is “this was a real AWS operating surface with real proof costs and explicit spend discipline.” 
 
@@ -1060,4 +1063,5 @@ For the portfolio, the strongest lens is the decisive late readiness window. In 
 
 The recruiter consequence this section must make clear is simple: **this platform was not only operable; it was economically real and economically governed.** 
 
-Next should be **Section 11 — Current Operating Mission**.
+---
+
