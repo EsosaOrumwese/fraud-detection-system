@@ -228,6 +228,11 @@ This version expresses the right recruiter-facing idea:
 Layer 1 certifies the merchant operating world, Layer 2 turns that into deterministic demand and realised arrivals, and Layer 3 turns the arrivals plus upstream world into entities, behaviour, labels, and cases. The platform then consumes that through a governed black-box contract rather than through engine internals.   
 
 ```mermaid
+---
+config:
+  theme: default
+  layout: dagre
+---
 flowchart LR
   subgraph C["Black-box contract used by the platform"]
     direction TB
@@ -276,6 +281,11 @@ flowchart LR
 This is the better technical backup because it preserves the named authorities across `1A–6B` without dropping into state-level internals. It reflects the same layered story: Layer 1 builds the merchant operating world, Layer 2 builds the traffic world, and Layer 3 builds the entity/behaviour/supervision world.  
 
 ```mermaid
+---
+config:
+  theme: default
+  layout: dagre
+---
 flowchart LR
   subgraph L1["Layer 1 — Merchant operating world"]
     direction LR
@@ -429,6 +439,11 @@ It shows one **governed fraud world** feeding **runtime replay, stress/readiness
 Mermaid version:
 
 ```mermaid
+---
+config:
+  theme: default
+  layout: dagre
+---
 flowchart LR
   W["Governed fraud world<br/>Replayable three-month world<br/>331.5M accepted current-slice events<br/>473.4M raw horizon<br/>175,830 labels · 23,681 case-history rows<br/>12,350 cases · 6 campaigns"]
 
@@ -448,4 +463,285 @@ flowchart LR
   W --- N
 ```
 
-This one is ready to sit under **Section 5 / Slide 5**.
+---
+
+## Section 6 — Real ML Platform
+
+**Section job**
+Show that the system is a **production-shaped ML platform**, not a loose stack of tools, a pipeline with some extras, or a set of adjacent demos. This section should make the platform itself legible: what lifecycle it covers, what truth boundaries it owns, and why those boundaries make it read like one engineered system rather than disconnected parts.  
+
+**Recruiter doubt this section kills**
+“Did he build a platform, or just wire together some services?”
+This section should close that doubt directly. The canonical storyline is explicit that Stage 3 exists to show a **real platform**, not a disconnected project stack, and the portfolio doctrine says the recruiter should be able to conclude this is not a one-off model demo and not a toy system before a call.  
+
+**Section claim**
+On top of the governed shared world, you built one production-shaped ML platform across runtime, learning, and governance. It spans ingress/admission, event transport, real-time decisioning, action/output handling, case and label operations, governed learning/release, and the governance/meta surfaces that reconstruct what happened and defend the claim later. The system reads as a platform because those parts are coupled by shared contracts, shared truth boundaries, and shared closure rules rather than merely co-existing in one repo.  
+
+**Canonical section prose**
+Once the governed world and the shared operating reality existed, the next job was not “train a model” or “get a service path running.” The next job was to build the platform itself as one **production-shaped ML system**. In concrete terms, that meant a runtime side with ingress/admission, event transport, real-time context and decisioning, action/output handling, case creation, and authoritative labels; a learning side with point-in-time dataset build, managed train/eval, candidate publication, promotion, rollback, and active model/policy truth; and a governance side with exact run reconstruction, evidence readback, operator surfaces, alertability, idle/restore safety, and spend attribution. That is materially different from building a pipeline or training a model in isolation. 
+
+What makes it a platform rather than a disconnected stack is not just that those parts exist. It is that they are tied together by shared contracts, shared truth boundaries, and shared closure rules. The production-readiness posture treats planes separately so they can be judged honestly, but it also requires them to be re-proved in coupling as enlarged working networks before promotion. That is a platform posture: shared controls, shared runtime envelope, shared telemetry, shared recovery logic, and a promoted working-platform baseline rather than a pile of green component receipts.  
+
+The owned boundaries are also what make the platform claim strong. They are not vague handoffs between technologies. They include ingress truth, RTDL decision/action/lineage truth, case truth, label truth, offline dataset truth, model-eval truth, and active model/policy truth, with the portfolio materials explicitly warning that those truths must not silently collapse into one another. That is why this section should feel like system ownership, not service familiarity. 
+
+The managed learning surfaces strengthen that reading rather than weakening it. The learning corridor was deliberately re-anchored to production-shaped managed surfaces — Databricks for dataset build, SageMaker for train/eval, and MLflow for lineage — specifically so the story could not fall back on hidden local authority or notebook-era convenience. In the production-wiring notes, that same corridor is described not as “datasets, jobs, and registry entries,” but as explicit truths for causal basis, dataset identity, candidate bundles, promotion and rollback governance, and deterministic runtime authority. That is exactly the kind of structure that makes the system read as a genuine ML platform architecture.  
+
+**Compressed version**
+I built one production-shaped ML platform, not a loose project stack. It spans governed ingress, streaming runtime, real-time decisioning, case/label operations, managed learning/release, and governance/evidence surfaces, with shared contracts and truth boundaries tying those parts into one system.  
+
+**Why this section matters**
+This is the section where the recruiter should stop thinking “interesting project” and start thinking “serious platform ownership.” The portfolio doctrine makes Stage 3 explicit for exactly that reason: after governed world and shared operating world are established, the next step is to show that the system itself is a production-shaped ML platform and not merely a nice arrangement of tools. 
+
+**Proof anchors allowed in this section**
+The best anchors here are structural, not highly numeric:
+
+* ingress/admission
+* event transport
+* real-time decisioning
+* action/output handling
+* case and label operations
+* governed learning/release
+* governance/meta surfaces
+  and then one or two decisive platform-shape anchors such as:
+* shared contracts / truth boundaries / closure rules
+* managed learning surfaces through Databricks, SageMaker, and MLflow.   
+
+**Approved visual surface**
+The best visual here is a **simplified platform network** or **platform planes map**. It should show only the major surfaces:
+
+* ingress / admission
+* event transport
+* real-time decisioning
+* action / output
+* case and label operations
+* learning / promotion / rollback
+* governance / observability / evidence
+
+It should not be a dense component graph. The doctrine is explicit that the main deck should show enough structure to prove the claim, but not so much detail that the claim disappears behind implementation density. 
+
+**Tone guardrails**
+This section should feel architected, deliberate, and ownership-heavy. It should not sound like “look how many AWS services I used.” The sale is capability class, not tooling quantity, and the doctrine explicitly warns against tool-obsessed portfolio slides. 
+
+**What this section must not drift into**
+Do not let it become:
+
+* a cloud-product inventory
+* a full repo walkthrough
+* a component-by-component call graph
+* a disguised readiness slide
+* a deep MLOps deep-dive that should belong to Section 8
+
+This section’s job is narrower: prove that the system is one **real ML platform** with owned lifecycle boundaries.  
+
+**Slide extraction note**
+This section should map directly to **Slide 6 — Real ML Platform**. The slide should carry:
+
+* one claim: this is one production-shaped ML platform
+* one visual proof surface: simplified platform network / planes map
+* a few proof points: runtime, learning, governance breadth; shared truth boundaries; managed learning surfaces
+* one recruiter consequence: this person built and connected a real end-to-end ML platform, not a disconnected project stack. 
+
+## Draft-ready version for the canonical portfolio doc
+
+### 6. Real ML Platform
+
+On top of the governed shared world, I built the system as one production-shaped ML platform rather than a loose set of services. The runtime side spans ingress/admission, event transport, real-time context and decisioning, action/output handling, case creation, and authoritative labels. The learning side spans point-in-time dataset build, managed train/eval, candidate publication, promotion, rollback, and active runtime model/policy truth. The governance side spans exact run reconstruction, evidence readback, operator surfaces, alertability, idle/restore safety, and spend attribution. That is materially different from a pipeline, a model demo, or a handful of related cloud services. 
+
+What makes it a platform is that these parts are not merely present; they are coupled by shared contracts, shared truth boundaries, and shared closure rules. The system owns ingress truth, RTDL decision/action/lineage truth, case truth, label truth, offline dataset truth, model-eval truth, and active runtime model/policy truth as distinct boundaries, while the learning corridor is deliberately seated on real managed surfaces — Databricks, SageMaker, and MLflow — rather than on hidden local shortcuts. The recruiter consequence this section must make clear is simple: **this was a real ML platform with owned lifecycle boundaries, not a disconnected project stack.**  
+
+### VIsual
+
+Yes — this is the right Section 6 graph shape.
+
+It keeps Section 6 as a **real-platform topology** built around the seven obligation-led groups from `A`, while keeping Section 7 free to become a **readiness / proving** visual instead. That matches both your doctrine’s Stage 3 vs Stage 4 split and the A-notes’ “above paths, below the meta-goal” framing for the current wired platform. 
+
+```mermaid
+---
+config:
+  theme: default
+  layout: dagre
+---
+flowchart LR
+  WORLD["Governed source world<br/>producer-owned · read-only · legitimacy-gated"]
+
+  subgraph G1["1. Run and world-source authority"]
+    direction TB
+    R1["Run legitimization<br/>run pin · config digest · evidence root"]
+    R2["Source realization<br/>oracle basis · stream/truth views · parity"]
+    R3["READY authorization<br/>control-plane commit"]
+    R1 --> R2 --> R3
+  end
+
+  subgraph G2["2. Canonical traffic admission and bus publication"]
+    direction TB
+    I1["Boundary access<br/>API edge · auth contract"]
+    I2["Admission / disposition<br/>idempotency · quarantine · dedupe truth"]
+    I3["Authoritative bus publication<br/>traffic + context topic family"]
+    I4["Ingest commit truth<br/>receipts · offset/proxy proof"]
+    I1 --> I2 --> I3 --> I4
+  end
+
+  subgraph G3["3. Runtime context formation and decisioning"]
+    direction TB
+    D1["Entity + relationship projection"]
+    D2["Joined context formation"]
+    D3["Online feature readiness"]
+    D4["Decision guardrail"]
+    D5["Decision formation"]
+    D6["Action + outcome emission"]
+    D1 --> D2 --> D3 --> D4 --> D5 --> D6
+  end
+
+  subgraph G4["4. Durable audit, archive, and replay truth"]
+    direction TB
+    A1["Audit append"]
+    A2["Audit publication + durable refs"]
+    A3["Immutable archive preservation"]
+    A4["Archive closure + replay refs"]
+    A1 --> A2
+    A1 --> A3 --> A4
+  end
+
+  subgraph G5["5. Case and label operational truth"]
+    direction TB
+    C1["Case-intent escalation"]
+    C2["Case creation + timeline append"]
+    C3["Case-to-label handoff"]
+    C4["Authoritative label truth"]
+    C1 --> C2 --> C3 --> C4
+  end
+
+  subgraph G6["6. Learning, evaluation, and governed activation"]
+    direction TB
+    L1["Learning-input basis<br/>archive + labels + replay basis"]
+    L2["Offline dataset truth"]
+    L3["Train/eval + candidate bundle"]
+    L4["Promotion + rollback governance"]
+    L5["Active-bundle runtime authority"]
+    L1 --> L2 --> L3 --> L4 --> L5
+  end
+
+  subgraph G7["7. Run governance, observability, and evidence closure"]
+    direction TB
+    O1["Run reconstruction + receipt closure"]
+    O2["Governance append + close marker"]
+    O3["Drift-visible observability"]
+    O4["Proof matrix + final verdict"]
+    O5["Idle-safe teardown"]
+    O6["Cost-to-outcome closure"]
+    O1 --> O2 --> O4
+    O3 --> O4
+    O4 --> O5 --> O6
+  end
+
+  WORLD --> R1
+  WORLD --> I1
+
+  R3 --> I1
+  I3 --> D1
+  I3 --> D2
+
+  D5 --> A1
+  D6 --> A1
+  D6 --> C1
+  A2 --> C1
+
+  A4 --> L1
+  C4 --> L1
+  L5 --> D5
+
+  R3 -. run-scoped control/evidence .-> O1
+  I4 -. ingress evidence .-> O1
+  D6 -. runtime evidence .-> O1
+  A4 -. replay/archive evidence .-> O1
+  C4 -. supervision evidence .-> O1
+  L5 -. learning/release evidence .-> O1
+
+  R3 -. correlation/telemetry .-> O3
+  I3 -. transport telemetry .-> O3
+  D5 -. decision telemetry .-> O3
+  A1 -. audit telemetry .-> O3
+  C2 -. case telemetry .-> O3
+  L4 -. promotion telemetry .-> O3
+```
+
+---
+
+## Section 7 — Earned Production Readiness
+
+**Section job**
+Show that the platform did not stop at wiring. This section exists to prove that the already-real platform was taken through **bounded production-shaped pressure** and earned readiness through measured integrated proof and widened stress authorization, rather than being treated as “ready” just because the topology existed. In your doctrine’s ladder, this is the exact jump from **real platform** to **earned bounded readiness**.  
+
+**Recruiter doubt this section kills**
+“Did it merely exist, or was it actually proven under pressure?”
+This section must kill the common downgrade where a recruiter sees architecture and assumes the system was never meaningfully exercised. Your doctrine is explicit that Stage 4 is where the platform must be shown as **pressure-tested into bounded readiness**, not merely described as built. 
+
+**Section claim**
+You took the wired full-lifecycle platform through a two-step readiness story. First, you closed **integrated end-to-end proof** on the full platform. Then you widened the pressure window on that same full-platform truth path and earned **bounded stress authorization**. The result was not “the runtime did not crash.” The result was that the platform remained semantically trustworthy, attributable, and operationally meaningful under the declared bounded envelope.  
+
+**Canonical section prose**
+Production readiness in this portfolio does not mean “services were deployed” or “a few healthy runs happened.” It means the platform was taken through a bounded proving program that asked a harder question: can this already-wired, full-lifecycle system remain credible under pressure while preserving the same full-platform truth path across runtime decisioning, case/label operations, model authority, and operator challengeability? That is why this section belongs after the real-platform section and before the governed MLOps corridor. It marks the point where the platform stops being merely shaped like production and starts being **earned-ready**.  
+
+The readiness story has two decisive stages. The first is integrated end-to-end proof: the full platform closed at about **3049.811 steady / 6188 burst / 3019 recovery EPS**, with zero integrity drift and clean decision-to-case and case-to-label timing. That matters because the platform was not being judged as isolated planes anymore; it was being judged as one coherent system. The second stage is widened bounded stress authorization: the same full-platform truth path was then widened into a stress run that admitted about **2,360,103 events** and held about **3007.053 steady / 6359 burst / 3017.517 recovery EPS**, while integrity deltas stayed at zero and the active runtime bundle remained attributable to governed learning truth.  
+
+What makes this section strong is the reasoning posture behind it. The readiness notes are clear that this was not a generic chronology of breakages or a lucky final green run. The point was to recover how the `A` platform posture was transformed into the production-ready posture by classifying real concerns honestly, keeping the semantic burden alive under enlarged coupling, and refusing to confuse proof-surface defects with real platform red. In other words, readiness was **earned**, not cosmetically assembled. 
+
+This section also has an important stopping boundary. It must end at **earned readiness**, not drift into the later capstone operating claim. The production-proving document is explicit that the live 7–30 day operating program begins only **after** the platform has already been declared production-ready, and that it governs a different question: whether the ready platform can be operated like a production system over wall-clock time. So this section should say “the platform earned bounded readiness and deserved later longer stress/soak,” not “the long-horizon operating proof is already done.”  
+
+**Compressed version**
+I took the platform from fully wired to earned production readiness in two stages: first, integrated full-platform proof; then widened bounded stress authorization on that same truth path. The result was a platform that stayed semantically trustworthy and operationally attributable under bounded pressure, not just a system that happened to stay up.  
+
+**Why this section matters**
+This is one of the strongest sections in the whole portfolio because it converts the platform from “serious-looking architecture” into “serious proved system.” Your doctrine explicitly says the recruiter should be able to conclude, before a call, that the platform has already crossed both the **is it real?** and **is it ready?** thresholds. This is the section that makes the second threshold believable. 
+
+**Proof anchors allowed in this section**
+Use only the few numbers that change belief:
+
+* integrated proof: **3049.811 steady / 6188 burst / 3019 recovery EPS**
+* widened bounded stress: **2,360,103 admitted events**
+* widened run: **3007.053 steady / 6359 burst / 3017.517 recovery EPS**
+* integrity deltas stayed **0**
+* the active runtime bundle remained tied to governed learning truth.  
+
+**Approved visual surface**
+The best visual here is **not** a topology graph. It should have a different grammar from Section 6. For Section 7, the right visual is a **readiness proving map** or a **two-stage scorecard visual**:
+
+* left: integrated full-platform proof
+* right: widened bounded stress authorization
+
+A second strong option is a short ladder:
+**wired platform → integrated closure → widened stress authorization → later longer stress/soak now deserved**.
+That keeps Section 7 clearly about proving and authorization, not platform shape.  
+
+**Tone guardrails**
+This section should feel measured, controlled, and consequential. It should not sound like a defect diary, a phase log, or a noisy metrics wall. The readiness notes themselves say the reader-facing shape should recover the **reasoning behind the transformation**, not flatten everything into “phase 0, phase 1, phase 2” or “defect 1, defect 2, defect 3.” 
+
+**What this section must not drift into**
+Do not let this section become:
+
+* a second architecture slide
+* a raw metrics dump
+* a chronology of breakages
+* the governed MLOps slide
+* the current operating mission slide
+* or the long-horizon L4 operating proof
+
+It must stay on one claim: **the platform earned bounded production readiness under pressure.**  
+
+**Slide extraction note**
+This section should map directly to **Slide 7 — Earned Production Readiness**. The slide should carry:
+
+* one claim: the platform was pressured into readiness
+* one visual proof surface: integrated proof + widened stress authorization
+* a few proof points: envelope numbers, admitted-event scale, integrity continuity
+* one recruiter consequence: this was measured, pressured, and earned — not just wired. 
+
+## Draft-ready version for the canonical portfolio doc
+
+### 7. Earned Production Readiness
+
+I did not stop at wiring the platform. I took the already-real full-lifecycle system through a bounded production-shaped readiness program that asked whether the same full-platform truth path could remain credible under pressure. That readiness story closed in two stages: first, integrated end-to-end proof at about **3049.811 steady / 6188 burst / 3019 recovery EPS** with zero integrity drift and clean decision-to-case and case-to-label timing; then widened bounded stress authorization on that same platform, admitting about **2,360,103 events** at about **3007.053 steady / 6359 burst / 3017.517 recovery EPS** while runtime participation, downstream case/label truth, and active runtime model authority all remained intact.  
+
+That is the important recruiter-facing consequence of this section: the platform was not merely built and then described as ready. It was **pressured into readiness**. And that readiness is the correct stopping point for this section. The later live operating program is a different layer that begins only after production-ready has already been earned. So the truthful claim here is strong and bounded: **the platform crossed the readiness threshold, and later longer stress/soak became deserved rather than guessed.**  
+
+Next is **Section 8 — Governed MLOps Corridor**.
