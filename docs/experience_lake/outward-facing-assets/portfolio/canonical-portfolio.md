@@ -1446,3 +1446,24 @@ The accepted slice carries persistent supervision pressure through the quarter r
 Interpretation:
 
 The fraud world does not collapse into one synthetic attack mode. Six campaigns recur across the accepted slice, but their weekly share changes over time and their total footprint is uneven. `Bonus Abuse Flow` and `Card Testing Burst` dominate the quarter, while `Promo Fraud Events`, `Refund Abuse`, `ATO Account Sweep`, and `Merchant Collusion` remain visibly present as smaller but persistent modes. That matters because it shows the platform was not asked to operate against one homogeneous fraud signature; it had to answer to a structured adversarial world with multiple concurrently active campaign types.
+
+---
+
+## Appendix C — Current Platform Tech Stack
+
+This table exists to decode the current platform stack in recruiter-readable terms. It is not meant to replace the architecture sections or the platform graphs. Its job is simpler: show what technologies currently back the platform, what role they play, and how they fit into one production-shaped ML Platform / MLOps system.
+
+| Platform surface | Technologies / services | Current role in the platform |
+| --- | --- | --- |
+| Control orchestration | GitHub Actions, AWS Step Functions | Dispatches bounded runs, pins run identity, and drives run-start / READY control flow. |
+| Edge ingress and admission | API Gateway, AWS Lambda, DynamoDB, SQS | Accepts external traffic, enforces admission and idempotency, and fail-closes bad or ambiguous ingress. |
+| Replay / bounded production traffic | Amazon ECS | Runs the replay producer used for bounded production-shaped traffic and stress windows. |
+| Event transport and contracts | Amazon MSK Serverless, AWS Glue Schema Registry | Carries the platform bus and preserves schema-governed transport across runtime paths. |
+| Real-time runtime and decisioning | Amazon EKS, Aurora PostgreSQL | Hosts RTDL services for context formation, feature readiness, guardrails, decisioning, and action/output flow with shared state in Aurora. |
+| Case and label operations | Amazon EKS, Aurora PostgreSQL | Runs case-trigger, case-management, and label-store services on the same governed platform substrate. |
+| Object, evidence, and runtime handles | Amazon S3, AWS Systems Manager Parameter Store | Holds oracle/object-store inputs, evidence outputs, and active runtime handles and configuration references. |
+| Offline feature and dataset basis | Databricks, Unity Catalog external location | Builds and validates the bounded learning-input and offline dataset basis from the governed platform world. |
+| Training and evaluation | Amazon SageMaker | Executes managed training and evaluation on the admitted dataset basis. |
+| Model registry, promotion, and rollback | MLflow | Carries candidate lineage, promotion, rollback, and runtime-active bundle authority. |
+| Observability, alerts, and cost control | Amazon CloudWatch, AWS Budgets | Provides logs, metrics, alarms, dashboards, and budget guardrails for day-2 operation and cost accountability. |
+| Identity and platform access | IAM, GitHub OIDC | Secures CI/CD, runtime execution roles, cross-account data access, and managed service permissions. |
