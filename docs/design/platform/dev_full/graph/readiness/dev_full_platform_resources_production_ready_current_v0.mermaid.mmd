@@ -14,7 +14,7 @@ flowchart LR
   end
 
   subgraph NOTE["Scope"]
-    N1["Concrete resource view for the promoted full dev_full platform<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted bounded stress authority: phase9_full_platform_stress_20260313T203100Z<br>Fresh widened backbone: phase6_learning_coupled_20260313T203100Z<br>Live runtime may be intentionally idled for review; that standby posture does not change the accepted readiness claim"]
+    N1["Concrete resource view for the promoted full dev_full platform<br>Envelope: 3000 steady eps / 6000 burst eps<br>Current accepted bounded stress authority: phase9_full_platform_stress_20260313T203100Z<br>Fresh widened backbone: phase6_learning_coupled_20260313T203100Z"]
   end
 
   subgraph CONTROL["Control Resources"]
@@ -52,7 +52,7 @@ flowchart LR
 
   subgraph RTDL["RTDL Runtime Resources"]
     EKS["EKS cluster<br>fraud-platform-dev-full"]
-    NODEGROUP["Managed nodegroup<br>fraud-platform-dev-full-m6f-workers<br>m6i.xlarge<br>review standby: min 0 / desired 0 / max 8"]
+    NODEGROUP["Managed nodegroup<br>fraud-platform-dev-full-m6f-workers<br>m6i.xlarge<br>min 2 / desired 4 / max 8"]
     NSRTDL["Namespace<br>fraud-platform-rtdl"]
     CSFB["Deployment<br>fp-pr3-csfb"]
     IEG["Deployment<br>fp-pr3-ieg"]
@@ -73,7 +73,7 @@ flowchart LR
   end
 
   subgraph DATASTATE["Runtime data-state resources"]
-    AURORA["Aurora PostgreSQL cluster<br>fraud-platform-dev-full-aurora<br>serverless v2 0.5 to 4 ACU<br>review standby: stopping"]
+    AURORA["Aurora PostgreSQL cluster<br>fraud-platform-dev-full-aurora<br>serverless v2 0.5 to 4 ACU"]
     AURORAWRITER["Writer instance<br>fraud-platform-dev-full-aurora-writer-1<br>db.serverless"]
   end
 
@@ -117,17 +117,17 @@ flowchart LR
     RUNBOOK["Runbook doc<br>docs/runbooks/dev_full_phase7_ops_gov_runbook.md"]
   end
 
-  N1 --> CONTROL
-  N1 --> EDGE
-  N1 --> WSP
-  N1 --> TRANSPORT
-  N1 --> RTDL
-  N1 --> CASELABEL
-  N1 --> DATASTATE
-  N1 --> LEARNING
-  N1 --> STATE
-  N1 --> IDENTITY
-  N1 --> OBS
+  N1 -->|includes control seats| CONTROL
+  N1 -->|includes ingress edge seats| EDGE
+  N1 -->|includes replay seats| WSP
+  N1 -->|includes transport seats| TRANSPORT
+  N1 -->|includes RTDL seats| RTDL
+  N1 -->|includes case/label seats| CASELABEL
+  N1 -->|includes runtime data-state seats| DATASTATE
+  N1 -->|includes learning seats| LEARNING
+  N1 -->|includes evidence / handle seats| STATE
+  N1 -->|depends on identity seats| IDENTITY
+  N1 -->|includes ops/governance seats| OBS
 
   GHA -->|authenticates through| OIDC
   GHA -->|dispatches| SFN
@@ -200,39 +200,41 @@ flowchart LR
   IEG --> OFP
   OFP --> DF
   DF --> DL
-  DL --> DLA
+  DL --> AL
+  AL --> DLA
   DL --> ARCH
-  DL --> CASETRIG
+  AL --> CASETRIG
   CASETRIG --> CASEMGMT
   CASEMGMT --> LABELSTORE
-  AURORA --> AURORAWRITER
+  AURORA -->|exposes writer through| AURORAWRITER
   CSFB -->|reads/writes runtime state in| AURORA
   IEG -->|reads/writes runtime state in| AURORA
   OFP -->|reads/writes runtime state in| AURORA
   DF -->|reads/writes runtime state in| AURORA
   DL -->|reads/writes runtime state in| AURORA
+  AL -->|reads/writes action state in| AURORA
   DLA -->|reads/writes runtime state in| AURORA
   CASETRIG -->|reads/writes case-trigger state in| AURORA
   CASEMGMT -->|reads/writes case state in| AURORA
   LABELSTORE -->|reads/writes label state in| AURORA
 
-  DBWS --> DBBUILD
-  DBWS --> DBQUALITY
-  DBWS --> MLFLOW
-  ROLEDBX --> DBCRED
-  DBCRED --> DBBUILD
-  DBCRED --> DBQUALITY
+  DBWS -->|hosts dataset-basis job| DBBUILD
+  DBWS -->|hosts quality-gate job| DBQUALITY
+  DBWS -->|hosts lineage / promotion backend| MLFLOW
+  ROLEDBX -->|authorizes external location through| DBCRED
+  DBCRED -->|grants object-store read path to| DBBUILD
+  DBCRED -->|grants object-store read path to| DBQUALITY
   OBJ -->|authoritative bounded basis| DBBUILD
   OBJ -->|quality readback| DBQUALITY
   DLA -->|runtime decision evidence| DBBUILD
   CASEMGMT -->|case-linked truth| DBBUILD
   LABELSTORE -->|authoritative supervision| DBBUILD
-  DBBUILD --> SMTRAIN
-  ROLESM --> SMTRAIN
-  SMTRAIN --> SMBATCH
-  SMTRAIN --> SMPKG
-  SMTRAIN --> MLFLOW
-  SMBATCH --> MLFLOW
+  DBBUILD -->|materializes admitted basis for| SMTRAIN
+  ROLESM -->|executes managed train/eval for| SMTRAIN
+  SMTRAIN -->|produces inference artifact for| SMBATCH
+  SMTRAIN -->|registers candidate into| SMPKG
+  SMTRAIN -->|logs train/eval lineage into| MLFLOW
+  SMBATCH -->|logs batch evaluation lineage into| MLFLOW
   MLFLOW --> REGISTRY
   REGISTRY -->|active bundle resolved by| DF
 
@@ -247,7 +249,7 @@ flowchart LR
   CWLAMBDA -->|feeds| CW
   CWWSP -->|feeds| CW
   EKS -->|feeds runtime telemetry to| CW
-  SFN -->|feeds metrics to| CW
+  SFN -->|feeds control metrics to| CW
   CW -->|materializes| ALARMS
   ALARMS -->|drive operator action through| RUNBOOK
   EVID -->|feeds operational evidence to| DASHOPS
