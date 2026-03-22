@@ -511,6 +511,21 @@ def build_panel_5_supervision_operations_timeline() -> None:
         bbox=dict(boxstyle="round,pad=0.35", facecolor="#FCFAF6", edgecolor=GRID),
     )
 
+    last_x = df["week_start"].iloc[-1]
+    last_bar_h = df["fraud_truth_events_m"].iloc[-1]
+    ax.annotate(
+        "Partial final week\nSlice closes on 05 Mar",
+        xy=(last_x, last_bar_h),
+        xytext=(last_x - pd.Timedelta(days=16), last_bar_h + 0.16),
+        textcoords="data",
+        ha="left",
+        va="bottom",
+        fontsize=9.4,
+        color=TEXT,
+        arrowprops=dict(arrowstyle="->", color=EDGE, lw=1.0),
+        bbox=dict(boxstyle="round,pad=0.28", facecolor="#FCFAF6", edgecolor=GRID),
+    )
+
     plt.tight_layout(rect=[0, 0.00, 1, 0.84])
     save(fig, "appendix_b_panel_shared_world_supervision_operations_timeline")
 
