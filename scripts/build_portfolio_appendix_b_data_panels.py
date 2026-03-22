@@ -119,7 +119,7 @@ def build_panel_1_daily_rhythm() -> None:
     fig.text(
         0.06,
         0.92,
-        "Three months of arrivals show stable weekly seasonality rather than flat synthetic traffic.",
+        "Daily arrivals stay in a stable weekly band across the quarter, with weekdays consistently above weekends.",
         fontsize=10.8,
         color=MUTED,
     )
@@ -175,7 +175,7 @@ def build_panel_2_concentration() -> None:
     fig.text(
         0.06,
         0.92,
-        "Traffic is unevenly distributed across the merchant base, which is what a real operating world should look like.",
+        "A small head of merchants carries a disproportionate share of traffic while the long tail remains material.",
         fontsize=10.8,
         color=MUTED,
     )
@@ -286,7 +286,7 @@ def build_panel_3_supervision() -> None:
     fig.text(
         0.06,
         0.92,
-        "Truth in this world is sparse and delayed: labels are highly imbalanced, and case closure can stretch across weeks.",
+        "Flow-truth labels are heavily imbalanced, and case closure stretches from weeks into months at the upper end.",
         fontsize=10.8,
         color=MUTED,
     )
@@ -338,7 +338,7 @@ def build_panel_4_event_volume_timeline() -> None:
     fig.text(
         0.06,
         0.92,
-        "Daily event volume places the accepted current slice inside the larger raw horizon instead of treating both counts as disconnected bullets.",
+        "The bounded current slice ends on 05 Mar, while the larger raw horizon continues beyond it into 01 Apr.",
         fontsize=10.8,
         color=MUTED,
     )
@@ -472,7 +472,7 @@ def build_panel_5_supervision_operations_timeline() -> None:
     fig.text(
         0.06,
         0.92,
-        "The accepted slice carries a persistent supervision surface through the quarter while the review and case surfaces stay explicitly bounded.",
+        "Supervision remains active across the quarter, and the accepted slice closes into bounded review and case surfaces.",
         fontsize=10.8,
         color=MUTED,
     )
@@ -646,7 +646,7 @@ def build_panel_6_campaign_occupancy_distribution() -> None:
     fig.text(
         0.06,
         0.92,
-        "The accepted slice contains six recurring campaigns whose weekly presence and relative share change over time rather than collapsing into one synthetic fraud mode.",
+        "Six campaigns remain active across the slice, with shifting weekly share and uneven total footprint.",
         fontsize=10.8,
         color=MUTED,
     )
