@@ -1470,6 +1470,95 @@ This table exists to decode the current platform stack in recruiter-readable ter
 
 ---
 
+## Appendix D — What Production Readiness Meant
+
+This appendix exists to make the readiness standard explicit. Production readiness in this platform did **not** mean “the services were deployed” or “a few green runs happened.” A plane or connection was only promoted when its full metric family was green, its meaning stayed intact, and its evidence was attributable enough to trust.
+
+### Appendix D.1 — Promotion rule
+
+**A plane or connection was only promoted when its full metric family was green, its meaning stayed intact, and its evidence was attributable enough to trust.**
+
+In practice, that meant all of the following had to be true at once:
+
+- quantitative runtime metrics were green
+- semantic and integrity metrics were green
+- operator visibility existed live during the run
+- evidence was explainable, attributable, and auditable
+- the plane could be coupled into the working platform without creating ambiguity
+
+If any one of those failed, the plane was not promoted.
+
+### Appendix D.2 — Readiness families
+
+| Readiness family | What it meant in this platform | Why it mattered for promotion |
+| --- | --- | --- |
+| Performance | Throughput, latency, and bounded recovery had to stay inside the declared envelope. | A production system cannot be ready if it misses its own operating budget. |
+| Correctness / semantic integrity | Decisions, labels, archives, and learning outputs had to remain truthful rather than merely present. | A fast platform that silently corrupts meaning is not production-ready. |
+| Recovery / resilience | Restart-to-green, bounded recovery, and no hidden collapse under coupled pressure. | A platform that only works in its best moment is not ready. |
+| Operability / auditability | Live telemetry, alerts, runbooks, evidence readback, exact reconstruction, and operator challengeability. | A builder-only system is not a production system. |
+| Governed learning / runtime continuity | Learning had to remain attributable to governed data and stay continuous with runtime bundle authority. | The MLOps corridor had to remain trustworthy, recoverable, and coupled to the same truth path as runtime. |
+
+Interpretation:
+
+`EPS` mattered, but it was only one gate family inside a much larger readiness judgment. The platform was only ready when it was fast enough, correct enough, recoverable enough, observable enough, auditable enough, and semantically trustworthy enough to be promoted into the working platform without hidden ambiguity.
+
+---
+
+## Appendix E — How The Readiness Standard Was Applied By Plane
+
+This appendix shows how the readiness contract above was actually applied. The standard stayed the same, but each plane had its own dominant failure modes and its own metric family.
+
+### Appendix E.1 — Plane-by-plane readiness view
+
+| Phase / boundary | What we checked | Why green meant promotion |
+| --- | --- | --- |
+| `Phase 0: Control + Ingress` | Steady throughput, burst throughput, `p95/p99` latency, valid-traffic `4xx = 0`, valid-traffic `5xx = 0`, bounded recovery time, quarantine / publish ambiguity / DLQ behaviour, and live visibility on the real ingress boundary. | The ingress path was promoted only once it was fast, fail-closed, observable, and measured on the truthful external boundary rather than on launcher artifacts. |
+| `Phase 1: RTDL` | False-ready rate, false missing-feature rate, false fail-closed rate, decision latency `p95/p99`, duplicate side-effect rate, `OFP` restart-to-green, append/archive integrity, and whether RTDL decisions were materially participating and still explainable. | RTDL was promoted because the decision path stayed semantically trustworthy under load, not because it was merely fast. |
+| `Phase 3 / 4: Case + Label` | Case-trigger participation, cases created, labels accepted, pending buildup `= 0`, rejected labels `= 0`, anomalies `= 0`, quarantine drift `= 0`, `decision_to_case` timing, `case_to_label` timing, and authoritative label truth with clean case-timeline behaviour. | Case + Label was promoted because runtime truth was turning into operational truth cleanly and authoritatively. |
+| `Phase 5 / 6: Learning + Evolution / MLOps` | Dataset admission from authorized surfaces, point-in-time correctness, label maturity / `as_of` correctness, future leakage `= 0`, governed dataset basis, managed train/eval on that basis, lineage completeness, publication and rollback validation, active runtime bundle continuity, and runtime continuity with meaningful learning truth. | The learning corridor was promoted because it was governed, attributable, recoverable, and continuous with runtime authority. |
+| `Phase 7: Ops / Governance / Meta` | Alert/runbook drills, evidence readback, operator-facing dashboards, exact run reconstruction, ML day-2 operator surface, idle-to-zero / restore, cost attribution, standby discipline, and whether the system was challengeable by an operator rather than only by the builder. | This plane was the operability and auditability gate. It proved the platform could be challenged, understood, and recovered like a production system. |
+| `Phase 8 / 9: Integrated + Stress Authorization` | Full-platform throughput / latency / recovery, integrity deltas at `0`, cross-plane participation, RTDL decision truth still meaningful, Case + Label still authoritative, learning-bundle continuity still meaningful, operator/governance challenge still passing, and no plane only “looking healthy” because another plane silently stopped doing real work. | The full platform was only authorized once all promoted planes stayed green together under wider pressure without losing semantic meaning. |
+
+Interpretation:
+
+The key point is that readiness never meant “the metric sheet was green.” It meant the **meaning** of the plane stayed intact while its full metric family, visibility, and evidence burden also stayed green.
+
+---
+
+## Appendix F — Accepted Integrated Closure And Widened Stress Authorization
+
+This appendix is the outcome layer. It does **not** redefine production readiness. It shows what the accepted whole-platform authorities achieved after the readiness standard in Appendices D and E had already been earned.
+
+### Appendix F.1 — Accepted authority comparison
+
+| Measure | Integrated closure | Widened stress authorization |
+| --- | --- | --- |
+| Accepted authority | `Phase 8` | `Phase 9` |
+| Scope | Fresh integrated full-platform closure | Bounded widened-stress authorization on the accepted backbone |
+| Steady EPS | `3049.811` | `3007.053` |
+| Burst EPS | `6188.000` | `6359.000` |
+| Recovery EPS | `3019.217` | `3017.517` |
+| Admitted events | n/a | `2,360,103` |
+| Steady latency `p95` | bounded green on the accepted integrated story | `47.9935 ms` |
+| Steady latency `p99` | bounded green on the accepted integrated story | `59.9765 ms` |
+| `decision_to_case p95` | `0.0 s` | `0.0 s` on the accepted widened story |
+| `case_to_label p95` | `0.1982594 s` | `0.1976141 s` |
+| Critical integrity deltas | `0` | `0` |
+| Operator / governance continuity | `10 / 10` evidence, `18 / 18` readable refs, node count after idle `= 0` | remained live and attributable on the widened authority |
+| Runtime learning continuity | active runtime bundle still matched promoted truth | active bundle still attributable to governed learning truth |
+
+### Appendix F.2 — What these runs actually proved
+
+- **Integrated closure** proved the promoted planes could hold one coherent bounded story once runtime, learning, case/label, and operator/governance were coupled together on the same execution.
+- **Widened stress authorization** then re-asked that whole-platform question on a larger admitted-event envelope without losing latency discipline, integrity, case/label meaning, or governed active-bundle attribution.
+- That is why these runs belong in the appendix as **outcome evidence**. They are strong because the boundary-level readiness work had already been done first.
+
+Interpretation:
+
+The right reading is not “the platform was production-ready because the EPS numbers looked good.” The right reading is: the platform had already earned production readiness by boundary, and these accepted integrated and widened authorities then demonstrated that the whole promoted platform still held together on those terms.
+
+---
+
 ## Appendix G — Cost Breakdown Across the Accepted Proving Window
 
 This appendix complements Section 10. The ranked service-family bar in the main section answers which cost families dominated the accepted window. This appendix answers the second question: how daily spend moved inside that same bounded window, and which families were active on each day.
