@@ -7727,3 +7727,557 @@ I also wrote a durable standby snapshot into:
 so the repo keeps one small machine-readable record of the review standby boundary instead of leaving that evidence only in transient CLI output.
 
 The reason I wanted this written explicitly is that teardown periods can otherwise create false historical confusion later: someone reads the graphs, sees a green full-platform claim, then looks at the cloud console and sees zero pods and a stopping database. The graphs now make that relationship explicit instead of forcing an inference.
+
+## 2026-03-18 12:07:50 +00:00 - I re-checked the production-ready network/resource graphs against the live standby cloud posture and found one stale resource-state detail
+
+The user asked me to confirm once again that the readiness network and resource graphs still capture everything. The only honest way to answer that is not to re-read the Mermaid files in isolation but to compare them against:
+
+- the accepted final readiness authority
+- the current live cloud posture
+
+I re-checked the final accepted basis in the proving docs and then queried the live runtime surfaces that matter for the readiness graphs:
+
+- EKS nodegroup `fraud-platform-dev-full-m6f-workers`
+- current Kubernetes deployment replica posture
+- Aurora cluster `fraud-platform-dev-full-aurora`
+- ingress Lambda reserved concurrency
+- MSK cluster state
+
+That comparison came back mostly clean:
+
+- the network graph still correctly captures the full promoted platform after final `Phase 9` bounded stress closure
+- the resource graph still correctly captures the promoted concrete resource set
+- the live review-standby posture is still real:
+  - nodegroup `min=0 / desired=0 / max=8`
+  - RTDL and Case + Label deployments `0/0`
+  - `coredns` `0/0`
+  - Lambda reserved concurrency `600`
+  - MSK serverless still `ACTIVE`
+
+The one stale detail was Aurora state wording:
+
+- the graph still said `review standby: stopping`
+- the live cluster is now actually `stopped`
+
+So I corrected the resource graph source and regenerated its PNG. That means the answer to the user is:
+
+- yes, the two readiness graphs still capture the accepted platform correctly
+- no, they were not perfectly current until this refresh because Aurora standby state had advanced from `stopping` to `stopped`
+
+That is exactly the kind of small truth drift the notebook should record, because otherwise the graphs slowly become "mostly right" instead of exact.
+
+## 2026-03-18 12:09:01 +00:00 - The user wants the readiness graphs to show the platform in its accepted warm production-ready shape, not the temporary stopped review posture, so I removed the standby annotations
+
+The user clarified the intended meaning of these two long-lived graphs:
+
+- they should show the production-ready platform as if the accepted ready surfaces are warm and present
+- they should not narrate the temporary stopped / idled review posture inside the readiness view itself
+
+That is a fair correction for these particular graphs because their role is not to be a live operations dashboard. Their role is to show:
+
+- the accepted production-ready working platform
+- the concrete resources backing that accepted claim
+
+So I removed the review-standby wording from:
+
+- `dev_full_platform_network_production_ready_current_v0.mermaid.mmd`
+- `dev_full_platform_resources_production_ready_current_v0.mermaid.mmd`
+
+and restored the resource graph to the accepted warm posture:
+
+- nodegroup shown at the proven ready shape `min 2 / desired 4 / max 8`
+- Aurora shown as the accepted resource with its provisioned ACU range, without the temporary stopped-state note
+
+This leaves an important distinction in the repo:
+
+- readiness graphs show accepted warm production-ready posture
+- the notebook / logbook still carry the fact that the runtime was intentionally idled afterward for review and cost control
+
+That separation is cleaner and better matches the user-facing purpose of the graphs.
+
+## 2026-03-18 12:10:31 +00:00 - I checked the repo authority after the user was told there is \"no action layer\" and found that the real issue was graph inconsistency, not absence of the component
+
+The proving-plane authority is clear: `AL` is part of the accepted RTDL boundary in `dev_full`.
+
+That is explicit in:
+
+- `platform.production_readiness.md`
+- `platform.production_readiness.plan.md`
+- `platform.production_readiness.phase1.md`
+
+and it is also reflected concretely in the implementation/runtime surfaces:
+
+- code under `src/fraud_detection/action_layer/`
+- runtime deployment `fp-pr3-al`
+
+So the truthful conclusion is not "there is no action layer." The truthful conclusion is:
+
+- there is no separate top-level **plane** called Action Layer
+- but there **is** an implemented and accepted RTDL **component** called `Action Layer (AL)`
+
+The confusion was helped by the readiness graphs themselves:
+
+- the resource graph already showed `fp-pr3-al`
+- the network graph had omitted `AL` from the decision-lane path
+
+That left the user exposed to exactly the wrong takeaway: the component looked half-real.
+
+I corrected both graphs so they now tell one coherent story:
+
+- `DF -> DL -> AL -> DLA`
+- `AL -> CaseTrigger`
+
+and the resource graph now also makes `AL` a first-class part of the RTDL runtime path rather than a named deployment with weak path context.
+
+So the right answer to the user is:
+
+- yes, `AL` exists in the repo and in the accepted `dev_full` RTDL runtime
+- no, it should not be mistaken for a separate production-readiness plane
+- the graphs now reflect that distinction more clearly
+
+## 2026-03-18 12:18:31 +00:00 - The user wants a second, uncompressed graph family for the promoted platform, so I am adding expanded network and resource companions instead of overloading the primary readiness graphs
+
+The existing readiness network/resource pair is still doing the right job:
+
+- show the currently promoted production-ready platform
+- stay readable at plane / component level
+- avoid turning into a proof-ledger or object map
+
+But the user is right that there is also a real need for a second view that preserves more of the earned internal distinctions once the platform is green. The right correction is not to replace the current pair. That would make the primary readiness view less usable. The better move is to add an explicit second graph family:
+
+- `dev_full_platform_network_production_ready_expanded_current_v0.*`
+- `dev_full_platform_resources_production_ready_expanded_current_v0.*`
+
+The design rule for these expanded companions is:
+
+- same promoted platform scope
+- more explicit internal handoffs and responsibility boundaries
+- still truthful to implemented runtime seats
+- still not a one-to-one rendering of every `A` / `Bi` object
+
+So for the network view I am expanding:
+
+- ingress from replay basis -> APIGW throttle/access-log boundary -> Lambda invoke -> dedupe -> fail-closed -> publish
+- RTDL from intake admissibility through projections, context binding, graph resolution, feature admissibility, active-bundle resolution, decision guardrail, decision formation, publication, action intent/outcome, append, and archive
+- case/label from trigger selection through case open/reuse, timeline commit, label admissibility, and authoritative truth commit
+- learning from dataset admission through OFS build, OFS quality/leakage gate, train/eval, lineage, promotion, rollback validation, and active-bundle publication
+- ops/governance from live watch to alert chain, drift challenge, cost-control boundary, and runbook mitigation
+
+For the resource view I am keeping concrete seats primary, but mapping them more tightly to owned meaning:
+
+- each main RTDL deployment carries its earned boundary ownership
+- case/label deployments carry trigger / timeline / label-truth ownership explicitly
+- Databricks, SageMaker, MLflow, and registry surfaces are separated by dataset-basis, quality, train/eval, and promotion ownership
+- evidence and operator resources are tied more clearly to the boundaries they support
+
+That is the right compromise:
+
+- the primary readiness graphs remain user-readable promoted-platform views
+- the expanded companions expose much more of the internal earned structure without pretending to be the proof notebook itself
+
+## 2026-03-18 12:27:49 +00:00 - The user pointed out that both the compressed and expanded graph pairs were still too implicit in their edge semantics, so I brought their flow-label posture closer to the production-wiring reference style
+
+The user is right. The graphs had nodes with meaningful names, but too many edges still depended on the reader to infer what was happening from adjacency alone. That is weaker than the style used in the production-wiring reference where the edge itself states the action:
+
+- dispatches
+- authenticates through
+- stores receipts in
+- commits
+
+That style matters because the platform is already complex. When the edge is unlabeled, the graph quietly shifts cognitive load back to the reader and risks making the path look like a generic topology rather than a truthful flow.
+
+So I refreshed all four promoted-platform graph sources:
+
+- compressed network
+- compressed resources
+- expanded network
+- expanded resources
+
+with a stronger edge-label posture. I did not try to label decorative containment or class structure. I focused on meaningful flow/action edges:
+
+- promoted scope edges out of the note blocks
+- ingress replay / invoke / dedupe / fail-closed / publish edges
+- RTDL projection / context / feature / guardrail / decision / action / archive edges
+- case open / timeline / label truth edges
+- learning dataset admission / basis build / quality gate / train / lineage / promotion edges
+- ops/governance alert / drift / cost / runbook edges
+- concrete resource ownership and data-movement edges in the resource views
+
+This leaves the graphs in a better place:
+
+- the compressed pair remains readable
+- the expanded pair remains more traceable
+- both now say more explicitly what each handoff actually does
+
+That is closer to the right standard for these user-facing readiness artifacts.
+
+## 2026-03-18 13:20:49 +00:00 - The user wants a real way to stop standing MSK cost while the platform is under review, so I added an explicit streaming-substrate teardown and restore control instead of leaving it as an operator memory problem
+
+The cause of the cost leak is straightforward: the runtime had been put into standby, but the streaming substrate was still materially alive.
+
+That means:
+
+- EKS nodegroup can be `0`
+- Aurora can be stopped
+- replay tasks can be absent
+- and the bill can still keep moving because `infra/terraform/dev_full/streaming` seats an always-on MSK Serverless cluster
+
+The important part is not just recognizing that. It is giving the operator a safe path that avoids turning `terraform destroy` into folklore.
+
+So I added:
+
+- `scripts/dev_substrate/dev_full_streaming_standby.py`
+- `docs/runbooks/dev_full_streaming_standby.md`
+
+The script has two explicit actions:
+
+- `teardown`
+- `restore`
+
+and its default teardown posture is intentionally conservative:
+
+- refuse to destroy streaming unless the runtime is already in standby
+- require EKS nodegroup `min=0` and `desired=0`
+- require Aurora to be `stopped` or `stopping`
+
+That is the right safety line because tearing down Kafka while the runtime is still active is not cost control, it is live substrate breakage.
+
+The script snapshots the streaming stack before destroy:
+
+- Terraform outputs
+- current cluster presence
+- current bootstrap-SSM parameter presence
+
+then destroys only the `dev_full/streaming` Terraform stack and verifies afterward that:
+
+- the MSK cluster is gone
+- the bootstrap parameter is gone
+- the streaming Terraform state is empty
+
+The matching `restore` action reapplies the same stack and checks that the cluster and bootstrap parameter are back.
+
+This is a much better operator posture than the previous one:
+
+- before: runtime standby could still leave standing Kafka cost and the only real answer was "remember that MSK is separate"
+- now: the repo has a durable, explicit control for stopping and later restoring that standing-cost substrate
+
+That is the right kind of cost discipline because it is:
+
+- explicit
+- reversible
+- artifacted
+- narrow
+- and does not weaken the accepted production-ready topology; it only governs how the operator idles it between review windows
+
+## 2026-03-18 14:24:00 +00:00 - I carried the actual teardown through the real cost-bearing stacks instead of leaving the repo at "runtime standby" folklore
+
+The runtime destroy had one real operational snag: Terraform could not remove the Aurora cluster while it was still in the AWS `stopped` state. That is not a platform bug, just an ordering fact the destroy path has to respect. I started the cluster, waited until it returned to `available`, then reran the bounded runtime destroy. After that second pass the expensive runtime seats were actually gone:
+
+- ingress Lambda missing
+- EKS cluster missing
+- Aurora cluster missing
+
+That mattered because the previous "standby" posture was still paying for more than it looked like if the runtime stack itself still existed.
+
+## 2026-03-18 14:24:00 +00:00 - The first real test of the new streaming standby tool exposed a force-bypass defect, so I fixed the tool before using it to tear down Kafka
+
+When I tried to destroy streaming after runtime was already gone, `dev_full_streaming_standby.py teardown --force` still failed. The reason was straightforward:
+
+- the script always ran the EKS/Aurora standby probe first
+- `--force` only bypassed the blocker verdict afterward
+- with runtime already destroyed, the EKS probe itself raised `ResourceNotFoundException`
+
+That meant the "force" flag was not actually a force path.
+
+I fixed two things in the script:
+
+- `terraform init` now uses the working `-backend-config backend.hcl` argument form for this workspace
+- `--force` now truly bypasses the runtime standby probe and records that the precheck was intentionally skipped
+
+With that corrected, the streaming teardown executed cleanly and removed the standing MSK floor:
+
+- MSK cluster absent
+- bootstrap-brokers SSM parameter absent
+- streaming Terraform state empty
+
+The durable destroy receipt is under `runs/dev_substrate/dev_full/proving_plane/run_control/streaming_teardown_20260318T132500Z/`.
+
+## 2026-03-18 14:24:00 +00:00 - I continued the teardown past compute and streaming, because the next meaningful residual cost was stale observability and small management surfaces
+
+After runtime and streaming were gone, the residuals that still mattered were:
+
+- `ops` Terraform state: dashboards, budget, bootstrap log group, lightweight management roles and SSM parameters
+- `data_ml` Terraform state: SageMaker / Databricks IAM roles and SSM handles
+- stale CloudWatch log groups carrying stored bytes from the proving run
+
+I destroyed `infra/terraform/dev_full/ops` and `infra/terraform/dev_full/data_ml`, then removed the stale `fraud-platform-dev-full` CloudWatch log groups, including the heavy ingress Lambda log group and the WSP ECS log group. That was the right cost move because log-storage drift was now more material than any remaining control-plane object.
+
+The post-teardown residual scan is now the truthful one:
+
+- no Lambda functions
+- no EKS cluster
+- no MSK cluster
+- no Aurora cluster
+- no active `dev_full` SSM handles from `ops` or `data_ml`
+- no remaining `fraud-platform-dev-full` CloudWatch `/aws/*` log groups
+- ECS cluster object removed (`INACTIVE`)
+
+What intentionally remains is the low-cost substrate needed to keep the environment reconstructable without deleting the buckets the user asked to retain:
+
+- S3 buckets and their contents
+- core VPC / subnet / route / security-group topology
+- core IAM roles
+- KMS key / alias used by the retained buckets
+- Terraform backend bucket + lock table
+
+That is a much cleaner review posture than the earlier one because the standing cost is now dominated by retained storage rather than forgotten active runtime.
+
+## 2026-03-18 14:40:00 +00:00 - The user only wants relevant evidence retained, so I pruned the remote evidence bucket aggressively and kept the certification spine locally
+
+The important discovery here was that the accepted late-phase authority receipts were never mirrored into `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/...` in the first place. The authoritative accepted evidence for the final production-ready claim is already local under `runs/dev_substrate/dev_full/proving_plane/run_control/`.
+
+That means the remote evidence bucket had become almost pure hardening debris:
+
+- old `_scrapped` certification attempts
+- pre-green road-to-prod staging outputs
+- historical `m*` and `pr3_*` run-control bundles
+- legacy `evidence/runs/platform_*` payloads that are no longer needed for the review posture
+
+So I deleted:
+
+- `s3://fraud-platform-dev-full-evidence/evidence/dev_full/` recursively
+- `s3://fraud-platform-dev-full-evidence/evidence/runs/` recursively
+
+and verified the `evidence/` root is now empty.
+
+I deliberately did **not** treat "keep the last two phases" as a remote S3 retention rule because the final accepted run-control receipts live locally, not in that bucket. The honest retention policy is:
+
+- keep the certification spine locally in the repo workspace
+- drop the stale remote evidence history that was only adding storage cost
+
+After that prune, the remaining S3 cost is no longer an evidence-bucket story. It is mainly:
+
+- retained object-store dataset storage
+- bucket versioning / noncurrent storage where enabled
+- normal request and KMS overhead
+
+The `artifacts` bucket is now small by comparison (`~67.6 MiB`), so the main storage bill that remains is the retained object-store data, not certification evidence.
+
+## 2026-03-18 15:48:28 +00:00 - The cost story from the start of hardening to the final `Phase 9` closeout needed to be written as engineering reasoning, not left as a raw Cost Explorer dump
+
+The user is right to ask for this explicitly. The plan already had a cost snapshot table, but that by itself is not enough to explain what happened. A serious production-readiness record should distinguish three things:
+
+- standing substrate or finance noise
+- expensive but still exploratory / legacy proving spend
+- the narrower spend that actually belongs to the accepted proving-plane execution
+
+So I rebuilt the cost section from two authorities together:
+
+- the repo trail from the implementation notebook and logbooks
+- a fresh Cost Explorer query for `2026-03-01` through `2026-03-13`
+
+The first thing that mattered was correcting the numbers themselves. The earlier snapshot in the plan had drifted because Cost Explorer had continued to settle. The refreshed authoritative daily totals are now:
+
+- `2026-03-01 = 742.39 USD`
+- `2026-03-02 = 38.18 USD`
+- `2026-03-03 = 33.43 USD`
+- `2026-03-04 = 34.82 USD`
+- `2026-03-05 = 33.34 USD`
+- `2026-03-06 = 196.21 USD`
+- `2026-03-07 = 619.83 USD`
+- `2026-03-08 = 564.86 USD`
+- `2026-03-09 = 190.50 USD`
+- `2026-03-10 = 275.10 USD`
+- `2026-03-11 = 533.49 USD`
+- `2026-03-12 = 317.49 USD`
+- `2026-03-13 = 521.75 USD`
+
+for a refreshed window total of `4101.39 USD`.
+
+The second thing that mattered was splitting the spend into honest eras.
+
+`2026-03-01` through `2026-03-05` is mostly background cost, not the proving-plane story. The big line here is `Tax = 708.38 USD` on March 1, which is not runtime truth at all. The real technical story in that window is the standing substrate floor:
+
+- `MSK = 108.62 USD`
+- `EC2 Compute = 19.68 USD`
+- `EKS = 12.00 USD`
+- `VPC = 10.56 USD`
+- `RDS = 8.78 USD`
+
+That is useful because it shows what the environment cost even before the serious bounded proofs started. It also explains why later teardown and standby work mattered so much.
+
+`2026-03-06` through `2026-03-09` is the transition window where legacy `road_to_prod` style proving and the newer production-readiness posture overlap. This is the most expensive non-green era in the whole run:
+
+- era total `= 1571.40 USD`
+- `DynamoDB = 552.54 USD`
+- `ECS = 376.89 USD`
+- `MSK = 134.36 USD`
+- `RDS = 131.89 USD`
+- `CloudWatch = 118.25 USD`
+
+This is where the repo history and the cost lines match each other well. The earlier proving style was still discovering too much under load:
+
+- ingress was writing too much into DynamoDB hot rows
+- WSP replay was burning more ECS/Fargate runtime than the later narrowed proofs
+- Aurora and CloudWatch were absorbing heavier churn because the telemetry posture and the proof boundary had not yet been cleaned up enough
+
+The March 7 and March 8 totals are therefore not "fake" spend, but they are not the cost shape I would use to represent the final methodology either. They are the bill for learning why the earlier posture was too broad. The big visual break is March 9 at `190.50 USD`. That day is the first obvious cost result of teardown / rebuild / narrowing rather than continuing to push on the older proving shape.
+
+`2026-03-10` through `2026-03-13` is the most honest cost window for the actual accepted production-readiness execution. This is the part of the story that runs from truthful `Phase 0` ingress proof through bounded full-platform stress authorization:
+
+- era total `= 1647.82 USD`
+- `DynamoDB = 354.49 USD`
+- `Lambda = 290.53 USD`
+- `API Gateway = 237.58 USD`
+- `S3 = 170.41 USD`
+- `RDS = 142.94 USD`
+- `MSK = 130.19 USD`
+
+Day by day, the meaning is more useful than the raw number alone.
+
+`2026-03-10` (`275.10 USD`) is the ingress day. This is where the external boundary was pinned to `API Gateway -> Lambda`, the stale internal ingress drift was removed, and the DynamoDB hot-receipt amplification problem was handled with the compact `ddb_hot` write instead of the rejected `object_store` shortcut. That is why the cost mix looks like:
+
+- `DynamoDB = 77.04 USD`
+- `Lambda = 59.86 USD`
+- `API Gateway = 42.20 USD`
+
+This is a good example of valid proving spend plus active cost remediation inside the same day.
+
+`2026-03-11` (`533.49 USD`) is where the platform started paying for real coupled-plane work. The cost mix is no longer just ingress:
+
+- `DynamoDB = 119.42 USD`
+- `Lambda = 100.14 USD`
+- `API Gateway = 82.79 USD`
+- `S3 = 56.88 USD`
+- `RDS = 32.58 USD`
+
+The reason I wanted this written explicitly is that this day can look "bad" in a finance table if you ignore the engineering context. In reality it is the day where more of the promoted network was materially participating, so the cost went up because the platform was finally doing more of the real job.
+
+`2026-03-12` (`317.49 USD`) is the learning and cost-discipline day. The mix shifts noticeably:
+
+- `S3 = 51.60 USD`
+- `RDS = 46.90 USD`
+- `Lambda = 44.54 USD`
+- `DynamoDB = 42.73 USD`
+- `API Gateway = 34.87 USD`
+
+That is exactly what I would expect from bounded learning basis work, Databricks / OFS materialization, and a day that also included deliberate cost hygiene before moving onward.
+
+`2026-03-13` (`521.75 USD`) is the bounded integrated and stress-authorization day. The mix proves that all the promoted planes are active together:
+
+- `DynamoDB = 115.29 USD`
+- `Lambda = 85.99 USD`
+- `API Gateway = 77.72 USD`
+- `RDS = 54.65 USD`
+- `S3 = 46.56 USD`
+- `MSK = 35.41 USD`
+
+This is the day where the bill most honestly belongs to the final platform proof. The cost is high because the platform is doing the integrated work we wanted it to prove under bounded pressure.
+
+The service-family explanation also needed to be made explicit because the raw AWS names can be misleading if left uninterpreted:
+
+- `Amazon DynamoDB` here mostly means ingress idempotency / receipt write pressure, not a giant retained table story
+- `Amazon Elastic Container Service` mostly means WSP replay / producer runtime and older proving-side compute, not the final external ingress path
+- `Amazon Managed Streaming for Apache Kafka` carries a standing serverless floor even when other runtime pieces are quieter
+- `AWS Lambda` and `Amazon API Gateway` together are the truthful external ingress proof path once the platform was pinned correctly
+- `Amazon Relational Database Service` is Aurora ACU and IO churn, not big storage volume
+- `Amazon Simple Storage Service` is request-heavy hardening, evidence movement, and later learning-basis materialization, not just "a lot of GB stored"
+- `AmazonCloudWatch` is the bill for visibility and logs, especially before the telemetry-first posture eliminated some blind reruns
+
+The plan now carries both the refreshed cost table and the explanatory write-up. That leaves the repository in a better state:
+
+- someone reading the plan can see the raw numbers
+- someone reading the notebook can understand why the expensive days happened
+- the cost story now distinguishes legacy spend, valid proving spend, and standing-substrate drift instead of flattening them together
+
+## 2026-03-18 15:55:58 +00:00 - After re-reading the wider notebook trail from `dev_min` through `dev_full`, I corrected my own cost framing because I had compressed too much of the pre-proving-plane history into oversimplified categories
+
+The user was right to challenge the first explanation. I had rebuilt the cost story mostly from the proving-plane notes plus Cost Explorer, and that made the early March window read too much like:
+
+- passive background spend,
+- then "legacy" broad spend,
+- then the real production-readiness spend.
+
+That is too simple for this repo.
+
+After re-reading the wider implementation-map trail, the better execution lineage is:
+
+1. `dev_min` had already closed green on `2026-02-22`; so March is not migration noise, it is `dev_full` post-build hardening.
+2. `dev_full` entered March from `M15_COMPLETE_GREEN` into explicit certification handoff:
+   - runtime-cert `RC*`
+   - ops/gov-cert `OC*`
+3. The repo then pivoted deliberately:
+   - into `stress_test`
+   - then into `road_to_prod`
+   - and only later into the proving-plane method that finally closed `Phase 0..9`.
+
+That means the early March cost is not just "old way vs new way." It is the cost of learning and repinning the actual production claim surface.
+
+The biggest specific correction is the March 1-5 window. My earlier wording made it sound mostly like retained substrate floor plus finance noise. That is incomplete. Yes, there was a substrate floor and yes, `Tax` dominated March 1. But March 2 was already runtime certification work, with:
+
+- scrapped and quarantined `RC0` attempts
+- fresh `RC0/RC1` progression
+- `RC2` hold/remediation work
+
+and March 3 onward includes the explicit stress-test-first pivot. March 5 then carries the creation and hardening of the `road_to_prod` authority itself. So that early window is "post-`M15` certification entry plus methodology formation," not just "background."
+
+The second correction is the March 6-9 window. Calling it "legacy" hides too much of what the repo was actually doing. The `road_to_prod` notes show that this era was where the platform was actively learning:
+
+- which ingress edge was the truthful claim edge
+- which learning corridor was really authoritative
+- which replay / checkpoint / identity semantics made stress evidence claimable
+- when managed ingress ECS/ALB was the right proving seat versus APIGW/Lambda
+
+That cost was expensive, but it was not random or merely obsolete. It was the cost of discovering the wrong proving surfaces and then repinning them.
+
+The third correction is that the final proving-plane era should still be treated as the accepted closure cost, but only with the explicit acknowledgement that it stands on top of the earlier cert/stress/road-to-prod learning. The proving-plane method did not appear from nowhere; it was the repo's refined response to those earlier failure modes.
+
+So the cost story is now better stated as:
+
+- post-build `dev_full` certification and methodology-formation cost,
+- then road-to-prod repin and claim-surface discovery cost,
+- then proving-plane closure cost.
+
+That is a more faithful explanation of what the implementation notes actually show.
+
+## 2026-03-21 00:00:00 +00:00 - Removed the stale Firehose direct-put probe because it was still billing after teardown, but it is not part of the accepted production-ready platform
+
+Post-teardown Cost Explorer still showed a residual `Amazon Kinesis` line of about `0.96 USD/day` on `2026-03-19` and `2026-03-20`, which was too large to leave unexplained once the runtime, streaming stack, Aurora, and log-heavy surfaces were already gone.
+
+The live cause was not Kinesis Data Streams. There were none. The residual came from a still-active Firehose delivery stream:
+
+- `m14f-directput-probe-20260302034609`
+
+Tracing it back through the repo showed why it existed:
+
+- it belongs to the older `M14.F` archive-connector proof lineage in the `dev_full` build track
+- it is associated with the Firehose archive role `fraud-platform-dev-full-firehose-archive-role`
+- its S3 destination was `s3://fraud-platform-dev-full-object-store/archive/_connector/directput/`
+
+The important part is what it is **not**:
+
+- it is not part of the accepted proving-plane authority
+- it is not represented as a required concrete seat in the promoted production-ready platform
+- the current readiness graphs carry the archive writer as an RTDL/runtime ownership surface, not a retained Firehose direct-put probe
+- there is no active Terraform reference to this delivery stream in `infra/`
+
+That means leaving it alive after teardown would only preserve stale build-phase spend, not a production-ready dependency.
+
+So I deleted the stream live:
+
+- `aws firehose delete-delivery-stream --delivery-stream-name m14f-directput-probe-20260302034609 --allow-force-delete --region eu-west-2`
+
+and verified afterward:
+
+- `describe-delivery-stream` now returns `ResourceNotFoundException`
+- `list-delivery-streams` now returns an empty set in `eu-west-2`
+
+The cost implication is straightforward:
+
+- Cost Explorer may still show the `Amazon Kinesis` line on already-recorded estimated days because CE lags and settles later
+- but there is now no live Firehose surface left to keep generating that residual charge going forward
+
+The Terraform implication is also now explicit:
+
+- this stream should **not** be expected to reappear in a future plan/apply for the accepted production-ready platform
+- if someone intentionally re-enters the old `M14.F` archive-connector build proof, they should treat it as a separate historical build-lane surface rather than as a hidden dependency of the current ready platform
