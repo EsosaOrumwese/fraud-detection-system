@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 2 / Path 4
+%% Ingest commit truth path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned closure"]
+    LG2[("Round node = durable evidence / ingress truth store")]
+    LG3["This graph closes at committed ingest evidence, not at RTDL catch-up or later replay use"]
+  end
+
+  ENTRY["Run-scoped active ingestion basis<br>non-zero ingress activity or explicit empty-run waiver"]
+
+  subgraph PATH["Canonical traffic admission and bus publication / Path 4"]
+    IGDDB[("Ingress idempotency / admission truth")]
+    IGRECEIPTS["IG receipts / quarantine refs"]
+    RUNCTL["Run control / ingest-commit closure"]
+    MODE["Mode-aware offset proof rule<br>admission-index proxy for current API Gateway -> Lambda -> DynamoDB edge<br>broker offsets only when materially available"]
+    EVID[("Run evidence root")]
+    RECEIPT["Owned outcome<br>receipt_summary.json"]
+    QUARANTINE["Owned outcome<br>quarantine_summary.json"]
+    OFFSETS["Owned outcome<br>kafka_offsets_snapshot.json"]
+    VERDICT["Owned outcome<br>dedupe + anomaly verdict passed"]
+  end
+
+  ENTRY -->|hands ingest basis to| RUNCTL
+  IGDDB -->|provides authoritative admission basis to| RUNCTL
+  IGRECEIPTS -->|provides receipt and quarantine basis to| RUNCTL
+  MODE -->|governs proof semantics for| RUNCTL
+  RUNCTL -->|commits ingest receipt summary as| RECEIPT
+  RUNCTL -->|commits ingest quarantine summary as| QUARANTINE
+  RUNCTL -->|commits offset-proof snapshot as| OFFSETS
+  RUNCTL -->|closes ingest-commit gate as| VERDICT
+  RECEIPT -->|stored under| EVID
+  QUARANTINE -->|stored under| EVID
+  OFFSETS -->|stored under| EVID
+  VERDICT -->|stored under| EVID

@@ -1,0 +1,20 @@
+flowchart LR
+  U1["Inputs<br/>S1 through S4 outputs<br/>RNG evidence<br/>audit traces<br/>sealed_inputs_6B"]
+  U2["Validation laws<br/>coverage<br/>foreign keys<br/>ordering<br/>campaign provenance<br/>label alignment<br/>RNG accounting"]
+  U3["Consumer rule<br/>no downstream read is lawful<br/>without the final bundle gate"]
+
+  S5["S5<br/>Validate the behavioural world<br/>and seal PASS legitimacy"]
+
+  O1["Outputs<br/>validation_bundle_6B<br/>index.json<br/>_passed.flag"]
+  O2["Authority<br/>6B.final.bundle_gate<br/>is the only consumer PASS authority for 6B"]
+
+  R1["Implemented shift<br/>S5 stayed RNG-free and fail-closed:<br/>it certifies realism and evidence accounting rather than trying to repair weak outputs"]
+  R2["Implemented shift<br/>The actual design makes S5 the final realism gate for behavioural truth,<br/>not a receipt writer after the fact"]
+
+  U1 --> S5
+  U2 --> S5
+  U3 --> S5
+  S5 --> O1
+  S5 --> O2
+  R1 -.-> S5
+  R2 -.-> S5

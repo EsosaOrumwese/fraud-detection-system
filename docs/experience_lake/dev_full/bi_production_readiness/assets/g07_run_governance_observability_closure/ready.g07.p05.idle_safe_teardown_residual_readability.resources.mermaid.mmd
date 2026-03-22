@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 5
+%% Idle-safe teardown and residual-readability path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, teardown seat, or active safe-idle control"]
+    LG2(("Round node = teardown / readability basis or later handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready safe idle, residual verification, and post-teardown readability"]
+  end
+
+  subgraph ENTRY["Post-verdict resources"]
+    FULL(("Full-platform verdict bundle"))
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    CW["CloudWatch logs / metrics / alarms"]
+  end
+
+  subgraph PATH["Production-ready safe-idle resources"]
+    SFN["Step Functions<br/>fraud-platform-dev-full-platform-run-v0"]
+    EKS["EKS cluster / nodegroup runtime"]
+    SNAP(("Post-teardown snapshots<br/>residual scan<br/>readability snapshot<br/>run-scoped teardown snapshot"))
+    SAFE(("Owned outcome<br/>production-ready idle-safe teardown truth"))
+    COST(("Later handoff<br/>cost guardrail / cost-to-outcome closure"))
+  end
+
+  FULL -->|opens the managed teardown chain through| SFN
+  CW -->|supplies live idle / restore posture visibility into| SFN
+  SFN -->|scales or quiesces active runtime on| EKS
+  EVID -->|supplies post-teardown readability basis into| SFN
+  SFN -->|materializes residual and readability evidence as| SNAP
+  SNAP -->|anchor safe idle posture in| SAFE
+  SAFE -->|later feeds attributable spend closure into| COST

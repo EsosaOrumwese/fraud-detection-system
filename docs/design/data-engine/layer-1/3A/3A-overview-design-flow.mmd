@@ -1,0 +1,28 @@
+flowchart LR
+  subgraph intent["Recovered Segment 3A design"]
+    A0["S0 Gate and seal<br/>Verifies 1A and 2A legitimacy<br/>and freezes 3A policy authority"]
+    A1["S1 Escalation authority<br/>Decides which merchant-country pairs<br/>need zone-mixture treatment"]
+    A2["S2 Country-zone priors<br/>Builds deterministic prior geometry<br/>for escalated pairs"]
+    A3["S3 Zone-share sampler<br/>Emits Dirichlet zone shares with<br/>RNG provenance for escalated pairs"]
+    A4["S4 Integerisation<br/>Converts shares into conserved<br/>integer zone counts"]
+    A5["S5 Zone-allocation egress<br/>Publishes zone_alloc plus<br/>universe-hash closure"]
+    A6["S6 Validation verdict<br/>Judges realism and coherence<br/>for the full 3A chain"]
+    A7["S7 Final publish gate<br/>Seals validation_bundle_3A<br/>and consumer legitimacy"]
+  end
+
+  A0 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7
+
+  B0["Actual design shifts that matter"] --> B1["S0 became a real multi-upstream gate:<br/>3A reads 1A outlet authority plus 2A time authority<br/>through sealed manifest-scoped inputs"]
+  B0 --> B2["S1 remained sole escalation authority,<br/>but later gained bounded deterministic smoothing<br/>on the below-min-sites branch"]
+  B0 --> B3["S2 through S4 became the main realism-shaping chain:<br/>priors, sampled dispersion, then conserved integer outcomes"]
+  B0 --> B4["S5 stayed intentionally narrow:<br/>in v1 it publishes escalated pairs only and binds<br/>the downstream universe hash"]
+  B0 --> B5["S6 and S7 are veto rails, not optimization surfaces:<br/>realism tuning belongs upstream,<br/>validation and publish legitimacy stay separate"]
+
+  B1 -.-> A0
+  B2 -.-> A1
+  B3 -.-> A2
+  B3 -.-> A3
+  B3 -.-> A4
+  B4 -.-> A5
+  B5 -.-> A6
+  B5 -.-> A7

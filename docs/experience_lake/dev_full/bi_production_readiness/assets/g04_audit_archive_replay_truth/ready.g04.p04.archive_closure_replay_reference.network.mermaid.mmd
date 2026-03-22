@@ -1,0 +1,30 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 4 / Path 4
+%% Archive closure and replay-reference path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, closure rule, or owned replay-reference closure"]
+    LG2(("Round node = preserved archive basis or downstream trust handoff"))
+    LG3["This graph closes at production-ready replay-referenceable archive truth, after immutable preservation but before learning-input admission begins"]
+  end
+
+  subgraph ENTRY["Preserved archive basis"]
+    PRESERVED(("Preserved archive history<br/>archive/{platform_run_id}/events/<br/>plus continuity proof"))
+  end
+
+  subgraph PATH["Bi / Group 4 / Path 4 - Archive closure and replay-reference"]
+    LAW["Closure law<br/>RTDL catch-up cannot close without archive-writer closure evidence<br/>learning cannot begin until replay references are resolved from spine closure"]
+    MARKER(("Archive closure marker"))
+    REPLAY(("Owned outcome<br/>production-ready replay-referenceable archive truth"))
+    P12(("Downstream trust handoff<br/>P12 LEARNING_INPUT_READY entry basis"))
+  end
+
+  PRESERVED -->|is evaluated under| LAW
+  LAW -->|commits formal archive closure as| MARKER
+  MARKER -->|resolves preserved archive into| REPLAY
+  REPLAY -->|later feeds trusted archive basis into| P12

@@ -1,0 +1,32 @@
+flowchart LR
+  subgraph intent["Recovered Segment 1A design"]
+    A0["S0 Foundations<br/>Canonical universe, schema authority,<br/>parameter_hash, manifest_fingerprint,<br/>precomputes, sealed inputs"]
+    A1["S1 Hurdle gate<br/>Logistic multi-site decision<br/>with keyed Bernoulli event authority"]
+    A2["S2 NB outlets<br/>Gamma plus Poisson decomposition<br/>fixing accepted multi-site N"]
+    A3["S3 Candidate universe<br/>Deterministic cross-border domain<br/>and candidate_rank authority"]
+    A4["S4 ZTP target<br/>Logs-only foreign-count target K_target<br/>with non-consuming finaliser"]
+    A5["S5 Weight authority<br/>Deterministic currency-to-country<br/>weight cache plus PASS gate"]
+    A6["S6 Foreign selection<br/>Gumbel-key selection over S3 x S5 domain<br/>with optional convenience membership"]
+    A7["S7 Integer allocation<br/>Deterministic largest-remainder allocation<br/>with residual-rank replay surface"]
+    A8["S8 Egress materialisation<br/>Outlet stubs, site_order, site_id,<br/>no cross-country order in egress"]
+    A9["S9 Publish gate<br/>Replay validation bundle and<br/>consumer PASS flag"]
+  end
+
+  A0 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7 --> A8 --> A9
+
+  B0["Actual design shifts that matter"] --> B1["S0 validation bundle emission moved out of default foundations;<br/>S9 became canonical publisher"]
+  B0 --> B2["S1 and S2 strict replay surfaces were hardened;<br/>trace and lineage law became part of actual design"]
+  B0 --> B3["P1 and P2 remediations changed actual realism posture:<br/>1A is not just the original state intent, but the remediated accepted design"]
+  B0 --> B4["S5 and S6 introduced parameter and run scoped receipts;<br/>readability and pass-gating became real design boundaries"]
+  B0 --> B5["S8 stays intentionally order-free across countries;<br/>S3 remains sole inter-country order authority"]
+  B0 --> B6["S9 controls publish legitimacy;<br/>no PASS means no downstream read"]
+
+  B1 -.-> A0
+  B2 -.-> A1
+  B2 -.-> A2
+  B3 -.-> A3
+  B3 -.-> A5
+  B4 -.-> A5
+  B4 -.-> A6
+  B5 -.-> A8
+  B6 -.-> A9

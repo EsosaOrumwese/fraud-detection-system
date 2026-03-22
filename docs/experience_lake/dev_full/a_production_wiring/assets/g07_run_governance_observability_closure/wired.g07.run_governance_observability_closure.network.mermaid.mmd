@@ -1,0 +1,53 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 synthesis
+%% Run governance and observability closure
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active boundary or owned closure"]
+    LG2[("Round node = governed operational-truth surface or downstream sync handoff")]
+    LG3["This graph shows the six distinct owned truths that close the platform as an operated, governed, and cost-accounted system"]
+  end
+
+  subgraph G7["Group 7 - Run governance and observability closure"]
+    REPORT[("Run reconstruction truth")]
+    APPEND[("Governance append and close-marker truth")]
+    VERDICT[("Whole-platform verdict truth")]
+    OBS[("Observability attestation truth")]
+    IDLE[("Idle-safe teardown truth")]
+    COST[("Cost-to-outcome truth")]
+    SYNC[("Later final closure sync")]
+
+    RECON["Run reconstruction boundary"]
+    GOV["Governance append / close-marker boundary"]
+    MATRIX["Proof-matrix and final-verdict boundary"]
+    ATTEST["Drift-visible observability boundary"]
+    TEARDOWN["Idle-safe teardown boundary"]
+    GUARD["Cost guardrail / cost-to-outcome boundary"]
+  end
+
+  CLAIM["Group claim\nthe platform does not merely run and stop; it closes itself as a governed operational system"]
+
+  RECON -->|closes exact run story as| REPORT
+  REPORT -->|feeds formal closeout through| GOV
+  GOV -->|closes governed closure state as| APPEND
+  APPEND -->|feeds whole-platform judgment through| MATRIX
+  MATRIX -->|closes explicit final judgment as| VERDICT
+  VERDICT -->|feeds live operational attestation through| ATTEST
+  ATTEST -->|closes truthful active-path visibility as| OBS
+  OBS -->|feeds safe closeout through| TEARDOWN
+  TEARDOWN -->|closes idle-safe posture as| IDLE
+  IDLE -->|feeds attributable spend closure through| GUARD
+  GUARD -->|closes spend accountability as| COST
+  COST -->|later supports| SYNC
+
+  REPORT -->|together prove| CLAIM
+  APPEND -->|together prove| CLAIM
+  VERDICT -->|together prove| CLAIM
+  OBS -->|together prove| CLAIM
+  IDLE -->|together prove| CLAIM
+  COST -->|together prove| CLAIM

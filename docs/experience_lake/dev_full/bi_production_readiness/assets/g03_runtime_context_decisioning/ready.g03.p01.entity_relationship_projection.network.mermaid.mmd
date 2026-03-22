@@ -1,0 +1,52 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 / Path 1
+%% Entity and relationship projection path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat or operator-visible proof boundary"]
+    LG2(("Round node = durable projection truth or constrained runtime source family"))
+    LG3["This graph closes at production-ready projection truth, before joined context, online features, or decision formation begin"]
+  end
+
+  subgraph ENTRY["Admitted runtime family"]
+    TTRAFFIC(("fp.bus.traffic.fraud.v1"))
+    ALLOWED(("Runtime-allowed oracle families only<br/>s3_event_stream_with_fraud_6B<br/>arrival_events_5B<br/>s1_arrival_entities_6B<br/>s3_flow_anchor_with_fraud_6B"))
+  end
+
+  subgraph PATH["Bi / Group 3 / Path 1 - Entity and relationship projection"]
+    RINTAKE["RTDL intake admissibility<br/>current-run traffic admitted into projection lane"]
+    APROJ["arrival_events projection"]
+    EPROJ["arrival_entities projection"]
+    FPROJ["flow_anchor.fraud projection"]
+    TCTXA(("fp.bus.context.arrival_events.v1"))
+    TCTXE(("fp.bus.context.arrival_entities.v1"))
+    TFLOW(("fp.bus.context.flow_anchor.fraud.v1"))
+    CSFB["Projection intake / binding surface<br/>hands resolved projection inputs into entity graph resolution"]
+    IEG["Entity and relationship projection logic<br/>current-run graph mutation owner"]
+    PROOF["Production-ready projection proof posture<br/>current-run mutation visible<br/>checkpoint-bounded enough for accepted RTDL slice<br/>apply failures absent in healthy bounded runs"]
+    HEALTH["Replay-aware operator truth<br/>historical watermark age stays advisory when checkpoint is fresh and graph mutation is active"]
+    AURORA(("Current graph / entity projection truth"))
+    OUT(("Owned outcome<br/>production-ready current entity and relationship projection truth"))
+  end
+
+  TTRAFFIC -->|admitted fraud traffic enters RTDL through| RINTAKE
+  ALLOWED -->|constrains runtime-readable source families for| RINTAKE
+  RINTAKE -->|derives arrival-event projection in| APROJ
+  RINTAKE -->|derives arrival-entity projection in| EPROJ
+  RINTAKE -->|derives flow-anchor projection in| FPROJ
+  APROJ -->|publishes arrival-events context to| TCTXA
+  EPROJ -->|publishes arrival-entities context to| TCTXE
+  FPROJ -->|publishes flow-anchor context to| TFLOW
+  TCTXA -->|feeds projection binding through| CSFB
+  TCTXE -->|feeds projection binding through| CSFB
+  TFLOW -->|feeds projection binding through| CSFB
+  CSFB -->|hands bound projection inputs into| IEG
+  PROOF -->|governs accepted production-ready posture for| IEG
+  HEALTH -->|keeps operator semantics truthful for| IEG
+  IEG -->|writes current entity and graph state to| AURORA
+  AURORA -->|materially closes this path as| OUT

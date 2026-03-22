@@ -1,0 +1,39 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 1 / Path 3
+%% Ready authorization path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or control identity"]
+    LG2[("Round node = durable topic or storage resource")]
+    LG3["Dashed edge = present but not authoritative for this path"]
+  end
+
+  PINNED["Pinned run basis<br>run header + source realization already satisfied"]
+
+  subgraph CONTROL["Control resources"]
+    SFN["Step Functions<br>fraud-platform-dev-full-platform-run-v0"]
+    TCTRL[("Kafka topic<br>fp.bus.control.v1")]
+    RUNCTL["Run control<br>conformance / receipts"]
+    EVID[("S3 evidence bucket<br>fraud-platform-dev-full-evidence")]
+  end
+
+  subgraph IDENTITY["Identity resources"]
+    ROLESFN["IAM role<br>fraud-platform-dev-full-stepfunctions-orchestrator"]
+  end
+
+  subgraph NONAUTH["Non-authoritative competing surface"]
+    MSF["Managed Flink app<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>retained / READY only"]
+  end
+
+  PINNED -->|hands ready closure to| SFN
+  ROLESFN -->|executes| SFN
+  SFN -->|publishes control closure to| TCTRL
+  SFN -->|writes READY receipt facts to| RUNCTL
+  RUNCTL -->|stores READY receipt under| EVID
+  TCTRL -->|records authoritative READY publication basis in| EVID
+  MSF -. not sufficient to close READY by itself .-> TCTRL

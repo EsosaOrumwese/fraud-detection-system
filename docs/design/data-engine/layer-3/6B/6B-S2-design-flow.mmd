@@ -1,0 +1,22 @@
+flowchart LR
+  U1["Inputs<br/>s1_arrival_entities_6B<br/>s1_session_index_6B"]
+  U2["Behavioural policies<br/>flow, amount, timing,<br/>latent intensity, and RNG policies"]
+  U3["Constraint<br/>all-legit baseline only<br/>no fraud semantics allowed here"]
+
+  S2["S2<br/>Synthesize baseline legitimate flows and events"]
+
+  O1["Outputs<br/>s2_flow_anchor_baseline_6B<br/>s2_event_stream_baseline_6B"]
+  O2["Evidence<br/>rng_event_flow_anchor_baseline<br/>rng_event_event_stream_baseline<br/>audit and trace"]
+  O3["Authority<br/>S2 defines the legitimate baseline flow and event world<br/>that S3 may overlay but not rewrite in place"]
+
+  R1["Implemented shift<br/>S2 became the baseline intensity and event-realism owner surface:<br/>amount and timing realism moved from weak posture to explicit remediation ownership"]
+  R2["Implemented shift<br/>The actual design uses controlled RNG families and latent-process shaping,<br/>not a naive event spray from arrivals"]
+
+  U1 --> S2
+  U2 --> S2
+  U3 --> S2
+  S2 --> O1
+  S2 --> O2
+  S2 --> O3
+  R1 -.-> S2
+  R2 -.-> S2

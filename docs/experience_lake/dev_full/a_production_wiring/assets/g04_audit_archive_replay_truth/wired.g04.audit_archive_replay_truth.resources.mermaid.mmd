@@ -1,0 +1,45 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 4 synthesis
+%% Durable runtime audit and archive truth - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active historical-truth seat"]
+    LG2[("Round node = durable topic / storage / closure surface")]
+    LG3["This graph names the concrete seats that realize durable audit, archive, and replay-reference truth in the current wired platform"]
+  end
+
+  subgraph ENTRY["Runtime historical-truth inputs"]
+    TRTDL[("Topic\nfp.bus.rtdl.v1")]
+    TAUDIT[("Topic\nfp.bus.audit.v1")]
+    MSK[("MSK Serverless cluster\nfraud-platform-dev-full-msk")]
+  end
+
+  subgraph G4["Concrete Group 4 seats"]
+    DLA["Deployment\nfp-pr3-dla"]
+    CASETRIG["Deployment\nfp-pr3-case-trigger"]
+    ARCHIVE["Deployment\nfp-pr3-archive-writer"]
+    ARCHIVEPATH[("Archive prefix\narchive/{platform_run_id}/events/")]
+    OBJ[("S3 bucket\nfraud-platform-dev-full-object-store")]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+    CLOSURE["Archive closure evidence seat\narchive-writer closure evidence + archive closure marker"]
+    REPLAY["Replay-reference resolution surface\nspine-closure-resolved archive basis"]
+  end
+
+  TRTDL -->|transported by| MSK
+  TAUDIT -->|transported by| MSK
+  MSK -->|feeds runtime audit/archive consumers such as| DLA
+  MSK -->|feeds runtime archive preservation into| ARCHIVE
+  DLA -->|publishes lineage audit into| TAUDIT
+  TAUDIT -->|feeds downstream operational consumers such as| CASETRIG
+  DLA -->|stores durable by-ref evidence into| EVID
+  ARCHIVE -->|writes run-scoped archive objects under| ARCHIVEPATH
+  ARCHIVEPATH -->|stored in| OBJ
+  ARCHIVE -->|stores archive receipts in| EVID
+  OBJ -->|supplies preserved archive basis into| CLOSURE
+  EVID -->|supplies audit / archive closure evidence into| CLOSURE
+  CLOSURE -->|commits replay-referenceable archive basis as| REPLAY

@@ -1,0 +1,48 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 2 synthesis
+%% Canonical traffic admission and bus publication - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted boundary, ingress corridor, or group-owned closure"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3["Dashed edge = present but explicitly excluded stale route"]
+  end
+
+  subgraph G2["Bi / Group 2 - Canonical traffic admission and bus publication"]
+    TRAFFIC["Canonical behavioural traffic<br/>bounded replay / external ingress load"]
+    FRONTDOOR["Active ingress boundary<br/>singular execute-api front door"]
+    ALBSTALE["Retained stale internal ingress route"]
+    ADMIT["Ingress disposition corridor<br/>dedupe / admit / reject / quarantine truth"]
+    DISPOSITION[("Group closure<br/>production-ready ingress disposition truth")]
+    BUS["Authoritative bus publication corridor<br/>producer truth kept separate from admission truth"]
+    BUSHANDOFF[("Group closure<br/>production-ready authoritative runtime bus handoff")]
+    COMMIT["Managed ingest-commit corridor<br/>mode-aware edge-matched proof law"]
+    INGEST[("Group closure<br/>production-ready committed ingest truth")]
+    EVID[("Run-scoped ingest evidence root")]
+    G3(("Later handoff<br/>group 3 runtime context decisioning"))
+  end
+
+  CLAIM["Group claim<br/>the production-ready platform turns canonical behavioural traffic into governed runtime entry truth before RTDL reasoning begins"]
+
+  TRAFFIC -->|must enter through| FRONTDOOR
+  FRONTDOOR -->|hands boundary-valid request into| ADMIT
+  ADMIT -->|materially closes| DISPOSITION
+  DISPOSITION -->|opens authoritative publish path through| BUS
+  BUS -->|materially closes| BUSHANDOFF
+  DISPOSITION -->|supplies admission basis into| COMMIT
+  BUSHANDOFF -->|supplies bus handoff basis into| COMMIT
+  COMMIT -->|materially closes| INGEST
+  INGEST -->|stores durable proof under| EVID
+
+  ALBSTALE -. present but explicitly excluded from accepted active-boundary truth .-> FRONTDOOR
+
+  FRONTDOOR -->|together prove| CLAIM
+  DISPOSITION -->|together prove| CLAIM
+  BUSHANDOFF -->|together prove| CLAIM
+  INGEST -->|together prove| CLAIM
+  BUSHANDOFF -->|later opens| G3

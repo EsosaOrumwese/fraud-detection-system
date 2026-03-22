@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>sealed_inputs_3A<br/>1A outlet counts and country coverage"]
+  I2["Policy<br/>zone_mixture_policy"]
+
+  S1["S1<br/>Deterministic escalation queue"]
+
+  O1["Outputs<br/>s1_escalation_queue"]
+  O2["Authority<br/>S1 alone decides which<br/>merchant-country pairs enter the<br/>zone-mixture realism corridor"]
+
+  R1["Implemented shift<br/>S1 stayed the sole escalation authority;<br/>downstream states must not re-evaluate mixture policy"]
+  R2["Implemented shift<br/>Later bounded smoothing was added on the<br/>below-min-sites branch to improve shape without<br/>turning S1 into a stochastic optimization surface"]
+
+  I1 --> S1
+  I2 --> S1
+  S1 --> O1
+  S1 --> O2
+  R1 -.-> S1
+  R2 -.-> S1

@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 1 / Path 2
+%% Source realization path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active control or path-owned surface"]
+    LG2[("Round node = durable source / outcome truth")]
+    LG3["This graph stays at the path-owned outcome level where the wired graph is intentionally abstract"]
+  end
+
+  EXT["External engine-owned source world<br>manifest_fingerprint / parameter_hash / seed / scenario_id / run_id"]
+
+  subgraph PATH["Run and world-source authority / Path 2"]
+    ORACLE[("Oracle store basis<br>producer-owned / platform read-only<br>oracle-store/ boundary")]
+    SORT["Managed distributed sort realization<br>external_raw_upload_then_managed_sort"]
+    STREAM["Owned outcome<br>stream_view surfaces"]
+    TRUTH["Owned outcome<br>truth_view surfaces"]
+    MANIFEST["Owned outcome<br>sort manifests + receipts"]
+    PARITY["Owned outcome<br>parity / readability evidence"]
+  end
+
+  EXT -->|writes producer-owned source basis into| ORACLE
+  ORACLE -->|seated through pinned inlet contract into| SORT
+  SORT -->|realizes canonical stream surfaces as| STREAM
+  SORT -->|realizes canonical truth surfaces as| TRUTH
+  SORT -->|commits realization proof as| MANIFEST
+  SORT -->|commits parity and readability proof as| PARITY

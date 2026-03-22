@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 1
+%% Run reconstruction and receipt closure path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, control, or owned run-reconstruction closure"]
+    LG2[("Round node = receipt/evidence basis or downstream handoff surface")]
+    LG3["This graph closes at committed run report and reconciliation truth, before governance append and final verdict publication begin"]
+  end
+
+  subgraph ENTRY["Earlier closure basis"]
+    RECEIPTS[("Earlier lane receipts")]
+    EVIDENCE[("Closure-input evidence\nreadable under one run scope")]
+    RUNID[("Run identity and scope continuity")]
+  end
+
+  subgraph PATH["Run governance and observability closure / Path 1"]
+    REPORTER["Reporter and reconciliation corridor\nidentity / lock readiness\nsingle-writer discipline\none-shot execution\nclosure-bundle completeness"]
+    CONTRACT["Run-reconstruction contracts\nreceipt completeness\nevidence readback success\nverdict traceability\ndeterministic run-scope continuity"]
+    REPORT[("Owned outcome\ncommitted run report")]
+    RECON[("Owned outcome\nreconciliation truth")]
+    GOV[("Later handoff\ngovernance append and close-marker path")]
+  end
+
+  RECEIPTS -->|feed lane-level closure facts into| REPORTER
+  EVIDENCE -->|feed readable closure artifacts into| REPORTER
+  RUNID -->|pins one run scope across| REPORTER
+  CONTRACT -->|governs reconstruction closure for| REPORTER
+  REPORTER -->|closes exact run story as| REPORT
+  REPORTER -->|closes attributable reconciliation as| RECON
+  REPORT -->|later feeds governed closeout into| GOV

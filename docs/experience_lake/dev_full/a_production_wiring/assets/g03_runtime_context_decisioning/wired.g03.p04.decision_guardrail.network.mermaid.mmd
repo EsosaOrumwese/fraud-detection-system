@@ -1,0 +1,39 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 4
+%% Decision guardrail path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned guardrail closure"]
+    LG2[("Round node = upstream RTDL truth surface or adjudicated posture")]
+    LG3["This graph closes at decision posture truth, before decision formation begins"]
+  end
+
+  subgraph ENTRY["Upstream RTDL truth surfaces"]
+    CONTEXT[("Joined-context readiness")]
+    FEATURES[("Feature readiness / freshness")]
+    PROJECTION[("Projection health / checkpoint posture")]
+    SIGNALS[("Required-signal health + run-scoped participation")]
+  end
+
+  subgraph PATH["Runtime context formation and decisioning / Path 4"]
+    DL["Degrade Ladder<br>guardrail classification logic"]
+    CLASSIFY["Semantic discrimination<br>advisory vs insufficiency vs fail-closed<br>no sticky false-red from stale artifacts"]
+    MODE[("Adjudicated decision posture<br>NORMAL / ADVISORY / HOLD-BACK / FAIL_CLOSED")]
+    REASONS["Owned outcome fields<br>degrade reasons / required-signal verdicts"]
+    DF["Downstream decision formation surface"]
+  end
+
+  CONTEXT -->|supplies joined-context readiness to| DL
+  FEATURES -->|supplies feature availability and freshness to| DL
+  PROJECTION -->|supplies projection health posture to| DL
+  SIGNALS -->|supplies required-signal and participation posture to| DL
+  CLASSIFY -->|governs typed guardrail judgment for| DL
+  DL -->|closes this path as| MODE
+  DL -->|materializes classification detail as| REASONS
+  MODE -->|hands adjudicated decision posture to| DF
+  REASONS -->|explains posture consumed by| DF

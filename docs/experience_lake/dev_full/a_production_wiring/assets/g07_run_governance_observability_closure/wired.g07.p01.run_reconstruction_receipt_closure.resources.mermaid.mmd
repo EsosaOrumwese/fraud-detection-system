@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 1
+%% Run reconstruction and receipt closure path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active run-reconstruction seat"]
+    LG2[("Round node = durable receipt/evidence surface or downstream handoff")]
+    LG3["This graph names the concrete seats that materially realize exact run reconstruction in the current wired platform"]
+  end
+
+  subgraph ENTRY["Closure-basis resources"]
+    RUNCTL["Run control\nconformance / receipts"]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+    REPORTS["Run reports\nreconciliation / non-regression packs"]
+  end
+
+  subgraph PATH["Run reconstruction resources"]
+    RECON["Run-reconstruction closure\nreporter one-shot + bundle completeness + reconciliation"]
+    REPORT["Committed run-report closure\nexact readable run story"]
+    GOVAPPEND["Later handoff\ngovernance append"]
+  end
+
+  RUNCTL -->|supplies lane receipts into| RECON
+  EVID -->|supplies readable closure artifacts into| RECON
+  RECON -->|materially closes run reconstruction as| REPORT
+  REPORT -->|materializes through| REPORTS
+  REPORT -->|later feeds governed closeout into| GOVAPPEND

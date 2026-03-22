@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 5 / Path 1
+%% Case-intent escalation path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat, contract, or owned case-intent closure"]
+    LG2(("Round node = named handoff or operational-truth surface"))
+    LG3["This graph closes at explicit production-ready case-intent truth and handoff, before case creation or label truth begin"]
+  end
+
+  subgraph ENTRY["RTDL escalation basis"]
+    TDEC(("Decision-worthy RTDL outputs"))
+    TAUDIT(("Audit-worthy RTDL outputs"))
+  end
+
+  subgraph PATH["Bi / Group 5 / Path 1 - Case-intent escalation"]
+    CASETRIG["Case-intent escalation boundary<br/>case-worthy trigger selection and suppression"]
+    CONTRACT["Case-trigger discipline<br/>trigger precision and recall<br/>duplicate suppression<br/>replay safety<br/>clean truth ownership"]
+    PROOF["Production-ready escalation proof posture<br/>current-run participation visible<br/>trigger counters retained on the boundary itself<br/>RTDL outputs remain usable as operational truth under coupled pressure"]
+    INTENT(("Owned outcome<br/>production-ready explicit case-intent truth"))
+    TCASE(("Case-trigger handoff seat<br/>fp.bus.case.triggers.v1"))
+    CM(("Later handoff<br/>case-management intake"))
+  end
+
+  TDEC -->|feeds case-worthy decision signals into| CASETRIG
+  TAUDIT -->|feeds case-worthy audit signals into| CASETRIG
+  CONTRACT -->|governs selection and suppression for| CASETRIG
+  PROOF -->|governs accepted production-ready posture for| CASETRIG
+  CASETRIG -->|materially closes explicit escalation basis as| INTENT
+  INTENT -->|is handed off through| TCASE
+  TCASE -->|later feeds intake into| CM

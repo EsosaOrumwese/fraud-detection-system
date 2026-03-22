@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 2 / Path 1
+%% Boundary access path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted boundary seat or owned closure"]
+    LG2[("Round node = durable / declared boundary proof surface")]
+    LG3["Dashed edge = retained or stale route explicitly excluded from the accepted ready-boundary story"]
+  end
+
+  ENTRY["Canonical behavioural traffic<br/>bounded replay or equivalent valid external caller"]
+
+  subgraph PATH["Bi / Group 2 / Path 1 - Boundary access"]
+    CONTRACT["Boundary contract<br/>HTTP API Gateway v2<br/>stage v1<br/>POST /ingest/push<br/>keyed boundary contract"]
+    APIGW["API Gateway edge<br/>singular accepted external front door"]
+    ACCESS["Exact edge telemetry surface<br/>detailed route metrics + access-log proof"]
+    IGINVOKE["Ingress Lambda invoke boundary<br/>fraud-platform-dev-full-ig-handler"]
+    OUT[("Owned outcome<br/>production-ready telemetry-backed drift-cleared external admission boundary")]
+    STALE["Retained internal ingress drift story<br/>ALB / ECS / stale helper path"]
+  end
+
+  ENTRY -->|targets the explicit external contract at| CONTRACT
+  CONTRACT -->|lands on the singular live front door| APIGW
+  APIGW -->|is judged through| ACCESS
+  ACCESS -->|proves boundary truth for| IGINVOKE
+  IGINVOKE -->|closes this path as| OUT
+  STALE -. explicitly excluded from accepted ready-boundary proof .-> OUT

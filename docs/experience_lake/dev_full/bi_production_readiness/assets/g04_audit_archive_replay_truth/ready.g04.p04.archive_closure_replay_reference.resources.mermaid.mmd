@@ -1,0 +1,35 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 4 / Path 4
+%% Archive closure and replay-reference path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, closure seat, or active replay-reference surface"]
+    LG2(("Round node = durable archive / evidence resource"))
+    LG3["This graph names the concrete seats that materially realize production-ready archive closure and replay-referenceability"]
+  end
+
+  subgraph ENTRY["Preserved archive resources"]
+    ARCHIVEPATH(("Archive prefix<br/>archive/{platform_run_id}/events/"))
+    OBJ(("S3 object store<br/>fraud-platform-dev-full-object-store"))
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+  end
+
+  subgraph PATH["Archive closure and replay-reference resources"]
+    RUNCTL["Run-control / spine-closure authority"]
+    CLOSURE["Archive closure evidence seat<br/>archive-writer closure evidence + archive closure marker"]
+    REPLAY(("Owned outcome<br/>production-ready replay-referenceable archive basis"))
+    P12(("Downstream trust handoff<br/>learning-input admission basis"))
+  end
+
+  ARCHIVEPATH -->|is stored in| OBJ
+  ARCHIVEPATH -->|is paired with continuity and closure evidence in| EVID
+  OBJ -->|supplies preserved archive basis into| CLOSURE
+  EVID -->|supplies closure evidence into| CLOSURE
+  RUNCTL -->|governs spine closure and replay-reference resolution for| CLOSURE
+  CLOSURE -->|commits replay-referenceable archive basis as| REPLAY
+  REPLAY -->|later feeds trusted archive basis into| P12

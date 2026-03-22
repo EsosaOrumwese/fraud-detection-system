@@ -1,0 +1,44 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 2 / Path 1
+%% Boundary access path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, contract seat, or live proof surface"]
+    LG2[("Round node = durable handle / telemetry / declared edge seat")]
+    LG3["Dashed edge = retained stale route explicitly excluded from accepted ready-boundary proof"]
+  end
+
+  ENTRY["Canonical behavioural traffic"]
+
+  subgraph EDGE["Accepted external ingress resources"]
+    URL[("Execute-api ingress URL<br/>stage v1 / POST /ingest/push")]
+    APIGW["HTTP API Gateway<br/>fraud-platform-dev-full-ig-edge"]
+    STAGE["Stage posture<br/>v1 / detailed metrics enabled"]
+    ACCESS[("APIGW access-log surface<br/>/aws/apigateway/fraud-platform-dev-full-ig-edge-v1-access")]
+    IGLAMBDA["Lambda<br/>fraud-platform-dev-full-ig-handler"]
+    APIKEY[("Pinned API-key handle<br/>/fraud-platform/dev_full/ig/api_key")]
+    SSM["SSM Parameter Store"]
+  end
+
+  subgraph EXCLUDED["Excluded stale boundary alternative"]
+    ALB["Internal ALB<br/>obsolete ingress edge"]
+    IGSVC["ECS ingress service<br/>retained stale route"]
+    STALESSM[("Stale service-url handle")]
+  end
+
+  ENTRY -->|targets live execute-api boundary through| URL
+  URL -->|resolves to| APIGW
+  APIGW -->|materializes route contract in| STAGE
+  APIGW -->|is judged through| ACCESS
+  STAGE -->|invokes| IGLAMBDA
+  SSM -->|provides keyed boundary secret for| APIKEY
+  APIKEY -->|authorizes valid boundary request into| STAGE
+
+  ALB -. excluded from accepted external-front-door story .-> STAGE
+  IGSVC -. excluded from accepted external-front-door story .-> STAGE
+  STALESSM -. excluded helper-fallback route .-> STAGE

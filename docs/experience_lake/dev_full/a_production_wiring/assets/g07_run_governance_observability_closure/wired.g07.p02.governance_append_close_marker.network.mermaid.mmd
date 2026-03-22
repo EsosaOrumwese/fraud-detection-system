@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 2
+%% Governance append and close-marker path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, control, or owned governance-closure object"]
+    LG2[("Round node = reconciled closure basis or downstream handoff surface")]
+    LG3["This graph closes at append-safe governance truth and formal close-marker under run scope, before final-verdict publication begins"]
+  end
+
+  subgraph ENTRY["Reconciled run-close basis"]
+    REPORT[("Committed run report")]
+    RECON[("Reconciliation truth")]
+    RUNID[("Run identity and scope continuity")]
+  end
+
+  subgraph PATH["Run governance and observability closure / Path 2"]
+    GOV["Governance append corridor\nappend-safe closure recording"]
+    CONTRACT["Governance-close contracts\nschema-correct\nrun-scope-correct\norder-safe\nappend-log and close-marker verified together"]
+    APPEND[("Owned outcome\nappend-safe governance truth")]
+    MARKER[("Owned outcome\nformal run-close marker")]
+    VERDICT[("Later handoff\nproof-matrix and final-verdict publication path")]
+  end
+
+  REPORT -->|feeds reconstructed run-close truth into| GOV
+  RECON -->|feeds reconciled closure basis into| GOV
+  RUNID -->|pins run-scoped governance closure for| GOV
+  CONTRACT -->|governs append and marker closure for| GOV
+  GOV -->|closes durable governance record as| APPEND
+  GOV -->|closes formal run-close state as| MARKER
+  MARKER -->|later allows final verdict publication through| VERDICT

@@ -1,0 +1,33 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 4 / Path 4
+%% Archive closure and replay-reference path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, closure seat, or active replay-reference surface"]
+    LG2[("Round node = durable archive / evidence resource")]
+    LG3["This graph names the concrete seats that materially realize archive closure and replay-referenceability in the current wired platform"]
+  end
+
+  subgraph ENTRY["Preserved archive resources"]
+    ARCHIVEPATH[("Archive prefix\narchive/{platform_run_id}/events/")]
+    OBJ[("S3 bucket\nfraud-platform-dev-full-object-store")]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+  end
+
+  subgraph PATH["Archive closure and replay-reference resources"]
+    CLOSURE["Archive closure evidence seat\narchive-writer closure evidence + archive closure marker"]
+    REPLAY["Replay-reference resolution surface\nspine-closure-resolved archive basis"]
+    LEARNING["Downstream trust handoff\nlater learning-input lane"]
+  end
+
+  ARCHIVEPATH -->|stored in| OBJ
+  ARCHIVEPATH -->|paired with continuity and closure evidence in| EVID
+  OBJ -->|supplies preserved archive basis into| CLOSURE
+  EVID -->|supplies closure evidence into| CLOSURE
+  CLOSURE -->|commits replay-referenceable archive basis as| REPLAY
+  REPLAY -->|later feeds trusted archive basis into| LEARNING

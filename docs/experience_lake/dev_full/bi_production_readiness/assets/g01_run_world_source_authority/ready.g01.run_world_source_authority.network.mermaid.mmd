@@ -1,0 +1,55 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 1 synthesis
+%% Run and world-source authority - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted authority surface, control corridor, or group-owned closure"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3(("Round node = later handoff or downstream consumer"))
+    LG4["This graph synthesizes the three real Group 1 paths only and closes at production-ready run and world-source authority"]
+  end
+
+  subgraph G1["Bi / Group 1 - Run and world-source authority"]
+    OP["Bounded run intent<br/>operator dispatch + approved config basis"]
+    GHA["GitHub Actions + OIDC<br/>bounded authoritative dispatch"]
+    SFN["Step Functions<br/>run-start and READY authority"]
+    RUNCTL["Run-control commitment<br/>run header / config commitment / ready receipt"]
+    RUNBASIS[("Group closure<br/>production-ready committed run basis")]
+
+    ORACLE[("Producer-owned oracle world<br/>fraud-platform-dev-full-object-store")]
+    REALIZE["Promoted source realization corridor<br/>WSP replay basis + Databricks realization / quality path"]
+    SOURCE[("Group closure<br/>production-ready realized source basis")]
+
+    CTRLBUS[("fp.bus.control.v1<br/>authoritative READY publication")]
+    READY[("Group closure<br/>production-ready authorized ready state")]
+    EVID[("S3 evidence root<br/>fraud-platform-dev-full-evidence")]
+    G2(("Later handoff<br/>group 2 boundary access"))
+  end
+
+  CLAIM["Group claim<br/>the production-ready platform begins from governed run legitimacy plus realized source legitimacy before ingress is allowed to matter"]
+
+  OP -->|enters bounded authority flow through| GHA
+  GHA -->|dispatches run-start authority into| SFN
+  SFN -->|commits authoritative run basis through| RUNCTL
+  RUNCTL -->|materially closes| RUNBASIS
+  RUNBASIS -->|stores durable proof under| EVID
+
+  ORACLE -->|enters promoted realization flow through| REALIZE
+  REALIZE -->|materially closes| SOURCE
+  SOURCE -->|stores durable proof under| EVID
+
+  RUNBASIS -->|together define READY eligibility for| SFN
+  SOURCE -->|together define READY eligibility for| SFN
+  SFN -->|publishes authoritative READY to| CTRLBUS
+  CTRLBUS -->|materially closes| READY
+  READY -->|stores durable proof under| EVID
+
+  RUNBASIS -->|together prove| CLAIM
+  SOURCE -->|together prove| CLAIM
+  READY -->|together prove| CLAIM
+  READY -->|later opens| G2

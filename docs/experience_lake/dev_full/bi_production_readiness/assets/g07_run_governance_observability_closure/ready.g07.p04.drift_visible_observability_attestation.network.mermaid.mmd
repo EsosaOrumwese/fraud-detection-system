@@ -1,0 +1,40 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 4
+%% Drift-visible observability attestation path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active observability-attestation corridor seat, live operator control, or owned closure"]
+    LG2(("Round node = active runtime basis or later handoff surface"))
+    LG3["This graph closes at production-ready observability attestation truth for the declared active runtime path, before idle-safe teardown and later cost closure begin"]
+  end
+
+  subgraph ENTRY["Live active-path basis"]
+    ACTIVE(("Declared active runtime path"))
+    TELEMETRY(("Live telemetry from the same runtime surfaces<br/>logs / metrics / traces / alerts"))
+    RUNID(("Run-scoped correlation continuity"))
+  end
+
+  subgraph PATH["Bi / Group 7 / Path 4 - Drift-visible observability attestation"]
+    ATTEST["Live visibility corridor<br/>operators must see the same active path the platform is actually using"]
+    FRESH["Freshness and alert discipline<br/>metric freshness within budget<br/>critical alert coverage exercised<br/>runbook-linked alert path rather than decorative alarms"]
+    DRIFT["Drift-visible active-path checks<br/>green must belong to the real active path<br/>drift visible before false certification is allowed"]
+    HANDLES["Handle and correlation integrity<br/>required handle / secret surfaces resolve cleanly<br/>placeholder-like active handles = 0<br/>OpenTelemetry-first correlation continuity preserved"]
+    PROOF["Proof-boundary honesty<br/>proof-surface misreads stay separate from real runtime invisibility or operator-chain incompleteness"]
+    OBS(("Owned outcome<br/>production-ready observability attestation truth"))
+    TEARDOWN(("Later handoff<br/>idle-safe teardown and residual-readability path"))
+  end
+
+  ACTIVE -->|declares the runtime surfaces that must be attested by| ATTEST
+  TELEMETRY -->|feeds live operator visibility into| ATTEST
+  RUNID -->|pins attributable correlation through| ATTEST
+  FRESH -->|defines freshness and exercised alert coverage required for| ATTEST
+  DRIFT -->|defines live-path fidelity required for| ATTEST
+  HANDLES -->|defines handle-clean operator truth required for| ATTEST
+  PROOF -->|defines honest attestation interpretation required for| ATTEST
+  ATTEST -->|materially closes trustworthy active-path visibility as| OBS
+  OBS -->|later supports safe closeout into| TEARDOWN

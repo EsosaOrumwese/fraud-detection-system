@@ -1,0 +1,42 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 1
+%% Entity and relationship projection path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned projection closure"]
+    LG2[("Round node = durable projection truth or constrained source family")]
+    LG3["This graph closes at current graph / entity projection truth, before joined context or feature readiness begins"]
+  end
+
+  subgraph ENTRY["Runtime-allowed admitted family"]
+    TTRAFFIC[("fp.bus.traffic.fraud.v1")]
+    TCTXE[("fp.bus.context.arrival_events.v1")]
+    TCTXT[("fp.bus.context.arrival_entities.v1")]
+    TFLOW[("fp.bus.context.flow_anchor.fraud.v1")]
+    ALLOWED[("Allowed live-runtime source families only<br>s3_event_stream_with_fraud_6B<br>arrival_events_5B<br>s1_arrival_entities_6B<br>s3_flow_anchor_with_fraud_6B")]
+  end
+
+  subgraph PATH["Runtime context formation and decisioning / Path 1"]
+    CSFB["RTDL intake and binding surface<br>admits traffic + context into projection lane"]
+    IEG["Entity and relationship projection logic"]
+    ORDER["Projection discipline<br>event-time ordering<br>run correlation<br>observed-data relationship posture"]
+    AURORA[("Current graph / entity projection truth")]
+    OUTCOME["Owned outcome<br>current entity and relationship projection truth for the active run"]
+    MSF["Retained managed stream parity surface<br>not primary active output path"]
+  end
+
+  TTRAFFIC -->|admitted traffic enters projection lane through| CSFB
+  TCTXE -->|arrival-event context enters projection lane through| CSFB
+  TCTXT -->|arrival-entity context enters projection lane through| CSFB
+  TFLOW -->|flow-anchor context enters projection lane through| CSFB
+  ALLOWED -->|constrains what projection is allowed to use in runtime for| CSFB
+  CSFB -->|hands bound runtime event family into| IEG
+  ORDER -->|governs deterministic projection behavior for| IEG
+  IEG -->|writes current graph and entity state to| AURORA
+  AURORA -->|closes this path as| OUTCOME
+  IEG -. retained parity relation only .-> MSF

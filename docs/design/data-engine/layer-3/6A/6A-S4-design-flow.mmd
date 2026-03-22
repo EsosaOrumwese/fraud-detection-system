@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>s1_party_base_6A<br/>s2_account_base_6A<br/>s3_instrument_base_6A<br/>s3_account_instrument_links_6A"]
+  I2["Priors and policies<br/>prior_device_counts_6A<br/>prior_ip_counts_6A<br/>taxonomy_devices_6A<br/>taxonomy_ips_6A<br/>graph and device linkage rules"]
+
+  S4["S4<br/>Devices, IPs, and network graph"]
+
+  O1["Outputs<br/>s4_device_base_6A<br/>s4_ip_base_6A<br/>s4_device_links_6A<br/>s4_ip_links_6A<br/>optional neighbourhoods and summary<br/>device/IP RNG events plus audit and trace"]
+  O2["Authority<br/>S4 alone decides which devices and IPs exist<br/>and how the static graph is wired"]
+
+  R1["Implemented shift<br/>S4 became the main network-realism repair lane:<br/>IP prior alignment, linkage coverage, and bounded devices-per-IP tails<br/>are the accepted realism burdens here"]
+  R2["Implemented shift<br/>The final design removed permissive region-mix fallback,<br/>added deterministic coverage controls, and enforced reuse clamps<br/>so graph realism is achieved by construction rather than post-hoc warning"]
+
+  I1 --> S4
+  I2 --> S4
+  S4 --> O1
+  S4 --> O2
+  R1 -.-> S4
+  R2 -.-> S4

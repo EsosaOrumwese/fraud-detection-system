@@ -1,0 +1,20 @@
+flowchart LR
+  U1["Required upstream authority<br/>1A through 3B and 5A through 5B<br/>validation bundles and PASS flags"]
+  U2["Pinned upstream data surfaces<br/>merchant, zone, virtual, intensity,<br/>and arrival world references"]
+  U3["Pinned Layer-3 priors and contracts<br/>population, segmentation, product,<br/>instrument, graph, fraud-role, and validation packs"]
+
+  S0["S0<br/>Gate and sealed inputs for the entity world"]
+
+  O1["Outputs<br/>s0_gate_receipt_6A<br/>sealed_inputs_6A"]
+  O2["Authority<br/>S0 alone defines the closed world<br/>that all later 6A states may read"]
+
+  R1["Implemented shift<br/>S0 became a strict multi-law gate:<br/>it validates all upstream PASS forms and fails on unresolved schema anchors"]
+  R2["Implemented shift<br/>The actual design kept S0 metadata-oriented:<br/>large upstream row-level surfaces are structurally sealed,<br/>while small contracts and priors are content-validated and hashed"]
+
+  U1 --> S0
+  U2 --> S0
+  U3 --> S0
+  S0 --> O1
+  S0 --> O2
+  R1 -.-> S0
+  R2 -.-> S0

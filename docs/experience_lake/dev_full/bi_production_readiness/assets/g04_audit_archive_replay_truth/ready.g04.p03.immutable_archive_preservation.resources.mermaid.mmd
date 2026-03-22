@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 4 / Path 3
+%% Immutable archive preservation path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active archive-preservation seat"]
+    LG2(("Round node = durable archive or continuity-evidence resource"))
+    LG3["This graph names the concrete seats that materially realize production-ready immutable archive preservation"]
+  end
+
+  subgraph ENTRY["Runtime source seats"]
+    MSK(("MSK Serverless cluster<br/>fraud-platform-dev-full-msk"))
+    TRTDL(("Topic<br/>fp.bus.rtdl.v1"))
+    TAUDIT(("Topic<br/>fp.bus.audit.v1"))
+  end
+
+  subgraph PATH["Production-ready archive preservation resources"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br/>fraud-platform-rtdl"]
+    ARCH["Deployment<br/>fp-pr3-archive-writer"]
+    OBJ(("S3 object store<br/>fraud-platform-dev-full-object-store"))
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    ARCHIVEPATH(("Archive prefix<br/>archive/{platform_run_id}/events/"))
+    PRESERVED(("Owned outcome<br/>production-ready immutable archive-preservation closure"))
+  end
+
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|runs| ARCH
+  TRTDL -->|is transported by| MSK
+  TAUDIT -->|is transported by| MSK
+  MSK -->|feeds current-run source records to| ARCH
+  ARCH -->|writes immutable run-scoped archive objects under| ARCHIVEPATH
+  ARCHIVEPATH -->|is stored in| OBJ
+  ARCH -->|stores archive receipts and continuity evidence in| EVID
+  ARCHIVEPATH -->|materially closes this path as| PRESERVED
+  EVID -->|materially closes this path as| PRESERVED

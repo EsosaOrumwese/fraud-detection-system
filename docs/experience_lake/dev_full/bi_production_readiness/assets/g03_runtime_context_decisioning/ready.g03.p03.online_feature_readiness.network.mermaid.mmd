@@ -1,0 +1,38 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 / Path 3
+%% Online feature readiness path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat or operator-visible proof boundary"]
+    LG2(("Round node = durable feature truth or constrained runtime seam"))
+    LG3["This graph closes at production-ready online feature truth, before guardrail or decision formation begin"]
+  end
+
+  subgraph ENTRY["Current-run feature inputs"]
+    CONTEXT(("Joined runtime context"))
+    PROJ(("Current entity / relationship projection truth"))
+    ALLOWED(("Bounded runtime semantic world only<br/>s3_event_stream_with_fraud_6B<br/>arrival_events_5B<br/>s1_arrival_entities_6B<br/>s3_flow_anchor_with_fraud_6B<br/>no learning-only truth products"))
+  end
+
+  subgraph PATH["Bi / Group 3 / Path 3 - Online feature readiness"]
+    OFP["Online feature admissibility + materialization<br/>usable feature truth owner"]
+    CONTRACT["Feature-boundary seam discipline<br/>graph-version shape correctness<br/>requester / projector key-shape alignment"]
+    PROOF["Production-ready feature proof posture<br/>usable features materially present on active run<br/>missingness interpreted honestly<br/>checkpoint and restart-to-green bounded enough for accepted RTDL slice"]
+    HEALTH["Replay-aware and freshness-honest operator truth<br/>advisory replay posture stays distinct from real missing-feature or stale-graph-version defects"]
+    STATE(("Online feature state"))
+    OUT(("Owned outcome<br/>production-ready feature-ready runtime truth the live decision path can honestly use"))
+  end
+
+  CONTEXT -->|hands joined runtime context to| OFP
+  PROJ -->|supplies current projection state to| OFP
+  ALLOWED -->|constrains runtime-readable semantic inputs for| OFP
+  CONTRACT -->|governs graph-version and request-shape compatibility for| OFP
+  PROOF -->|governs accepted production-ready posture for| OFP
+  HEALTH -->|keeps feature readiness semantics truthful for| OFP
+  OFP -->|materializes online feature state into| STATE
+  STATE -->|materially closes this path as| OUT

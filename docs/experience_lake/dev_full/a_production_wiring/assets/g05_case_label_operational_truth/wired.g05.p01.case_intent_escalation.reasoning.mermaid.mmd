@@ -1,0 +1,166 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn RTDL decision-worthy and audit-worthy outputs into case-intent truth"]
+    G2["Keep this path narrower than case creation, case timeline truth, and label truth"]
+    G3["Answer which RTDL outcomes deserve operational review work at all"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not raw traffic and not generic RTDL liveness"]
+    E2["The entry is the subset of RTDL decision and audit outputs that are eligible to become operational review truth"]
+    E3["The path language says the case-escalation path begins from RTDL decision and audit outputs"]
+    E4["The Case + Label readiness plan says the plane is proved only after the already-working upstream decision surfaces feed the case-trigger boundary correctly"]
+    E5["So this path begins only once RTDL has already produced usable decision and audit truth"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["RTDL decision and audit outputs"]
+    R2["Case-trigger selection and suppression logic"]
+    R3["Case-intent truth"]
+    R4["Case-trigger topic"]
+    R5["Case-management intake"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["The upstream RTDL decision or audit signal that made the event case-worthy"]
+    C2["Run-scope continuity"]
+    C3["Enough identity to suppress duplicates correctly"]
+    C4["Enough boundary provenance that later case-management and audit surfaces can explain why the case exists at all"]
+    C5["The plane must remain fully auditable, duplicate and replay behavior must not corrupt truth, and live telemetry must preserve RTDL-to-case-trigger event movement and run-scope continuity into case and label outputs"]
+    C6["This path carries operational truth with continuity obligations, not just open-case please"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats escalation selection as its own truth boundary"]
+    L2["The system is not saying once RTDL emits decisions, case management can decide what matters"]
+    L3["There is a dedicated boundary that owns trigger selection"]
+    L4["That boundary must be correct, duplicate-safe, and stable under replay"]
+    L5["This is how the whole plane preserves truth ownership: case-trigger owns trigger selection, case management owns case timeline truth, and label store owns label truth"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The copied baseline wired graphs show a live case-trigger deployment in the case-and-label namespace"]
+    S2["The RTDL downstream topic and the audit topic both feed the case-trigger surface"]
+    S3["The case-trigger surface publishes case intents into the case-trigger topic"]
+    S4["Case management consumes from that topic"]
+    S5["So the case-trigger surface has a named workload placement and a named downstream topic boundary"]
+    S6["The proving notes retained case-trigger counters: published, duplicates, quarantine, and payload_mismatch_total"]
+    S7["That means the platform already treats this boundary as a first-class observable surface rather than burying it inside case management"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform wants a clean escalation boundary before operational case truth begins"]
+    Y2["That boundary must choose the right upstream decisions and audit events, avoid false-positive case intent, avoid silent misses, suppress duplicate and replayed trigger creation, and remain stable under bounded production pressure"]
+    Y3["Those are exactly the case-trigger requirements that were pinned"]
+    Y4["So the shape is not accidental"]
+    Y5["It exists because the platform does not want case truth to begin from an undifferentiated stream of RTDL output"]
+    Y6["It wants a distinct, owned case-intent surface first"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The Case + Label component contract shapes what this path must mean: semantic correctness, ownership correctness, duplicate and replay safety, latency and throughput, and auditability"]
+    X2["The whole-plane contract shapes why it exists: the right RTDL outputs become case-worthy signals, those signals become the right cases, and no shadow truth ownership appears between case-trigger, case management, and label store"]
+    X3["The topic continuity contract shapes the concrete handoff: case-trigger topic, producer = case-trigger surface, consumer = case management"]
+    X4["The phase telemetry contract shapes how it must be observed: trigger intake counts, duplicate suppression counters, RTDL-to-case-trigger event movement, and fail-fast if case and label workers are healthy but dark for the current run"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds another explicit truth boundary after RTDL"]
+    T2["That costs extra structure: one more producer/consumer handoff, one more duplicate-suppression surface, one more place where replay semantics must stay clean, and one more thing to observe live"]
+    T3["But that cost buys the ability to separate RTDL emitted decision from this decision deserves operational review"]
+    T4["Without that boundary, case management would either have to infer escalation itself or accept too much upstream noise"]
+    T5["If case-trigger is wrong, the operational review surface becomes noisy or blind"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still ingest traffic, make decisions, append audit truth, and later create cases somehow"]
+    N2["But it loses a clean answer to which RTDL outcomes were truly case-worthy"]
+    N3["It loses a clean answer to whether duplicate or replayed RTDL outputs should create new operational work"]
+    N4["It loses a clean answer to why a case exists at all"]
+    N5["It loses a clean answer to whether case management is receiving operational truth or just a flood of undifferentiated machine outputs"]
+    N6["That would weaken A immediately because the platform would have RTDL truth and case truth, but no explicit owner for the crucial escalation judgment that connects them"]
+    N7["If case-trigger is wrong, the entire operational review surface becomes noisy or blind"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Case-intent truth exists"]
+    O2["There is a clean handoff into the case-trigger boundary"]
+    O3["The platform has made an explicit, duplicate-safe, replay-stable determination that an upstream decision or audit signal is case-worthy"]
+    O4["Owned outcome: case-intent truth before case creation begins"]
+    A1["Purpose claim:<br/>the platform has a distinct job for converting RTDL decision and audit truth into case-intent truth before case management begins"]
+    A2["Intentionality claim:<br/>escalation selection is explicitly owned by case-trigger rather than inferred later by case management"]
+    A3["Materialization claim:<br/>the path is concretely seated in the case-trigger workload and its topic handoff to case management"]
+    A4["Contract claim:<br/>this path is governed by trigger precision and recall, duplicate suppression, replay safety, and clean truth ownership"]
+    A5["Constraint-awareness claim:<br/>the platform already knows this boundary can fail by noise, blindness, or duplicate explosion, which is why it is measured directly instead of being hidden inside later case-state behavior"]
+    A6["Material participation evidence:<br/>the plane-level proving notes retained case-trigger counters published, duplicates, quarantine, and payload_mismatch_total, and the bounded case-and-label closure recorded clean integrity deltas on a large admitted-request slice while the upstream base remained pass"]
+    A7["A-level meaning:<br/>RTDL truth becomes explicit case-worthy operational truth through an owned escalation boundary instead of leaving operational review to infer importance from all upstream outputs"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5
+  E5 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R2 --> C2
+  R2 --> C3
+  R3 --> C4
+  C4 --> C5 --> C6
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R4 --> L4
+  R5 --> L5
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5
+  S5 --> S6 --> S7
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5 --> Y6
+
+  R4 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5
+
+  R3 --> O1
+  R4 --> O2
+  R3 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T5 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X4 --> A4
+  T5 --> A5
+  S7 --> A6
+  N7 --> A7
+  A1 --> A7
+  A2 --> A7
+  A3 --> A7
+  A4 --> A7
+  A5 --> A7
+  A6 --> A7
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,C1,C2,C3,C4,C5,C6,S1,S2,S3,S4,S5,S6,S7 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,Y6,X1,X2,X3,X4,T1,T2,T3,T4,T5,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6,A7 close;

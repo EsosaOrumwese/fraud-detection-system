@@ -1,0 +1,28 @@
+flowchart LR
+  I1["s0_gate_receipt_2A"]
+  I2["tz_timetable_cache"]
+  I3["site_timezones partitions<br/>used only to discover seeds"]
+  I4["s4_legality_report<br/>one PASS report per discovered seed"]
+
+  S5["S5 Publish-legitimacy authority<br/>Discover all seeds for this manifest<br/>Require S4 PASS for each one<br/>Seal the segment with bundle plus flag"]
+
+  O1["validation_bundle_2A"]
+  O2["index.json"]
+  O3["_passed.flag<br/>No PASS -> No Read"]
+
+  I1 --> S5
+  I2 --> S5
+  I3 --> S5
+  I4 --> S5
+
+  S5 --> O1
+  S5 --> O2
+  S5 --> O3
+
+  R1["Actual design recovery<br/>S5 is the real downstream contract for 2A"]
+  R2["It turns per-seed legality evidence and cache readiness<br/>into one manifest-scoped consumer gate"]
+  R3["Performance work later accelerated reuse and hashing,<br/>but the semantic burden stayed full-strength:<br/>all discovered seeds, all PASS, then publish"]
+
+  R1 -.-> S5
+  R2 -.-> S5
+  R3 -.-> S5

@@ -1,0 +1,21 @@
+flowchart LR
+  I1["s0_gate_receipt_2A"]
+  I2["sealed tzdb_release"]
+  I3["sealed tz_world tzid domain"]
+
+  S3["S3 Transition-cache authority<br/>Compile deterministic per-tzid transition index<br/>for the manifest_fingerprint"]
+
+  O1["tz_timetable_cache<br/>Manifest-scoped cache and digest<br/>created_utc = S0 verified_at_utc"]
+
+  I1 --> S3
+  I2 --> S3
+  I3 --> S3
+  S3 --> O1
+
+  R1["Actual design recovery<br/>S3 became more than a cache builder;<br/>it became the segment's transition-horizon authority"]
+  R2["Warm-cache performance work changed<br/>how the state is executed,<br/>without changing its semantic burden"]
+  R3["Later bounded reopen extended future transitions<br/>through deterministic ZoneInfo synthesis,<br/>so downstream DST legality stayed causal in 2026+ horizons"]
+
+  R1 -.-> S3
+  R2 -.-> S3
+  R3 -.-> S3

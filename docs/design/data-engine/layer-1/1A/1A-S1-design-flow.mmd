@@ -1,0 +1,44 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["hurdle_design_matrix from S0.5"]
+    I2["hurdle_coefficients bundle"]
+    I3["seed, parameter_hash, manifest_fingerprint,<br/>run_id and rng_audit_log"]
+  end
+
+  subgraph core["Actual S1 design"]
+    C1["Verify shape alignment between design vector<br/>and coefficients before any emission"]
+    C2["Compute eta and pi under binary64 fixed-order math"]
+    C3["If pi is exactly 0 or 1 then take deterministic branch<br/>with zero draws"]
+    C4["Else consume exactly one open-interval uniform<br/>from keyed hurdle_bernoulli substream"]
+    C5["Emit one hurdle event per merchant<br/>as sole branch gate for multi-site path"]
+    C6["Append cumulative trace rows and validate replay posture"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S1 was rewritten so registry resolution,<br/>trace totals and validator behavior match the spec"]
+    S2["Legacy trace fallback was removed;<br/>actual validation now selects the row with highest cumulative totals"]
+    S3["Resume semantics were added without changing<br/>branch-gate authority"]
+    S4["merchant_id range handling was hardened so contract and runtime<br/>agree on id64 posture"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["rng_event_hurdle_bernoulli"]
+    O2["rng_trace_log updates for S1 family"]
+    O3["is_multi branch authority for S2 and downstream"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  C1 --> C2 --> C3
+  C2 --> C4
+  C3 --> C5
+  C4 --> C5 --> C6
+  C5 --> O1
+  C6 --> O2
+  O1 --> O3
+
+  S1 -.-> C1
+  S2 -.-> C6
+  S3 -.-> C5
+  S4 -.-> C1

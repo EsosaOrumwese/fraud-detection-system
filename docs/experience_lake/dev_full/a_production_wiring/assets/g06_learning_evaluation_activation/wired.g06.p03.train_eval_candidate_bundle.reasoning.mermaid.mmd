@@ -1,0 +1,168 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn an authoritative offline dataset into candidate-model truth"]
+    G2["Keep this path narrower than dataset truth and narrower than later promotion truth"]
+    G3["Answer whether the platform can run managed training and evaluation and produce candidate bundle that is attributable, reproducible enough, and safe to hand to the promotion corridor"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not that SageMaker can start a job"]
+    E2["The entry is an immutable offline dataset artifact already pinned as the only allowed train-and-eval basis"]
+    E3["The run-process makes that gate explicit: train-and-eval closure starts only when the offline dataset artifact is immutable"]
+    E4["The build plan turns that into concrete immutable input binding"]
+    E5["So the model-factory surface is not allowed to decide its own basis or train from a moving target"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Immutable offline dataset artifact"]
+    R2["SageMaker train and eval"]
+    R3["Leakage, stability, and performance gates"]
+    R4["MLflow lineage closure"]
+    R5["Candidate-bundle publication"]
+    R6["Safe-disable and rollback closure"]
+    R7["Deterministic train-and-eval verdict"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Immutable upstream dataset identity"]
+    C2["Evaluation metrics"]
+    C3["Leakage and provenance closure results"]
+    C4["MLflow lineage references"]
+    C5["The candidate bundle itself"]
+    C6["Safe-disable and rollback references proving the candidate is operable rather than merely produced"]
+    C7["The implementation notes show the candidate bundle carrying lineage refs back to train-and-eval closure artifacts plus the upstream dataset fingerprint"]
+    C8["Later closure verifies reproducibility, run-scope continuity, lineage continuity, and offline-feature rollback refs before allowing the rollup to advance"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats candidate truth as different from both dataset truth and promotion truth"]
+    L2["The system is not saying once SageMaker ran, we effectively have something deployable"]
+    L3["It is saying there is a dedicated boundary where managed train/eval, evaluation truth, lineage truth, candidate-bundle truth, and operability truth must come together before a candidate is even eligible for promotion"]
+    L4["That is exactly the distinction in the production paths doc between the train/eval path and the later promotion path"]
+    L5["This is strong A-level design signal because the platform gives candidate-model truth its own explicit closure boundary"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["This path is materially seated in the current wired platform"]
+    S2["The copied baseline wired graphs show SageMaker as the train-and-eval control surface"]
+    S3["MLflow is the tracking and promotion surface"]
+    S4["The model package group is the candidate-bundle publication surface and learning request/event topics form the transport edges around the corridor"]
+    S5["That means candidate-model truth is seated on concrete managed training substrate, lineage substrate, and candidate publication surface"]
+    S6["The run-process phase map and design authority pin the train-and-eval lane to SageMaker plus MLflow as the canonical managed corridor"]
+    S7["Execution notes record a real candidate bundle written to the run-scoped learning path, with operability report and later reproducibility and safe-disable artifacts published under the same corridor"]
+    S8["That is strong A-style evidence that candidate-model truth is materially realized, not merely implied by a training job"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses two weak shortcuts: training completed as proxy for candidate quality and operability, and candidate exists as proxy for lineage and governance completeness"]
+    Y2["That is why the path explicitly requires metrics and leakage gates, MLflow lineage closure, candidate provenance tied back to dataset fingerprint plus replay-basis and as-of controls, and safe-disable and rollback path before train-and-eval closure is considered closed"]
+    Y3["The build plan goes further and says closure needs non-gate acceptance objectives such as candidate utility versus baseline or champion, reproducibility on rerun with pinned inputs, and bundle operability with audit-complete lineage and provenance"]
+    Y4["The current implementation trail makes that concrete with green candidate-bundle closure carrying lineage refs back to train/eval closure plus the offline-feature fingerprint"]
+    Y5["It also records an honest advisory when evaluation had to fall back to local-model evaluation while managed transform quota was unavailable, and kept that advisory visible rather than hiding it"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The train-and-eval gate contract shapes the closure object: train and eval complete, metrics and leakage pass, candidate bundle with provenance, safe-disable and rollback path, and provenance carrying dataset fingerprint plus replay-basis and as-of controls"]
+    X2["The model-factory production-ready contract shapes the semantics: train and eval must use the right offline-feature outputs, be reproducible enough within pinned tolerances, keep metrics tied to the right dataset basis, and avoid hidden local, synthetic, or bypass paths"]
+    X3["The cross-plane provenance law shapes what has to survive the boundary: policy, bundle, config, and release identifiers are required for replay and audit"]
+    X4["The later promotion corridor depends on this path being explicit about candidate eligibility rather than silently collapsing train/eval and promotion into one lane"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds a heavy governance boundary before promotion"]
+    T2["That costs managed train-and-eval orchestration, explicit eval gates, lineage closure, candidate-bundle publication, reproducibility checks, and safe-disable and rollback closure"]
+    T3["But that cost buys the ability to answer not just that a model candidate exists, but what dataset basis it came from, what metrics justified it, whether its lineage is complete, whether its bundle is operable, and whether it can be disabled or rolled back safely before promotion"]
+    T4["The current implementation trail makes that concrete through green candidate-bundle closure with lineage refs and subsequent double-read checks on candidate-bundle digest, run-scope continuity, lineage continuity, and rollback refs before rollup"]
+    T5["It also keeps honest constraint visible by tracking advisory fallbacks instead of pretending the managed corridor was perfect when quotas forced deviation"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still preserve archive truth, commit authoritative labels, pin learning-input basis, commit an offline dataset, and even run training jobs later"]
+    N2["But it loses a clean answer to what dataset basis a candidate came from"]
+    N3["It loses a clean answer to what metrics and leakage posture justified candidate eligibility"]
+    N4["It loses a clean answer to whether lineage and provenance were complete"]
+    N5["It loses a clean answer to whether the bundle was operable and safe to disable or roll back before promotion"]
+    N6["That would weaken A immediately because the platform would have model-shaped outputs without an explicit candidate-truth boundary between dataset truth and promotion truth"]
+    N7["The architecture rejects that by making train/eval plus candidate-bundle closure an owned boundary before promotion begins"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Train and eval completed"]
+    O2["Metrics and leakage closure passed"]
+    O3["Provenance-complete candidate bundle committed"]
+    O4["Safe-disable and rollback path committed"]
+    O5["Owned outcome: training and evaluation truth plus operable candidate-model truth eligible for promotion but not yet promoted"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning authoritative offline dataset truth into candidate-model truth before promotion begins"]
+    A2["Intentionality claim:<br/>the model-factory corridor does not collapse truth into training completion; it closes evaluation truth, lineage truth, candidate-bundle truth, and operability truth together"]
+    A3["Materialization claim:<br/>this boundary is concretely seated in SageMaker train/eval, MLflow lineage surfaces, candidate-bundle publication surfaces, and run-scoped learning evidence"]
+    A4["Contract claim:<br/>this path is governed by immutable dataset identity, metrics and leakage gates, lineage completeness, candidate provenance carrying dataset fingerprint plus replay/as-of controls, and safe-disable / rollback operability"]
+    A5["Constraint-awareness claim:<br/>the platform already knows candidate-producing corridor can be green with advisories or quota-driven deviations, which is why those advisories are tracked explicitly instead of being hidden behind a vague training-worked claim"]
+    A6["A-level meaning:<br/>the platform produces attributable, governable candidate-model truth through an explicit managed corridor rather than jumping from dataset truth straight to promotion"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5
+  E5 --> R1 --> R2 --> R3 --> R4 --> R5 --> R6 --> R7
+
+  R1 --> C1
+  R3 --> C2
+  R3 --> C3
+  R4 --> C4
+  R5 --> C5
+  R6 --> C6
+  R5 --> C7 --> C8
+
+  R1 --> L1
+  L1 --> L2 --> L3 --> L4 --> L5
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8
+
+  R3 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R4 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5
+
+  R2 --> O1
+  R3 --> O2
+  R5 --> O3
+  R6 --> O4
+  O1 --> O5
+  O2 --> O5
+  O3 --> O5
+  O4 --> O5
+
+  T5 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O5 --> A1
+  O5 --> A2
+  O5 --> A3
+  X4 --> A4
+  T5 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,C1,C2,C3,C4,C5,C6,C7,C8,S1,S2,S3,S4,S5,S6,S7,S8 base;
+  class R1,R2,R3,R4,R5,R6,R7 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,T1,T2,T3,T4,T5,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,O5,A1,A2,A3,A4,A5,A6 close;

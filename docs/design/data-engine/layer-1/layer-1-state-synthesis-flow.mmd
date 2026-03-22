@@ -1,0 +1,110 @@
+flowchart LR
+  subgraph SEG1A["1A - Outlet-world authority"]
+    direction LR
+    A1_0["S0<br/>Seal lawful merchant world"]
+    A1_1["S1<br/>Branch merchant shape"]
+    A1_2["S2<br/>Fix total outlet count"]
+    A1_3["S3<br/>Fix candidate domain and order"]
+    A1_4["S4<br/>Fix foreign-count target"]
+    A1_5["S5<br/>Fix country-weight law"]
+    A1_6["S6<br/>Realise foreign membership"]
+    A1_7["S7<br/>Conserve integer allocation"]
+    A1_8["S8<br/>Materialise outlet egress"]
+    A1_9["S9<br/>Seal publish legitimacy"]
+  end
+
+  subgraph SEG1B["1B - Site-location authority"]
+    direction LR
+    B1_0["S0<br/>Seal 1A outlet authority"]
+    B1_1["S1<br/>Freeze tile universe"]
+    B1_2["S2<br/>Freeze governed tile mass"]
+    B1_3["S3<br/>Translate outlets into site requirements"]
+    B1_4["S4<br/>Fix quota-exact tile topology"]
+    B1_5["S5<br/>Assign sites to tiles"]
+    B1_6["S6<br/>Realise in-country site positions"]
+    B1_7["S7<br/>Synthesize final site rows"]
+    B1_8["S8<br/>Publish order-free site egress"]
+    B1_9["S9<br/>Seal publish legitimacy"]
+  end
+
+  subgraph SEG2A["2A - Civil-time authority"]
+    direction LR
+    A2_0["S0<br/>Seal upstream read legitimacy"]
+    A2_1["S1<br/>Lookup provisional timezone"]
+    A2_2["S2<br/>Fix final timezone truth"]
+    A2_3["S3<br/>Compile transition horizon"]
+    A2_4["S4<br/>Prove timezone legality"]
+    A2_5["S5<br/>Seal publish legitimacy"]
+  end
+
+  subgraph SEG2B["2B - Routing-realism authority"]
+    direction LR
+    B2_0["S0<br/>Seal routing environment"]
+    B2_1["S1<br/>Freeze merchant mass"]
+    B2_2["S2<br/>Freeze alias decode truth"]
+    B2_3["S3<br/>Add temporal modulation"]
+    B2_4["S4<br/>Compile routing realism"]
+    B2_5["S5<br/>Execute live two-stage routing"]
+    B2_6["S6<br/>Handle virtual-edge branch"]
+    B2_7["S7<br/>Audit routing artefacts"]
+    B2_8["S8<br/>Seal publish legitimacy"]
+  end
+
+  subgraph SEG3A["3A - Zone-allocation authority"]
+    direction LR
+    A3_0["S0<br/>Seal outlet and policy world"]
+    A3_1["S1<br/>Decide escalation scope"]
+    A3_2["S2<br/>Fix country-zone priors"]
+    A3_3["S3<br/>Emit sampled zone shares"]
+    A3_4["S4<br/>Conserve integer zone counts"]
+    A3_5["S5<br/>Publish zone_alloc and universe hash"]
+    A3_6["S6<br/>Judge realism verdict"]
+    A3_7["S7<br/>Seal publish legitimacy"]
+  end
+
+  subgraph SEG3B["3B - Virtual-routing authority"]
+    direction LR
+    B3_0["S0<br/>Seal virtual and CDN environment"]
+    B3_1["S1<br/>Define virtual merchants and anchors"]
+    B3_2["S2<br/>Construct CDN edge world"]
+    B3_3["S3<br/>Package alias form and edge integrity"]
+    B3_4["S4<br/>Freeze routing semantics and governance"]
+    B3_5["S5<br/>Audit full segment and seal PASS"]
+  end
+
+  A1_0 --> A1_1 --> A1_2 --> A1_3 --> A1_4 --> A1_5 --> A1_6 --> A1_7 --> A1_8 --> A1_9
+  B1_0 --> B1_1 --> B1_2 --> B1_3 --> B1_4 --> B1_5 --> B1_6 --> B1_7 --> B1_8 --> B1_9
+  A2_0 --> A2_1 --> A2_2 --> A2_3 --> A2_4 --> A2_5
+  B2_0 --> B2_1 --> B2_2 --> B2_3 --> B2_4 --> B2_5 --> B2_6 --> B2_7 --> B2_8
+  A3_0 --> A3_1 --> A3_2 --> A3_3 --> A3_4 --> A3_5 --> A3_6 --> A3_7
+  B3_0 --> B3_1 --> B3_2 --> B3_3 --> B3_4 --> B3_5
+
+  A1_9 -->|outlet-world authority| B1_0
+  B1_9 -->|site world| A2_0
+
+  A1_9 -->|outlet_catalogue| A3_0
+  A2_5 -->|site_timezones and legality context| A3_0
+
+  A1_9 -->|merchant and outlet authority| B2_0
+  B1_9 -->|site_locations| B2_0
+  A2_5 -->|civil-time authority| B2_0
+
+  A1_9 -->|merchant and outlet authority| B3_0
+  B1_9 -->|site geometry| B3_0
+  A2_5 -->|site_timezones and transition context| B3_0
+  A3_7 -->|zone_alloc closure| B3_0
+
+  B3_5 -->|virtual-routing world for 2B virtual branch| B2_6
+
+  L1["Layer-1 design reading"] --> L2["1A and 1B jointly define the lawful physical merchant world:<br/>merchant-country membership, outlet counts, site topology, and actual site coordinates."]
+  L1 --> L3["2A and 2B add civil-time and routing realism:<br/>the world is no longer just spatial, it is time-lawful and route-lawful."]
+  L1 --> L4["3A and 3B add zone and virtual-edge semantics:<br/>the merchant world becomes operationally rich enough for downstream traffic and behaviour."]
+  L1 --> L5["Every segment closes with a publish gate:<br/>Layer-1 is a chain of certified merchant-world authorities, not a loose pre-processing stack."]
+
+  L2 -.-> A1_9
+  L2 -.-> B1_9
+  L3 -.-> A2_5
+  L3 -.-> B2_8
+  L4 -.-> A3_7
+  L4 -.-> B3_5
+  L5 -.-> B3_5

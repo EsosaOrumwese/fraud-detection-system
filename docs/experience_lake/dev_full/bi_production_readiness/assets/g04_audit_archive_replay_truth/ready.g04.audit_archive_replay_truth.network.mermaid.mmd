@@ -1,0 +1,47 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 4 synthesis
+%% Durable audit, archive, and replay truth - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active historical-truth boundary, preservation corridor, or group-owned closure"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3(("Round node = later handoff or downstream consumer"))
+    LG4["This graph synthesizes the four real Group 4 paths only and closes at production-ready durable historical truth"]
+  end
+
+  subgraph G4["Bi / Group 4 - Durable audit, archive, and replay truth"]
+    RUNTIME[("Decision truth + action / outcome truth")]
+    APPEND["Audit-append corridor<br/>decision-chain closure becomes append-only historical truth"]
+    AUDIT[("Group closure<br/>production-ready append-only audit truth")]
+    REF["Audit publication / durable-reference corridor<br/>by-reference evidence remains authoritative"]
+    REFS[("Group closure<br/>production-ready durable audit refs / evidence surfaces")]
+    ARCHIVE["Archive-preservation corridor<br/>run-scoped immutable runtime history"]
+    PRESERVED[("Group closure<br/>production-ready immutable archive truth")]
+    REPLAYCLOSE["Archive-closure corridor<br/>formal replay-reference resolution from preserved history"]
+    REPLAY[("Group closure<br/>production-ready replay-referenceable archive closure")]
+    NEXT[("Later trusted consumers<br/>replay / learning / case-facing trust lanes")]
+  end
+
+  CLAIM["Group claim<br/>the production-ready platform turns runtime decisions and outcomes into durable historical truth that later replay, learning, case handling, and audit review can trust"]
+
+  RUNTIME -->|enters append-only historical closure through| APPEND
+  APPEND -->|materially closes| AUDIT
+  AUDIT -->|opens by-reference historical publication through| REF
+  REF -->|materially closes| REFS
+  RUNTIME -->|enters immutable preservation through| ARCHIVE
+  ARCHIVE -->|materially closes| PRESERVED
+  PRESERVED -->|enters formal archive closure through| REPLAYCLOSE
+  REPLAYCLOSE -->|materially closes| REPLAY
+
+  AUDIT -->|together prove| CLAIM
+  REFS -->|together prove| CLAIM
+  PRESERVED -->|together prove| CLAIM
+  REPLAY -->|together prove| CLAIM
+
+  REFS -->|later support trusted downstream use in| NEXT
+  REPLAY -->|later support trusted downstream use in| NEXT

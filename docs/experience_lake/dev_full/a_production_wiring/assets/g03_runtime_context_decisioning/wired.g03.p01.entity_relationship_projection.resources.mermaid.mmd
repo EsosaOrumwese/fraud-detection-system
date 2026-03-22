@@ -1,0 +1,49 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 1
+%% Entity and relationship projection path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active runtime seat"]
+    LG2[("Round node = durable store or constrained source family")]
+    LG3["This graph names the concrete seats that materially realize current projection truth"]
+  end
+
+  subgraph ENTRY["Admitted runtime intake resources"]
+    TTRAFFIC[("Topic<br>fp.bus.traffic.fraud.v1")]
+    TCTXE[("Topic<br>fp.bus.context.arrival_events.v1")]
+    TCTXT[("Topic<br>fp.bus.context.arrival_entities.v1")]
+    TFLOW[("Topic<br>fp.bus.context.flow_anchor.fraud.v1")]
+    ALLOWED[("Runtime-allowed oracle families<br>s3_event_stream_with_fraud_6B<br>arrival_events_5B<br>s1_arrival_entities_6B<br>s3_flow_anchor_with_fraud_6B")]
+  end
+
+  subgraph RTDL["Projection runtime resources"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    SARTDL["ServiceAccount<br>rtdl"]
+    CSFB["Deployment<br>fp-pr3-csfb"]
+    IEG["Deployment<br>fp-pr3-ieg"]
+    AURORA[("Aurora cluster<br>fraud-platform-dev-full-aurora")]
+    AURW["Aurora writer endpoint"]
+    GROUP["Pinned RTDL consumer posture<br>one consumer group<br>commit after durable write"]
+    MSF["Managed Flink app<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>retained parity only"]
+  end
+
+  TTRAFFIC -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TCTXT -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB
+  ALLOWED -->|constrains runtime-readable source families for| CSFB
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity| SARTDL
+  NSRTDL -->|runs| CSFB
+  NSRTDL -->|runs| IEG
+  CSFB -->|hands bound projection inputs to| IEG
+  GROUP -->|governs durable-write commit posture for| IEG
+  IEG -->|writes graph and entity projection state to| AURORA
+  AURORA -->|serves writes through| AURW
+  IEG -. retained parity relation only .-> MSF

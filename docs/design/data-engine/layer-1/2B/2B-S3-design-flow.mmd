@@ -1,0 +1,23 @@
+flowchart LR
+  I1["s0_gate_receipt_2B"]
+  I2["s1_site_weights"]
+  I3["site_timezones"]
+  I4["day_effect_policy_v1"]
+
+  S3["S3 Day-effect authority<br/>Create per-merchant per-day per-tz-group<br/>gamma factors under bounded Philox draws"]
+
+  O1["s3_day_effects<br/>with RNG provenance embedded in rows"]
+
+  I1 --> S3
+  I2 --> S3
+  I3 --> S3
+  I4 --> S3
+  S3 --> O1
+
+  R1["Actual design recovery<br/>S3 became the temporal heterogeneity surface"]
+  R2["It adds bounded short-run movement<br/>without changing long-run share truth"]
+  R3["It is also where RNG becomes plan-shaped rather than event-shaped:<br/>one draw per output row, provenance embedded directly"]
+
+  R1 -.-> S3
+  R2 -.-> S3
+  R3 -.-> S3

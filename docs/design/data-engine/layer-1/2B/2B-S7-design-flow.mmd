@@ -1,0 +1,29 @@
+flowchart LR
+  I1["s0_gate_receipt_2B + sealed_inputs_2B"]
+  I2["s2_alias_index + blob"]
+  I3["s3_day_effects"]
+  I4["s4_group_weights"]
+  I5["alias and routing policies"]
+  I6["S5/S6 logs<br/>if present"]
+  I7["rng_audit_log + rng_trace_log<br/>if present"]
+
+  S7["S7 Audit authority<br/>Check alias integrity<br/>check S3/S4 coherence<br/>optionally reconcile router evidence"]
+
+  O1["s7_audit_report<br/>PASS or FAIL per seed"]
+
+  I1 --> S7
+  I2 --> S7
+  I3 --> S7
+  I4 --> S7
+  I5 --> S7
+  I6 --> S7
+  I7 --> S7
+  S7 --> O1
+
+  R1["Actual design recovery<br/>S7 is not a generic QA appendix;<br/>it is the legitimacy checkpoint before S8 can publish"]
+  R2["It also separates artefact coherence from runtime evidence:<br/>S2-S4 must pass even when S5/S6 logs are absent"]
+  R3["That makes S7 the segment's truth-closure audit surface"]
+
+  R1 -.-> S7
+  R2 -.-> S7
+  R3 -.-> S7

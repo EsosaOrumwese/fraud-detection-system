@@ -1,0 +1,5 @@
+flowchart LR
+  A["Authority inputs<br/>iso3166_canonical_2024<br/>world_countries<br/>population_raster_2025<br/>parameter_hash identity"] --> B["Owned transformation<br/>Enumerate eligible raster cells per country<br/>construct tile_index and tile_bounds<br/>preserve deterministic tile_id law<br/>keep geometry and inclusion authority parameter-scoped"]
+  B --> C["Authority outputs<br/>tile_index<br/>tile_bounds<br/>eligible cell universe for all downstream topology work"]
+
+  D["Implemented design shifts<br/>world_countries coverage was rebuilt<br/>PROJ runtime override was pinned<br/>invalid geometry became fail-closed<br/>antimeridian handling became explicit<br/>PAT and open-files observability became part of the actual design"] -.-> B

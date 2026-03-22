@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 5 / Path 4
+%% Authoritative label commit and visibility path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat, contract, or owned label-truth closure"]
+    LG2(("Round node = durable label-truth or downstream visibility surface"))
+    LG3["This graph closes at production-ready authoritative label truth with readback, as_of, and maturity visibility, before learning-input basis begins"]
+  end
+
+  subgraph ENTRY["Supervision-request basis"]
+    REQUEST(("Supervision-request / label-intake truth"))
+    ASSERTION(("Commit-ready label assertion"))
+  end
+
+  subgraph PATH["Bi / Group 5 / Path 4 - Authoritative label commit and visibility"]
+    LABELSTORE["Label Store boundary<br/>append-only authoritative label commit and temporal visibility"]
+    CONTRACT["Label-boundary discipline<br/>append-only and idempotent commits<br/>conflict-visible behavior<br/>provenance-complete truth ownership<br/>readback queryable by as_of and maturity"]
+    PROOF["Production-ready label proof posture<br/>bounded slice already proved accepted labels without duplicate or conflict drift<br/>later coupled and enlarged-platform proof kept accepted activity material while pending and rejected stayed clean<br/>temporal visibility became explicit enough for later learning-safe use without turning this path into learning-input basis"]
+    LABEL(("Owned outcome<br/>production-ready authoritative label truth"))
+    VIS(("Owned outcome<br/>production-ready label readback + as_of + maturity visibility"))
+    TEVENTS(("Later handoff<br/>fp.bus.labels.events.v1"))
+  end
+
+  REQUEST -->|feeds supervision-request basis into| LABELSTORE
+  ASSERTION -->|feeds commit-ready label assertion into| LABELSTORE
+  CONTRACT -->|governs authoritative commit behavior for| LABELSTORE
+  PROOF -->|governs accepted production-ready posture for| LABELSTORE
+  LABELSTORE -->|materially closes append-only label truth as| LABEL
+  LABELSTORE -->|materially closes temporal readback visibility as| VIS
+  LABEL -->|later publishes downstream label events through| TEVENTS

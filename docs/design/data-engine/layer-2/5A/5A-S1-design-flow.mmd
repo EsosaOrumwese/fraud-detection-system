@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>s0_gate_receipt_5A<br/>sealed_inputs_5A<br/>merchant and zone world from Layer-1"]
+  I2["Policies and refs<br/>merchant_class_policy_5A<br/>demand_scale_policy_5A<br/>sealed merchant snapshot"]
+
+  S1["S1<br/>Merchant-zone demand classification"]
+
+  O1["Outputs<br/>merchant_zone_profile_5A<br/>optional merchant_class_profile_5A"]
+  O2["Authority<br/>S1 alone decides demand_class<br/>and base scale per merchant-zone"]
+
+  R1["Implemented shift<br/>S1 had to seal and consume the ingress merchant snapshot<br/>because MCC and channel truth were not available from Layer-1 egress alone"]
+  R2["Implemented shift<br/>S1 later became the owner lane for concentration closure:<br/>classing and scale policy were the accepted place to correct<br/>country and class concentration without reopening S3 or S4"]
+
+  I1 --> S1
+  I2 --> S1
+  S1 --> O1
+  S1 --> O2
+  R1 -.-> S1
+  R2 -.-> S1

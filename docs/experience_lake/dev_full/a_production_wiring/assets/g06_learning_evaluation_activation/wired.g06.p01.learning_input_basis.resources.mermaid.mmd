@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 / Path 1
+%% Learning-input basis path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, control surface, or active learning-input seat"]
+    LG2[("Round node = durable basis or downstream learning handoff surface")]
+    LG3["This graph names the concrete seats that materially realize learning-input basis closure in the current wired platform"]
+  end
+
+  subgraph ENTRY["Authoritative basis resources"]
+    OBJ[("S3 bucket\nfraud-platform-dev-full-object-store")]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+    TLABELS[("Topic\nfp.bus.labels.events.v1")]
+    MSK[("MSK Serverless cluster\nfraud-platform-dev-full-msk")]
+  end
+
+  subgraph PATH["Learning-input basis resources"]
+    DBX["Databricks workspace\nlearning-input closure seat"]
+    BASIS["Learning-input readiness closure\nreplay/as-of/maturity/leakage pinned"]
+    TOFSREQ[("Topic\nfp.bus.learning.ofs.requests.v1")]
+    DBXBUILD["Databricks job\nfraud-platform-dev-full-ofs-build-v0"]
+  end
+
+  TLABELS -->|transported by| MSK
+  OBJ -->|supplies archive truth and replay basis into| DBX
+  EVID -->|supplies closure evidence and policy snapshots into| DBX
+  TLABELS -->|supplies authoritative label events into| DBX
+  DBX -->|materially closes learning-input basis as| BASIS
+  BASIS -->|later opens offline dataset build through| TOFSREQ
+  TOFSREQ -->|consumed by| DBXBUILD

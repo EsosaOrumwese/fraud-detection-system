@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 5 / Path 2
+%% Case creation and timeline append path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat, contract, or owned case-truth closure"]
+    LG2(("Round node = named handoff or operational case-truth surface"))
+    LG3["This graph closes at deterministic operational case truth with append-only timeline, before case-to-label handoff begins"]
+  end
+
+  subgraph ENTRY["Case-intent basis"]
+    INTENT(("Case-intent truth"))
+    TCASE(("Case-trigger handoff seat<br/>fp.bus.case.triggers.v1"))
+  end
+
+  subgraph PATH["Bi / Group 5 / Path 2 - Case creation and timeline append"]
+    CASEMGMT["Case-management boundary<br/>deterministic case creation and append-only timeline ownership"]
+    CONTRACT["Case-management discipline<br/>idempotent case creation<br/>duplicate-trigger safety<br/>append-only timeline integrity<br/>clean operational truth ownership"]
+    PROOF["Production-ready case proof posture<br/>case-open success and duplicate-case prevention<br/>invalid transitions absent<br/>decision_to_case timing judged on the right processing boundary"]
+    CASE(("Owned outcome<br/>production-ready deterministic operational case truth"))
+    TIMELINE(("Owned outcome<br/>production-ready append-only operational case timeline"))
+  end
+
+  INTENT -->|hands explicit case-intent truth to| CASEMGMT
+  TCASE -->|delivers case-intent handoff into| CASEMGMT
+  CONTRACT -->|governs case creation and timeline append for| CASEMGMT
+  PROOF -->|governs accepted production-ready posture for| CASEMGMT
+  CASEMGMT -->|materially closes case identity as| CASE
+  CASEMGMT -->|materially closes append-only case history as| TIMELINE

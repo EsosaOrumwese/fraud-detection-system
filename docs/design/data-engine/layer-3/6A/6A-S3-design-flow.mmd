@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>s1_party_base_6A<br/>s2_account_base_6A<br/>s2_party_product_holdings_6A"]
+  I2["Priors and policies<br/>prior_instrument_per_account_6A<br/>prior_instrument_mix_6A<br/>taxonomy_instrument_types_6A<br/>instrument linkage policies"]
+
+  S3["S3<br/>Instruments and payment credentials"]
+
+  O1["Outputs<br/>s3_instrument_base_6A<br/>s3_account_instrument_links_6A<br/>s3_party_instrument_holdings_6A<br/>optional summary<br/>instrument RNG events plus audit and trace"]
+  O2["Authority<br/>S3 alone decides which credentials exist<br/>and which accounts and parties they attach to"]
+
+  R1["Implemented shift<br/>S3 stayed narrower than the main repair lanes:<br/>it extends the account world into payment credentials<br/>without reopening account-cap or graph realism"]
+  R2["Implemented shift<br/>The actual design keeps S3 as a closed credential-authority surface,<br/>so later graph and fraud states consume its links rather than infer their own"]
+
+  I1 --> S3
+  I2 --> S3
+  S3 --> O1
+  S3 --> O2
+  R1 -.-> S3
+  R2 -.-> S3

@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 2 / Path 2
+%% Admission and disposition path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned outcome"]
+    LG2[("Round node = durable ingress truth / evidence store")]
+    LG3["This graph closes at ingress truth, before authoritative bus publication begins"]
+  end
+
+  ENTRY["Boundary-valid request<br>canonical behavioural traffic<br>correct route + auth already satisfied"]
+
+  subgraph PATH["Canonical traffic admission and bus publication / Path 2"]
+    IGLAMBDA["IG Lambda handler<br>applies ingress contract"]
+    DEDUPE["Canonical dedupe + admission basis<br>platform_run_id / event_class / event_id<br>payload hash / TTL / reason codes"]
+    IGDDB[("Ingress idempotency + admission truth<br>DynamoDB-backed state")]
+    IGRECEIPTS["IG receipts / quarantine refs"]
+    QUAR[("Quarantine / evidence truth")]
+    ADMIT["Owned outcome<br>admitted"]
+    DUPSAFE["Owned outcome<br>duplicate-safe"]
+    REJECT["Owned outcome<br>rejected invalid"]
+    AMBIG["Owned outcome<br>ambiguous / retry-governed"]
+    QUARANTINED["Owned outcome<br>quarantined"]
+  end
+
+  ENTRY -->|hands boundary-valid request to| IGLAMBDA
+  IGLAMBDA -->|computes deterministic ingress truth basis as| DEDUPE
+  DEDUPE -->|writes authoritative idempotency and disposition state to| IGDDB
+  IGLAMBDA -->|emits disposition receipts and quarantine refs to| IGRECEIPTS
+  IGRECEIPTS -->|stores quarantine and receipt truth in| QUAR
+
+  IGDDB -->|closes ingress truth as| ADMIT
+  IGDDB -->|closes ingress truth as| DUPSAFE
+  IGDDB -->|closes ingress truth as| REJECT
+  IGDDB -->|closes ingress truth as| AMBIG
+  QUAR -->|closes ingress truth as| QUARANTINED

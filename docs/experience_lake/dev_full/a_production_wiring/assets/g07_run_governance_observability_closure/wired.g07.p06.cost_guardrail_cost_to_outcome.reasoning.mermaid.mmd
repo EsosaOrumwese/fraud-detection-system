@@ -1,0 +1,151 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn a fully closed run posture into attributable spend truth"]
+    G2["Keep this path narrower than teardown truth and narrower than final platform judgment"]
+    G3["Answer whether the platform can prove what it spent, what budget envelope governed that spend, and what proof or risk-retirement outcome that spend actually bought"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not simply that billing data exists"]
+    E2["The entry is that the platform has already published the final verdict, already completed teardown, residual, and readability closure, and the cost-control handles for this phase are resolved"]
+    E3["The final closure plan makes the sequencing explicit: post-teardown cost guardrail closure first, phase budget and cost-outcome closure next, then final closure sync"]
+    E4["The current execution trail shows this boundary only opens when the cost-control handles are actually interpretable"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Post-teardown runtime posture plus cost capture plus pinned budget handles"]
+    R2["Cost guardrail snapshot"]
+    R3["Phase budget envelope plus cost-outcome receipt"]
+    R4["Blocker-free cost closure truth"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Budget thresholds and phase spend envelope"]
+    C2["Run-scoped teardown cost snapshot and cost-capture scope and currency"]
+    C3["Spend amount for the closure window and the artifact set emitted in that window"]
+    C4["The statement of what proof or risk was retired by that spend"]
+    C5["Pinned cost-guardrail snapshot, phase budget envelope, phase cost-outcome receipt, daily cost posture, and required receipt fields"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats run closure and attributable justified spend as two different truths"]
+    L2["The system is not saying because the platform worked, the spend must have been fine"]
+    L3["It is saying there is a dedicated boundary where the platform must prove that spend was bounded, attributable, and tied to explicit proof outcome"]
+    L4["That is exactly the production-ready posture the authority pins: no spend-only progress, no avoidable idle burn, and no phase advancement on unattributed spend"]
+    L5["This is strong A-level design signal because spend accountability has an explicit owner and closure object"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The path is materially seated in the current wired platform"]
+    S2["The evidence surfaces are concrete: run-scoped teardown cost snapshot, run-control phase budget envelope, and run-control phase cost-outcome receipt"]
+    S3["This is not only planned"]
+    S4["The execution record shows post-teardown cost guardrail closure closed green with idle-safe posture, zero residual items, and published run-scoped snapshot"]
+    S5["The cost-outcome closure enforced numeric budget-handle interpretation before allowing green closure, so this boundary is already a real operated lane rather than a future accounting idea"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses two weak shortcuts: the budget exists somewhere as proxy for cost control, and the run is done as proxy for spend being justified"]
+    Y2["That is why the authority pins the full cost-to-outcome law: pre-run spend envelope, post-run cost-outcome receipt, fail-closed on spend breach, fail-closed on missing proof artifacts, daily cost posture for active windows, and default runtime posture of off when not proving"]
+    Y3["There is also honest current-wired nuance here"]
+    Y4["The handles registry preserves explicit cost-capture scope and defer history rather than faking full billing coverage"]
+    Y5["The platform prefers declared capture scope to invented completeness, which is the same design attitude seen across the other paths"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The design-authority cost law requires every phase to declare its envelope, emit a receipt, map spend to proof or risk retired, and never advance on unattributed spend"]
+    X2["The handles contract pins snapshot path, envelope path, receipt path, required receipt fields, and hard-stop-on-missing-outcome posture"]
+    X3["The operations, governance, and meta metric contract sets the proof target: unattributed spend equals zero and cost-guardrail telemetry is a first-class final-phase metric, while the final closure contract fixes the order: post-teardown cost guardrail first, phase cost-outcome closure next, then final sync"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds one more formal closure boundary after the platform has already finished"]
+    T2["That costs budget-envelope generation, cost-capture processing, explicit receipt generation, post-teardown cost snapshotting, and one more fail-closed blocker family"]
+    T3["But that cost buys the ability to answer what window the spend belonged to, what artifacts were emitted, what proof or risk was retired, whether the spend breached the declared envelope, and whether the run left idle-cost problem behind"]
+    T4["That is why the first cost-outcome closure was allowed to fail closed on a numeric budget-handle parsing defect instead of being waved through; the platform preferred strict cost truth over fake green"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still reconstruct the run, append governance facts, publish the final verdict, and tear down safely"]
+    N2["But it loses a clean answer to how much this phase or window actually spent"]
+    N3["It loses a clean answer to whether that spend was inside the declared envelope"]
+    N4["It loses a clean answer to what proof or decision outcome the spend actually bought"]
+    N5["It loses a clean answer to whether the run left unattributed spend"]
+    N6["It loses a clean answer to whether the post-run posture is genuinely cost-safe"]
+    N7["That would weaken A immediately because the platform could operate and close but have no explicit owner for spend accountability itself"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["The run is idle-safe and the cost snapshot is committed"]
+    O2["The budget envelope is committed and the cost-outcome receipt is committed"]
+    O3["The spend is attributable to explicit artifacts and an explicit decision or risk retired"]
+    O4["Owned outcome: blocker-free cost guardrail snapshot plus committed phase budget envelope and phase cost-to-outcome receipt for the run window"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning operational closure into attributable spend truth before the run can be considered fully closed"]
+    A2["Intentionality claim:<br/>cost guardrail snapshot, budget envelope, and cost-outcome receipt are designed closure objects, not finance afterthoughts"]
+    A3["Materialization claim:<br/>this boundary is concretely seated in pinned run-scoped and run-control evidence surfaces and in already executed managed cost-closure lanes"]
+    A4["Contract claim:<br/>the path is governed by the cost-to-outcome operating law, the receipt-field contract, the hard-stop-on-missing-outcome rule, and the final-phase unattributed-spend target"]
+    A5["Constraint-awareness claim:<br/>the platform already knows this boundary can fail through missing handles, invalid threshold parsing, unreadable receipts, or undeclared spend scope, which is why the closure stays fail-closed on handle interpretation and receipt integrity"]
+    A6["A-level meaning:<br/>the platform can prove bounded attributable spend as its own closure truth instead of treating cost as an implicit by-product of a finished run"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4
+  E4 --> R1 --> R2 --> R3 --> R4
+
+  R1 --> C1
+  R1 --> C2
+  R3 --> C3
+  R3 --> C4
+  R2 --> C5
+
+  R4 --> L1
+  L1 --> L2 --> L3 --> L4 --> L5
+
+  R3 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5
+
+  R3 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R4 --> X1
+  X1 --> X2 --> X3
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4
+
+  R2 --> O1
+  R3 --> O2
+  R4 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T4 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X3 --> A4
+  T4 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,C1,C2,C3,C4,C5,S1,S2,S3,S4,S5 base;
+  class R1,R2,R3,R4 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,T1,T2,T3,T4,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

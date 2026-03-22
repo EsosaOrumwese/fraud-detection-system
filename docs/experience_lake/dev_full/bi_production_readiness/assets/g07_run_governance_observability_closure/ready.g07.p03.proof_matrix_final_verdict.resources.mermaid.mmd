@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 3
+%% Proof-matrix and final-verdict publication path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, verdict-publication seat, or active judgment control"]
+    LG2(("Round node = durable verdict surface or later handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready whole-platform judgment and final-verdict publication"]
+  end
+
+  subgraph ENTRY["Whole-platform closure resources"]
+    RUNCTL["Run control receipts / summaries"]
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    GOV(("append_log.jsonl + closure_marker.json<br/>formal governance closure basis"))
+  end
+
+  subgraph PATH["Production-ready final-verdict resources"]
+    MATRIX["M13 source / proof matrix assembly<br/>blocker-free source matrix + six-proof completeness"]
+    BUNDLE(("m13d_final_verdict_bundle.json<br/>deterministic run-control verdict object"))
+    FULL(("full_platform/final_verdict.json<br/>run-scoped full-verdict truth surface"))
+    READBACK["Publication identity checks<br/>execution_id parity<br/>deterministic verdict parity<br/>deterministic next-gate parity"]
+    OBS(("Later handoff<br/>observability attestation surfaces"))
+  end
+
+  GOV -->|feeds formal close basis into| MATRIX
+  RUNCTL -->|supplies authoritative closure summaries into| MATRIX
+  EVID -->|supplies readable evidence basis into| MATRIX
+  READBACK -->|governs authoritative publication for| MATRIX
+  MATRIX -->|commits deterministic verdict object as| BUNDLE
+  BUNDLE -->|is published again to| FULL
+  FULL -->|later feeds live attestation context into| OBS

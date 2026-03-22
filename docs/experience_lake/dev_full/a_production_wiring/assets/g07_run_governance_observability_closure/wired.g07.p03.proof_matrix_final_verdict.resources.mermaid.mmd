@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 3
+%% Proof-matrix and final-verdict publication path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active verdict-publication seat"]
+    LG2[("Round node = durable verdict surface or downstream handoff")]
+    LG3["This graph names the concrete seats that materially realize whole-platform judgment and final-verdict publication in the current wired platform"]
+  end
+
+  subgraph ENTRY["Whole-platform closure resources"]
+    GOVAPPEND["Governance append\nimmutable run facts"]
+    RUNCTL["Run control\nconformance / receipts"]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+  end
+
+  subgraph PATH["Final-verdict publication resources"]
+    REPORTS["Run reports\nreconciliation / non-regression packs"]
+    VERDICT["Final-verdict closure\nfull source matrix + six-proof completeness + readback identity"]
+    FULL[("Full-platform verdict bundle\nrun-scoped truth surface")]
+    CW["Later handoff\nobservability attestation surfaces"]
+  end
+
+  GOVAPPEND -->|supplies governed closeout basis into| VERDICT
+  RUNCTL -->|supplies authoritative closure summaries into| VERDICT
+  EVID -->|supplies readable evidence basis into| VERDICT
+  VERDICT -->|materializes run-scoped final judgment through| FULL
+  FULL -->|materializes through| REPORTS
+  FULL -->|later feeds live attestation context into| CW

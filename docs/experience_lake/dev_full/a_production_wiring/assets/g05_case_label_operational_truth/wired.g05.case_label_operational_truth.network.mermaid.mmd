@@ -1,0 +1,48 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 5 synthesis
+%% Case and label operational truth
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active boundary or owned closure"]
+    LG2[("Round node = operational or supervision-truth surface")]
+    LG3["This graph shows the four distinct owned truths that turn RTDL outputs into operational case truth and authoritative label truth"]
+  end
+
+  subgraph G5["Group 5 - Case and label operational truth"]
+    RTDL[("RTDL decision-worthy + audit-worthy outputs")]
+    INTENT[("Case-intent truth")]
+    CASE[("Operational case truth")]
+    REQUEST[("Label-request / supervision-request truth")]
+    LABEL[("Authoritative label truth")]
+    VIS[("As-of / maturity-visible label truth")]
+    NEXT[("Later consumers\nlearning / reporting / review lanes")]
+
+    CASETRIG["Case-intent escalation boundary"]
+    CMCASE["Case creation / timeline boundary"]
+    CMHAND["Case-to-label handoff boundary"]
+    LS["Authoritative label-commit boundary"]
+  end
+
+  CLAIM["Group claim\nthe platform turns some RTDL outputs into operational case truth and authoritative label truth through bounded, ownership-clean boundaries"]
+
+  RTDL -->|is escalated through| CASETRIG
+  CASETRIG -->|closes explicit case-worthy operational truth as| INTENT
+  INTENT -->|is turned into deterministic case truth through| CMCASE
+  CMCASE -->|closes operational case ownership as| CASE
+  CASE -->|is handed into supervision through| CMHAND
+  CMHAND -->|closes explicit supervision-request truth as| REQUEST
+  REQUEST -->|is committed authoritatively through| LS
+  LS -->|closes append-only supervision truth as| LABEL
+  LS -->|closes temporal readback visibility as| VIS
+  LABEL -->|later supports trusted consumers in| NEXT
+  VIS -->|later supports trusted consumers in| NEXT
+
+  INTENT -->|together prove| CLAIM
+  CASE -->|together prove| CLAIM
+  REQUEST -->|together prove| CLAIM
+  LABEL -->|together prove| CLAIM

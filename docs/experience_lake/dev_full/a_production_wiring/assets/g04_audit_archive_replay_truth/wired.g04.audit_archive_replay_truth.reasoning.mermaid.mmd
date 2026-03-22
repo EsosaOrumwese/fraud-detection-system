@@ -1,0 +1,93 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph WHY["1. Why this group exists"]
+    W1["The platform cannot stop at the RTDL plane made a decision and emitted an outcome"]
+    W2["It also has to create the durable historical truth that later audit, replay, case handling, and learning can trust"]
+    W3["The docs make that separation explicit in two ways"]
+    W4["The RTDL component model separates the decision log and audit surface from the archive writer as distinct responsibilities"]
+    W5["The run-process keeps the closure points separate: the decision chain does not close without append-only audit evidence, RTDL catch-up does not close without archive-writer closure evidence, and later learning input depends on archive, labels, and replay references already resolved from earlier closure"]
+  end
+
+  subgraph PATHS["2. Why the four paths are justified together"]
+    P1["Audit append path"]
+    P2["Audit publication and durable reference path"]
+    P3["Immutable archive preservation path"]
+    P4["Archive closure and replay-reference path"]
+    P5["Audit append proves decision and action truth becomes authoritative append-only audit and lineage truth rather than being left to later reconstruction"]
+    P6["Audit publication and durable reference proves appended audit truth is not trapped inside the audit writer; it is handed off through the audit bus and durable by-reference evidence surfaces to consumers like case handling and evidence sinks"]
+    P7["Immutable archive preservation proves runtime event history is durably preserved as immutable archive history under a real archive sink boundary rather than being left inside runtime stores"]
+    P8["Archive closure and replay-reference proves the platform does not treat archive objects exist as sufficient; it explicitly closes archive truth into a replay-referenceable basis that later learning is allowed to trust"]
+    P9["Taken together, the four paths prove Group 4 is a bounded truth system with four different owned outcomes rather than logging and storage in some generic sense"]
+  end
+
+  subgraph CLAIM["3. Group-level claim"]
+    G1["The platform turns runtime decisions and outcomes into durable historical truth that can be reconstructed, published, preserved, and later replayed safely"]
+    G2["The current wired platform is intentionally constructing append-only audit truth, downstream-consumable audit truth, immutable archive history, and replay-referenceable archive closure"]
+    G3["That makes the system look like a real historical-truth architecture rather than decisions merely disappearing into runtime residue"]
+  end
+
+  subgraph PROOF["4. What this group proves for A"]
+    A1["Strongest closure: continuity, existence, and safety"]
+    A2["Continuity closes because the path from runtime behavior to later learning is explicit: decision and action truth to append-only audit truth to audit publication to archive preservation to archive closure and replay-reference readiness"]
+    A3["The run-process enforces that continuity when it separates decision-chain closure, archive closure, and later learning-input closure instead of collapsing them into one vague history exists story"]
+    A4["Existence closes because these are materially seated in a concrete audit-bus handoff, concrete run-scoped archive paths, and a current adjudicated archive-consumer-to-S3 route chosen after fail-closed runtime adjudication"]
+    A5["Safety closes because append-only audit truth must remain append-safe under replay and duplicate pressure, replay divergence must be visible rather than silently tolerated, archive payload mismatch and write-error leakage cannot hide under green counters, and replay references must remain bound to the bounded run truth actually processed"]
+    A6["It also gives meaningful uniqueness closure: the audit writer owns append-only runtime audit truth, the archive writer owns immutable archived event history, later replay and learning consume archive references only after explicit closure, and audit publication has named producer and consumer contract instead of diffuse ownership"]
+  end
+
+  subgraph AMBIG["5. A ambiguities to carry upward"]
+    M1["The biggest A ambiguity is one we should state honestly"]
+    M2["The archive-preservation intent and the current wired archive runtime are not identical by wording"]
+    M3["The authority target posture is connector-to-S3, but the current closed runtime route after adjudication is an archive-consumer-to-S3 route"]
+    M4["That should be explained as the current wired route chosen to preserve the same semantic objective under real runtime constraints rather than as contradiction"]
+    M5["The second ambiguity is explanatory: we need to keep very clear the difference between audit truth, archive truth, and replay-referenceable archive closure"]
+    M6["Those are deliberately separate in the design but could easily blur into one historical data story if synthesized sloppily"]
+  end
+
+  subgraph PARK["6. Bi spillover to park"]
+    B1["Questions about archive latency under sustained pressure, unresolved-lineage age, whether the current archive runtime route is the one to keep, and whether payload mismatch and write-error behavior stay acceptable under larger loads belong later in Bi"]
+    B2["For A, Group 4 only needs to prove that the current wired platform has a real and intentional historical-truth system where append truth, publication truth, archive truth, and replay-reference closure are all explicit and owned"]
+  end
+
+  subgraph VERDICT["7. Group verdict"]
+    V1["Group 4 proves that the platform does not merely remember what happened informally; it constructs durable historical truth that later audit, replay, case handling, and learning can trust"]
+    V2["This is a major A win because the current wired platform has explicit ownership over the post-decision historical record: not just that runtime happened, but that runtime was turned into append-only audit truth, immutable archive truth, and replay-referenceable closure"]
+  end
+
+  W1 --> W2 --> W3 --> W4 --> W5
+  W5 --> P1
+  W5 --> P2
+  W5 --> P3
+  W5 --> P4
+  P1 --> P5
+  P2 --> P6
+  P3 --> P7
+  P4 --> P8
+  P5 --> P9
+  P6 --> P9
+  P7 --> P9
+  P8 --> P9
+
+  P9 --> G1 --> G2 --> G3
+
+  G3 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6
+  A6 --> M1 --> M2 --> M3 --> M4 --> M5 --> M6
+  A6 --> B1 --> B2
+  M6 --> V1
+  B2 --> V1
+  V1 --> V2
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class W1,W2,W3,W4,W5,P1,P2,P3,P4,P5,P6,P7,P8 base;
+  class P9,G1,G2,G3 spine;
+  class A1,A2,A3,A4,A5,A6,M1,M2,M3,M4,M5,M6,B1,B2 reason;
+  class V1,V2 close;

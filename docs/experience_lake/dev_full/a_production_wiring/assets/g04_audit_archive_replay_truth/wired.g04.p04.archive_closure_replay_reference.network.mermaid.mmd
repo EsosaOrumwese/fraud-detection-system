@@ -1,0 +1,30 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 4 / Path 4
+%% Archive closure and replay-reference path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, closure rule, or owned replay-reference closure"]
+    LG2[("Round node = preserved archive basis or downstream trust handoff")]
+    LG3["This graph closes at replay-referenceable archive truth, after archive preservation but before learning-input basis begins"]
+  end
+
+  subgraph ENTRY["Preserved archive basis"]
+    PRESERVED[("Preserved archive history\narchive/{platform_run_id}/events/\nplus continuity proof")]
+  end
+
+  subgraph PATH["Durable runtime audit and archive truth / Path 4"]
+    LAW["Closure law\nRTDL catch-up cannot close without archive-writer closure evidence\nlearning cannot begin until replay references are resolved from spine closure"]
+    MARKER[("Archive closure marker")]
+    REPLAY[("Owned outcome\nreplay-referenceable archive truth")]
+    LEARNING[("Later handoff\nlearning-input basis path")]
+  end
+
+  PRESERVED -->|is evaluated under| LAW
+  LAW -->|commits formal archive closure as| MARKER
+  MARKER -->|resolves preserved archive into| REPLAY
+  REPLAY -->|later feeds trusted archive basis into| LEARNING

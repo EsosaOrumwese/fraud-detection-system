@@ -1,0 +1,51 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 2 / Path 2
+%% Admission and disposition path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active ingress-truth seat"]
+    LG2[("Round node = durable storage or evidence surface")]
+    LG3["This graph stays inside ingress-owned disposition truth and does not claim bus handoff yet"]
+  end
+
+  ENTRY["Boundary-valid request"]
+
+  subgraph INGRESS["Ingress disposition resources"]
+    IGLAMBDA["Lambda<br/>fraud-platform-dev-full-ig-handler"]
+    ROLELAMBDA["IAM role<br/>fraud-platform-dev-full-lambda-ig-execution"]
+    DDB[("DynamoDB table<br/>fraud-platform-dev-full-ig-idempotency<br/>ttl_epoch")]
+    ROLEDDB["IAM role<br/>fraud-platform-dev-full-ddb-ig-idempotency-rw"]
+    DLQ["SQS queue<br/>fraud-platform-dev-full-ig-dlq"]
+    IGCFG["Ingress contract posture<br/>kafka timeout 5000 ms / retries 5"]
+  end
+
+  subgraph EVIDENCE["Evidence resources"]
+    EVID[("S3 evidence bucket<br/>fraud-platform-dev-full-evidence")]
+    OBJ[("S3 object / oracle store<br/>quarantine refs / payload basis")]
+    QUARPATH[("quarantine / receipt refs")]
+  end
+
+  subgraph OUTCOME["Committed ingress truth"]
+    DISP[("Admit / duplicate-safe / reject / retry-governed truth")]
+    QUAR[("Quarantined truth")]
+    OUT[("Owned outcome<br/>production-ready ingress-owned disposition truth")]
+  end
+
+  ENTRY -->|invokes ingress runtime at| IGLAMBDA
+  ROLELAMBDA -->|executes| IGLAMBDA
+  IGLAMBDA -->|uses ingress contract posture in| IGCFG
+  IGLAMBDA -->|writes ingress truth to| DDB
+  ROLEDDB -->|authorizes writes to| DDB
+  IGLAMBDA -->|routes failure-class overflow to| DLQ
+  IGLAMBDA -->|stores receipt and quarantine refs under| QUARPATH
+  QUARPATH -->|is durably seated in| EVID
+  QUARPATH -->|resolves payload basis from| OBJ
+  DDB -->|materializes deterministic disposition truth as| DISP
+  QUARPATH -->|materializes quarantine truth as| QUAR
+  DISP -->|together materially close this path as| OUT
+  QUAR -->|together materially close this path as| OUT

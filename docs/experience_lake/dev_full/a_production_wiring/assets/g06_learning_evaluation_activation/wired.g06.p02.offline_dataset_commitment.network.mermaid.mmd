@@ -1,0 +1,30 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 / Path 2
+%% Offline dataset commitment path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, control, or owned offline-dataset closure"]
+    LG2[("Round node = authoritative dataset-truth or downstream handoff surface")]
+    LG3["This graph closes at committed offline dataset truth, before train/eval and candidate-bundle formation begin"]
+  end
+
+  subgraph ENTRY["Pinned learning basis"]
+    BASIS[("Committed learning-input readiness basis")]
+  end
+
+  subgraph PATH["Learning, evaluation, and governed activation / Path 2"]
+    OFS["Offline-feature build boundary\nauthoritative dataset build from replayable truth"]
+    CONTROLS["Offline-dataset controls\nmanifest committed\nfingerprint committed\nrollback recipe committed\ntime-bound leakage audit passes\nfeature-as-of / label-as-of / label-maturity carried forward"]
+    DATASET[("Owned outcome\ncommitted offline dataset truth")]
+    MF[("Later handoff\ntrain / eval and candidate-bundle path")]
+  end
+
+  BASIS -->|opens authoritative offline build into| OFS
+  CONTROLS -->|govern committed dataset closure for| OFS
+  OFS -->|closes authoritative offline dataset basis as| DATASET
+  DATASET -->|later feeds candidate-model formation into| MF

@@ -1,0 +1,55 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 2 / Path 2
+%% Admission and disposition path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active path seat"]
+    LG2[("Round node = durable storage or evidence resource")]
+    LG3["This graph stays inside ingress-owned truth and does not claim bus handoff yet"]
+  end
+
+  ENTRY["Boundary-valid request<br>POST /ingest/push already landed"]
+
+  subgraph INGRESS["Ingress disposition resources"]
+    IGLAMBDA["Lambda<br>fraud-platform-dev-full-ig-handler"]
+    ROLELAMBDA["IAM role<br>lambda-ig-execution"]
+    IGDDB[("DynamoDB table<br>fraud-platform-dev-full-ig-idempotency")]
+    ROLEDDB["IAM role<br>ddb-ig-idempotency-rw"]
+    IGDLQ["SQS queue<br>fraud-platform-dev-full-ig-dlq"]
+    IGRECEIPTS["IG receipts / quarantine refs"]
+  end
+
+  subgraph EVIDENCE["Evidence resources"]
+    EVID[("S3 bucket<br>fraud-platform-dev-full-evidence")]
+    OBJ[("S3 bucket<br>fraud-platform-dev-full-object-store")]
+    QUARPATH["quarantine/ prefix"]
+  end
+
+  subgraph OUTCOME["Ingress truth outcomes"]
+    ADMIT["Disposition<br>admitted"]
+    DUPSAFE["Disposition<br>duplicate-safe"]
+    REJECT["Disposition<br>rejected invalid"]
+    AMBIG["Disposition<br>ambiguous / retry-governed"]
+    QUARANTINED["Disposition<br>quarantined"]
+  end
+
+  ENTRY -->|invokes ingress runtime at| IGLAMBDA
+  ROLELAMBDA -->|executes| IGLAMBDA
+  IGLAMBDA -->|writes ingress truth to| IGDDB
+  ROLEDDB -->|authorizes writes to| IGDDB
+  IGLAMBDA -->|sends failure-class overflow to| IGDLQ
+  IGLAMBDA -->|emits receipts and quarantine refs to| IGRECEIPTS
+  IGRECEIPTS -->|stores receipt truth in| EVID
+  IGRECEIPTS -->|stores quarantined payload refs in| QUARPATH
+  QUARPATH -->|lives inside| OBJ
+
+  IGDDB -->|materializes| ADMIT
+  IGDDB -->|materializes| DUPSAFE
+  IGDDB -->|materializes| REJECT
+  IGDDB -->|materializes| AMBIG
+  QUARPATH -->|materializes| QUARANTINED

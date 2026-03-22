@@ -1,0 +1,43 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 1 / Path 1
+%% Run legitimization path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted control boundary or owned closure"]
+    LG2[("Round node = durable truth / evidence surface")]
+    LG3["This graph closes at committed run basis on the production-ready platform, before source realization begins"]
+  end
+
+  ENTRY["Bounded run intent<br/>operator dispatch + approved config payload"]
+
+  subgraph PATH["Bi / Group 1 / Path 1 - Run legitimization"]
+    GHA["GitHub Actions dispatch<br/>bounded-run entry surface"]
+    OIDC["OIDC trust + control identity assumption"]
+    SFN["Step Functions orchestration<br/>authoritative run-start corridor"]
+    RUNID["Run identity authority<br/>platform_run_id / scenario_run_id<br/>phase_id / trace_id / config_digest"]
+    RUNCTL["Run-control commitment boundary<br/>run header / control receipts / config commitment"]
+    CTRLBUS[("fp.bus.control.v1<br/>control-plane signal surface")]
+    EVID[("S3 evidence root<br/>fraud-platform-dev-full-evidence")]
+    HEADER[("Committed run header truth")]
+    DIGEST[("Committed config-digest truth")]
+    OUT[("Owned outcome<br/>production-ready committed run basis")]
+  end
+
+  ENTRY -->|enters bounded control flow through| GHA
+  GHA -->|authenticates dispatch through| OIDC
+  OIDC -->|permits authoritative run start in| SFN
+  SFN -->|pins active run identity in| RUNID
+  RUNID -->|binds authoritative scope for| RUNCTL
+  SFN -->|writes control receipts into| RUNCTL
+  SFN -->|publishes start / control signals to| CTRLBUS
+  RUNCTL -->|commits run-header truth as| HEADER
+  RUNCTL -->|commits config basis truth as| DIGEST
+  HEADER -->|stores durable proof under| EVID
+  DIGEST -->|stores durable proof under| EVID
+  RUNCTL -->|closes this path as| OUT
+  OUT -->|is durably reconstructable from| EVID

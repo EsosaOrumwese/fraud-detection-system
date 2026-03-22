@@ -1,0 +1,46 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 4 / Path 1
+%% Audit append path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active promoted runtime seat"]
+    LG2(("Round node = append-only audit truth or downstream handoff seat"))
+    LG3["This graph names the concrete seats that materially realize production-ready append-only audit truth"]
+  end
+
+  subgraph ENTRY["Committed runtime truth resources"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NODEGROUP["Nodegroup<br/>fraud-platform-dev-full-m6f-workers<br/>m6i.xlarge<br/>min 2 / desired 4 / max 8"]
+    NSRTDL["Namespace<br/>fraud-platform-rtdl"]
+    SADEC["ServiceAccount<br/>decision-lane"]
+    DF["Deployment<br/>fp-pr3-df"]
+    AL["Deployment<br/>fp-pr3-al"]
+    REGISTRY(("Active bundle truth<br/>runtime-attributable decision authority"))
+  end
+
+  subgraph RTDL["Production-ready audit append resources"]
+    RTDLIMG["Pinned image family<br/>fraud-platform-dev-full@sha256:c984..."]
+    DLA["Deployment<br/>fp-pr3-dla"]
+    CONTRACT["Audit append contract seam<br/>append-only / replay-divergence / lineage completeness / readback integrity"]
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    TAUDIT(("Topic<br/>fp.bus.audit.v1"))
+    OUT(("Owned outcome<br/>production-ready append-only audit and lineage truth"))
+  end
+
+  EKS -->|contains| NODEGROUP
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity through| SADEC
+  NSRTDL -->|runs| DLA
+  RTDLIMG -->|pins deployment family for| DLA
+  DF -->|supplies committed decision truth to| DLA
+  AL -->|supplies committed action / outcome truth to| DLA
+  REGISTRY -->|preserves runtime authority attribution for| DLA
+  CONTRACT -->|governs authoritative append behavior for| DLA
+  DLA -->|stores decision continuity evidence in| EVID
+  DLA -->|publishes lineage audit onward to| TAUDIT
+  EVID -->|materially closes this path as| OUT

@@ -1,0 +1,46 @@
+flowchart LR
+  subgraph SEG6A["6A - Entity and static-risk authority"]
+    direction LR
+    A6_0["S0<br/>Seal Layer-1, Layer-2, and Layer-3 world"]
+    A6_1["S1<br/>Define party universe and segmentation"]
+    A6_2["S2<br/>Define accounts, products, and holdings"]
+    A6_3["S3<br/>Define instruments and payment credentials"]
+    A6_4["S4<br/>Define devices, IPs, and static graph links"]
+    A6_5["S5<br/>Assign static fraud posture and seal PASS"]
+  end
+
+  subgraph SEG6B["6B - Behavioural and supervision authority"]
+    direction LR
+    B6_0["S0<br/>Seal behavioural-world legitimacy"]
+    B6_1["S1<br/>Attach arrivals to entities and define sessions"]
+    B6_2["S2<br/>Define legitimate baseline flows and events"]
+    B6_3["S3<br/>Define fraud campaigns and overlay behaviour"]
+    B6_4["S4<br/>Define truth labels, bank-view labels, event labels, and case timelines"]
+    B6_5["S5<br/>Validate the world and seal PASS"]
+  end
+
+  A6_0 --> A6_1 --> A6_2 --> A6_3 --> A6_4 --> A6_5
+  B6_0 --> B6_1 --> B6_2 --> B6_3 --> B6_4 --> B6_5
+
+  A6_5 -->|sealed entity world and static posture| B6_0
+  A6_1 -->|party universe| B6_1
+  A6_2 -->|accounts and products| B6_1
+  A6_3 -->|credentials and payment handles| B6_1
+  A6_4 -->|device and IP graph context| B6_1
+  A6_5 -->|static fraud posture for campaign and label context| B6_3
+
+  B6_2 -->|baseline legitimate behavioural truth| B6_3
+  B6_3 -->|fraud-bearing behavioural truth| B6_4
+  B6_4 -->|supervision and case truth| B6_5
+
+  L3["Layer-3 design reading"] --> L3A["6A is not just entity generation.<br/>It certifies parties, products, credentials, graph structure, and static fraud posture."]
+  L3 --> L3B["6B is not just event simulation.<br/>It certifies attachment, behaviour, fraud overlay, truth labels, bank-view labels, and case chronology."]
+  L3 --> L3C["Together, 6A and 6B make Layer-3 an entity-to-supervision authority chain:<br/>first who exists and how they are wired, then how they behave and what truth is observed."]
+  L3 --> L3D["Both segments stay fail-closed.<br/>No PASS gate means no lawful downstream behavioural or label read."]
+
+  L3A -.-> A6_5
+  L3B -.-> B6_5
+  L3C -.-> A6_5
+  L3C -.-> B6_4
+  L3D -.-> A6_5
+  L3D -.-> B6_5

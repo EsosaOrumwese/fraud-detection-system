@@ -1,0 +1,176 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn a run from eligible-to-become-ready into authoritatively declared ready"]
+    G2["Make readiness a formal closure point rather than a soft health signal"]
+    G3["Keep readiness under control-plane authority rather than letting compute alone close the gate"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not 'the stream lane looks healthy'"]
+    E2["SR joins and replay prerequisites already pass"]
+    E3["The control-topic contract is already pinned"]
+    E4["The required ready-closure handle set is resolved"]
+    E5["The Step Functions authority surface resolves to a real active state machine"]
+    E6["Prechecks validate run-continuity handoff, Step Functions handle chain, and control-topic anchors before READY publication"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["SR prerequisites satisfied"]
+    R2["READY computed and published on the control bus"]
+    R3["Step Functions commits READY as control authority"]
+    R4["Durable READY receipt becomes the authoritative proof"]
+    R5["Authoritatively ready run"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Run identity:<br/>platform_run_id + scenario_run_id"]
+    C2["Run-scoped READY publication controls:<br/>READY message filter + control-topic partitioning key"]
+    C3["The READY signal itself"]
+    C4["The Step Functions execution reference that makes the receipt authoritative"]
+    C5["Run-scoped identity continuity across orchestrator transitions and evidence emission"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["This path shows that the platform treats readiness as an authorization problem, not just a liveness problem"]
+    L2["The platform does not say 'the lane emitted something, therefore we are ready'"]
+    L3["A run becomes ready only when the control plane records READY through the pinned authority"]
+    L4["Single-active-path law is part of that authorization story"]
+    L5["This makes the current wired system look governed rather than improvised"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["Control surface: Kafka control topic"]
+    S2["Control-plane authority: Step Functions state machine fraud-platform-dev-full-platform-run-v0"]
+    S3["READY receipt lands under the run's S3 evidence root"]
+    S4["READY_MESSAGE_FILTER = platform_run_id=={platform_run_id}"]
+    S5["KAFKA_PARTITION_KEY_CONTROL = platform_run_id"]
+    S6["SR_READY_COMMIT_RECEIPT_PATH_PATTERN = evidence/runs/{platform_run_id}/sr/ready_commit_receipt.json"]
+    S7["The path is concretely realized in control topic, state machine, and S3 receipt surfaces"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["Flink-ready output implicitly closing the gate was rejected"]
+    Y2["Dynamic runtime fallback mid-phase for convenience was rejected"]
+    Y3["Both were rejected because they weaken deterministic gate closure, evidence attribution, and auditable control-plane ownership"]
+    Y4["So Step Functions remains the sole READY commit authority and the path stays single and explicit during the phase"]
+    Y5["When READY publication initially failed, the remediation did not weaken the proof rule, fake a receipt, or shift authority"]
+    Y6["The system used bounded diagnostics, fixed the publisher defect, and then proved READY publication and receipt cleanly"]
+    Y7["The path design was preserved under friction rather than diluted"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The main shaping pressure is the platform's own control and evidence law"]
+    X2["The run-process requires explicit PASS gates and durable commit evidence for closure"]
+    X3["The design authority requires one active runtime path per phase and forbids in-phase switching"]
+    X4["The design authority also requires Step Functions-backed run-state orchestration"]
+    X5["The observability contract requires run-scoped correlation across orchestrator transitions and evidence surfaces"]
+    X6["This path is shaped by platform governance law, not just local runtime behavior"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds ceremony and friction"]
+    T2["READY cannot be implied"]
+    T3["Closure needs a control topic, run-scoped filter, Step Functions execution reference, duplicate and ambiguity checks, and durable evidence"]
+    T4["This is more demanding than a looser design"]
+    T5["The cost buys deterministic gate ownership and cleaner replay/audit semantics"]
+    T6["Even publish-path defects had to be fixed without bypassing the same authority and evidence model"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["Without this path, the platform can still have running components and source-realized data"]
+    N2["But it loses a clean answer to: who said this run was ready, and what makes that claim authoritative?"]
+    N3["Readiness collapses into a vague runtime feeling"]
+    N4["The platform loses deterministic READY ownership"]
+    N5["The committed ready receipt disappears"]
+    N6["Duplicate and ambiguity discipline disappear"]
+    N7["The boundary between compute output and control-plane authorization disappears"]
+    N8["That weakens A immediately because the system becomes hand-wavy at the moment it claims to become operational"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["READY emitted to the control topic"]
+    O2["READY receipt committed with a Step Functions execution reference"]
+    O3["Duplicate or ambiguous READY absent"]
+    O4["Authority proven to be Step Functions"]
+    O5["Owned outcome: an authoritatively ready run, not merely a computed readiness hint"]
+    O6["Later gate advance is downstream consequence, not the primary owned closure of this path"]
+    A1["Purpose claim:<br/>the platform has a dedicated job for authorizing readiness"]
+    A2["Intentionality claim:<br/>the route is deliberately control-plane-backed, with Step Functions as sole commit authority"]
+    A3["Materialization claim:<br/>the path is concretely seated in the control topic, state machine, and S3 receipt surfaces"]
+    A4["Constraint-awareness claim:<br/>the design knowingly rejects Flink-only closure and in-phase switching because they would weaken evidence attribution"]
+    A5["Quantified closure claim:<br/>all required ready-closure handles resolved;<br/>authority surface active;<br/>authoritative READY commit closed green with zero blockers before rollup advanced"]
+    A6["A-level meaning:<br/>'this run is now ready' becomes an explicit, control-plane-owned, durable fact rather than an inferred compute-side feeling"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5 --> E6
+  E6 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  E2 --> C1
+  R2 --> C2
+  R2 --> C3
+  R3 --> C4
+  R4 --> C5
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R4 --> L4
+  R5 --> L5
+
+  R2 --> S1
+  R3 --> S2
+  R4 --> S3
+  S1 --> S4 --> S5
+  S3 --> S6 --> S7
+
+  R3 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4
+  Y4 --> Y5 --> Y6 --> Y7
+
+  R3 --> X1
+  X1 --> X2 --> X3 --> X4 --> X5 --> X6
+
+  L4 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5 --> T6
+
+  R5 --> O1
+  R5 --> O2
+  R5 --> O3
+  R5 --> O4
+  O1 --> O5
+  O2 --> O5
+  O3 --> O5
+  O4 --> O5
+  O5 --> O6
+
+  T6 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7 --> N8
+
+  O5 --> A1
+  O5 --> A2
+  O5 --> A3
+  T6 --> A4
+  O5 --> A5
+  N8 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,E6,C1,C2,C3,C4,C5,S1,S2,S3,S4,S5,S6,S7 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,Y6,Y7,X1,X2,X3,X4,X5,X6,T1,T2,T3,T4,T5,T6,N1,N2,N3,N4,N5,N6,N7,N8 reason;
+  class O1,O2,O3,O4,O5,O6,A1,A2,A3,A4,A5,A6 close;

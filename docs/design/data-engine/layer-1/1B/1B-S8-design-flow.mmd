@@ -1,0 +1,5 @@
+flowchart LR
+  A["Authority inputs<br/>s7_site_synthesis only"] --> B["Owned transformation<br/>Project synthesized rows into egress shape<br/>drop parameter_hash from partition identity<br/>publish site_locations under seed plus fingerprint<br/>remain order-free across countries"]
+  B --> C["Authority outputs<br/>site_locations<br/>final data surface of segment 1B"]
+
+  D["Implemented design shifts<br/>S8 was clarified into a narrow egress state<br/>not a semantic redesign state<br/>it preserves the final-in-layer boundary<br/>while refusing to encode forbidden order meaning"] -.-> B

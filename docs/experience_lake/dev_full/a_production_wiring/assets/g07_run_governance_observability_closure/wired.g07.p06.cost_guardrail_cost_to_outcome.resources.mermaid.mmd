@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 6
+%% Cost guardrail and cost-to-outcome closure path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active cost-closure seat"]
+    LG2[("Round node = durable cost basis or closure surface")]
+    LG3["This graph names the concrete seats that materially realize attributable spend truth in the current wired platform"]
+  end
+
+  subgraph ENTRY["Post-run cost resources"]
+    DASHCOST["CloudWatch dashboard\nfraud-platform-dev-full-cost-guardrail"]
+    BUDGETRES["Budget\nfraud-platform-dev-full-monthly"]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+    RUNCTL["Run control\nconformance / receipts"]
+  end
+
+  subgraph PATH["Cost guardrail and cost-to-outcome resources"]
+    COST["Cost-closure lane\nwindowed spend capture + envelope + outcome receipt"]
+    SNAP[("Cost-guardrail snapshot\nrun-scoped post-teardown spend truth")]
+    BUDGET[("Phase budget envelope\nrun-control truth")]
+    RECEIPT[("Phase cost-to-outcome receipt\nspend window + artifacts + decision/risk retired")]
+  end
+
+  DASHCOST -->|supplies post-run guardrail posture into| COST
+  BUDGETRES -->|supplies budget envelope basis into| COST
+  EVID -->|stores run-scoped cost snapshots in| SNAP
+  RUNCTL -->|stores budget envelope and outcome receipt through| COST
+  COST -->|materially closes cost snapshot as| SNAP
+  COST -->|materially closes budget truth as| BUDGET
+  COST -->|materially closes attributable spend truth as| RECEIPT

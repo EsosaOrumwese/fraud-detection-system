@@ -1,0 +1,46 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 4 synthesis
+%% Durable runtime audit and archive truth
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active boundary or owned closure"]
+    LG2[("Round node = durable historical-truth surface or downstream trust handoff")]
+    LG3["This graph shows the four distinct owned truths that turn runtime behavior into durable historical truth"]
+  end
+
+  subgraph G4["Group 4 - Durable runtime audit and archive truth"]
+    RUNTIME[("Decision truth + action / outcome truth")]
+    AUDIT[("Append-only audit truth")]
+    REFS[("Durable audit refs / by-ref evidence surfaces")]
+    PRESERVED[("Immutable archive truth")]
+    REPLAY[("Replay-referenceable archive closure")]
+    NEXT[("Later consumers\nreplay / learning / case-facing trust lanes")]
+
+    DLA["Audit append boundary"]
+    PUB["Audit publication / durable-reference boundary"]
+    ARCHIVE["Immutable archive-preservation boundary"]
+    CLOSURE["Archive closure / replay-reference boundary"]
+  end
+
+  CLAIM["Group claim\nthe platform turns runtime behavior into durable historical truth that later audit, replay, case handling, and learning can trust"]
+
+  RUNTIME -->|is appended through| DLA
+  DLA -->|closes authoritative lineage as| AUDIT
+  AUDIT -->|is handed downstream through| PUB
+  PUB -->|closes downstream-consumable reference surfaces as| REFS
+  RUNTIME -->|is durably preserved through| ARCHIVE
+  ARCHIVE -->|closes immutable run-scoped history as| PRESERVED
+  PRESERVED -->|is formally closed through| CLOSURE
+  CLOSURE -->|closes replay-referenceable archive basis as| REPLAY
+  REFS -->|later support trusted consumers in| NEXT
+  REPLAY -->|later support trusted consumers in| NEXT
+
+  AUDIT -->|together prove| CLAIM
+  REFS -->|together prove| CLAIM
+  PRESERVED -->|together prove| CLAIM
+  REPLAY -->|together prove| CLAIM

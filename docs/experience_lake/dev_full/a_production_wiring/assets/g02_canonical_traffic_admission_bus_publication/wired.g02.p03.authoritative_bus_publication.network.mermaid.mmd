@@ -1,0 +1,39 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 2 / Path 3
+%% Authoritative bus publication path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned handoff"]
+    LG2[("Round node = authoritative bus surface")]
+    LG3["This graph closes at bus-visible runtime handoff, before ingest-commit evidence closure"]
+  end
+
+  ENTRY["Admitted ingress event family<br>traffic thinness preserved<br>context stays context"]
+
+  subgraph PATH["Canonical traffic admission and bus publication / Path 3"]
+    IGPUB["IG publish logic<br>turns ingress truth into bus truth"]
+    PARTITION["Pinned partition continuity<br>traffic + context keyed by merchant_id"]
+    TTRAFFIC[("fp.bus.traffic.fraud.v1")]
+    TCTXE[("fp.bus.context.arrival_events.v1")]
+    TCTXT[("fp.bus.context.arrival_entities.v1")]
+    TFLOW[("fp.bus.context.flow_anchor.fraud.v1")]
+    HANDOFF["Owned outcome<br>admitted traffic family is authoritatively handed off onto the pinned traffic + context topics"]
+    RTDL["RTDL ingress / context / join consumers"]
+  end
+
+  ENTRY -->|hands admitted event family to| IGPUB
+  IGPUB -->|applies bus continuity rule through| PARTITION
+  PARTITION -->|publishes canonical fraud traffic to| TTRAFFIC
+  PARTITION -->|publishes arrival-event context to| TCTXE
+  PARTITION -->|publishes arrival-entity context to| TCTXT
+  PARTITION -->|publishes flow-anchor context to| TFLOW
+  TTRAFFIC -->|makes bus handoff visible to| RTDL
+  TCTXE -->|makes bus handoff visible to| RTDL
+  TCTXT -->|makes bus handoff visible to| RTDL
+  TFLOW -->|makes bus handoff visible to| RTDL
+  RTDL -->|closes this path as| HANDOFF

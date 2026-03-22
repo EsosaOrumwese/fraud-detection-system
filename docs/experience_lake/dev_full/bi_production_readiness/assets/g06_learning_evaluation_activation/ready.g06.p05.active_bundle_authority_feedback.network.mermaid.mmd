@@ -1,0 +1,38 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 6 / Path 5
+%% Active-bundle authority feedback path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active registry-to-runtime seat, runtime authority control, or owned closure"]
+    LG2(("Round node = governed promoted truth, runtime-readable authority, or later handoff surface"))
+    LG3["This graph closes at production-ready deterministic runtime-readable active authority, before Group 3 decision formation consumes it"]
+  end
+
+  subgraph ENTRY["Governed promoted basis"]
+    PROMTRUTH(("Committed promotion truth"))
+    RBTRUTH(("Rollback-governance truth"))
+  end
+
+  subgraph PATH["Bi / Group 6 / Path 5 - Active-bundle authority feedback"]
+    RESOLVE["Registry-to-runtime authority corridor<br/>promoted state becomes runtime-readable active bundle or policy authority on the consuming scope"]
+    DETERMINISM["Runtime-authority discipline<br/>one-active-per-scope determinism<br/>runtime-facing compatibility and readback stay green<br/>decision provenance can point to one governed bundle / policy identity"]
+    TRANSITIONS["Transition attribution truth<br/>candidate, rollback, and restore need fresh scope-valid evidence<br/>alternate authority states must restamp in live runtime evidence rather than disappear under duplicate ingress collapse"]
+    AUTHSRC["Authority-source discipline<br/>runtime rollup trusts staged registry authority for the current phase<br/>not stale carried-forward bundle fields from older governance history"]
+    NONREG["Non-regression posture<br/>later operator readback and integrated proof still show runtime truth matching promoted truth, including after restore"]
+    AUTH(("Owned outcome<br/>production-ready runtime decision authority"))
+    DF(("Later handoff<br/>decision formation path"))
+  end
+
+  PROMTRUTH -->|supplies governed promoted state into| RESOLVE
+  RBTRUTH -->|supplies rollback-safe governance basis into| RESOLVE
+  DETERMINISM -->|defines deterministic runtime authority required for| RESOLVE
+  TRANSITIONS -->|defines live transition attribution required for| RESOLVE
+  AUTHSRC -->|defines truthful runtime authority source required for| RESOLVE
+  NONREG -->|strengthens durable runtime-authority confidence for| RESOLVE
+  RESOLVE -->|materially closes deterministic runtime-readable authority as| AUTH
+  AUTH -->|later is consumed by| DF

@@ -1,0 +1,74 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 synthesis
+%% Runtime context formation and decisioning - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, active runtime seat, or managed RTDL surface"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3["Dashed edge = retained parity or upstream-owned truth consumed here"]
+  end
+
+  subgraph ENTRY["RTDL runtime entry resources"]
+    TTRAFFIC[("Topic<br/>fp.bus.traffic.fraud.v1")]
+    TCTXE[("Topic<br/>fp.bus.context.arrival_events.v1")]
+    TCTXT[("Topic<br/>fp.bus.context.arrival_entities.v1")]
+    TFLOW[("Topic<br/>fp.bus.context.flow_anchor.fraud.v1")]
+    REGISTRY[("Active bundle truth<br/>runtime-consumed registry authority")]
+  end
+
+  subgraph RTDL["Production-ready RTDL resources"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br/>fraud-platform-rtdl"]
+    CSFB["Deployment<br/>fp-pr3-csfb"]
+    IEG["Deployment<br/>fp-pr3-ieg"]
+    OFP["Deployment<br/>fp-pr3-ofp"]
+    DL["Deployment<br/>fp-pr3-dl"]
+    DF["Deployment<br/>fp-pr3-df"]
+    AL["Deployment<br/>fp-pr3-al"]
+    AURORA[("Aurora cluster<br/>fraud-platform-dev-full-aurora")]
+    TRTDL[("Topic<br/>fp.bus.rtdl.v1")]
+    TAUDIT[("Topic<br/>fp.bus.audit.v1")]
+    MSF["Managed Flink app<br/>fraud-platform-dev-full-rtdl-ieg-ofp-v0"]
+    G4(("Later handoff<br/>group 4 audit/archive truth"))
+    G5(("Later handoff<br/>group 5 case/label truth"))
+  end
+
+  EKS -->|hosts| NSRTDL
+  NSRTDL -->|runs| CSFB
+  NSRTDL -->|runs| IEG
+  NSRTDL -->|runs| OFP
+  NSRTDL -->|runs| DL
+  NSRTDL -->|runs| DF
+  NSRTDL -->|runs| AL
+
+  TTRAFFIC -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TCTXT -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB
+  CSFB -->|hands projection inputs to| IEG
+  CSFB -->|hands joined runtime context to| OFP
+  IEG -->|supplies projection state to| OFP
+  CSFB -->|supplies context posture to| DL
+  IEG -->|supplies projection posture to| DL
+  OFP -->|supplies feature posture to| DL
+  DL -->|supplies adjudicated decision posture to| DF
+  REGISTRY -. upstream-owned authority consumed by .-> DF
+  DF -->|publishes decisions to| TRTDL
+  DF -->|publishes decision audit to| TAUDIT
+  AL -->|publishes action outcomes to| TAUDIT
+
+  IEG -->|writes graph / entity state to| AURORA
+  OFP -->|writes online feature state to| AURORA
+  DF -->|writes decision state to| AURORA
+  AL -->|writes action / outcome state to| AURORA
+
+  IEG -. retained parity relation only .-> MSF
+  OFP -. retained parity relation only .-> MSF
+
+  TAUDIT -->|later opens| G4
+  AL -->|later opens case-worthy operational truth into| G5

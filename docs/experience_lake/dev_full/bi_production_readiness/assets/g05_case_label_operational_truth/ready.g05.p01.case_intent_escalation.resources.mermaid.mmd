@@ -1,0 +1,42 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 5 / Path 1
+%% Case-intent escalation path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active escalation seat"]
+    LG2(("Round node = topic or durable operational-truth handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready case-intent escalation"]
+  end
+
+  subgraph ENTRY["RTDL source seats"]
+    MSK(("MSK Serverless cluster<br/>fraud-platform-dev-full-msk"))
+    TDEC(("Topic<br/>fp.bus.rtdl.v1"))
+    TAUDIT(("Topic<br/>fp.bus.audit.v1"))
+  end
+
+  subgraph PATH["Production-ready case-intent escalation resources"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NSCASE["Namespace<br/>fraud-platform-case-labels"]
+    CASETRIG["Deployment<br/>fp-pr3-case-trigger"]
+    COUNTERS["Boundary evidence surfaces<br/>triggers_seen / published / duplicates / quarantine / payload_mismatch_total"]
+    TCASE(("Topic<br/>fp.bus.case.triggers.v1"))
+    CASEMGMT["Deployment<br/>fp-pr3-case-mgmt"]
+    INTENT(("Owned outcome<br/>production-ready case-intent escalation truth"))
+  end
+
+  EKS -->|contains| NSCASE
+  NSCASE -->|runs| CASETRIG
+  NSCASE -->|runs| CASEMGMT
+  TDEC -->|is transported by| MSK
+  TAUDIT -->|is transported by| MSK
+  MSK -->|feeds RTDL outputs into| CASETRIG
+  COUNTERS -->|make boundary behavior judgeable for| CASETRIG
+  CASETRIG -->|publishes explicit case intents to| TCASE
+  TCASE -->|is transported by| MSK
+  TCASE -->|is consumed by| CASEMGMT
+  CASETRIG -->|materially closes this path as| INTENT

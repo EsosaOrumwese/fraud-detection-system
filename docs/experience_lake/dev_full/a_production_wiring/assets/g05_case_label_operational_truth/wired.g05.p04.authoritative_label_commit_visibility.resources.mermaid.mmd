@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 5 / Path 4
+%% Authoritative label commit and visibility path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active label-truth seat"]
+    LG2[("Round node = durable label-truth substrate or downstream topic")]
+    LG3["This graph names the concrete seats that materially realize authoritative label commit and temporal visibility in the current wired platform"]
+  end
+
+  subgraph ENTRY["Label-intake resources"]
+    LSREQ["Label-intake / request basis\nfrom case-management handoff"]
+  end
+
+  subgraph PATH["Authoritative label commit resources"]
+    LS["Deployment\nfp-pr3-label-store"]
+    AURORA[("Aurora cluster\nfraud-platform-dev-full-aurora")]
+    TLABELS[("Topic\nfp.bus.labels.events.v1")]
+    LABEL["Authoritative label-truth closure\nappend-only and provenance-complete"]
+    VIS["As-of / maturity visibility closure\nreadback-safe temporal label truth"]
+  end
+
+  LSREQ -->|feeds intake into| LS
+  LS -->|writes authoritative label timeline truth to| AURORA
+  LS -->|publishes downstream label events to| TLABELS
+  LS -->|materially closes label truth as| LABEL
+  LS -->|materially closes temporal visibility as| VIS

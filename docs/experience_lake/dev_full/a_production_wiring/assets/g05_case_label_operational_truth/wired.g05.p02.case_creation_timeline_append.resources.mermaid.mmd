@@ -1,0 +1,33 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 5 / Path 2
+%% Case creation and timeline append path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active case-truth seat"]
+    LG2[("Round node = topic or durable case-truth substrate")]
+    LG3["This graph names the concrete seats that materially realize deterministic case creation and append-only timeline truth in the current wired platform"]
+  end
+
+  subgraph ENTRY["Case-intent resources"]
+    TCASE[("Topic\nfp.bus.case.triggers.v1")]
+    MSK[("MSK Serverless cluster\nfraud-platform-dev-full-msk")]
+  end
+
+  subgraph PATH["Case creation and timeline resources"]
+    CM["Deployment\nfp-pr3-case-mgmt"]
+    AURORA[("Aurora cluster\nfraud-platform-dev-full-aurora")]
+    CASE["Operational case-truth closure\ndeterministic case identity"]
+    TIMELINE["Append-only case-timeline closure\nAurora-backed operational history"]
+  end
+
+  TCASE -->|transported by| MSK
+  TCASE -->|consumed by| CM
+  CM -->|writes deterministic case truth to| AURORA
+  CM -->|appends case timeline history to| AURORA
+  CM -->|materially closes case identity as| CASE
+  CM -->|materially closes append-only case history as| TIMELINE

@@ -1,0 +1,64 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 1 synthesis
+%% Run and world-source authority - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, managed job, or active authority seat"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3(("Round node = later handoff or downstream consumer"))
+    LG4["This graph names the concrete seats that materially realize production-ready Group 1 closure"]
+  end
+
+  subgraph CONTROL["Run authority resources"]
+    GHA["GitHub Actions"]
+    OIDC["GitHub OIDC trust"]
+    SFN["Step Functions<br/>fraud-platform-dev-full-platform-run-v0"]
+    RUNCTL["Run control receipts / reconciliation"]
+    TCTRL[("Kafka topic<br/>fp.bus.control.v1")]
+    RUNBASIS[("Committed run basis<br/>run header / config digest / ready receipt")]
+  end
+
+  subgraph SOURCE["Source realization resources"]
+    OBJ[("S3 object / oracle store<br/>fraud-platform-dev-full-object-store")]
+    WSPTASK["WSP task family<br/>remote bounded replay producer"]
+    DBWS["Databricks workspace"]
+    ROLEDBX["IAM role<br/>fraud-platform-dev-full-databricks-cross-account-access"]
+    DBCRED["UC external location + storage credential<br/>fraud_platform_dev_full_object_store_v0"]
+    DBBUILD["Databricks job<br/>fraud-platform-dev-full-ofs-build-v0"]
+    DBQUALITY["Databricks job<br/>fraud-platform-dev-full-ofs-quality-v0"]
+    SOURCEBASIS[("Realized source basis<br/>replay refs + learning-basis refs")]
+  end
+
+  subgraph EVIDENCE["Durable proof resources"]
+    EVID[("S3 evidence bucket<br/>fraud-platform-dev-full-evidence")]
+    READY[("Authorized READY truth")]
+    G2(("Later handoff<br/>group 2 boundary access"))
+  end
+
+  GHA -->|authenticates through| OIDC
+  GHA -->|dispatches bounded run authority to| SFN
+  SFN -->|writes run-control facts to| RUNCTL
+  RUNCTL -->|commits production-ready run basis as| RUNBASIS
+  SFN -->|publishes authoritative READY to| TCTRL
+  TCTRL -->|records authoritative ready publication as| READY
+
+  OBJ -->|supplies promoted replay basis to| WSPTASK
+  ROLEDBX -->|authorizes external location through| DBCRED
+  DBCRED -->|grants object-store access to| DBBUILD
+  DBCRED -->|grants object-store access to| DBQUALITY
+  DBWS -->|hosts bounded realization build in| DBBUILD
+  DBWS -->|hosts realization quality/readback in| DBQUALITY
+  OBJ -->|supplies admitted source world to| DBBUILD
+  OBJ -->|supplies quality readback source to| DBQUALITY
+  WSPTASK -->|materializes replay basis refs into| SOURCEBASIS
+  DBBUILD -->|materializes learning-basis refs into| SOURCEBASIS
+
+  RUNBASIS -->|stores durable proof under| EVID
+  SOURCEBASIS -->|stores durable proof under| EVID
+  READY -->|stores durable proof under| EVID
+  READY -->|later opens| G2

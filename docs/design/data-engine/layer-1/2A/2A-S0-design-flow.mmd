@@ -1,0 +1,32 @@
+flowchart LR
+  I1["1B validation bundle<br/>and _passed.flag"]
+  I2["1B site_locations pointer"]
+  I3["tz_world release"]
+  I4["tzdb_release"]
+  I5["tz_overrides"]
+  I6["tz_nudge"]
+  I7["merchant_mcc_map<br/>only if MCC scope exists"]
+
+  S0["S0 Gate and sealed-input authority<br/>Verify upstream PASS before any 1B read<br/>Seal the exact 2A authority set<br/>Bind 2A to upstream manifest_fingerprint"]
+
+  O1["s0_gate_receipt_2A<br/>Durable read-legitimacy receipt"]
+  O2["sealed_inputs_2A<br/>Audit inventory of the civil-time input set"]
+
+  I1 --> S0
+  I2 --> S0
+  I3 --> S0
+  I4 --> S0
+  I5 --> S0
+  I6 --> S0
+  I7 --> S0
+
+  S0 --> O1
+  S0 --> O2
+
+  R1["Actual design recovery<br/>S0 became a real gate-in state,<br/>not setup noise"]
+  R2["It standardizes manifest_fingerprint,<br/>verifies indexed PASS law,<br/>and freezes verified_at_utc for downstream timestamps"]
+  R3["It also narrows optionality:<br/>MCC overrides force merchant_mcc_map;<br/>unused auxiliaries stay out of the sealed set"]
+
+  R1 -.-> S0
+  R2 -.-> S0
+  R3 -.-> S0

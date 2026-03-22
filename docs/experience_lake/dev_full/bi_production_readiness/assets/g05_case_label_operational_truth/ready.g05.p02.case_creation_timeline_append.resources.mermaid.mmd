@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 5 / Path 2
+%% Case creation and timeline append path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active case-truth seat"]
+    LG2(("Round node = topic or durable case-truth substrate"))
+    LG3["This graph names the concrete seats that materially realize production-ready deterministic case creation and append-only timeline truth"]
+  end
+
+  subgraph ENTRY["Case-intent resources"]
+    MSK(("MSK Serverless cluster<br/>fraud-platform-dev-full-msk"))
+    TCASE(("Topic<br/>fp.bus.case.triggers.v1"))
+  end
+
+  subgraph PATH["Production-ready case creation and timeline resources"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NSCASE["Namespace<br/>fraud-platform-case-labels"]
+    CASEMGMT["Deployment<br/>fp-pr3-case-mgmt"]
+    CLOCKS["Boundary timing discipline<br/>decision_to_case on processing clocks<br/>not on earlier observed-time artifacts"]
+    AURORA(("Aurora PostgreSQL cluster<br/>fraud-platform-dev-full-aurora"))
+    AURW(("Writer endpoint<br/>fraud-platform-dev-full-aurora-writer-1"))
+    CASE(("Owned outcome<br/>production-ready deterministic case truth"))
+    TIMELINE(("Owned outcome<br/>production-ready append-only case timeline"))
+  end
+
+  EKS -->|contains| NSCASE
+  NSCASE -->|runs| CASEMGMT
+  TCASE -->|is transported by| MSK
+  TCASE -->|is consumed by| CASEMGMT
+  CLOCKS -->|governs truthful timing interpretation for| CASEMGMT
+  CASEMGMT -->|writes deterministic case truth to| AURORA
+  CASEMGMT -->|appends case timeline history to| AURORA
+  AURORA -->|serves writes through| AURW
+  AURW -->|materially closes case identity as| CASE
+  AURW -->|materially closes append-only case history as| TIMELINE

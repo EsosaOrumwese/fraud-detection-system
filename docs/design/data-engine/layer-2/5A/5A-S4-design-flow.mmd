@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>merchant_zone_baseline_local_5A<br/>shape_grid_definition_5A<br/>scenario calendar and horizon configs"]
+  I2["Policies<br/>scenario_overlay_policy_5A<br/>overlay ordering and validation policies"]
+
+  S4["S4<br/>Calendar and scenario overlays"]
+
+  O1["Outputs<br/>merchant_zone_scenario_local_5A<br/>optional overlay diagnostics and UTC projection"]
+  O2["Authority<br/>S4 alone defines horizon-level<br/>scenario intensity truth"]
+
+  R1["Implemented shift<br/>S4 became the owner surface for DST residual closure<br/>and overlay fairness closure;<br/>this is where scenario realism is actually governed"]
+  R2["Implemented shift<br/>Later production work turned S4 into a memory-safe execution boundary:<br/>streaming, chunked, and reduced-residency composition became part of the real design,<br/>not just an optimization detail"]
+
+  I1 --> S4
+  I2 --> S4
+  S4 --> O1
+  S4 --> O2
+  R1 -.-> S4
+  R2 -.-> S4

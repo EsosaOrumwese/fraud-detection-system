@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 2
+%% Governance append and close-marker path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, governance-close seat, or active verification control"]
+    LG2(("Round node = durable governance surface or later handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready append-safe governance closure"]
+  end
+
+  subgraph ENTRY["Reconciled closure resources"]
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    REPORTS(("Run-close artifacts<br/>run_report.json<br/>reconciliation.json"))
+    RUNCOMP(("Run-completed closure refs<br/>authoritative closeout source truth"))
+  end
+
+  subgraph PATH["Production-ready governance-closure resources"]
+    GOVVERIFY["M8.H governance-close verifier<br/>source-truth validation plus deterministic projection"]
+    APPEND(("append_log.jsonl<br/>run-scoped append-safe governance truth"))
+    MARKER(("closure_marker.json<br/>formal run-close object under the evidence run scope"))
+    READBACK["Formal-closure checks<br/>schema / run-scope / ordering / marker coverage / post-write readback"]
+    VERDICT(("Later handoff<br/>final-verdict publication corridor"))
+  end
+
+  REPORTS -->|feed reconstructed closure basis into| GOVVERIFY
+  RUNCOMP -->|feed authoritative closure refs into| GOVVERIFY
+  EVID -->|provides run-scoped evidence surface for| GOVVERIFY
+  READBACK -->|governs executed formal-closure verification for| GOVVERIFY
+  GOVVERIFY -->|materializes append-safe governance history into| APPEND
+  GOVVERIFY -->|materializes explicit formal close state into| MARKER
+  MARKER -->|later gates proof-matrix and final-verdict publication through| VERDICT

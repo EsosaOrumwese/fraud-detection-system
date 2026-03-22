@@ -1,0 +1,33 @@
+flowchart LR
+  subgraph intent["Recovered Segment 1B design"]
+    A0["S0 Gate-in foundation<br/>Verifies 1A PASS, seals inputs,<br/>creates durable read authority"]
+    A1["S1 Tile universe<br/>Eligible raster cells per country,<br/>tile_index and tile_bounds authority"]
+    A2["S2 Tile weights<br/>Deterministic fixed-dp tile mass<br/>under governed policy authority"]
+    A3["S3 Requirements frame<br/>Derives per-country site counts<br/>from 1A outlet_catalogue"]
+    A4["S4 Allocation plan<br/>Deterministic integer tile quotas<br/>from requirements plus weights"]
+    A5["S5 Site to tile assignment<br/>One draw per site,<br/>quota-exact assignment authority"]
+    A6["S6 In-cell jitter<br/>Uniform-in-pixel with point-in-country<br/>and bounded resample authority"]
+    A7["S7 Site synthesis<br/>Reconstructs final site rows and<br/>coverage parity against 1A"]
+    A8["S8 Egress publish<br/>site_locations under seed plus fingerprint,<br/>order-free final data surface"]
+    A9["S9 Validation gate<br/>Fingerprint-scoped bundle,<br/>index and consumer PASS flag"]
+  end
+
+  A0 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7 --> A8 --> A9
+
+  B0["Actual design shifts that matter"] --> B1["S0 became a real gate-in authority;<br/>1B does not trust 1A egress without the durable receipt"]
+  B0 --> B2["S1 realism was materially repinned:<br/>coverage, projection, invalid geometry,<br/>antimeridian, and observability all became design surfaces"]
+  B0 --> B3["S2 became a governed realism lever,<br/>not just a simple deterministic cache"]
+  B0 --> B4["S4 was remediated into the main integer-topology authority<br/>and then heavily performance-hardened without changing its semantic burden"]
+  B0 --> B5["S5 and S6 became explicit RNG truth boundaries:<br/>one draw per site, then bounded in-cell acceptance"]
+  B0 --> B6["S7 and S8 preserve order discipline:<br/>1B never creates inter-country order;<br/>1A remains sole authority there"]
+  B0 --> B7["S9 became publish legitimacy:<br/>No PASS means no downstream read of site_locations"]
+
+  B1 -.-> A0
+  B2 -.-> A1
+  B3 -.-> A2
+  B4 -.-> A4
+  B5 -.-> A5
+  B5 -.-> A6
+  B6 -.-> A7
+  B6 -.-> A8
+  B7 -.-> A9

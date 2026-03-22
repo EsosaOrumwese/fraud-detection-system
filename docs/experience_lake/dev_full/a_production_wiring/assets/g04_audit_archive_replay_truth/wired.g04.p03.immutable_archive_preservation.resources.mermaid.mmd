@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 4 / Path 3
+%% Immutable archive preservation path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active archive-preservation seat"]
+    LG2[("Round node = durable archive or evidence resource")]
+    LG3["This graph names the concrete seats that materially realize immutable archive preservation in the current wired platform"]
+  end
+
+  subgraph ENTRY["Runtime source seats"]
+    MSK[("MSK Serverless cluster\nfraud-platform-dev-full-msk")]
+    TAUDIT[("Topic\nfp.bus.audit.v1")]
+    TRTDL[("Topic\nfp.bus.rtdl.v1")]
+  end
+
+  subgraph PATH["Immutable archive preservation resources"]
+    ARCHIVE["Deployment\nfp-pr3-archive-writer"]
+    ARCHIVEPATH[("Archive prefix\narchive/{platform_run_id}/events/")]
+    OBJ[("S3 bucket\nfraud-platform-dev-full-object-store")]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+    PRESERVED["Immutable archive-preservation closure\nobject-path plus payload-readback continuity"]
+  end
+
+  TAUDIT -->|transported by| MSK
+  TRTDL -->|transported by| MSK
+  MSK -->|feeds source records to| ARCHIVE
+  ARCHIVE -->|writes run-scoped archive objects under| ARCHIVEPATH
+  ARCHIVEPATH -->|stored in| OBJ
+  ARCHIVE -->|stores archive receipts in| EVID
+  ARCHIVEPATH -->|materially closes as| PRESERVED

@@ -1,0 +1,25 @@
+flowchart LR
+  I1["s0_gate_receipt_2A"]
+  I2["s1_tz_lookup"]
+  I3["tz_overrides"]
+  I4["merchant_mcc_map<br/>if MCC scope is live"]
+  I5["tz_world tzid domain"]
+
+  S2["S2 Final timezone assignment authority<br/>Apply active override at most once<br/>site > mcc > country<br/>otherwise preserve geometry result"]
+
+  O1["site_timezones<br/>Final per-site tz authority<br/>created_utc = S0 verified_at_utc"]
+
+  I1 --> S2
+  I2 --> S2
+  I3 --> S2
+  I4 --> S2
+  I5 --> S2
+  S2 --> O1
+
+  R1["Actual design recovery<br/>S2 became the main final-governance surface:<br/>provenance completeness, override caps,<br/>and deterministic precedence"]
+  R2["It carries S1 nudge and provenance forward<br/>instead of hiding how the tz was earned"]
+  R3["An experimental topology-rebalance lane existed later<br/>for downstream support, but it was rejected from mainline;<br/>it is evidence, not canonical 2A design"]
+
+  R1 -.-> S2
+  R2 -.-> S2
+  R3 -.-> S2

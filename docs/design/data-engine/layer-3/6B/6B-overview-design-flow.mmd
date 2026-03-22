@@ -1,0 +1,27 @@
+flowchart LR
+  U1["Required upstream authority<br/>Layer-1: 1A through 3B<br/>Layer-2: 5A and 5B<br/>Layer-3: 6A<br/>All must already hold PASS"]
+  U2["Pinned upstream behavioural surfaces<br/>arrivals from 5B<br/>entity, account, credential, graph,<br/>and static fraud world from 6A"]
+  U3["Pinned Layer-3 behavioural contracts<br/>attachment, session, flow, amount,<br/>timing, fraud, label, case, RNG,<br/>and validation policies"]
+
+  S0["S0<br/>Gate and seal the behavioural world"]
+  S1["S1<br/>Attach arrivals to entities and sessionise"]
+  S2["S2<br/>Synthesize baseline legitimate flows and events"]
+  S3["S3<br/>Overlay fraud campaigns and abuse behaviour"]
+  S4["S4<br/>Assign truth labels, bank-view labels,<br/>event labels, and case timelines"]
+  S5["S5<br/>Validate the whole behavioural world<br/>and seal PASS legitimacy"]
+
+  O1["Authoritative outputs<br/>sealed_inputs_6B<br/>attachment and session truth<br/>baseline flow/event truth<br/>overlay truth<br/>labels and case truth<br/>validation bundle and final PASS gate"]
+
+  R1["Actual design shift<br/>S1 became a lean deterministic attachment and sessionisation rail,<br/>not a heavy per-row probabilistic scorer"]
+  R2["Actual design shift<br/>S2 to S4 became the real behavioural realism corridor:<br/>legitimate baseline, fraud overlay, then truth and case authority"]
+  R3["Actual design shift<br/>S5 stayed fail-closed and is the only lawful consumer gate for 6B"]
+
+  U1 --> S0
+  U2 --> S0
+  U3 --> S0
+  S0 --> S1 --> S2 --> S3 --> S4 --> S5 --> O1
+  R1 -.-> S1
+  R2 -.-> S2
+  R2 -.-> S3
+  R2 -.-> S4
+  R3 -.-> S5

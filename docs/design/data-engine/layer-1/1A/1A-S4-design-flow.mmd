@@ -1,0 +1,41 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 multi-site gate"]
+    I2["S2 nb_final gives N"]
+    I3["S3 candidate universe gives admissible foreign count A"]
+    I4["governed ZTP hyperparameters,<br/>feature X and exhaustion policy"]
+  end
+
+  subgraph core["Actual S4 design"]
+    C1["Parameterise lambda_extra from N and feature view<br/>under deterministic numeric law"]
+    C2["If A = 0, short-circuit to final K_target = 0<br/>without sampling"]
+    C3["Else run logs-only ZTP loop:<br/>Poisson draw, reject zeros, cap attempts"]
+    C4["Emit non-consuming ztp_final<br/>as authority for K_target"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S4 remained logs-only by design;<br/>country choice stayed out of scope"]
+    S2["Strict feature bounds replaced silent clamping<br/>so invalid parameterisation fails closed"]
+    S3["reason fields and schema mismatches were removed or fixed<br/>so finaliser semantics stayed clean"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["rng_event_poisson_component<br/>context = ztp"]
+    O2["rng_event_ztp_rejection or retry_exhausted"]
+    O3["rng_event_ztp_final<br/>fixes K_target"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C1
+  C1 --> C2
+  C2 --> C4
+  C2 --> C3 --> C4
+  C3 --> O1
+  C3 --> O2
+  C4 --> O3
+
+  S1 -.-> C3
+  S2 -.-> C1
+  S3 -.-> C4

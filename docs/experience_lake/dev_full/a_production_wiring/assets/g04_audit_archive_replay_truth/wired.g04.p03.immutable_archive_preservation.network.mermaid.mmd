@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 4 / Path 3
+%% Immutable archive preservation path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, contract, or owned archive-preservation closure"]
+    LG2[("Round node = durable archive surface or later closure handoff")]
+    LG3["This graph closes at immutable run-scoped archive history with continuity proof, before archive closure / replay-reference readiness begins"]
+  end
+
+  subgraph ENTRY["Runtime history basis"]
+    HISTORY[("Current-run runtime event history")]
+    PROBE[("Bounded continuity probe records\nused in current adjudicated cutover lane")]
+  end
+
+  subgraph PATH["Durable runtime audit and archive truth / Path 3"]
+    ARCHIVE["Archive writer surface\nconsumer-to-object-store preservation boundary"]
+    CONTRACT["Current wired archive contract\nrun-scoped archive prefix\nobject-path-plus-payload-readback proof\ncontinuity-aware source preservation"]
+    ARCHIVEPATH[("Archive event surface\narchive/{platform_run_id}/events/")]
+    PRESERVED[("Owned outcome\nimmutable archived runtime history\nwith run-scoped continuity proof")]
+    CLOSURE[("Later handoff\narchive closure / replay-reference path")]
+  end
+
+  HISTORY -->|is preserved through| ARCHIVE
+  PROBE -. proves bounded source-to-sink continuity for .-> ARCHIVE
+  CONTRACT -->|governs preservation semantics for| ARCHIVE
+  ARCHIVE -->|writes immutable run-scoped history into| ARCHIVEPATH
+  ARCHIVEPATH -->|closes this path as| PRESERVED
+  PRESERVED -->|later feeds formal closure into| CLOSURE

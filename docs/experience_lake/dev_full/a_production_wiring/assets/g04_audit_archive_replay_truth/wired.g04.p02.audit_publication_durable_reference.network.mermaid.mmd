@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 4 / Path 2
+%% Audit publication and durable reference path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat or owned publication/reference closure"]
+    LG2[("Round node = durable reference surface or named handoff seat")]
+    LG3["This graph closes at downstream-consumable audit truth plus durable references, before archive preservation begins"]
+  end
+
+  subgraph ENTRY["Append-only audit truth basis"]
+    AUDIT[("Append-only audit and lineage truth")]
+  end
+
+  subgraph PATH["Durable runtime audit and archive truth / Path 2"]
+    TAUDIT[("Audit handoff topic<br>fp.bus.audit.v1")]
+    CONSUMERS["Downstream operational and evidence consumers"]
+    REFS[("Owned outcome<br>durable audit refs / by-ref evidence surfaces")]
+    EVID[("Evidence substrate<br>durable by-ref truth")]
+    CASE["Case-intent side of network<br>consumes audit truth later"]
+  end
+
+  AUDIT -->|is handed off through| TAUDIT
+  TAUDIT -->|makes audit truth consumable by| CONSUMERS
+  CONSUMERS -->|follow authoritative by-ref evidence into| REFS
+  REFS -->|anchored on| EVID
+  TAUDIT -->|feeds later case-facing consumers such as| CASE

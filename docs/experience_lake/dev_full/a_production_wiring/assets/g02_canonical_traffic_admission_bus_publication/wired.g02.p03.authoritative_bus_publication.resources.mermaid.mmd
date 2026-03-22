@@ -1,0 +1,47 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 2 / Path 3
+%% Authoritative bus publication path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active path seat"]
+    LG2[("Round node = authoritative topic or managed bus resource")]
+    LG3["This graph shows the concrete publish and consumer seats, not later ingest-commit receipts"]
+  end
+
+  ENTRY["Admitted ingress event family<br>ready for runtime handoff"]
+
+  subgraph PUBLISH["Ingress publish resources"]
+    IGLAMBDA["Lambda<br>fraud-platform-dev-full-ig-handler"]
+    TTRAFFIC[("Topic<br>fp.bus.traffic.fraud.v1")]
+    TCTXE[("Topic<br>fp.bus.context.arrival_events.v1")]
+    TCTXT[("Topic<br>fp.bus.context.arrival_entities.v1")]
+    TFLOW[("Topic<br>fp.bus.context.flow_anchor.fraud.v1")]
+    MSK[("MSK Serverless cluster<br>fraud-platform-dev-full-msk")]
+    GLUEREG["Glue Schema Registry<br>fraud-platform-dev-full"]
+    PARTITION["Pinned topic continuity<br>producer = IG<br>partition key = merchant_id"]
+  end
+
+  subgraph DOWNSTREAM["Downstream runtime handoff seats"]
+    CSFB["Deployment<br>fp-pr3-csfb"]
+  end
+
+  ENTRY -->|hands admitted family to| IGLAMBDA
+  IGLAMBDA -->|applies continuity rule through| PARTITION
+  PARTITION -->|publishes to| TTRAFFIC
+  PARTITION -->|publishes to| TCTXE
+  PARTITION -->|publishes to| TCTXT
+  PARTITION -->|publishes to| TFLOW
+  TTRAFFIC -->|transported by| MSK
+  TCTXE -->|transported by| MSK
+  TCTXT -->|transported by| MSK
+  TFLOW -->|transported by| MSK
+  MSK -->|schemas governed by| GLUEREG
+  TTRAFFIC -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TCTXT -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB

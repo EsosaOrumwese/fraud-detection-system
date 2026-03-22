@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 1
+%% Run reconstruction and receipt closure path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, managed reporter seat, or active reconstruction control"]
+    LG2(("Round node = durable receipt / evidence surface or later handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready exact run reconstruction"]
+  end
+
+  subgraph ENTRY["Closure-basis resources"]
+    RUNCTL["Run control receipts / reconciliation"]
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    RUNID["Run identity truth<br/>execution / platform run scope"]
+  end
+
+  subgraph PATH["Production-ready run-reconstruction resources"]
+    EKS["EKS one-shot reporter runtime"]
+    AURORA["Aurora writer / advisory-lock and receipts-table surface"]
+    REPORTER["Managed reporter and reconciliation lane<br/>one-shot execution with lock acquire / release proof"]
+    ARTIFACTS(("Closure bundle artifacts<br/>platform_run_report.json<br/>run_report.json<br/>reconciliation.json<br/>deterministic handoff refs"))
+    REPORT(("Owned outcome<br/>production-ready committed run report"))
+    RECON(("Owned outcome<br/>production-ready reconciliation truth"))
+    GOV(("Later handoff<br/>governance append and close-marker path"))
+  end
+
+  RUNCTL -->|supplies earlier lane receipts into| REPORTER
+  EVID -->|supplies readable closure artifacts to| REPORTER
+  RUNID -->|pins one governed run scope across| REPORTER
+  EKS -->|hosts managed one-shot execution for| REPORTER
+  AURORA -->|supplies single-writer lock and receipts-table truth to| REPORTER
+  REPORTER -->|stores deterministic closeout artifacts in| EVID
+  REPORTER -->|commits durable reconstruction outputs as| ARTIFACTS
+  ARTIFACTS -->|anchor exact readable run story in| REPORT
+  ARTIFACTS -->|anchor attributable reconciliation in| RECON
+  REPORT -->|later feeds governed formal closeout into| GOV

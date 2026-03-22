@@ -1,0 +1,48 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 synthesis
+%% Learning, evaluation, and governed activation
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active boundary or owned closure"]
+    LG2[("Round node = learning / activation truth surface or downstream runtime handoff")]
+    LG3["This graph shows the five distinct owned truths that turn archive and label truth into governed model-evolution truth and then back into runtime authority"]
+  end
+
+  subgraph G6["Group 6 - Learning, evaluation, and governed activation"]
+    BASIS[("Pinned causal learning-input basis")]
+    DATASET[("Offline dataset truth")]
+    CAND[("Candidate-bundle truth")]
+    PROMOTION[("Governed promotion truth")]
+    AUTH[("Runtime decision authority")]
+    RUNTIME[("Later runtime consumers\ndecision-fabric and downstream decisioning")]
+
+    INPUT["Learning-input basis boundary"]
+    OFS["Offline dataset commitment boundary"]
+    MF["Train / eval and candidate-bundle boundary"]
+    CORRIDOR["Promotion and rollback-governance boundary"]
+    ACTIVE["Active-bundle authority feedback boundary"]
+  end
+
+  CLAIM["Group claim\nthe platform turns authoritative runtime and label truth into governed model-evolution truth and then back into deterministic runtime decision authority"]
+
+  INPUT -->|closes causal learning basis as| BASIS
+  BASIS -->|feeds authoritative offline build through| OFS
+  OFS -->|closes offline dataset truth as| DATASET
+  DATASET -->|feeds managed train/eval through| MF
+  MF -->|closes provenance-complete candidate truth as| CAND
+  CAND -->|enters governed promotion through| CORRIDOR
+  CORRIDOR -->|closes explicit promotion truth as| PROMOTION
+  PROMOTION -->|feeds active resolution through| ACTIVE
+  ACTIVE -->|closes runtime-readable authority as| AUTH
+  AUTH -->|later is consumed by| RUNTIME
+
+  BASIS -->|together prove| CLAIM
+  DATASET -->|together prove| CLAIM
+  CAND -->|together prove| CLAIM
+  PROMOTION -->|together prove| CLAIM
+  AUTH -->|together prove| CLAIM

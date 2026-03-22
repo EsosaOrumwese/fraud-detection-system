@@ -1,0 +1,71 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 6 synthesis
+%% Learning, evaluation, and governed activation - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, managed seat, or active ownership surface"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3(("Round node = later handoff or downstream consumer"))
+    LG4["This graph names the concrete seats that materially realize production-ready learning, evaluation, promotion, and runtime authority closure"]
+  end
+
+  subgraph ENTRY["Authoritative upstream resources"]
+    OBJ[("S3 object store<br/>fraud-platform-dev-full-object-store")]
+    EVID[("S3 evidence bucket<br/>fraud-platform-dev-full-evidence")]
+    LABELSTORE["Deployment<br/>fp-pr3-label-store"]
+    ARCHWRITER["Deployment<br/>fp-pr3-archive-writer"]
+  end
+
+  subgraph G6["Production-ready learning / activation resources"]
+    DBWS["Databricks workspace"]
+    DELTA["Delta / catalog basis<br/>fraud_platform_dev_full_object_store_v0"]
+    OFSBUILD["Dataset build job<br/>fraud-platform-dev-full-ofs-build-v0"]
+    OFSQUAL["Dataset quality job<br/>fraud-platform-dev-full-ofs-quality-v0"]
+    DATASET[("Offline dataset truth<br/>manifest + fingerprint + rollback recipe")]
+    SMROLE["SageMaker execution role"]
+    MTRAIN["SageMaker endpoint / train seat<br/>fraud-platform-dev-full-mtrain"]
+    MBATCH["SageMaker batch / eval seat<br/>fraud-platform-dev-full-mbatch"]
+    MLFLOW["Databricks-backed MLflow<br/>lineage + promotion / rollback authority"]
+    SMPKG[("Model package group<br/>fraud-platform-dev-full-models")]
+    CANDIDATE[("Candidate-bundle truth<br/>metrics + leakage / stability closure + provenance")]
+    SSM["SSM Parameter Store<br/>active bundle / policy handles"]
+    REGISTRY[("Active bundle truth<br/>governed promoted state")]
+    DF["Deployment<br/>fp-pr3-df"]
+    DLA["Deployment<br/>fp-pr3-dla"]
+    AUTH[("Runtime decision authority<br/>deterministic bundle / policy attribution")]
+    G3(("Later handoff<br/>group 3 runtime decisioning"))
+  end
+
+  ARCHWRITER -->|anchors replayable historical basis over| OBJ
+  LABELSTORE -->|anchors authoritative supervision basis over| OBJ
+  OBJ -->|feeds causal learning basis into| DBWS
+  EVID -->|feeds causal learning receipts into| DBWS
+  DBWS -->|materializes admitted table basis in| DELTA
+  DELTA -->|feeds dataset build into| OFSBUILD
+  OFSBUILD -->|hands quality-checked build into| OFSQUAL
+  OFSQUAL -->|commits offline dataset closure as| DATASET
+
+  DATASET -->|supplies immutable dataset basis to| MTRAIN
+  DATASET -->|supplies immutable dataset basis to| MBATCH
+  SMROLE -->|authorizes managed train / eval for| MTRAIN
+  SMROLE -->|authorizes managed eval for| MBATCH
+  MTRAIN -->|records training lineage in| MLFLOW
+  MBATCH -->|records evaluation lineage in| MLFLOW
+  MLFLOW -->|publishes governed candidate bundles into| SMPKG
+  MLFLOW -->|materializes candidate truth as| CANDIDATE
+
+  CANDIDATE -->|opens governed promotion corridor in| MLFLOW
+  SSM -->|supplies pinned handles and compatibility inputs to| MLFLOW
+  MLFLOW -->|resolves active promoted state as| REGISTRY
+  REGISTRY -->|supplies active bundle authority to| DF
+  SSM -->|supplies runtime-facing handles to| DF
+  DF -->|stamps consumed bundle / policy authority into| DLA
+  REGISTRY -->|is read back for staged authority truth by| DLA
+  DLA -->|stores authority evidence in| EVID
+  DLA -->|materializes deterministic runtime authority as| AUTH
+  AUTH -->|later feeds| G3

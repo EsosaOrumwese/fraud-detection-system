@@ -1,0 +1,67 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 synthesis
+%% Runtime context formation and decisioning
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active runtime boundary or owned closure"]
+    LG2[("Round node = durable/runtime-constrained truth surface")]
+    LG3["Dashed edge = retained parity or upstream-owned authority consumed here"]
+  end
+
+  subgraph G3["Group 3 - Runtime context formation and decisioning"]
+    TRAFFIC[("Admitted traffic + context family")]
+    ALLOWED[("Bounded live-runtime semantic world<br>four allowed live-runtime surfaces<br>no future/truth-product leakage")]
+    PROJECTION[("Projection truth")]
+    CONTEXT[("Joined context truth")]
+    FEATURES[("Feature-ready truth")]
+    POSTURE[("Guardrail posture")]
+    AUTH[("Runtime-consumed active bundle / policy authority<br>owned upstream")]
+    DECISION[("Decision truth")]
+    OUTCOME[("Action / outcome truth")]
+
+    CSFB["Context-store / flow-binding boundary"]
+    IEG["Entity / relationship projection boundary"]
+    OFP["Online feature boundary"]
+    DL["Decision guardrail boundary"]
+    DF["Decision formation boundary"]
+    AL["Action / outcome boundary"]
+    MSF["Retained managed stream parity surface"]
+  end
+
+  CLAIM["Group claim<br>the platform turns admitted traffic into governed real-time decision truth through a bounded sequence of owned runtime boundaries"]
+
+  TRAFFIC -->|enters bounded RTDL runtime through| CSFB
+  ALLOWED -->|constrains runtime-readable semantics for| CSFB
+  CSFB -->|hands projection inputs into| IEG
+  IEG -->|closes current graph state as| PROJECTION
+  PROJECTION -->|feeds back into| CSFB
+  CSFB -->|closes joined runtime context as| CONTEXT
+  CONTEXT -->|feeds usable context into| OFP
+  PROJECTION -->|feeds current graph state into| OFP
+  OFP -->|closes feature-ready truth as| FEATURES
+  CONTEXT -->|feeds context posture into| DL
+  FEATURES -->|feeds feature posture into| DL
+  PROJECTION -->|feeds projection posture into| DL
+  DL -->|closes adjudicated decision posture as| POSTURE
+  CONTEXT -->|feeds joined context into| DF
+  FEATURES -->|feeds feature-ready truth into| DF
+  POSTURE -->|feeds guardrail posture into| DF
+  AUTH -. consumed runtime authority .-> DF
+  DF -->|closes explicit decision truth as| DECISION
+  DECISION -->|feeds owned decision truth into| AL
+  AL -->|closes deterministic action/outcome truth as| OUTCOME
+
+  IEG -. retained parity relation only .-> MSF
+  OFP -. retained parity relation only .-> MSF
+
+  PROJECTION -->|together prove| CLAIM
+  CONTEXT -->|together prove| CLAIM
+  FEATURES -->|together prove| CLAIM
+  POSTURE -->|together prove| CLAIM
+  DECISION -->|together prove| CLAIM
+  OUTCOME -->|together prove| CLAIM

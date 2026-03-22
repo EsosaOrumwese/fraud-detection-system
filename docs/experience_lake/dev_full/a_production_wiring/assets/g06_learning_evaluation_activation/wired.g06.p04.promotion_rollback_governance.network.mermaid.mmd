@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 / Path 4
+%% Promotion and rollback-governance path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, control, or owned promotion-governance closure"]
+    LG2[("Round node = governed promotion-truth or downstream handoff surface")]
+    LG3["This graph closes at explicit promotion and rollback-governance truth, before runtime consumes active bundle authority"]
+  end
+
+  subgraph ENTRY["Eligible candidate basis"]
+    CAND[("Eligible candidate bundle")]
+  end
+
+  subgraph PATH["Learning, evaluation, and governed activation / Path 4"]
+    CORRIDOR["Governed promotion corridor\nexplicit promotion event / receipt"]
+    ROLLBACK["Rollback-governance controls\nrollback drill executed and recorded\nbounded-restore objective within pinned recovery contract"]
+    CHECKS["Post-promotion checks\nactive-bundle resolution passes\ncompatibility fail-closed checks pass"]
+    PROMOTION[("Owned outcome\ncommitted promotion truth")]
+    GOV[("Owned outcome\nrollback-governance truth")]
+    AUTH[("Later handoff\nactive-bundle authority feedback path")]
+  end
+
+  CAND -->|enters governed promotion corridor through| CORRIDOR
+  CORRIDOR -->|opens rollback-governance closure through| ROLLBACK
+  ROLLBACK -->|opens deterministic post-promotion checks through| CHECKS
+  CHECKS -->|closes explicit promoted state as| PROMOTION
+  CHECKS -->|closes rollback-governance evidence as| GOV
+  PROMOTION -->|later feeds governed active state into| AUTH

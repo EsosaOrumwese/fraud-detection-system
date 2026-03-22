@@ -1,0 +1,181 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn ingress truth into authoritative event-bus truth"]
+    G2["Answer where admitted traffic is authoritatively handed off so runtime can begin"]
+    G3["Keep bus handoff truth separate from both admission truth and later ingest-commit truth"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is admitted ingress event family that has already crossed the boundary and received admit-worthy disposition"]
+    E2["It is not raw source data in general"]
+    E3["It is not yet receipt truth"]
+    E4["Only behavioural_streams are canonical traffic"]
+    E5["Arrival, entity, and flow-anchor surfaces are context, not traffic"]
+    E6["Traffic stays thin and context is joined inside the platform rather than smuggled into one fat payload"]
+    E7["That is why the publish surface is a family of traffic plus context topics, not one topic"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Admitted ingress event family"]
+    R2["IG publish logic"]
+    R3["Pinned traffic and context topics on MSK"]
+    R4["Bus-visible handoff to RTDL ingress, context, and join consumers"]
+    R5["Authoritative bus truth for downstream runtime"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Admitted traffic family: canonical fraud traffic stream itself"]
+    C2["Associated arrival and context surfaces that downstream RTDL needs"]
+    C3["Pinned topic names"]
+    C4["Partition-key rules"]
+    C5["Producer and consumer contract"]
+    C6["When publication is reconstructable later: topic, partition, and offset truth"]
+    C7["The topic map pins the concrete topic family and the partition keys"]
+    C8["Traffic and context both partition by merchant_id"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats publish truth as its own truth boundary, not as a casual extension of admission"]
+    L2["The system is not saying: once ingress says admit, we can assume runtime got it"]
+    L3["It is saying: admit truth and publish truth are different, and the publish boundary must be explicit, authoritative, and reconstructable"]
+    L4["That matches the readiness language that admitted events must be published into the event transport network without ambiguity"]
+    L5["Truth-ownership boundaries are kept separate across planes"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The bus is AWS MSK Serverless"]
+    S2["The producer boundary is IG"]
+    S3["The topic family is pinned by name"]
+    S4["Bootstrap and schema-registry handles are pinned"]
+    S5["Producer and consumer map is pinned"]
+    S6["Fraud traffic topic: ingress -> RTDL ingress"]
+    S7["Arrival-events context topic: ingress -> RTDL context"]
+    S8["Arrival-entities context topic: ingress -> RTDL context"]
+    S9["Flow-anchor context topic: ingress -> RTDL join plane"]
+    S10["The publish handoff is concretely seated in named bus, named topics, named partition rules, and named downstream consumers"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform wants to preserve thin-traffic semantics while still giving RTDL enough context to work correctly"]
+    Y2["That is why the publish boundary is not one giant canonical payload topic"]
+    Y3["Traffic stays thin, joins happen inside the platform, and context surfaces are not treated as traffic"]
+    Y4["The pinned topic set mirrors that semantic split directly: one traffic topic plus context topics feeding different RTDL consumers"]
+    Y5["The current bus shape is driven by system meaning, not incidental implementation convenience"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The data-engine contract shapes what may be published as traffic and what must remain context-only"]
+    X2["Only behavioural streams are eligible as traffic"]
+    X3["Arrival, entity, and flow-anchor surfaces are context for enrichment"]
+    X4["Truth products and telemetry are not to be published as business traffic"]
+    X5["Topic and contract continuity law shapes where those things are published and who owns them"]
+    X6["Existing dev_min topic contracts remain authoritative unless explicitly repinned"]
+    X7["Any new topic or schema surface must be pinned in the handles registry first"]
+    X8["Ingress and control-plane law shape failure behavior: Kafka topics are authoritative bus surfaces and fail-closed posture is part of platform law"]
+    X9["If publish outcome is ambiguous, the system is not allowed to quietly pretend success"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately chooses explicit bus truth over simpler but weaker alternatives"]
+    T2["It would be easier to collapse admission and publish into one fuzzy notion of ingress handled it"]
+    T3["It would also be easier to publish only one flattened traffic topic and let downstream reconstruct context however it can"]
+    T4["The current design rejects that"]
+    T5["It pays the cost of maintaining a topic family, explicit producer/consumer contracts, real publish ambiguity handling, and schema/contract continuity"]
+    T6["Under aggressive concurrency probe, the live ingress runtime surfaced KAFKA_PUBLISH_TIMEOUT and PUBLISH_AMBIGUOUS, and valid traffic was fail-closed into quarantine rather than silently counted as published"]
+    T7["The platform would rather block than lie about bus truth"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform still has ingress edge, admission boundary, and RTDL components drawn downstream"]
+    N2["But it loses the clean truth that connects them"]
+    N3["A reviewer could no longer answer where admitted traffic actually enters the runtime network"]
+    N4["It would become unclear whether the full event family reached downstream consumers"]
+    N5["It would become unclear whether traffic and context separation was preserved"]
+    N6["It would become unclear whether publish ambiguity was handled honestly"]
+    N7["It would become unclear whether RTDL starvation is publish problem or downstream problem"]
+    N8["That weakens A immediately because the system starts looking like a graph with a missing ownership boundary between ingress and runtime"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["The admitted ingress event family has been handed off onto the pinned traffic and context topics"]
+    O2["The handoff is authoritative for the downstream RTDL consumers that are supposed to consume it"]
+    O3["This path closes earlier than offset/receipt rollup; bus handoff itself is the real truth here"]
+    O4["Owned outcome: authoritative bus truth for the admitted traffic and context family"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning ingress truth into authoritative bus truth"]
+    A2["Intentionality claim:<br/>the bus handoff is semantically split traffic and context family mirroring the engine's thin-traffic join posture"]
+    A3["Materialization claim:<br/>the handoff is concretely seated in MSK Serverless, pinned topic names, pinned partition keys, and pinned IG -> RTDL producer and consumer roles"]
+    A4["Contract claim:<br/>the path is governed by topic continuity, traffic taxonomy, and fail-closed truth-boundary laws"]
+    A5["Constraint-awareness claim:<br/>publish ambiguity is treated as a real boundary defect, not silently absorbed as success"]
+    A6["A-level meaning:<br/>admitted ingress traffic becomes explicit, semantically correct, contract-governed runtime handoff rather than an implicit continuation"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5 --> E6 --> E7
+  E7 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R1 --> C2
+  R3 --> C3 --> C4 --> C5 --> C6
+  C5 --> C7 --> C8
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R4 --> L4
+  R5 --> L5
+
+  R3 --> S1
+  R2 --> S2
+  S1 --> S3 --> S4 --> S5
+  S5 --> S6
+  S5 --> S7
+  S5 --> S8
+  S5 --> S9
+  S9 --> S10
+
+  R3 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R1 --> X1
+  X1 --> X2 --> X3 --> X4
+  R3 --> X5 --> X6 --> X7 --> X8 --> X9
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5 --> T6 --> T7
+
+  R5 --> O1
+  R5 --> O2
+  O1 --> O3
+  O2 --> O3
+  O3 --> O4
+
+  T7 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7 --> N8
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X9 --> A4
+  T7 --> A5
+  N8 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,E6,E7,C1,C2,C3,C4,C5,C6,C7,C8,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,X5,X6,X7,X8,X9,T1,T2,T3,T4,T5,T6,T7,N1,N2,N3,N4,N5,N6,N7,N8 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

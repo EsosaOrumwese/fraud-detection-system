@@ -1,0 +1,36 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 1 / Path 3
+%% Ready authorization path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted authority boundary or owned closure"]
+    LG2[("Round node = durable topic / evidence / committed ready truth")]
+    LG3["This graph closes at production-ready READY authorization, before ingress runtime work begins"]
+  end
+
+  ENTRY["Ready-eligible basis<br/>committed run basis + realized source basis"]
+
+  subgraph PATH["Bi / Group 1 / Path 3 - Ready authorization"]
+    SFN["Step Functions orchestration<br/>authoritative READY corridor"]
+    RUNCTL["Run-control readiness commitment<br/>ready receipt / reconciliation basis"]
+    CTRLBUS[("fp.bus.control.v1<br/>authoritative control publication")]
+    EVID[("S3 evidence root<br/>fraud-platform-dev-full-evidence")]
+    READY[("Committed READY truth")]
+    READYREC[("Committed READY receipt truth")]
+    OUT[("Owned outcome<br/>production-ready authorized ready state")]
+  end
+
+  ENTRY -->|hands readiness eligibility to| SFN
+  SFN -->|publishes authoritative READY signal to| CTRLBUS
+  SFN -->|writes ready receipt and control facts into| RUNCTL
+  CTRLBUS -->|records authoritative READY publication as| READY
+  RUNCTL -->|commits READY receipt truth as| READYREC
+  READY -->|stores durable ready evidence under| EVID
+  READYREC -->|stores durable ready evidence under| EVID
+  READY -->|together close this path as| OUT
+  READYREC -->|together close this path as| OUT

@@ -1,0 +1,21 @@
+flowchart LR
+  I1["s0_gate_receipt_2A"]
+  I2["site_timezones"]
+  I3["tz_timetable_cache"]
+
+  S4["S4 Legality authority<br/>Check that every used tzid is covered<br/>and derive gap/fold legality from cache truth"]
+
+  O1["s4_legality_report<br/>Per-seed PASS or FAIL evidence<br/>generated_utc = S0 verified_at_utc"]
+
+  I1 --> S4
+  I2 --> S4
+  I3 --> S4
+  S4 --> O1
+
+  R1["Actual design recovery<br/>S4 is intentionally narrow:<br/>it does not repair assignments or rebuild cache"]
+  R2["Its job is to judge whether final tz authority<br/>is actually legal against manifest-scoped transition truth"]
+  R3["That makes S4 the segment's civil-time proof surface,<br/>not another assignment state"]
+
+  R1 -.-> S4
+  R2 -.-> S4
+  R3 -.-> S4

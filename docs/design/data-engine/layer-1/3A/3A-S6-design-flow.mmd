@@ -1,0 +1,16 @@
+flowchart LR
+  I1["Reads<br/>S1 through S5 artefacts<br/>seedpack and audit surfaces"]
+
+  S6["S6<br/>Validation verdict"]
+
+  O1["Outputs<br/>s6_validation_report_3A<br/>s6_issue_table_3A<br/>s6_receipt_3A"]
+  O2["Authority<br/>S6 alone decides PASS or FAIL<br/>for the 3A segment"]
+
+  R1["Implemented shift<br/>S6 is a veto rail, not a tuning surface;<br/>realism optimization stays in S2 through S4<br/>with S1 as bounded support"]
+  R2["Implemented shift<br/>Final posture froze 3A as best-effort below B,<br/>so S6 became the authoritative closure witness<br/>for that bounded reality"]
+
+  I1 --> S6
+  S6 --> O1
+  S6 --> O2
+  R1 -.-> S6
+  R2 -.-> S6

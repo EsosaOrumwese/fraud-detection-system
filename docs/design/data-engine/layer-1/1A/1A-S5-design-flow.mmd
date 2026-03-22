@@ -1,0 +1,42 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["settlement_shares_2024Q4"]
+    I2["ccy_country_shares_2024Q4"]
+    I3["ISO canonical authority"]
+    I4["ccy_smoothing_params and related allocation policy"]
+  end
+
+  subgraph core["Actual S5 design"]
+    C1["Validate currency and country share surfaces<br/>and fail closed on broken ingress sums or domains"]
+    C2["Derive merchant_currency convenience surface<br/>when enabled"]
+    C3["Expand and smooth currency-to-country support<br/>into deterministic weight cache"]
+    C4["Emit sparse_flag diagnostics for support weakness"]
+    C5["Publish parameter-scoped weights authority<br/>with PASS receipt gating"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S5 became a real downstream bridge during P2,<br/>not just a passive cache"]
+    S2["targeted min_share_iso expansions were used to recover<br/>foreign-support feasibility without reopening P1"]
+    S3["The actual design includes a parameter-scoped PASS receipt,<br/>so downstream states must verify S5 before reads"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["ccy_country_weights_cache"]
+    O2["merchant_currency"]
+    O3["sparse_flag"]
+    O4["1A.S5 receipt and _passed.flag"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  I4 --> C3
+  C1 --> C2 --> C3 --> C4 --> C5
+  C3 --> O1
+  C2 --> O2
+  C4 --> O3
+  C5 --> O4
+
+  S1 -.-> C3
+  S2 -.-> C3
+  S3 -.-> C5

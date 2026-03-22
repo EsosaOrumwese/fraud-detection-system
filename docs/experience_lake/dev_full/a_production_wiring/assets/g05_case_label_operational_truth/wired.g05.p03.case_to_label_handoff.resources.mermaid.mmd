@@ -1,0 +1,30 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 5 / Path 3
+%% Case-to-label handoff path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active supervision-request seat"]
+    LG2[("Round node = durable case substrate or label-intake handoff surface")]
+    LG3["This graph names the concrete seats that materially realize the case-management to label-store handoff in the current wired platform"]
+  end
+
+  subgraph ENTRY["Operational case resources"]
+    CM["Deployment\nfp-pr3-case-mgmt"]
+    AURORA[("Aurora cluster\nfraud-platform-dev-full-aurora")]
+  end
+
+  subgraph PATH["Case-to-label handoff resources"]
+    REQUEST["Supervision-request closure\nlabel-request / label-pending truth"]
+    LS["Deployment\nfp-pr3-label-store"]
+    TLABELS[("Topic\nfp.bus.labels.events.v1")]
+  end
+
+  CM -->|reads / owns operational case basis in| AURORA
+  CM -->|hands explicit supervision requests into| LS
+  CM -->|materially closes handoff truth as| REQUEST
+  LS -->|later publishes authoritative label events to| TLABELS

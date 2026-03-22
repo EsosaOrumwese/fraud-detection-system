@@ -1,0 +1,40 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 3
+%% Proof-matrix and final-verdict publication path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active whole-platform judgment corridor seat, control, or owned verdict object"]
+    LG2(("Round node = authoritative proof basis or later handoff surface"))
+    LG3["This graph closes at one published deterministic full-platform verdict bundle, before drift-visible observability attestation and later teardown begin"]
+  end
+
+  subgraph ENTRY["Whole-platform judgment basis"]
+    APPEND(("Governance append truth"))
+    MARKER(("Formal run-close marker"))
+    PRIOR(("Prior authoritative closure surfaces<br/>P1..P15 already closed without unresolved blockers"))
+  end
+
+  subgraph PATH["Bi / Group 7 / Path 3 - Proof-matrix and final-verdict publication"]
+    M13["Whole-platform judgment corridor<br/>strict P16 / M13 boundary rather than 'many upstream lanes are green'"]
+    SOURCE["Authoritative source-matrix discipline<br/>full source matrix blocker-free<br/>explicit source-mode handling for legacy-readable rows"]
+    PROOF["Six-proof completeness discipline<br/>required proof classes complete for each required major lane before verdict assembly"]
+    VERDICTLOGIC["Deterministic verdict logic<br/>strict for non-legacy rows<br/>source-scope-aware for accepted legacy rows<br/>not permissive, not naively over-strict"]
+    PUBLISH["Identity-verified publication<br/>same verdict bundle written to run-control and run-scoped truth surface<br/>readback identity must match execution_id and deterministic verdict fields"]
+    FULL(("Owned outcome<br/>published full-platform verdict bundle"))
+    OBS(("Later handoff<br/>drift-visible observability attestation path"))
+  end
+
+  APPEND -->|feeds formal closure basis into| M13
+  MARKER -->|gates whole-platform judgment into| M13
+  PRIOR -->|supplies prior authoritative closure coverage into| M13
+  SOURCE -->|defines honest source assembly required for| M13
+  PROOF -->|defines proof completeness required for| M13
+  VERDICTLOGIC -->|defines deterministic judgment rules for| M13
+  PUBLISH -->|defines authoritative publication contract for| M13
+  M13 -->|materially closes explicit whole-platform judgment as| FULL
+  FULL -->|later feeds live attestation context into| OBS

@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>s2_country_zone_priors<br/>s1_escalation_queue"]
+  I2["RNG authority<br/>seedpack and manifest-scoped stream"]
+
+  S3["S3<br/>Dirichlet zone-share emitter"]
+
+  O1["Outputs<br/>s3_zone_shares<br/>zone-dirichlet event logs<br/>trace and audit surfaces"]
+  O2["Authority<br/>S3 owns sampled dispersion truth<br/>for escalated pairs only"]
+
+  R1["Implemented shift<br/>S3 became the core merchant-dispersion surface<br/>in the remediation chain"]
+  R2["Implemented shift<br/>Final freeze kept RNG accounting explicit across<br/>events, audit, and trace even though one seedpack<br/>hard-gate miss remained at certification"]
+
+  I1 --> S3
+  I2 --> S3
+  S3 --> O1
+  S3 --> O2
+  R1 -.-> S3
+  R2 -.-> S3

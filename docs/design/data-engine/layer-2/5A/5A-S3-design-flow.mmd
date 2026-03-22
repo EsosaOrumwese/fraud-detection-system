@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>merchant_zone_profile_5A<br/>shape_grid_definition_5A<br/>class_zone_shape_5A"]
+  I2["Policy<br/>baseline_intensity_policy_5A"]
+
+  S3["S3<br/>Baseline merchant-zone weekly intensities"]
+
+  O1["Outputs<br/>merchant_zone_baseline_local_5A<br/>optional aggregates and UTC projections"]
+  O2["Authority<br/>S3 alone composes scale and shape into<br/>baseline weekly intensity truth"]
+
+  R1["Implemented shift<br/>S3 became the main compute-heavy baseline surface;<br/>output and join laws were tightened so class-zone coverage<br/>and merchant-zone weekly sums could not silently drift"]
+  R2["Implemented shift<br/>Later remediation made S3 the owner surface for tail-zone richness,<br/>so baseline policy rather than overlay policy became the accepted<br/>place to recover dormant TZ breadth"]
+
+  I1 --> S3
+  I2 --> S3
+  S3 --> O1
+  S3 --> O2
+  R1 -.-> S3
+  R2 -.-> S3

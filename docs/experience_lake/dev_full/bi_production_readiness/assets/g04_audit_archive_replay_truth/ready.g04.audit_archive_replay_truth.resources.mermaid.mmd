@@ -1,0 +1,47 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 4 synthesis
+%% Durable audit, archive, and replay truth - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, historical-truth seat, or active preservation control"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3(("Round node = later handoff or downstream consumer"))
+    LG4["This graph names the concrete seats that materially realize production-ready audit, archive, and replay-reference truth"]
+  end
+
+  subgraph ENTRY["Runtime historical-truth inputs"]
+    TRTDL[("Topic<br/>fp.bus.rtdl.v1")]
+    TAUDIT[("Topic<br/>fp.bus.audit.v1")]
+    MSK[("MSK Serverless cluster<br/>fraud-platform-dev-full-msk")]
+  end
+
+  subgraph G4["Production-ready historical-truth resources"]
+    DLA["Deployment<br/>fp-pr3-dla"]
+    ARCHIVE["Deployment<br/>fp-pr3-archive-writer"]
+    ARCHIVEPATH[("Archive prefix<br/>archive/{platform_run_id}/events/")]
+    OBJ[("S3 object / archive store<br/>fraud-platform-dev-full-object-store")]
+    EVID[("S3 evidence bucket<br/>fraud-platform-dev-full-evidence")]
+    CLOSURE["Archive closure evidence seat<br/>archive-writer closure evidence + archive closure marker"]
+    REPLAY[("Replay-reference resolution surface<br/>spine-closure-resolved archive basis")]
+    NEXT[("Later trusted consumers<br/>group 5 / group 6 / audit review")]
+  end
+
+  TRTDL -->|transported by| MSK
+  TAUDIT -->|transported by| MSK
+  MSK -->|feeds runtime audit / archive consumers such as| DLA
+  MSK -->|feeds immutable archive preservation into| ARCHIVE
+  DLA -->|stores append-only by-ref evidence in| EVID
+  DLA -->|publishes audit lineage through| TAUDIT
+  ARCHIVE -->|writes run-scoped immutable history under| ARCHIVEPATH
+  ARCHIVEPATH -->|stored in| OBJ
+  ARCHIVE -->|stores archive receipts in| EVID
+  OBJ -->|supplies preserved archive basis into| CLOSURE
+  EVID -->|supplies audit / archive closure evidence into| CLOSURE
+  CLOSURE -->|commits replay-referenceable archive basis as| REPLAY
+  TAUDIT -->|later supports trusted operational review in| NEXT
+  REPLAY -->|later supports trusted replay / learning use in| NEXT

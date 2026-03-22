@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>s1_escalation_queue<br/>sealed_inputs_3A"]
+  I2["Policy authority<br/>country_zone_alphas<br/>zone_floor_policy"]
+
+  S2["S2<br/>Deterministic country-zone priors"]
+
+  O1["Outputs<br/>s2_country_zone_priors<br/>parameter_hash-scoped"]
+  O2["Authority<br/>S2 is the sole priors geometry<br/>surface for escalated pairs"]
+
+  R1["Implemented shift<br/>P1 remediation made S2 the first major<br/>realism-shaping surface"]
+  R2["Implemented shift<br/>Final posture treats S2 priors as frozen upstream<br/>authority for later sampled dispersion"]
+
+  I1 --> S2
+  I2 --> S2
+  S2 --> O1
+  S2 --> O2
+  R1 -.-> S2
+  R2 -.-> S2

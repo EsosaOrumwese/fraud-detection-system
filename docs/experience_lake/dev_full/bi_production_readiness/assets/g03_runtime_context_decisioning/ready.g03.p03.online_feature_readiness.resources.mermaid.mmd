@@ -1,0 +1,55 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 / Path 3
+%% Online feature readiness path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active promoted runtime seat"]
+    LG2(("Round node = durable store or concrete seam / proof surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready online feature readiness"]
+  end
+
+  subgraph ENTRY["Current-run context and projection resources"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NODEGROUP["Nodegroup<br/>fraud-platform-dev-full-m6f-workers<br/>m6i.xlarge<br/>min 2 / desired 4 / max 8"]
+    NSRTDL["Namespace<br/>fraud-platform-rtdl"]
+    SARTDL["ServiceAccount<br/>rtdl"]
+    CSFB["Deployment<br/>fp-pr3-csfb"]
+    IEG["Deployment<br/>fp-pr3-ieg"]
+    ALLOWED(("Runtime-allowed oracle set<br/>s3_event_stream_with_fraud_6B<br/>arrival_events_5B<br/>s1_arrival_entities_6B<br/>s3_flow_anchor_with_fraud_6B"))
+  end
+
+  subgraph RTDL["Production-ready online feature resources"]
+    RTDLIMG["Pinned image family<br/>fraud-platform-dev-full@sha256:c984..."]
+    OFP["Deployment<br/>fp-pr3-ofp"]
+    CONTRACT["Feature contract seam<br/>graph-version shape<br/>request key shape / feature-group requests"]
+    READY["Feature readiness surface<br/>missing_features / snapshot_failures / stale_graph_version / checkpoint-age / restart-to-green"]
+    HEALTH["Advisory-vs-real-red interpretation<br/>replay-age watermark kept separate from true stale-graph-version or missing-feature defects"]
+  end
+
+  subgraph STATE["Durable feature state resources"]
+    AURORA(("Aurora PostgreSQL cluster<br/>fraud-platform-dev-full-aurora"))
+    AURW(("Writer endpoint<br/>fraud-platform-dev-full-aurora-writer-1"))
+    OUT(("Owned outcome<br/>production-ready online feature truth"))
+  end
+
+  EKS -->|contains| NODEGROUP
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity through| SARTDL
+  NSRTDL -->|runs| CSFB
+  NSRTDL -->|runs| IEG
+  NSRTDL -->|runs| OFP
+  RTDLIMG -->|pins deployment family for| OFP
+  CSFB -->|hands joined runtime context to| OFP
+  IEG -->|supplies current projection state to| OFP
+  ALLOWED -->|constrains runtime semantic inputs for| OFP
+  CONTRACT -->|governs requester/projector compatibility for| OFP
+  READY -->|surfaces boundary health for| OFP
+  HEALTH -->|governs truthful interpretation for| OFP
+  OFP -->|writes online feature state to| AURORA
+  AURORA -->|serves durable writes through| AURW
+  AURW -->|materially closes this path as| OUT

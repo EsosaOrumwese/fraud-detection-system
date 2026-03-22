@@ -1,0 +1,76 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 synthesis
+%% Runtime context formation and decisioning - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active runtime seat"]
+    LG2[("Round node = durable/runtime-constrained truth or authority surface")]
+    LG3["Dashed edge = retained parity or upstream-owned authority consumed here"]
+  end
+
+  subgraph ENTRY["RTDL runtime entry and constraints"]
+    TTRAFFIC[("Topic<br>fp.bus.traffic.fraud.v1")]
+    TCTXE[("Topic<br>fp.bus.context.arrival_events.v1")]
+    TCTXT[("Topic<br>fp.bus.context.arrival_entities.v1")]
+    TFLOW[("Topic<br>fp.bus.context.flow_anchor.fraud.v1")]
+    ALLOWED[("Runtime-allowed oracle set<br>s3_event_stream_with_fraud_6B<br>arrival_events_5B<br>s1_arrival_entities_6B<br>s3_flow_anchor_with_fraud_6B")]
+    REGACTIVE[("Active bundle / policy resolution<br>runtime-consumed registry truth")]
+  end
+
+  subgraph RTDL["Concrete RTDL runtime seats"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    SARTDL["ServiceAccount<br>rtdl"]
+    SADEC["ServiceAccount<br>decision-lane"]
+    CSFB["Deployment<br>fp-pr3-csfb"]
+    IEG["Deployment<br>fp-pr3-ieg"]
+    OFP["Deployment<br>fp-pr3-ofp"]
+    DL["Deployment<br>fp-pr3-dl"]
+    DF["Deployment<br>fp-pr3-df"]
+    AL["Deployment<br>fp-pr3-al"]
+    AURORA[("Aurora cluster<br>fraud-platform-dev-full-aurora")]
+    REDISH[("Redis endpoint handle<br>SSM-backed handle only, no live Redis resource shown here")]
+    TRTDL[("Topic<br>fp.bus.rtdl.v1")]
+    TAUDIT[("Topic<br>fp.bus.audit.v1")]
+    MSF["Managed Flink app<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>retained parity only"]
+  end
+
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity| SARTDL
+  NSRTDL -->|binds identity| SADEC
+  NSRTDL -->|runs| CSFB
+  NSRTDL -->|runs| IEG
+  NSRTDL -->|runs| OFP
+  NSRTDL -->|runs| DL
+  NSRTDL -->|runs| DF
+  NSRTDL -->|runs| AL
+
+  TTRAFFIC -->|consumed by| CSFB
+  TCTXE -->|consumed by| CSFB
+  TCTXT -->|consumed by| CSFB
+  TFLOW -->|consumed by| CSFB
+  ALLOWED -->|constrains runtime semantic inputs for| CSFB
+
+  CSFB -->|hands projection inputs to| IEG
+  CSFB -->|projects joined context to| OFP
+  IEG -->|supplies projection state to| OFP
+  IEG -->|writes graph / entity state to| AURORA
+  OFP -->|writes online feature state to| AURORA
+  OFP -. reads handle from .-> REDISH
+
+  CSFB -->|supplies context basis to| DL
+  IEG -->|supplies projection basis to| DL
+  OFP -->|supplies feature basis to| DL
+  DL -->|hands adjudication input to| DF
+  REGACTIVE -. runtime-consumed authority .-> DF
+  DF -->|publishes decisions to| TRTDL
+  DF -->|publishes decision audit to| TAUDIT
+  AL -->|publishes action outcomes to| TAUDIT
+
+  IEG -. retained parity relation only .-> MSF
+  OFP -. retained parity relation only .-> MSF

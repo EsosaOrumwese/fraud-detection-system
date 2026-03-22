@@ -1,0 +1,154 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn decision truth into action and outcome truth"]
+    G2["Keep this path narrower than decision formation and narrower than append-only audit truth"]
+    G3["Answer how a decision begins affecting the rest of the system in a deterministic, duplicate-safe, and attributable way"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not raw traffic and not generic RTDL health"]
+    E2["The entry is decision truth that has already been formed under the current run scope"]
+    E3["RTDL catch-up closure is already green before the decision chain is allowed to proceed"]
+    E4["The run-process then requires the decision lane, the action and outcome evidence, and the append-only audit evidence as distinct closure elements"]
+    E5["This path begins after decision formation, not before it"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Decision truth"]
+    R2["Action layer"]
+    R3["Committed and/or published outcome surfaces"]
+    R4["Downstream RTDL and cross-plane consumers"]
+    R5["Action and outcome boundary is owned rather than assumed"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["The decision itself"]
+    C2["Run context"]
+    C3["Policy and bundle context"]
+    C4["The trace from decision to action"]
+    C5["Concrete proof concerns at this boundary: action commit success rate, duplicate side-effect error rate, ambiguity and quarantine rate, action latency, and decision-to-action trace completeness"]
+    C6["This boundary carries more than a bare allow/deny flag"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats side effects and outcomes as their own truth boundary, not as an invisible consequence of decisioning"]
+    L2["The system is not saying once decision formation produced a decision, the world will somehow be affected"]
+    L3["There is a dedicated layer that owns how decision truth becomes action and outcome truth under the platform's at-least-once and ambiguity rules"]
+    L4["That is strong A-level design signal because it makes the hot path legible beyond mere scoring"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The copied baseline wired graphs show live action deployment alongside the context, entity, feature, guardrail, decision, audit, and archive surfaces in the RTDL namespace"]
+    S2["So the action layer is concrete live workload in the current RTDL plane, not just a design box on the graph"]
+    S3["The same baseline network shows the downstream handoff: the decision and action surfaces publish to the RTDL downstream topic"]
+    S4["So the path is visible both as runtime workload and as a named downstream transport boundary"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses to let decision correctness and side-effect correctness collapse into one fuzzy notion that the hot path worked"]
+    Y2["The run-process separates the decision chain into decision lane, action and outcome evidence, and append-only audit evidence"]
+    Y3["That means action and outcome truth is intentionally given its own owned closure"]
+    Y4["The readiness definition sharpens why: duplicate safety, deterministic action commits, ambiguity recording, and trace completeness are first-class properties rather than operator cleanup after the fact"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The RTDL plane contract says actions and audit outputs must be correct, not just the decisions"]
+    X2["The action-layer contract says side effects must be duplicate-safe, deterministic, attributable, and ambiguity-aware"]
+    X3["The bus and topic contract says the decision and action surfaces are explicit producers of the RTDL downstream topic"]
+    X4["So action and outcome emission participates in a named downstream handoff rather than an undefined local effect"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds another explicit boundary to the hot path"]
+    T2["That costs complexity because the platform must preserve duplicate-safe semantics, ambiguity recording instead of burying it, and decision-to-action attribution"]
+    T3["But that complexity buys stronger system-design property"]
+    T4["Later case, label, audit, and replay paths can treat action and outcome truth as explicit and owned, rather than inferring it from side effects that probably happened"]
+    T5["The docs are clear that the platform is not allowed to mix ambiguity with normal outcomes or depend on operator cleanup to make actions look deterministic"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still ingest traffic, form context, materialize features, classify guardrail posture, and even produce decision"]
+    N2["But it loses a clean answer to what concrete outcome followed from that decision"]
+    N3["It loses a clean answer to whether the outcome was committed safely under duplicates and retries"]
+    N4["It loses a clean answer to whether that outcome can be traced back to the right decision, run, bundle, and policy"]
+    N5["Without this path, the RTDL plane would have a decision boundary but no explicit owner for how decisions become platform effects"]
+    N6["That would weaken A immediately"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Deterministic action and outcome truth attributable to the right decision, run, bundle, and policy context"]
+    O2["Action commits and/or publishes have happened in the platform's owned way"]
+    O3["Ambiguity has been recorded rather than silently leaked"]
+    O4["Owned outcome: explicit platform effects that are duplicate-safe, attributable, and ambiguity-aware"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning decisions into action and outcome truth"]
+    A2["Intentionality claim:<br/>duplicate safety, ambiguity recording, and attribution are designed properties, not accidental behavior"]
+    A3["Materialization claim:<br/>the action layer is a live named workload in the current RTDL plane, and action and outcome evidence is a required part of the decision-chain closure"]
+    A4["Contract claim:<br/>this path is governed by duplicate-safe side-effect rules, decision-to-action trace completeness, and the decision-and-action to RTDL-topic contract"]
+    A5["Constraint-awareness claim:<br/>the platform already knows side effects are dangerous under at-least-once conditions, which is why the action layer is defined around duplicate safety and ambiguity discipline rather than convenience"]
+    A6["A-level meaning:<br/>the RTDL plane has an explicit owner for how decisions become platform effects instead of leaving the consequences of decisioning implicit"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5
+  E5 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R1 --> C2
+  R1 --> C3
+  R2 --> C4
+  R3 --> C5 --> C6
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R5 --> L4
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4
+
+  R3 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L4 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5
+
+  R3 --> O1
+  R3 --> O2
+  R3 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T5 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X4 --> A4
+  T5 --> A5
+  N6 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,C1,C2,C3,C4,C5,C6,S1,S2,S3,S4 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,Y1,Y2,Y3,Y4,X1,X2,X3,X4,T1,T2,T3,T4,T5,N1,N2,N3,N4,N5,N6 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

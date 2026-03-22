@@ -1,0 +1,35 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 6 / Path 4
+%% Promotion and rollback-governance path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, control surface, or active promotion-governance seat"]
+    LG2[("Round node = durable promotion / rollback truth or downstream handoff surface")]
+    LG3["This graph names the concrete seats that materially realize governed promotion and rollback discipline in the current wired platform"]
+  end
+
+  subgraph ENTRY["Eligible candidate resources"]
+    SMPKG[("Model package group\nfraud-platform-dev-full-models")]
+  end
+
+  subgraph PATH["Promotion and rollback-governance resources"]
+    MLFLOW["MLflow tracking surface\nDatabricks-managed"]
+    PROMO[("Promotion receipts\nexplicit promotion corridor truth")]
+    ROLLBACK[("Rollback drill receipts\nexecuted and recorded bounded-restore evidence")]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+    REGACTIVE[("Active bundle / policy resolution\nruntime-consumed registry truth")]
+    GOV["Promotion-governance closure\npromotion receipt + rollback drill + compatibility checks"]
+  end
+
+  SMPKG -->|supplies eligible candidate basis into| MLFLOW
+  MLFLOW -->|writes explicit promotion truth to| PROMO
+  MLFLOW -->|writes rollback-governance truth to| ROLLBACK
+  PROMO -->|stored in| EVID
+  ROLLBACK -->|stored in| EVID
+  MLFLOW -->|checks active-resolution posture against| REGACTIVE
+  MLFLOW -->|materially closes governed promotion truth as| GOV

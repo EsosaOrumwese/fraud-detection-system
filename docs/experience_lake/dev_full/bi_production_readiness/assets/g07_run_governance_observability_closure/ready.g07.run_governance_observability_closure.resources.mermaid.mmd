@@ -1,0 +1,57 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 synthesis
+%% Run governance, observability, and closure - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, operational closeout seat, or active governance surface"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3(("Round node = later handoff or downstream consumer"))
+    LG4["This graph names the concrete seats that materially realize production-ready run governance, observability, teardown, and cost closure"]
+  end
+
+  subgraph ENTRY["Platform closeout resources"]
+    RUNCTL["Run-control and closeout surfaces"]
+    EVID[("S3 evidence bucket<br/>fraud-platform-dev-full-evidence")]
+    CWLOGS["CloudWatch logs / traces"]
+  end
+
+  subgraph G7["Production-ready run-closure resources"]
+    EKS["EKS runtime / managed reporter seats"]
+    GOVLANE["Governance-close lane<br/>M8 / M8.H / P11 / P16 closeout corridor"]
+    VERDICT[("Published verdict truth<br/>run-scoped final bundle + six-proof closure")]
+    DASHOBS["Observability dashboards / alarms"]
+    RUNBOOK["Runbook / active-path operator controls"]
+    IDLECTRL["Idle / teardown controller"]
+    DASHCOST["Dashboard<br/>fraud-platform-dev-full-cost-guardrail"]
+    BUDGETRES["Budget<br/>fraud-platform-dev-full-monthly"]
+    RECON[("Reconstruction and reconciliation truth")]
+    GOV[("Governance append and close-marker truth")]
+    OBS[("Observability attestation truth")]
+    TEARDOWN[("Idle-safe teardown truth")]
+    COST[("Cost-to-outcome truth<br/>budget envelope + attributable spend receipt")]
+  end
+
+  RUNCTL -->|feeds earlier closure receipts into| GOVLANE
+  EVID -->|stores readable closure artifacts and published bundles for| GOVLANE
+  EKS -->|hosts managed reporter / closeout execution for| GOVLANE
+  GOVLANE -->|materializes deterministic run closeout as| RECON
+  GOVLANE -->|materializes formal governed closeout as| GOV
+  GOVLANE -->|publishes final verdict bundle as| VERDICT
+
+  CWLOGS -->|feed live telemetry truth into| DASHOBS
+  DASHOBS -->|materialize freshness / alert / drift attestation as| OBS
+  RUNBOOK -->|anchor active-path visibility and exercised operator linkage for| OBS
+
+  VERDICT -->|opens verdict-first teardown in| IDLECTRL
+  OBS -->|join teardown-safe closure in| IDLECTRL
+  IDLECTRL -->|materializes residual-safe idle posture as| TEARDOWN
+
+  DASHCOST -->|supplies post-idle spend posture into| COST
+  BUDGETRES -->|supplies budget-envelope basis into| COST
+  RUNCTL -->|anchors outcome receipt attribution for| COST
+  EVID -->|stores run-scoped cost snapshots and receipts for| COST

@@ -1,0 +1,75 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 1 synthesis
+%% Run and world-source authority - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or control identity"]
+    LG2[("Round node = durable storage or topic resource")]
+    LG3["This graph names the concrete seats that materially close Group 1"]
+  end
+
+  OP["Operator session / dispatch intent"]
+
+  subgraph CONTROL["Control and authority resources"]
+    GHA["GitHub Actions"]
+    OIDC["GitHub OIDC trust"]
+    ROLEDEV["IAM identity<br>fraud-dev"]
+    SFN["Step Functions<br>fraud-platform-dev-full-platform-run-v0"]
+    ROLESFN["IAM role<br>fraud-platform-dev-full-stepfunctions-orchestrator"]
+    RUNCTL["Run control<br>conformance / receipts"]
+    TCTRL[("Kafka topic<br>fp.bus.control.v1")]
+  end
+
+  subgraph SOURCE["Canonical source realization resources"]
+    OBJ[("S3 bucket<br>fraud-platform-dev-full-object-store")]
+    ORACLE["oracle-store/ prefix"]
+    DBX["Databricks workspace"]
+    DBXBUILD["Databricks job<br>fraud-platform-dev-full-ofs-build-v0"]
+    GLUEDB1["Glue DB<br>fraud_platform_dev_full_ofs"]
+    GLUEDB2["Glue DB<br>fraud_platform_dev_full_m15"]
+    ROLEDBX["IAM role<br>fraud-platform-dev-full-databricks-cross-account-access"]
+  end
+
+  subgraph EVIDENCE["Durable evidence surfaces"]
+    EVID[("S3 evidence bucket<br>fraud-platform-dev-full-evidence")]
+    RUNPIN["RUN_PINNED evidence"]
+    ORREADY["ORACLE_READY evidence"]
+    READY["READY_PUBLISHED evidence"]
+  end
+
+  subgraph NONAUTH["Present but non-authoritative for READY"]
+    MSF["Managed Flink app<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>retained / READY only"]
+  end
+
+  OP -->|initiates bounded run dispatch through| GHA
+  GHA -->|authenticates through| OIDC
+  OIDC -->|trusts workflow control identity| ROLEDEV
+  GHA -->|dispatches| SFN
+  ROLESFN -->|executes| SFN
+  SFN -->|writes run-control facts to| RUNCTL
+  RUNCTL -->|stores committed run facts in| EVID
+  RUNCTL -->|commits| RUNPIN
+  RUNPIN -->|stored under| EVID
+
+  ORACLE -->|stored inside| OBJ
+  OBJ -->|replayed / realized by| DBX
+  ROLEDBX -->|cross-account access for| DBX
+  DBX -->|runs source realization through| DBXBUILD
+  DBXBUILD -->|writes source realization tables to| GLUEDB1
+  DBXBUILD -->|writes quality / M15 realization tables to| GLUEDB2
+  DBXBUILD -->|stores realization refs in| OBJ
+  DBXBUILD -->|stores receipts and parity evidence in| EVID
+  DBXBUILD -->|commits| ORREADY
+  ORREADY -->|stored under| EVID
+
+  SFN -->|publishes authoritative READY to| TCTRL
+  TCTRL -->|records READY publication basis in| EVID
+  RUNCTL -->|commits| READY
+  READY -->|stored under| EVID
+
+  MSF -. present but insufficient to close READY by itself .-> TCTRL

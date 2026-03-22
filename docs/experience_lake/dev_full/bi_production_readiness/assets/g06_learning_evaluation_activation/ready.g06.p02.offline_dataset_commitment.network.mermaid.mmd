@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 6 / Path 2
+%% Offline dataset commitment path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat, dataset control, or owned offline-dataset closure"]
+    LG2(("Round node = authoritative dataset-truth or downstream learning handoff surface"))
+    LG3["This graph closes at production-ready committed offline dataset truth, before train/eval and candidate-bundle formation begin"]
+  end
+
+  subgraph ENTRY["Pinned learning basis"]
+    BASIS(("Committed learning-input readiness basis"))
+  end
+
+  subgraph PATH["Bi / Group 6 / Path 2 - Offline dataset commitment"]
+    OFS["Managed OFS dataset boundary<br/>authoritative dataset build from admitted replay and label truth"]
+    CONTRACT["Dataset-truth discipline<br/>one admitted basis carried forward unchanged<br/>feature_asof_utc / label_asof_utc / maturity law preserved<br/>manifest committed<br/>fingerprint committed<br/>rollback recipe committed"]
+    PROOF["Production-ready dataset proof posture<br/>managed Databricks surface became real on the authorized object-store path<br/>raw retained horizon was rejected in favor of the promoted bounded mission window<br/>time-bound leakage audit and usefulness survived the tighter causal trim"]
+    DATASET(("Owned outcome<br/>production-ready committed offline dataset truth"))
+    MF(("Later handoff<br/>train / eval and candidate-bundle path"))
+  end
+
+  BASIS -->|opens admitted causal basis into| OFS
+  CONTRACT -->|governs committed dataset closure for| OFS
+  PROOF -->|governs accepted production-ready posture for| OFS
+  OFS -->|materially closes bounded dataset truth as| DATASET
+  DATASET -->|later feeds managed train and eval into| MF

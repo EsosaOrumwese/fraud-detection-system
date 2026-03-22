@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>edge_catalogue_3B<br/>edge_catalogue_index_3B<br/>optional S1 surfaces for checks"]
+  I2["Policies<br/>alias_layout_policy_v1<br/>cdn digest surfaces"]
+
+  S3["S3<br/>Alias packaging and edge-universe hash"]
+
+  O1["Outputs<br/>edge_alias_blob_3B<br/>edge_alias_index_3B<br/>edge_universe_hash_3B<br/>empty gamma_draw_log_3B guardrail"]
+  O2["Authority<br/>S3 is the sole representation and<br/>integrity closure for the edge universe"]
+
+  R1["Implemented shift<br/>S3 was deliberately kept RNG-free and narrow:<br/>it follows S2 weights, packages them for decode,<br/>and does not invent new realism"]
+  R2["Implemented shift<br/>The actual design hardened digest law,<br/>layout compatibility, and guardrails against forbidden RNG use,<br/>which made S3 an integrity rail rather than a tuning surface"]
+
+  I1 --> S3
+  I2 --> S3
+  S3 --> O1
+  S3 --> O2
+  R1 -.-> S3
+  R2 -.-> S3

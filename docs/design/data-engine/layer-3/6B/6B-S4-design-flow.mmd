@@ -1,0 +1,22 @@
+flowchart LR
+  U1["Inputs<br/>s3_flow_anchor_with_fraud_6B<br/>s3_event_stream_with_fraud_6B<br/>s3_campaign_catalogue_6B"]
+  U2["Policies<br/>truth-label, bank-view,<br/>label delay, case,<br/>and escalation laws"]
+  U3["Constraint<br/>S4 is the sole authority for truth vs bank-view<br/>and for downstream case chronology"]
+
+  S4["S4<br/>Assign truth labels, bank-view labels,<br/>event labels, and case timelines"]
+
+  O1["Outputs<br/>s4_flow_truth_labels_6B<br/>s4_flow_bank_view_6B<br/>s4_event_labels_6B<br/>s4_case_timeline_6B"]
+  O2["Evidence<br/>rng_event_truth_label<br/>rng_event_bank_view_label<br/>audit and trace"]
+  O3["Authority<br/>S4 alone defines supervision truth,<br/>bank-view truth, and case chronology for 6B"]
+
+  R1["Implemented shift<br/>S4 became the main owner surface for truth-label correctness,<br/>bank-view stratification, and case-timeline validity"]
+  R2["Implemented shift<br/>This is where the behavioural world becomes supervision-ready:<br/>truth, observed bank view, and case history are kept distinct by design"]
+
+  U1 --> S4
+  U2 --> S4
+  U3 --> S4
+  S4 --> O1
+  S4 --> O2
+  S4 --> O3
+  R1 -.-> S4
+  R2 -.-> S4

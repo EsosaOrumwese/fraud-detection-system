@@ -72,7 +72,7 @@ python scripts/dev_substrate/dev_full_streaming_standby.py restore --backend-con
 3. Runs `terraform init -reconfigure -backend-config=<resolved backend config>` in `infra/terraform/dev_full/streaming`.
 4. Snapshots current Terraform outputs.
 5. Reads current MSK cluster presence and bootstrap-SSM parameter presence.
-5. Runs:
+6. Runs:
 
 ```powershell
 terraform -chdir=infra/terraform/dev_full/streaming destroy -auto-approve -input=false -lock-timeout=5m

@@ -1,0 +1,24 @@
+flowchart LR
+  subgraph intent["Recovered Segment 2A design"]
+    A0["S0 Gate-in foundation<br/>Verifies 1B PASS and seals the<br/>civil-time input authority set"]
+    A1["S1 Provisional TZ lookup<br/>Maps site coordinates to one<br/>provisional tzid by geometry"]
+    A2["S2 Final TZ assignment<br/>Turns provisional tzid into<br/>final site_timezones authority"]
+    A3["S3 Transition cache<br/>Compiles manifest-scoped tzdb<br/>transition authority"]
+    A4["S4 Legality report<br/>Proves site tzids are covered by<br/>the compiled transition authority"]
+    A5["S5 Validation gate<br/>Discovers seeds, requires S4 PASS,<br/>and publishes consumer legitimacy"]
+  end
+
+  A0 --> A1 --> A2 --> A3 --> A4 --> A5
+
+  B0["Actual design shifts that matter"] --> B1["S0 became a real cross-segment gate:<br/>2A does not trust 1B egress without<br/>verified PASS plus sealed inputs"]
+  B0 --> B2["S1 and S2 became governance surfaces,<br/>not just lookup and override mechanics:<br/>fallbacks, caps, provenance, and fail-closed posture"]
+  B0 --> B3["S3 became transition-horizon authority,<br/>not just a cache writer;<br/>later reopened to extend future DST coverage"]
+  B0 --> B4["S4 stays narrow:<br/>it does not repair timezones,<br/>it judges legality and coverage from cache truth"]
+  B0 --> B5["S5 became the real downstream contract:<br/>no PASS means no read of site_timezones"]
+
+  B1 -.-> A0
+  B2 -.-> A1
+  B2 -.-> A2
+  B3 -.-> A3
+  B4 -.-> A4
+  B5 -.-> A5

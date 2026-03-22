@@ -1,0 +1,65 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 synthesis
+%% Runtime context formation and decisioning - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted runtime boundary, RTDL corridor, or group-owned closure"]
+    LG2[("Cylinder node = durable truth, committed surface, storage seat, or authoritative basis")]
+    LG3["Dashed edge = retained parity or upstream-owned truth consumed here"]
+  end
+
+  subgraph G3["Bi / Group 3 - Runtime context formation and decisioning"]
+    ENTRY[("Admitted traffic + context family")]
+    PROJ["Projection corridor<br/>entity / relationship truth on the active run"]
+    PROJECTION[("Group closure<br/>production-ready projection truth")]
+    JOIN["Joined-context corridor<br/>time-safe runtime context on the active run"]
+    CONTEXT[("Group closure<br/>production-ready joined context truth")]
+    FEATURE["Online-feature corridor<br/>usable feature truth with honest freshness and missingness semantics"]
+    FEATURES[("Group closure<br/>production-ready feature-ready truth")]
+    GUARD["Decision-guardrail corridor<br/>typed dependency posture becomes adjudicated decision mode"]
+    POSTURE[("Group closure<br/>production-ready guardrail posture")]
+    AUTH[("Runtime-consumed active bundle / policy authority<br/>owned upstream by group 6")]
+    DECIDE["Decision-formation corridor<br/>formable runtime truth becomes explicit decision truth"]
+    DECISION[("Group closure<br/>production-ready decision truth")]
+    OUTCOMEFLOW["Action / outcome corridor<br/>decision truth becomes deterministic RTDL output truth"]
+    OUTCOME[("Group closure<br/>production-ready action and outcome truth")]
+    G4(("Later handoff<br/>group 4 audit / archive / replay truth"))
+    G5(("Later handoff<br/>group 5 case / label operational truth"))
+  end
+
+  CLAIM["Group claim<br/>the production-ready platform turns admitted traffic into governed real-time decision truth through bounded runtime truth boundaries, not through one collapsed RTDL blob"]
+
+  ENTRY -->|enters runtime projection through| PROJ
+  PROJ -->|materially closes| PROJECTION
+  PROJECTION -->|feeds joined runtime context into| JOIN
+  ENTRY -->|feeds current-run event context into| JOIN
+  JOIN -->|materially closes| CONTEXT
+  CONTEXT -->|feeds feature materialization into| FEATURE
+  PROJECTION -->|feeds graph/projection state into| FEATURE
+  FEATURE -->|materially closes| FEATURES
+  CONTEXT -->|feeds typed dependency posture into| GUARD
+  FEATURES -->|feeds typed dependency posture into| GUARD
+  PROJECTION -->|feeds projection posture into| GUARD
+  GUARD -->|materially closes| POSTURE
+  CONTEXT -->|feeds formable runtime context into| DECIDE
+  FEATURES -->|feeds feature-ready truth into| DECIDE
+  POSTURE -->|feeds adjudicated decision posture into| DECIDE
+  AUTH -. consumed upstream-owned runtime authority .-> DECIDE
+  DECIDE -->|materially closes| DECISION
+  DECISION -->|feeds deterministic output emission into| OUTCOMEFLOW
+  OUTCOMEFLOW -->|materially closes| OUTCOME
+
+  PROJECTION -->|together prove| CLAIM
+  CONTEXT -->|together prove| CLAIM
+  FEATURES -->|together prove| CLAIM
+  POSTURE -->|together prove| CLAIM
+  DECISION -->|together prove| CLAIM
+  OUTCOME -->|together prove| CLAIM
+
+  OUTCOME -->|later opens| G4
+  OUTCOME -->|later opens| G5

@@ -1,0 +1,37 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 4
+%% Drift-visible observability attestation path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active observability-attestation seat"]
+    LG2[("Round node = live telemetry surface or downstream handoff")]
+    LG3["This graph names the concrete seats that materially realize truthful live visibility and drift attestation in the current wired platform"]
+  end
+
+  subgraph ENTRY["Live observability resources"]
+    RUNCTL["Run control\nactive runtime path evidence"]
+    CW["CloudWatch\nlogs / metrics / alarms"]
+    DASHOPS["CloudWatch dashboard\nfraud-platform-dev-full-operations"]
+    DASHCOST["CloudWatch dashboard\nfraud-platform-dev-full-cost-guardrail"]
+  end
+
+  subgraph PATH["Observability attestation resources"]
+    NSOBS["Namespace\nfraud-platform-obs-gov"]
+    SAOBS["ServiceAccount\nobs-gov"]
+    EVID[("S3 bucket\nfraud-platform-dev-full-evidence")]
+    OBS["Observability-attestation closure\nfreshness + alert coverage + drift visibility + correlation proof"]
+    BUDGET["Later handoff\nidle-safe teardown / residual-readability / cost closure corridor"]
+  end
+
+  RUNCTL -->|supplies active-path declaration into| OBS
+  CW -->|supplies live logs, metrics, and alarms into| OBS
+  DASHOPS -->|supplies live operational views into| OBS
+  DASHCOST -->|supplies live cost-guardrail views into| OBS
+  NSOBS -->|binds observability runtime through| SAOBS
+  OBS -->|stores attestation artifacts in| EVID
+  OBS -->|later feeds safe closeout context into| BUDGET

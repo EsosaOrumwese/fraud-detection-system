@@ -1,0 +1,33 @@
+flowchart LR
+  I1["1B validation bundle<br/>and _passed.flag"]
+  I2["1B site_locations"]
+  I3["2A site_timezones<br/>required pin"]
+  I4["2A tz_timetable_cache<br/>optional coherence pin"]
+  I5["route_rng_policy_v1"]
+  I6["alias_layout_policy_v1"]
+  I7["day_effect_policy_v1"]
+  I8["virtual_edge_policy_v1"]
+
+  S0["S0 Gate and environment authority<br/>Verify upstream PASS<br/>Seal the exact routing inputs and policy packs<br/>Bind the run to one manifest_fingerprint"]
+
+  O1["s0_gate_receipt_2B"]
+  O2["sealed_inputs_2B"]
+
+  I1 --> S0
+  I2 --> S0
+  I3 --> S0
+  I4 --> S0
+  I5 --> S0
+  I6 --> S0
+  I7 --> S0
+  I8 --> S0
+  S0 --> O1
+  S0 --> O2
+
+  R1["Actual design recovery<br/>S0 makes 2B a governed routing segment,<br/>not an isolated sampler"]
+  R2["It pins both upstream worlds:<br/>1B site layout and 2A timezone truth"]
+  R3["It also seals the routing policy packs,<br/>which means later runtime evidence is judged<br/>against a fixed operating doctrine"]
+
+  R1 -.-> S0
+  R2 -.-> S0
+  R3 -.-> S0

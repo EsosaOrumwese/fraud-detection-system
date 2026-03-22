@@ -1,0 +1,170 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn already joined runtime context into online feature state that the live decision path can actually use"]
+    G2["Keep this path narrower than decisioning, guardrail posture, or audit truth"]
+    G3["Answer whether the platform now has usable feature truth for this event with honest readiness and freshness semantics"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not raw source data and not traffic alone"]
+    E2["The entry is the event and context state already bound by the earlier RTDL paths: admitted behavioural traffic, joined context, and current entity and relationship state"]
+    E3["Traffic stays thin and context is joined inside the platform"]
+    E4["The runtime semantic world is pinned tightly: behavioural_streams are the traffic side; arrival_events_5B, s1_arrival_entities_6B, and flow-anchor outputs are context and join surfaces; s4_* truth products are not live runtime inputs"]
+    E5["The active required output scope is exactly four oracle outputs: s3_event_stream_with_fraud_6B, arrival_events_5B, s1_arrival_entities_6B, s3_flow_anchor_with_fraud_6B"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Joined runtime context + current entity and relationship state"]
+    R2["Online feature materialization and serve surface"]
+    R3["Feature-ready truth for the live decision path"]
+    R4["Downstream decisioning can consume explicit feature state"]
+    R5["Feature boundary is owned rather than implied"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Lookup keys"]
+    C2["Current projection state"]
+    C3["Feature-group request semantics"]
+    C4["Freshness and readiness posture that downstream decisioning will rely on"]
+    C5["Graph-version shape contract"]
+    C6["Feature-request key shape contract"]
+    C7["Live diagnosis showed disagreement when graph-version came back in a shape downstream resolution did not accept"]
+    C8["Another diagnosis narrowed warning noise to redundant event_id:* requests when the projector already keyed traffic by flow_id first"]
+    C9["This boundary carries explicit contracts, not just data blobs"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats feature truth as different from context truth"]
+    L2["The system is not saying once context exists, the decision can use it"]
+    L3["There is a separate boundary where context becomes feature-ready state"]
+    L4["That boundary must be honest about availability, freshness, and missingness"]
+    L5["That is why the online feature section treats required feature-group availability, freshness truth, and false missing-feature posture as distinct concerns"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The path is seated across the runtime bus topics feeding RTDL"]
+    S2["The RTDL namespace and worker surfaces host the online feature surface"]
+    S3["Joined context is projected onward from the context boundary into the online feature and entity surfaces"]
+    S4["Online feature state is written into Aurora"]
+    S5["There is a handle-based read seam to Redis"]
+    S6["Managed stream-processing surfaces for RTDL feature materialization remain retained rather than the primary reader-facing active output path in this notebook's copied baseline wired view"]
+    S7["This path is visible as distinct feature-serving and readiness surface with live counters such as applied events, missing-feature signals, snapshot failures, and checkpoint age"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform deliberately chose to make feature state explicit rather than leaving it implicit inside downstream code"]
+    Y2["It also pins feature engineering to observed data behavior rather than schema-only assumptions"]
+    Y3["When feature defects appeared, they were handled as explicit contract seams: graph-version payload shape, requester/projector key-shape alignment, and missing-key telemetry"]
+    Y4["Those defects were not hidden behind vague feature-red language"]
+    Y5["This is the opposite of accidental design"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The data-engine contract keeps traffic thin and forces the platform to join context internally rather than smuggling truth into the payload"]
+    X2["The runtime and learning separation contract forbids truth-product leakage and future-only fields from live runtime surfaces"]
+    X3["The runtime path is explicitly past and present only, and s4_* truth products are learning-only"]
+    X4["The RTDL component law says the online feature plane must be semantically correct, time-correct, replay-safe, and observable"]
+    X5["Freshness, checkpoint age, restart behavior, and missing-feature truth are all part of the boundary, not optional diagnostics"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds one more explicit boundary to the RTDL graph"]
+    T2["That costs more state, more health and readiness surface, and more requester/projector contract edges"]
+    T3["But it buys the ability to distinguish context exists from features are truly usable"]
+    T4["It also lets the system tell whether a red posture comes from actual missing feature state, freshness issues, or contract-shape mismatch like graph-version or redundant-key seams"]
+    T5["That is the trade-off: more boundary discipline in exchange for less semantic ambiguity"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still ingest traffic, still build joined context, and still draw boxes called decision guardrail and decision formation"]
+    N2["But it loses clean answers to whether the required features are actually present and fresh enough"]
+    N3["It also loses a clean answer to whether missing is real or just partial key coverage"]
+    N4["It becomes unclear whether decisioning is failing because inputs are insufficient or because the online feature plane never made feature state usable"]
+    N5["Without this path, decisioning would sit on top of an unowned feature boundary"]
+    N6["That would weaken A immediately because the system would have context and decisions but no explicit owner for the thing that connects them"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["The platform can now say which feature groups are available for this event"]
+    O2["Freshness and readiness are real and explicit"]
+    O3["Missing features are distinguishable from key-shape or partial-coverage artifacts"]
+    O4["Owned outcome: feature-ready runtime truth"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning context into usable feature state"]
+    A2["Intentionality claim:<br/>the online feature plane is a named, contract-governed boundary rather than an accident of downstream code"]
+    A3["Materialization claim:<br/>the path is concretely seated in the runtime bus, the RTDL namespace and online feature surface, the bounded four-surface runtime oracle set, the shared state stores, and the live feature-readiness counters"]
+    A4["Contract claim:<br/>the path is governed by thin-traffic semantics, no-future and runtime-truth separation, and explicit requester/projector compatibility"]
+    A5["Constraint-awareness claim:<br/>the design already knows this boundary can fail semantically even when the rest of RTDL looks alive, which is why missing-feature truth and key-shape and graph-version seams are surfaced rather than hidden"]
+    A6["Material participation signal:<br/>the online feature surface is visibly processing current-run events and exposing missing-feature, snapshot-failure, and checkpoint-age signals as first-class surfaces"]
+    A7["A-level meaning:<br/>joined runtime context becomes explicitly usable feature truth instead of leaving decisioning to infer whether inputs are really ready"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5
+  E5 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R1 --> C2
+  R2 --> C3
+  R3 --> C4
+  R2 --> C5 --> C6
+  C6 --> C7 --> C8 --> C9
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R4 --> L4
+  R5 --> L5
+
+  R1 --> S1
+  R2 --> S2
+  R1 --> S3
+  R2 --> S4 --> S5 --> S6 --> S7
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R1 --> X1
+  X1 --> X2 --> X3 --> X4 --> X5
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5
+
+  R3 --> O1
+  R3 --> O2
+  R3 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T5 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X5 --> A4
+  T5 --> A5
+  O4 --> A6
+  N6 --> A7
+  A1 --> A7
+  A2 --> A7
+  A3 --> A7
+  A4 --> A7
+  A5 --> A7
+  A6 --> A7
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,C1,C2,C3,C4,C5,C6,C7,C8,C9,S1,S2,S3,S4,S5,S6,S7 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,X5,T1,T2,T3,T4,T5,N1,N2,N3,N4,N5,N6 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6,A7 close;

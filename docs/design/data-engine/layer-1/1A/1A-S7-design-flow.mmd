@@ -1,0 +1,42 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S2 nb_final gives N"]
+    I2["S4 ztp_final gives K_target for consistency checks"]
+    I3["S3 candidate_rank defines domain order"]
+    I4["S5 weights cache"]
+    I5["S6 membership or replay from gumbel keys"]
+  end
+
+  subgraph core["Actual S7 design"]
+    C1["Construct allocation domain:<br/>home plus S6-selected foreigns"]
+    C2["Restrict and ephemerally renormalise S5 weights<br/>inside that domain only"]
+    C3["Allocate deterministic integer counts that sum exactly to N"]
+    C4["Rank residuals at dp_resid = 8<br/>for largest-remainder replay surface"]
+    C5["Emit residual_rank events<br/>with optional Dirichlet lane off by default"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S7 is not allowed to persist a new counts authority surface by default"]
+    S2["residual_rank became the actual replay anchor for integerisation,<br/>not just an internal helper"]
+    S3["The optional Dirichlet lane exists, but the accepted design remains<br/>deterministic-first unless policy explicitly enables it"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["rng_event_residual_rank"]
+    O2["optional rng_event_dirichlet_gamma_vector"]
+    O3["deterministic country counts handed to S8"]
+  end
+
+  I1 --> C3
+  I2 --> C1
+  I3 --> C1
+  I4 --> C2
+  I5 --> C1
+  C1 --> C2 --> C3 --> C4 --> C5
+  C5 --> O1
+  C5 --> O2
+  C3 --> O3
+
+  S1 -.-> C3
+  S2 -.-> C4
+  S3 -.-> C5

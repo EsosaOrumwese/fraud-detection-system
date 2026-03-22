@@ -1,0 +1,152 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn already-closed runtime and learning lanes into an exact run story"]
+    G2["Keep this path narrower than governance append, final verdict publication, and teardown"]
+    G3["Answer whether the platform can reconstruct exactly what happened in this run from durable receipts and closure artifacts"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not that the platform did some work"]
+    E2["The entry is that the earlier closure lanes are already green and their receipts and evidence surfaces are available for reconciliation"]
+    E3["The run-process and closure plans make this concrete by requiring earlier spine lanes already closed, closure-input evidence readiness from earlier outputs, reporter runtime identity and lock readiness, single-writer contention proof, and closure-bundle completeness"]
+    E4["So this path begins only after the earlier lanes have already produced the receipts they are supposed to produce"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Lane receipts and closure artifacts from earlier phases"]
+    R2["Reporter and reconciliation corridor"]
+    R3["Committed run report plus reconciliation truth"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Run identity and scope continuity"]
+    C2["Lane-level receipts from the earlier phases"]
+    C3["Closure-input evidence from the earlier platform lanes"]
+    C4["Receipt-completeness expectations"]
+    C5["Readback checks"]
+    C6["Reconciliation outputs that compare what each lane claims against what the run actually closed with"]
+    C7["Operations and governance proof surfaces: receipt completeness, evidence readback success, and verdict traceability from verdict to evidence to run scope"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats the run happened and the run can be reconstructed exactly as two different truths"]
+    L2["The system is not saying the earlier phases are green, so the run story is obvious"]
+    L3["It is saying there is a dedicated closure boundary where the platform must prove the run is reconstructable from durable receipts and readable evidence"]
+    L4["That makes the current wired platform look governed and explorable, not just operational"]
+    L5["This is strong A-level design signal because run reconstruction is an owned meta-layer truth, not a human afterthought"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["This path is materially seated in the current wired platform"]
+    S2["The copied baseline wired graphs already show concrete run-report and reconciliation surfaces"]
+    S3["The closure plans break the corridor into real operated steps for reporter runtime identity and lock readiness, single-writer contention probe, reporter one-shot execution, closure-bundle completeness validation, and run-reconstruction rollup plus handoff publication"]
+    S4["The execution trail shows this was not theoretical: reporter runtime identity and lock readiness closed green, single-writer contention closed green, reporter one-shot execution closed green, closure-bundle completeness closed green, run-reconstruction rollup and handoff publication closed green, and closure sync plus cost-outcome validation closed green"]
+    S5["So this path is already a real operated closure corridor in the current wired platform, not an aspirational reporting idea"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses two weak shortcuts: all the earlier lanes were green as proxy for exact run reconstruction, and manual operator interpretation as substitute for a dedicated reconciliation boundary"]
+    Y2["That is why the closure plan explicitly required closure-input evidence readiness, reporter one-shot execution, single-writer contention proof, closure-bundle completeness, and deterministic run-reconstruction verdict publication"]
+    Y3["The execution trail reinforces the same intent"]
+    Y4["The corridor did not close just because the reporter could run once; it had to survive lock and readiness checks, single-writer contention proof, closure-bundle completeness, and then explicit run-reconstruction rollup with handoff publication"]
+    Y5["That is the shape of a system that takes run reconstruction seriously"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The operations, governance, and meta contract shapes the expectations: run identity uniqueness, receipt completeness, evidence readback success, verdict traceability, and metric freshness"]
+    X2["The run-close contract shapes the closure: run report and reconciliation committed, governance append closure committed, and non-regression anchor pack emitted"]
+    X3["The design-authority proof law shapes the overall posture: no section is considered closed without explicit deploy, monitor, fail, recover, rollback, and cost-control proof obligations"]
+    X4["Run-scoped correlation and evidence are pinned parts of the meta layer"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds another formal closure boundary after the main runtime and learning lanes"]
+    T2["That costs a reporter corridor, reconciliation logic, receipt-completeness expectations, evidence-readback checks, single-writer discipline, and another explicit closure verdict"]
+    T3["But that cost buys the ability to answer not just what passed, but what exactly happened, under which run scope, with which receipts, and whether the story is complete"]
+    T4["That matters directly for the meta-goal: a serious reviewer is much more likely to see engineering ownership when the run can be reconstructed exactly rather than merely asserted"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still ingest traffic, make decisions, append audit truth, create cases and labels, build datasets, train, and promote"]
+    N2["But it loses a clean answer to whether the receipts from those lanes are complete"]
+    N3["It loses a clean answer to whether the evidence is readable and attributable under one run scope"]
+    N4["It loses a clean answer to whether the lane-level closure claims reconcile into one exact run story"]
+    N5["It loses a clean answer to whether later verdicts can be traced back through durable receipts rather than narratives"]
+    N6["That would weaken A immediately because the platform would have done many things but could not prove exactly what happened in a reconstructable run-scoped way"]
+    N7["The architecture rejects that by making run report and reconciliation an explicit owned closure before later governance and verdict layers advance"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Committed run report exists"]
+    O2["Reconciliation truth exists for this run"]
+    O3["Receipts are complete, coherent, and readable under one run scope"]
+    O4["Owned outcome: committed run report plus reconciliation truth"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning earlier lane closures into an exact reconstructable run story before governance append and final verdict publication begin"]
+    A2["Intentionality claim:<br/>run reconstruction is not left to manual interpretation; it is an explicit reporter and reconciliation corridor with its own gate and verdict"]
+    A3["Materialization claim:<br/>this boundary is concretely seated in run-report and reconciliation surfaces, reporter lock/readiness checks, single-writer proof, closure-bundle completeness checks, and durable run-close artifacts"]
+    A4["Contract claim:<br/>this path is governed by run identity uniqueness, receipt completeness, evidence readback success, verdict traceability, and explicit run-close reconciliation obligations"]
+    A5["Constraint-awareness claim:<br/>the platform already knows green lane closures are not enough for exact run reconstruction, which is why dedicated reconciliation, completeness, and readback checks are explicit closure objects"]
+    A6["A-level meaning:<br/>the platform can explain exactly what happened in one run from durable receipts and evidence rather than relying on operator memory or post hoc narration"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4
+  E4 --> R1 --> R2 --> R3
+
+  R1 --> C1
+  R1 --> C2
+  R1 --> C3
+  R2 --> C4 --> C5 --> C6 --> C7
+
+  R1 --> L1
+  L1 --> L2 --> L3 --> L4 --> L5
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R3 --> X1
+  X1 --> X2 --> X3 --> X4
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4
+
+  R3 --> O1
+  R3 --> O2
+  R3 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T4 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X4 --> A4
+  T4 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,C1,C2,C3,C4,C5,C6,C7,S1,S2,S3,S4,S5 base;
+  class R1,R2,R3 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,X4,T1,T2,T3,T4,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

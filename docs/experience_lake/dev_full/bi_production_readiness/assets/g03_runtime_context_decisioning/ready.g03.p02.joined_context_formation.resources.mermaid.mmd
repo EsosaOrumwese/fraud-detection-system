@@ -1,0 +1,64 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 / Path 2
+%% Joined context formation path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active promoted runtime seat"]
+    LG2(("Round node = constrained source family, store, or concrete proof surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready joined runtime context"]
+  end
+
+  subgraph ENTRY["Runtime intake and state resources"]
+    MSK["MSK Serverless<br/>fraud-platform-dev-full-msk"]
+    TTRAFFIC(("Topic<br/>fp.bus.traffic.fraud.v1"))
+    TCTXA(("Topic<br/>fp.bus.context.arrival_events.v1"))
+    TCTXE(("Topic<br/>fp.bus.context.arrival_entities.v1"))
+    TFLOW(("Topic<br/>fp.bus.context.flow_anchor.fraud.v1"))
+    PROJ(("Current entity / relationship projection truth"))
+    ALLOWED(("Runtime-allowed join surfaces<br/>arrival_events_5B<br/>s1_arrival_entities_6B<br/>s3_flow_anchor_with_fraud_6B"))
+  end
+
+  subgraph RTDL["Production-ready context formation resources"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NODEGROUP["Nodegroup<br/>fraud-platform-dev-full-m6f-workers<br/>m6i.xlarge<br/>min 2 / desired 4 / max 8"]
+    NSRTDL["Namespace<br/>fraud-platform-rtdl"]
+    SARTDL["ServiceAccount<br/>rtdl"]
+    RTDLIMG["Pinned image family<br/>fraud-platform-dev-full@sha256:c984..."]
+    CSFB["Deployment<br/>fp-pr3-csfb"]
+    JOINMAP["Pinned join posture<br/>declared keys only<br/>false-ready and missing-context guarded"]
+    HEALTH["Advisory-matched health semantics<br/>WATERMARK_TOO_OLD / CHECKPOINT_OLD treated as advisory when hard defects stay absent"]
+    IEG["Deployment<br/>fp-pr3-ieg"]
+    OFP["Deployment<br/>fp-pr3-ofp"]
+  end
+
+  subgraph STATE["Joined-context closure"]
+    OUT(("Owned outcome<br/>production-ready joined runtime context"))
+  end
+
+  MSK -->|backs transport for| TTRAFFIC
+  MSK -->|backs transport for| TCTXA
+  MSK -->|backs transport for| TCTXE
+  MSK -->|backs transport for| TFLOW
+  EKS -->|contains| NODEGROUP
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity through| SARTDL
+  NSRTDL -->|runs| CSFB
+  NSRTDL -->|runs| IEG
+  NSRTDL -->|runs| OFP
+  RTDLIMG -->|pins deployment family for| CSFB
+  TTRAFFIC -->|is consumed by| CSFB
+  TCTXA -->|is consumed by| CSFB
+  TCTXE -->|is consumed by| CSFB
+  TFLOW -->|is consumed by| CSFB
+  PROJ -->|supplies current projection state to| CSFB
+  ALLOWED -->|constrains runtime-readable join surfaces for| CSFB
+  JOINMAP -->|governs binding semantics for| CSFB
+  HEALTH -->|governs operator-truth interpretation for| CSFB
+  CSFB -->|materially closes joined-context truth as| OUT
+  OUT -->|is handed to| IEG
+  OUT -->|is handed to| OFP

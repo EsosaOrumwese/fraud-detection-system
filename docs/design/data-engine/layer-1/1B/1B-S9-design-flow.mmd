@@ -1,0 +1,5 @@
+flowchart LR
+  A["Authority inputs<br/>s7_site_synthesis<br/>site_locations<br/>rng_event_site_tile_assign<br/>rng_event_in_cell_jitter<br/>rng_audit_log<br/>rng_trace_log"] --> B["Owned transformation<br/>Validate parity, egress checksums,<br/>RNG coverage, budgets, and trace reconciliation<br/>assemble fingerprint-scoped bundle<br/>compute final passed flag by index-driven hash law"]
+  B --> C["Authority outputs<br/>validation_bundle_1B<br/>index.json<br/>validation_passed_flag_1B<br/>consumer legitimacy for site_locations"]
+
+  D["Implemented design shifts<br/>S9 became the final consumer gate in actual design<br/>POPT.3 made validation fast enough for iteration<br/>without weakening coverage, envelope, or budget checks"] -.-> B

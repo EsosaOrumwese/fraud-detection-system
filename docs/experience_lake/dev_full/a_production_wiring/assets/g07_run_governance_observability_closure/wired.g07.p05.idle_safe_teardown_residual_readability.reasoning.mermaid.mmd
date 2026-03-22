@@ -1,0 +1,155 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn a fully closed platform run into an idle-safe, restart-safe, cost-safe post-run posture"]
+    G2["Keep this path narrower than run reconstruction, governance append, and final-verdict publication"]
+    G3["Answer whether the platform can be brought down to safe idle without hidden cost, hidden runtime residue, or broken evidence readability"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not that the operator wants to stop spending money"]
+    E2["The entry is that the full-platform verdict has already been published and the platform is now entering the formal teardown and idle-safe closure corridor"]
+    E3["Safe-idle closure is only allowed after final-platform judgment is already published"]
+    E4["The final-phase plan preserves the order exactly: final verdict publication, teardown plan, teardown execution, residual risk and post-teardown readability, post-teardown cost guardrail, then final closure sync"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Final verdict published"]
+    R2["Teardown plan"]
+    R3["Teardown execution"]
+    R4["Residual and readability verification"]
+    R5["Post-teardown cost guardrail snapshot"]
+    R6["Idle-safe closure truth"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Teardown plan truth"]
+    C2["Teardown execution results"]
+    C3["Residual scan results"]
+    C4["Post-teardown evidence readability checks"]
+    C5["Teardown snapshot, cost guardrail snapshot, and residual scan report named as commit evidence"]
+    C6["The corridor is concretely split into teardown plan closure, teardown execution closure, residual risk and post-teardown readability closure, and post-teardown cost guardrail closure"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats successful operation and safe idling as two different truths"]
+    L2["The system is not saying because the platform ran correctly, shutting it down safely is obvious"]
+    L3["It is saying there is a dedicated boundary where the platform must prove it can stop, leave no hidden runtime cost behind, and still preserve readable evidence"]
+    L4["That is much more mature operational posture than simply having a destroy command"]
+    L5["This is strong A-level design signal because safe stop and safe idle have an explicit owner and closure object"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The path is materially seated in the current wired platform"]
+    S2["At the authority level, safe-idle closure is a named run-process phase with explicit pass gates and explicit commit evidence"]
+    S3["At the execution level, the final-phase plan makes teardown and idle-safe closure a managed sequence"]
+    S4["The implementation trail shows teardown execution closure, residual readability closure, and post-teardown cost guardrail closure were actually executed and closed green"]
+    S5["The operated evidence records idle_safe=true, residual item count zero, non-essential EKS nodegroups at zero, ECS services with desired count above zero at zero, active EMR runs at zero, active SageMaker endpoints at zero, and a run-scoped teardown cost snapshot in the evidence bucket"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses two weak shortcuts: final verdict green as proxy for operationally safe closure, and teardown executed as proxy for zero residual cost or readable post-run evidence"]
+    Y2["That is why the platform split the final phase into explicit teardown steps"]
+    Y3["Safe-idle closure names evidence readability and residual-resource absence as separate pass conditions"]
+    Y4["The production-readiness definition says idle and teardown correctness is about cost, hygiene, and repeatability, not just deletion success"]
+    Y5["The implementation trail reinforces the same intent: after post-build pause teardown, the platform did not assume idle-safe posture; it separately verified residual posture, evidence readability, and cost-guardrail posture"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The safe-idle closure contract requires non-essential runtime scaled to zero or destroyed, no forbidden residual resources, budget and cost snapshot committed, and evidence still readable post-teardown"]
+    X2["The operations, governance, and meta production-ready contract sharpens the semantics: the environment must be safely idled, residuals must be detectable, restart from idle must not corrupt the platform, and no hidden long-running cost surfaces may remain unintentionally"]
+    X3["The budget and teardown posture in the run-process makes idle-safe posture mandatory at run closure and treats missing cost-control closure at the safe-idle stage as fail-closed"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds a formal post-run boundary after the platform has already finished proving itself"]
+    T2["That costs teardown planning, teardown orchestration, residual scan logic, post-teardown readability checks, cost-guardrail snapshots, and one more explicit blocker family"]
+    T3["But that cost buys the ability to answer whether the platform can be stopped safely, whether it leaks cost when idle, whether its evidence remains usable after stopping, and whether restart-from-idle is being protected as operational discipline rather than left to luck"]
+    T4["That matters directly for the meta-goal because real production ownership includes knowing how to stop and idle the system safely, not only how to run it"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still close its runtime planes, publish final verdict, append governance facts, and even publish cost snapshots later"]
+    N2["But it loses a clean answer to whether the environment is actually idle-safe"]
+    N3["It loses a clean answer to whether non-essential compute is really gone"]
+    N4["It loses a clean answer to whether residual resources are visible"]
+    N5["It loses a clean answer to whether evidence survived teardown readably"]
+    N6["It loses a clean answer to whether the post-run cost posture is safe enough to leave unattended"]
+    N7["That would weaken A immediately because the platform could run and judge itself but have no explicit owner for safe stop and safe idle as operational truth"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["The live runtime is gone or quiesced"]
+    O2["Residual risk is bounded or zero"]
+    O3["Post-teardown evidence is still readable and the run is safe to leave idle"]
+    O4["Owned outcome: idle-safe teardown truth that non-essential runtime has been shut down or destroyed, no forbidden residuals remain, post-teardown evidence is still readable, and the cost posture has been captured"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning full-platform closure into safe idle posture rather than assuming teardown is trivial"]
+    A2["Intentionality claim:<br/>teardown, residual scan, evidence readability, and cost guardrail are designed closure objects, not cleanup chores"]
+    A3["Materialization claim:<br/>this boundary is concretely seated in the safe-idle closure corridor, the managed teardown chain, and real evidence artifacts and snapshots already produced by the platform"]
+    A4["Contract claim:<br/>the path is governed by safe-idle closure, operations and governance idle-safety requirements, and explicit residual, cost, and readability conditions"]
+    A5["Constraint-awareness claim:<br/>the platform already knows this boundary can fail through residual cost risk or unreadable post-teardown evidence, which is why those conditions are named blockers rather than informal operator concerns"]
+    A6["A-level meaning:<br/>the platform can prove safe stop and safe idle as operational truth instead of leaving post-run hygiene and cost safety implicit"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4
+  E4 --> R1 --> R2 --> R3 --> R4 --> R5 --> R6
+
+  R2 --> C1
+  R3 --> C2
+  R4 --> C3
+  R4 --> C4
+  R5 --> C5
+  C5 --> C6
+
+  R6 --> L1
+  L1 --> L2 --> L3 --> L4 --> L5
+
+  R3 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5
+
+  R4 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R6 --> X1
+  X1 --> X2 --> X3
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4
+
+  R3 --> O1
+  R4 --> O2
+  R4 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T4 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X3 --> A4
+  T4 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,C1,C2,C3,C4,C5,C6,S1,S2,S3,S4,S5 base;
+  class R1,R2,R3,R4,R5,R6 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,T1,T2,T3,T4,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

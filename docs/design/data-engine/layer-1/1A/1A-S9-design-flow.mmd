@@ -1,0 +1,42 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["fingerprint-scoped outlet_catalogue"]
+    I2["parameter-scoped S3 and optional S3 integerisation surfaces"]
+    I3["run-scoped RNG event families plus audit and trace logs"]
+    I4["optional gated convenience surfaces such as s6_membership"]
+  end
+
+  subgraph core["Actual S9 design"]
+    C1["Re-derive structural, schema and lineage correctness<br/>for S0 through S8 outputs"]
+    C2["Reconcile RNG envelopes, non-consuming families<br/>and trace totals"]
+    C3["Re-derive cross-state promises:<br/>S3 order, S6 membership, S7 counts, S8 sequences"]
+    C4["Assemble fingerprint-scoped validation bundle and index"]
+    C5["Publish _passed.flag only when the full replay bundle passes"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S9 became the canonical validation publisher after S0<br/>stopped emitting validation_bundle_1A by default"]
+    S2["The final consumer gate is the hash over indexed bundle files,<br/>not a loose success marker"]
+    S3["No PASS means no downstream read;<br/>this is part of actual 1A design, not just documentation"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["validation_bundle_1A"]
+    O2["index.json"]
+    O3["_passed.flag"]
+    O4["consumer read authority for outlet_catalogue"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C3
+  C1 --> C2 --> C3 --> C4 --> C5
+  C4 --> O1
+  C4 --> O2
+  C5 --> O3
+  O3 --> O4
+
+  S1 -.-> C4
+  S2 -.-> C5
+  S3 -.-> O4

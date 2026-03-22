@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 4 / Path 2
+%% Audit publication and durable reference path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat or operator-visible proof boundary"]
+    LG2(("Round node = durable reference surface or named handoff seat"))
+    LG3["This graph closes at production-ready downstream-consumable audit truth plus durable references, before immutable archive preservation begins"]
+  end
+
+  subgraph ENTRY["Append-only audit basis"]
+    AUDIT(("Append-only audit and lineage truth"))
+  end
+
+  subgraph PATH["Bi / Group 4 / Path 2 - Audit publication and durable reference"]
+    TAUDIT(("Audit publication seat<br/>fp.bus.audit.v1"))
+    CONSUMERS["Downstream operational and evidence consumers<br/>case trigger / governance readers / later audit readers"]
+    CONTRACT["Publication and by-reference discipline<br/>published audit must remain readable by reference<br/>reference surfaces stay authoritative rather than shadow payload copies"]
+    EVID(("Evidence reference surface<br/>durable by-ref audit truth"))
+    OBJ(("Object-store reference surface<br/>durable payload / evidence anchors"))
+    REFS(("Owned outcome<br/>production-ready durable audit refs and by-reference evidence surfaces"))
+  end
+
+  AUDIT -->|is published through| TAUDIT
+  TAUDIT -->|makes audit truth consumable by| CONSUMERS
+  CONTRACT -->|governs authoritative by-reference consumption for| CONSUMERS
+  CONSUMERS -->|resolve durable audit references into| REFS
+  EVID -->|anchors evidence-side audit refs for| REFS
+  OBJ -->|anchors object-side audit refs for| REFS

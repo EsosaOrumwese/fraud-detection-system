@@ -1,0 +1,23 @@
+flowchart LR
+  I1["s0_gate_receipt_2B"]
+  I2["site_locations"]
+  I3["alias_layout_policy_v1"]
+  I4["site_timezones + cache<br/>optional coherence pins only"]
+
+  S1["S1 Site-weight authority<br/>Freeze deterministic per-site mass<br/>for each merchant under policy floors<br/>caps and quantisation rules"]
+
+  O1["s1_site_weights"]
+
+  I1 --> S1
+  I2 --> S1
+  I3 --> S1
+  I4 --> S1
+  S1 --> O1
+
+  R1["Actual design recovery<br/>S1 became the spatial heterogeneity control surface<br/>for 2B realism"]
+  R2["It is not just preprocessing for alias tables;<br/>it decides whether merchants collapse toward uniformity<br/>or show meaningful site-level shape"]
+  R3["Later reopen work focused here first,<br/>which confirms S1's role as an upstream realism lever"]
+
+  R1 -.-> S1
+  R2 -.-> S1
+  R3 -.-> S1

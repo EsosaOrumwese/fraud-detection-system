@@ -1,0 +1,36 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S3 candidate_rank<br/>sole inter-country order authority"]
+    I2["S6 membership domain"]
+    I3["S2 total N and S7 per-country counts"]
+    I4["lineage tokens seed and manifest_fingerprint"]
+  end
+
+  subgraph core["Actual S8 design"]
+    C1["Materialise outlet stubs per merchant and legal_country_iso"]
+    C2["Generate within-country site_order = 1..count"]
+    C3["Derive deterministic six-digit site_id<br/>from within-country sequence"]
+    C4["Write fingerprint-scoped outlet_catalogue egress"]
+    C5["Emit sequence_finalize and overflow guard events where configured"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S8 keeps the egress intentionally free of cross-country order;<br/>consumers must join back to S3"]
+    S2["The actual egress contract is fingerprint-scoped and gated,<br/>not a free-read build surface"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["outlet_catalogue"]
+    O2["sequence_finalize and overflow guard events"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  I4 --> C4
+  C1 --> C2 --> C3 --> C4 --> C5
+  C4 --> O1
+  C5 --> O2
+
+  S1 -.-> C4
+  S2 -.-> C4

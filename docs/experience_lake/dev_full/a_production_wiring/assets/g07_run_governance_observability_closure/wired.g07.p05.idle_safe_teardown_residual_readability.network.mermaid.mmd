@@ -1,0 +1,32 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 5
+%% Idle-safe teardown and residual-readability path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, control, or owned safe-idle closure"]
+    LG2[("Round node = post-run closure basis or downstream handoff surface")]
+    LG3["This graph closes at idle-safe teardown truth with residual and readability closure, before cost-to-outcome closure begins"]
+  end
+
+  subgraph ENTRY["Fully closed run basis"]
+    VERDICT[("Published full-platform verdict bundle")]
+    OBS[("Observability attestation truth")]
+  end
+
+  subgraph PATH["Run governance and observability closure / Path 5"]
+    TEARDOWN["Safe-idle teardown corridor\nteardown plan\nteardown execution"]
+    CHECKS["Post-teardown checks\nresidual scan\nforbidden residuals absent\npost-teardown evidence readability\nsafe idle / restart-safe posture"]
+    IDLE[("Owned outcome\nidle-safe teardown truth")]
+    COST[("Later handoff\ncost guardrail and cost-to-outcome closure path")]
+  end
+
+  VERDICT -->|opens formal teardown corridor through| TEARDOWN
+  OBS -->|supplies trusted live-close context into| TEARDOWN
+  CHECKS -->|govern safe-idle closure for| TEARDOWN
+  TEARDOWN -->|closes safe idle posture as| IDLE
+  IDLE -->|later feeds attributable spend closure into| COST

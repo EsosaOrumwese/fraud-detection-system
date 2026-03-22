@@ -1,0 +1,40 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 7 / Path 2
+%% Governance append and close-marker path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active governance-closure corridor seat, control, or owned formal-closure object"]
+    LG2(("Round node = reconciled closure basis or later handoff surface"))
+    LG3["This graph closes at append-safe governance truth plus the formal close-marker under the run scope, before proof-matrix and final-verdict publication begin"]
+  end
+
+  subgraph ENTRY["Reconciled run-close basis"]
+    REPORT(("Committed run report"))
+    RECON(("Reconciliation truth"))
+    RUNID(("Run identity and scope continuity"))
+  end
+
+  subgraph PATH["Bi / Group 7 / Path 2 - Governance append and close-marker"]
+    M8H["Formal governance-closure corridor<br/>dedicated M8.H lane after reconstruction rather than implied completion"]
+    SOURCETRUTH["Source-truth governance discipline<br/>object-store governance append and marker surfaces verified first<br/>closure cannot rely on the run report as a proxy"]
+    CONTRACT["Contract-readable closure discipline<br/>deterministic projection under the evidence run scope<br/>append-safe history plus explicit close marker"]
+    VERIFY["Execution-grade verifier<br/>schema correctness<br/>run-scope correctness<br/>non-decreasing ordering<br/>marker coverage<br/>post-write readback"]
+    APPEND(("Owned outcome<br/>production-ready append-safe governance truth"))
+    MARKER(("Owned outcome<br/>production-ready formal run-close marker"))
+    VERDICT(("Later handoff<br/>proof-matrix and final-verdict publication path"))
+  end
+
+  REPORT -->|feeds reconstructed run-close truth into| M8H
+  RECON -->|feeds reconciled closure basis into| M8H
+  RUNID -->|pins run-scoped governance closure for| M8H
+  SOURCETRUTH -->|defines authoritative governance basis required for| M8H
+  CONTRACT -->|defines contract-consumable closure required for| M8H
+  VERIFY -->|defines fail-closed formal-closure checks for| M8H
+  M8H -->|materially closes durable append-safe governance history as| APPEND
+  M8H -->|materially closes explicit formal run-close state as| MARKER
+  MARKER -->|later allows whole-platform judgment to build on| VERDICT

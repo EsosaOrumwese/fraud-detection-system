@@ -1,0 +1,18 @@
+flowchart LR
+  I1["Reads<br/>s1_party_base_6A<br/>account and product priors<br/>taxonomy_account_types_6A"]
+  I2["Policies<br/>product_linkage_rules_6A<br/>product_eligibility_config_6A"]
+
+  S2["S2<br/>Accounts and product holdings"]
+
+  O1["Outputs<br/>s2_account_base_6A<br/>s2_party_product_holdings_6A<br/>optional merchant account view and summary<br/>account RNG events plus audit and trace"]
+  O2["Authority<br/>S2 alone decides which accounts and products exist<br/>and who owns them"]
+
+  R1["Implemented shift<br/>S2 became the first hard remediation owner surface:<br/>hard global post-merge K_max enforcement redefined account realism<br/>from soft warning to binding invariant"]
+  R2["Implemented shift<br/>The accepted design keeps account creation deterministic and streaming,<br/>while all overflow redistribution and drop behavior is explicit,<br/>counted, and fail-closed"]
+
+  I1 --> S2
+  I2 --> S2
+  S2 --> O1
+  S2 --> O2
+  R1 -.-> S2
+  R2 -.-> S2

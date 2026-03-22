@@ -1,0 +1,39 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 1 / Path 1
+%% Run legitimization path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active platform control surface or owned outcome"]
+    LG2[("Round node = durable truth / evidence store")]
+    LG3["This graph is limited to the run-legitimization corridor only"]
+  end
+
+  OP["Operator intent<br>platform_run_id + scenario_run_id<br>config payload"]
+
+  subgraph CONTROL["Run and world-source authority / Path 1"]
+    GHA["GitHub Actions<br>bounded run dispatch surface"]
+    OIDC["GitHub OIDC trust"]
+    SFN["Step Functions<br>platform run authority"]
+    RUNID["Run identity pins<br>platform_run_id / scenario_run_id<br>trace_id / config_digest"]
+    RUNCTL["Run control<br>run header + config commitment"]
+    EVID[("Run evidence root<br>S3 evidence bucket")]
+  end
+
+  HEADER["Owned outcome<br>committed run header"]
+  DIGEST["Owned outcome<br>committed config digest"]
+
+  OP -->|submits bounded run intent| GHA
+  GHA -->|authenticates workflow control through| OIDC
+  GHA -->|dispatches authoritative run start| SFN
+  RUNID -->|binds run identity and config basis into| SFN
+  SFN -->|commits run header and config basis into| RUNCTL
+  RUNCTL -->|stores run-control receipts under| EVID
+  RUNCTL -->|closes first authority point as| HEADER
+  RUNCTL -->|closes first authority point as| DIGEST
+  HEADER -->|recorded under| EVID
+  DIGEST -->|recorded under| EVID

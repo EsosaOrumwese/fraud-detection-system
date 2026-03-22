@@ -1,0 +1,41 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 / Path 6
+%% Action and outcome emission path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat or operator-visible proof boundary"]
+    LG2(("Round node = explicit downstream handoff seat or owned outcome truth"))
+    LG3["This graph closes at production-ready RTDL output truth, before Group 4 audit / archive ownership begins"]
+  end
+
+  subgraph ENTRY["Committed decision basis"]
+    DECISION(("Explicit decision truth"))
+    FIELDS(("Decision identity / provenance / explanation"))
+    AUTH(("Active runtime authority at decision time"))
+  end
+
+  subgraph PATH["Bi / Group 3 / Path 6 - Action and outcome emission"]
+    AL["Action and outcome emission boundary<br/>decision truth -> deterministic downstream-usable RTDL output truth"]
+    CONTRACT["Action-boundary discipline<br/>duplicate-safe side effects<br/>ambiguity recorded rather than leaked<br/>decision-to-output attribution stays explicit"]
+    PROOF["Production-ready output proof posture<br/>output truth is timely, non-starving, and usable enough for later case / label / audit / replay coupling"]
+    OUT(("Owned outcome<br/>production-ready deterministic RTDL action and outcome truth"))
+    AMBIG(("Ambiguity and non-normal outcome fields"))
+    TAUDIT(("Immediate publication seat<br/>fp.bus.audit.v1"))
+    TOUT(("RTDL downstream output truth"))
+  end
+
+  DECISION -->|hands explicit decision truth to| AL
+  FIELDS -->|travel with decision truth into| AL
+  AUTH -->|pins authority attribution for| AL
+  CONTRACT -->|governs deterministic effect formation for| AL
+  PROOF -->|governs accepted production-ready posture for| AL
+  AL -->|materializes downstream-usable output truth as| OUT
+  AL -->|records ambiguity and non-normal output posture as| AMBIG
+  OUT -->|hands RTDL output truth into| TOUT
+  AMBIG -->|travels with RTDL output truth into| TOUT
+  AL -->|publishes immediate action / outcome visibility to| TAUDIT

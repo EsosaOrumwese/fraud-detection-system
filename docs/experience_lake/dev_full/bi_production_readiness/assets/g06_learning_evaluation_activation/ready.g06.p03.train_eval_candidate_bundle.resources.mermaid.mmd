@@ -1,0 +1,43 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 6 / Path 3
+%% Train / eval and candidate-bundle path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, managed job, or active candidate-bundle seat"]
+    LG2(("Round node = durable lineage / package / downstream handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready managed train/eval and candidate-bundle closure"]
+  end
+
+  subgraph ENTRY["Authoritative dataset resources"]
+    OBJ(("S3 object / oracle store<br/>fraud-platform-dev-full-object-store"))
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    DATASET["Committed offline dataset truth<br/>manifest / fingerprint / rollback recipe pinned"]
+  end
+
+  subgraph PATH["Production-ready candidate-bundle resources"]
+    ROLESM["SageMaker execution role"]
+    SMTRAIN["SageMaker training<br/>fraud-platform-dev-full-mtrain"]
+    SMBATCH["SageMaker batch transform<br/>fraud-platform-dev-full-mbatch"]
+    MLFLOW["Databricks-backed MLflow<br/>lineage / candidate publication owner"]
+    SMPKG(("Model package group<br/>fraud-platform-dev-full-models"))
+    CONTROLS["Candidate closure evidence<br/>metrics / leakage / stability gates<br/>bounded feature_asof_utc law preserved through the selected sample<br/>publish and rollback validation readable"]
+    CAND(("Owned outcome<br/>production-ready provenance-complete candidate bundle"))
+    SAFE(("Owned outcome<br/>production-ready safe-disable / rollback readiness"))
+  end
+
+  DATASET -->|opens governed candidate build on| SMTRAIN
+  OBJ -->|supplies bounded dataset artifacts to| SMTRAIN
+  ROLESM -->|executes managed learning for| SMTRAIN
+  SMTRAIN -->|feeds bounded evaluation into| SMBATCH
+  SMTRAIN -->|publishes lineage into| MLFLOW
+  SMBATCH -->|publishes evaluation lineage into| MLFLOW
+  SMTRAIN -->|publishes candidate packages to| SMPKG
+  CONTROLS -->|make candidate truth directly judgeable for| MLFLOW
+  MLFLOW -->|stores train/eval and operability evidence in| EVID
+  MLFLOW -->|materially closes candidate truth as| CAND
+  MLFLOW -->|materially closes safe-disable / rollback readiness as| SAFE

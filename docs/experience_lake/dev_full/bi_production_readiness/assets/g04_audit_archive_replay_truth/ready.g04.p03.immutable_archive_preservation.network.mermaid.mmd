@@ -1,0 +1,39 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 4 / Path 3
+%% Immutable archive preservation path - production-ready network
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active promoted path seat, contract, or owned archive-preservation closure"]
+    LG2(("Round node = durable archive surface or later closure handoff"))
+    LG3["This graph closes at production-ready immutable run-scoped archive history, before archive closure / replay-reference readiness begins"]
+  end
+
+  subgraph ENTRY["Current-run history basis"]
+    TDEC(("RTDL decision / archive output truth"))
+    TAUDIT(("Published audit truth"))
+    PROBE(("Archive-integrity / continuity proof posture<br/>accepted RTDL closures require no archive-integrity regression"))
+  end
+
+  subgraph PATH["Bi / Group 4 / Path 3 - Immutable archive preservation"]
+    ARCH["Archive preservation boundary<br/>consumer-to-object-store immutable history writer"]
+    CONTRACT["Archive-preservation discipline<br/>run-scoped archive prefix<br/>object-path plus payload-readback continuity<br/>preservation stays separate from later closure authority"]
+    ARCHIVEPATH(("Archive event surface<br/>archive/{platform_run_id}/events/"))
+    EVID(("Archive receipts / continuity evidence"))
+    PRESERVED(("Owned outcome<br/>production-ready immutable archived runtime history with continuity proof"))
+    CLOSURE(("Later handoff<br/>archive closure / replay-reference path"))
+  end
+
+  TDEC -->|supplies current-run runtime history to| ARCH
+  TAUDIT -->|supplies published audit stream context to| ARCH
+  PROBE -->|governs accepted archive-integrity posture for| ARCH
+  CONTRACT -->|governs immutable preservation semantics for| ARCH
+  ARCH -->|writes run-scoped immutable history under| ARCHIVEPATH
+  ARCH -->|commits archive receipts and continuity proof as| EVID
+  ARCHIVEPATH -->|materially closes this path as| PRESERVED
+  EVID -->|materially closes this path as| PRESERVED
+  PRESERVED -->|later feeds formal closure into| CLOSURE

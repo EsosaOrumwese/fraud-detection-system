@@ -1,0 +1,34 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 7 / Path 3
+%% Proof-matrix and final-verdict publication path
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = active path seat, control, or owned verdict-closure object"]
+    LG2[("Round node = authoritative proof basis or downstream handoff surface")]
+    LG3["This graph closes at the published full-platform verdict bundle, before drift attestation and teardown begin"]
+  end
+
+  subgraph ENTRY["Whole-platform judgment basis"]
+    APPEND[("Governance append truth")]
+    MARKER[("Formal run-close marker")]
+    SUMMARIES[("Prior closure summaries\nsource-complete and blocker-free")]
+  end
+
+  subgraph PATH["Run governance and observability closure / Path 3"]
+    MATRIX["Whole-platform judgment corridor\nfull source matrix\nsix-proof completeness matrix"]
+    CONTRACT["Verdict contracts\nsource-complete\nproof-complete\nreadable at run-scoped truth surface\nreadback identity must match publication identity"]
+    VERDICT[("Owned outcome\npublished full-platform verdict bundle")]
+    OBS[("Later handoff\ndrift-visible observability attestation path")]
+  end
+
+  APPEND -->|feeds governed closure basis into| MATRIX
+  MARKER -->|gates final-platform judgment into| MATRIX
+  SUMMARIES -->|supply authoritative closure coverage into| MATRIX
+  CONTRACT -->|governs deterministic verdict publication for| MATRIX
+  MATRIX -->|closes explicit whole-platform judgment as| VERDICT
+  VERDICT -->|later feeds live attestation context into| OBS

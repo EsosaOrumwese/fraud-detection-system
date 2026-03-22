@@ -1,0 +1,160 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn operational case truth into label-request truth"]
+    G2["Keep this path narrower than case truth and narrower than final label truth"]
+    G3["Answer how the platform hands case truth over into the supervision boundary without blurring ownership"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not raw RTDL output anymore and it is not just that a case exists somewhere"]
+    E2["The entry is a case with authoritative case truth plus the specific adjudication or case-state transition that makes label production appropriate"]
+    E3["The coupled-network scope names case management to label store as a critical cross-plane path"]
+    E4["The whole-plane definition says cases must be able to eventually produce authoritative labels"]
+    E5["So the entry is a transition from case truth into supervision truth"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Case truth plus adjudication outcome"]
+    R2["Case-management label-emission and label-pending handshake"]
+    R3["Label-store intake truth"]
+    R4["Later authoritative label commit"]
+    R5["Case-to-label handoff boundary is explicit"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Deterministic case identity"]
+    C2["The adjudication or case-state outcome that justifies label production"]
+    C3["Case-lineage continuity back to the upstream RTDL truth"]
+    C4["The label-request timing and handshake record"]
+    C5["Enough provenance for label store to later commit authoritative label truth without having to invent case meaning for itself"]
+    C6["The boundary must preserve duplicate and replay safety, auditability, and strict truth ownership so case management does not become a shadow label system and label store does not become an accidental case system"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats case truth and label truth as separate owned truths, with an explicit transition between them"]
+    L2["The system is not saying once case management has a case, labels can be treated as just another case field"]
+    L3["Case management owns case timeline truth"]
+    L4["Label store owns label truth"]
+    L5["There is a distinct handoff where operational truth becomes supervision-request truth"]
+    L6["That separation is one of the most important clean truth-ownership laws in the whole Case + Label plane"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The copied baseline wired graphs show separate case-management and label-store deployments in the case-and-label namespace"]
+    S2["Case management writes append-only case timeline truth into Aurora"]
+    S3["Case management submits label work to the label-store side of the plane"]
+    S4["So the handoff is seated on distinct workload and persistence surfaces rather than collapsed into one service"]
+    S5["At the implementation and probe level, the handoff is materially visible in live stores and timing surfaces: case-created time, the earlier label-pending case-timeline marker, and the first label-request write attempt"]
+    S6["The timing probe explicitly says the real handoff clock is the case-management handshake write attempt, not the earlier event-oriented timeline timestamp"]
+    S7["That is very strong A-style evidence that the boundary is not fictional"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses to let case management silently become the label system"]
+    Y2["Case management is defined as owning append-only case timeline truth"]
+    Y3["Label store is defined as owning authoritative label truth"]
+    Y4["The plane-level definition explicitly says there must be no shadow truth ownership between case management and label store"]
+    Y5["Once the platform discovered that the label-pending timeline marker carried an earlier event-oriented timestamp and not the real handoff time, it repinned the proof to the actual case-management handshake write attempt"]
+    Y6["That is exactly what a system with a serious handoff boundary should do"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The Case + Label plane contract shapes the meaning of the boundary: cases must eventually produce authoritative labels, duplicate and replay behavior must not corrupt truth, and ownership must remain clean between case management and label store"]
+    X2["The coupled-network contract shapes why it matters: case management to label store is a named critical cross-plane path, case-to-label latency is a first-class proof question, and starvation across RTDL-to-case-and-label boundaries is a real failure mode"]
+    X3["The future-learning contract shapes what cannot go wrong: labels must later be authoritative supervision truth, so the handoff cannot be vague, duplicate-corrupt, or provenance-poor"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds another explicit boundary to the operational plane"]
+    T2["That costs one more governed handoff, one more latency surface, one more place where duplicate and replay safety must hold, and one more place where timing and provenance can be misread if the proof is sloppy"]
+    T3["But that cost buys the ability to answer not just that a label exists, but which case produced it, when the handoff actually happened, whether case management or label store owned a given truth, and whether label production was timely and attributable rather than magically appearing"]
+    T4["That is exactly why case-to-label latency and ownership-boundary violations are pinned proof questions for the plane"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still generate case-worthy signals, create cases, and later commit labels somehow"]
+    N2["But it loses a clean answer to how case truth becomes supervision truth"]
+    N3["It loses a clean answer to who owns the transition"]
+    N4["It loses a clean answer to whether case management is mutating label truth indirectly or label store is inventing case meaning for itself"]
+    N5["It loses a clean answer to how later learning can trust that a label came from the right operational case history"]
+    N6["That would weaken A immediately because the platform would have cases and labels, but no explicit owner for the boundary that connects them"]
+    N7["The plane law rejects exactly that by insisting on clean truth ownership between case management and label store"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Label-request or label-pending truth exists at the case-management to label-store boundary"]
+    O2["The handoff from operational case truth into label-request truth is attributable, duplicate-safe, and timed on the right processing clock"]
+    O3["The actual case-management handshake write attempt is recognized as the real handoff clock, not the earlier label-pending timeline timestamp"]
+    O4["Owned outcome: explicit supervision-request truth before authoritative label commit begins"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning operational case truth into label-request truth before authoritative label commit begins"]
+    A2["Intentionality claim:<br/>case management does not own label truth, label store does not own case truth, and the transition is explicit"]
+    A3["Materialization claim:<br/>this boundary is visible in separate case-management and label-store workloads, the case-management timeline substrate, and the concrete label-request handshake surfaces"]
+    A4["Contract claim:<br/>this path is governed by clean truth ownership, case-to-label latency, duplicate and replay safety, and later learning-readiness"]
+    A5["Constraint-awareness claim:<br/>the platform already knows this boundary can be misread or blurred, which is why the timing proof had to be corrected to the actual handshake write attempt"]
+    A6["A-level meaning:<br/>operational case truth becomes explicit supervision-request truth through a clean ownership-preserving handoff rather than letting labels emerge implicitly from case state"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5
+  E5 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R1 --> C2
+  R1 --> C3
+  R2 --> C4
+  R3 --> C5 --> C6
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3 --> L4 --> L5 --> L6
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4
+  S4 --> S5 --> S6 --> S7
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5 --> Y6
+
+  R3 --> X1
+  X1 --> X2 --> X3
+
+  L6 --> T1
+  T1 --> T2 --> T3 --> T4
+
+  R3 --> O1
+  R3 --> O2
+  R2 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T4 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X3 --> A4
+  T4 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,C1,C2,C3,C4,C5,C6,S1,S2,S3,S4,S5,S6,S7 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,L6,Y1,Y2,Y3,Y4,Y5,Y6,X1,X2,X3,T1,T2,T3,T4,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

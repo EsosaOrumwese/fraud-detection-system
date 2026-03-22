@@ -1,0 +1,44 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Group 3 / Path 3
+%% Online feature readiness path - concrete resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active runtime seat"]
+    LG2[("Round node = durable store or constrained runtime seam")]
+    LG3["This graph names the concrete seats that materially realize online feature readiness"]
+  end
+
+  subgraph ENTRY["Context and projection basis"]
+    CSFB["Deployment<br>fp-pr3-csfb"]
+    IEG["Deployment<br>fp-pr3-ieg"]
+    ALLOWED[("Runtime-allowed oracle set<br>s3_event_stream_with_fraud_6B<br>arrival_events_5B<br>s1_arrival_entities_6B<br>s3_flow_anchor_with_fraud_6B")]
+  end
+
+  subgraph RTDL["Online feature runtime resources"]
+    EKS["EKS cluster<br>fraud-platform-dev-full"]
+    NSRTDL["Namespace<br>fraud-platform-rtdl"]
+    SARTDL["ServiceAccount<br>rtdl"]
+    OFP["Deployment<br>fp-pr3-ofp"]
+    CONTRACT["Feature contract seam<br>graph-version shape<br>request key shape / feature-group requests"]
+    READY["Feature readiness surface<br>freshness / missing-feature / snapshot-failure / checkpoint-age signals"]
+    AURORA[("Aurora cluster<br>fraud-platform-dev-full-aurora")]
+    REDISH[("Redis endpoint handle<br>SSM-backed handle only, no live Redis resource shown here")]
+    MSF["Managed Flink app<br>fraud-platform-dev-full-rtdl-ieg-ofp-v0<br>retained parity only"]
+  end
+
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity| SARTDL
+  NSRTDL -->|runs| OFP
+  CSFB -->|projects joined context to| OFP
+  IEG -->|supplies current projection state to| OFP
+  ALLOWED -->|constrains runtime semantic inputs for| OFP
+  CONTRACT -->|governs requester/projector compatibility for| OFP
+  READY -->|surfaces boundary health for| OFP
+  OFP -->|writes online feature state to| AURORA
+  OFP -. reads handle from .-> REDISH
+  OFP -. retained parity relation only .-> MSF

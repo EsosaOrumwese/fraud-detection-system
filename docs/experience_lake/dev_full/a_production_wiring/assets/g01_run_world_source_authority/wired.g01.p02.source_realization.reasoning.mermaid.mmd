@@ -1,0 +1,183 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn an external engine-owned world into a governed, platform-usable source-of-stream basis"]
+    G2["Preserve the producer/platform ownership boundary while still materializing platform-readable source surfaces"]
+    G3["Realize the source basis through a production-patterned route rather than a local shortcut"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["A declared external oracle source exists"]
+    E2["Source namespace and oracle engine run id are pinned under the oracle-store boundary"]
+    E3["A raw input prefix is declared and readable"]
+    E4["Managed stream-sort handles resolve before closure can be attempted"]
+    E5["The active posture is repinned to external_raw_upload_then_managed_sort"]
+    E6["The canonical bucket is fraud-platform-dev-full-object-store, not a legacy dev-min copy mirror"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["External oracle world"]
+    R2["Raw upload into the oracle-store input boundary"]
+    R3["Managed distributed sort"]
+    R4["Realized source surfaces with receipts, manifests, and parity"]
+    R5["Canonical oracle basis for platform use"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Source identity:<br/>oracle source namespace + oracle engine run id"]
+    C2["Sealed-world identity model:<br/>manifest_fingerprint, parameter_hash, seed, scenario_id, run_id"]
+    C3["Source materialization inputs:<br/>raw uploaded oracle files under the oracle input prefix"]
+    C4["Realization outputs and proofs:<br/>stream_view surfaces, manifests, stream-sort receipts, parity reports, required-output matrices"]
+    C5["The handles registry pins the active required-output set and sort-key map"]
+    C6["The data-engine interface pins the identity and immutability rules the path must preserve"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats the engine world as producer-owned external truth"]
+    L2["The platform then creates a platform-readable realization layer from that world"]
+    L3["This prevents the platform from pretending it owns the oracle world"]
+    L4["It also prevents the platform from consuming source data through informal local transformations"]
+    L5["Oracle Store is warm source-of-stream zone in S3: producer write-owned, platform read-only"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["Oracle boundary in S3 under oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/input/"]
+    S2["The canonical bucket and input prefix are explicitly repinned in the notes"]
+    S3["The realization step is seated in the managed sort lane"]
+    S4["The active contract requires managed sort and forbids local sort for the dev_full runtime path"]
+    S5["Concrete realized outputs:<br/>stream_view/ts_utc/output_id=<output_id>/"]
+    S6["Current wired realization also includes later truth_view/ts_utc/output_id=<output_id>/ preparation"]
+    S7["Run-process closure artifacts include oracle readiness snapshot and required-output matrix"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The design preserves the oracle ownership boundary: producer write-owned, platform read-only"]
+    Y2["It removes legacy copy-based ambiguity that would blur what is canonical versus a convenience mirror"]
+    Y3["It aligns with production-pattern law and the no-laptop-runtime posture"]
+    Y4["That is why local sort is forbidden and managed sort is required"]
+    Y5["The oracle gate fails closed on receipts and parity instead of accepting 'looks readable' as enough"]
+    Y6["These are architecture reasons, not performance excuses"]
+  end
+
+  subgraph CONTRACT["9. External contract pressure"]
+    X1["The data-engine interface pins world identity by partition tokens and immutable outputs for a fixed identity"]
+    X2["It distinguishes traffic from join surfaces, truth products, audit evidence, and ops telemetry"]
+    X3["No PASS -> no read"]
+    X4["Platform components must verify segment gates before treating gated outputs as authoritative"]
+    X5["Traffic stays thin, joins happen inside the platform, and no future-leaking surfaces may be used for RTDL"]
+    X6["So this path must produce the exact source surfaces the platform will later honor under those semantic rules"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately chooses discipline over convenience"]
+    T2["It is slower and more ceremony-heavy than ad hoc local copy or local sort"]
+    T3["Closure requires raw upload receipt, managed sort receipt, manifest readability, required-output checks, and parity checks"]
+    T4["The cost buys ownership clarity, source legitimacy, materialization legitimacy, replay and audit confidence, and production-pattern alignment"]
+    T5["Managed sort friction surfaced honestly: scheduler capacity issues, driver materialization timeouts, and later IAM/KMS permission issues"]
+    T6["Those issues were handled at the IaC/runtime level rather than bypassed with manual shortcuts"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["Without this path, the platform can still be described, but its source basis becomes muddy"]
+    N2["The platform loses a governed way to turn external engine truth into platform-usable source surfaces"]
+    N3["The producer/platform ownership boundary becomes easy to violate"]
+    N4["stream_view materialization loses legitimacy"]
+    N5["Parity and manifest proof disappear"]
+    N6["Later runtime joins and learning surfaces rest on a weaker foundation"]
+    N7["That directly weakens A"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["raw upload receipt"]
+    O2["managed stream-sort receipt"]
+    O3["required outputs present"]
+    O4["stream_view materialization checks passed"]
+    O5["manifest and contract checks passed"]
+    O6["canonical external source binding instead of an ad hoc duplicated copy"]
+    O7["Owned outcome: canonical oracle basis with usable realized stream_view surfaces and proof they are trustworthy"]
+    O8["truth_view is part of the current wired realization story, but the primary closure anchor here is canonical oracle basis plus valid stream_view realization"]
+    A1["Purpose claim:<br/>the platform has a specific job for realizing the external source world"]
+    A2["Intentionality claim:<br/>the route is explicitly external raw upload -> managed sort -> realized source surfaces"]
+    A3["Materialization claim:<br/>the path is concretely seated in S3 oracle-store prefixes, managed sort runtime, and durable materialization/evidence outputs"]
+    A4["Contract claim:<br/>the path preserves producer/platform ownership boundaries and the engine's identity, immutability, and gate laws"]
+    A5["Constraint-awareness claim:<br/>copy-based ambiguity, local-sort convenience, and unmanaged shortcuts were explicitly rejected"]
+    A6["Quantified closure claim:<br/>11,465 files and 92,622,942,077 bytes in the repinned full-tree upload;<br/>later stream_view parity evidence recorded for four required outputs with exact row parity matches"]
+    A7["A-level meaning:<br/>the external engine world becomes a governed, materially realized, semantically constrained source basis instead of an informal file backdrop"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5 --> E6
+  E6 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  E2 --> C1
+  E2 --> C2
+  R2 --> C3
+  R4 --> C4
+  C4 --> C5
+  C4 --> C6
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R4 --> L4
+  R5 --> L5
+
+  R2 --> S1 --> S2
+  R3 --> S3 --> S4
+  R4 --> S5 --> S6
+  R5 --> S7
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5 --> Y6
+
+  R3 --> X1
+  X1 --> X2 --> X3 --> X4 --> X5 --> X6
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5 --> T6
+
+  R5 --> O1
+  R5 --> O2
+  R5 --> O3
+  R5 --> O4
+  R5 --> O5
+  R5 --> O6
+  O1 --> O7
+  O2 --> O7
+  O3 --> O7
+  O4 --> O7
+  O5 --> O7
+  O6 --> O7
+  O7 --> O8
+
+  T6 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O7 --> A1
+  O7 --> A2
+  O7 --> A3
+  X6 --> A4
+  T6 --> A5
+  O7 --> A6
+  N7 --> A7
+  A1 --> A7
+  A2 --> A7
+  A3 --> A7
+  A4 --> A7
+  A5 --> A7
+  A6 --> A7
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,E6,C1,C2,C3,C4,C5,C6,S1,S2,S3,S4,S5,S6,S7 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,Y6,X1,X2,X3,X4,X5,X6,T1,T2,T3,T4,T5,T6,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,O5,O6,O7,O8,A1,A2,A3,A4,A5,A6,A7 close;

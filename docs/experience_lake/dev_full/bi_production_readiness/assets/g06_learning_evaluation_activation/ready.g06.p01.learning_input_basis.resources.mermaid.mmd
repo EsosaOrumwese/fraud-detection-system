@@ -1,0 +1,40 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 6 / Path 1
+%% Learning-input basis path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource, policy surface, or active learning-input seat"]
+    LG2(("Round node = durable basis or downstream managed-learning handoff surface"))
+    LG3["This graph names the concrete seats that materially realize production-ready learning-input readiness closure before OFS dataset build begins"]
+  end
+
+  subgraph ENTRY["Authoritative basis resources"]
+    OBJ(("S3 object / oracle store<br/>fraud-platform-dev-full-object-store"))
+    EVID(("S3 evidence bucket<br/>fraud-platform-dev-full-evidence"))
+    LABELSTORE["Deployment<br/>fp-pr3-label-store"]
+    ARCHWRITER["Deployment<br/>fp-pr3-archive-writer"]
+  end
+
+  subgraph PATH["Production-ready learning-input basis resources"]
+    DBWS["Databricks workspace<br/>learning-input admission seat"]
+    DBCRED["UC external location + storage credential<br/>fraud_platform_dev_full_object_store_v0"]
+    POLICY["Temporal and leakage policy surfaces<br/>LEARNING_LABEL_ASOF_REQUIRED = true<br/>LEARNING_LABEL_MATURITY_DAYS_DEFAULT pinned<br/>LEARNING_FUTURE_TIMESTAMP_POLICY = fail_closed"]
+    SNAPSHOT["Canonical basis evidence<br/>replay-basis receipt<br/>readiness snapshot<br/>as_of / maturity policy snapshot<br/>runtime-learning separation snapshot"]
+    BASIS(("Owned outcome<br/>production-ready committed learning-input readiness basis"))
+    DBBUILD["Databricks job<br/>fraud-platform-dev-full-ofs-build-v0"]
+  end
+
+  OBJ -->|supplies replayable archive and source world into| DBWS
+  EVID -->|supplies closure evidence and policy snapshots into| DBWS
+  LABELSTORE -->|supplies authoritative label truth into| DBWS
+  ARCHWRITER -->|supplies replay-referenceable archive continuity into| DBWS
+  DBCRED -->|authorizes managed object-store access for| DBWS
+  POLICY -->|governs causal admission law for| DBWS
+  SNAPSHOT -->|makes the admitted basis directly judgeable for| DBWS
+  DBWS -->|materially closes learning-input readiness as| BASIS
+  BASIS -->|later opens managed OFS dataset commitment through| DBBUILD

@@ -1,0 +1,166 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn decision and action truth into authoritative audit and lineage truth for the real-time lane"]
+    G2["Keep this path narrower than decision formation, action emission, and archive preservation"]
+    G3["Answer where the authoritative append-only record of runtime decisions and outcomes gets created"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not raw RTDL traffic and not generic runtime health"]
+    E2["The entry is current-run decision and action truth after the RTDL plane has already crossed its main catch-up boundary"]
+    E3["The decision-chain closure opens only after RTDL catch-up closure is green"]
+    E4["The run-process then requires three distinct closure elements: decision lane committed, action and outcome evidence committed, append-only audit evidence committed"]
+    E5["So this path begins after Group 3's decision and action paths have already produced their own truth"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Decision truth + action and outcome truth"]
+    R2["Audit append writer"]
+    R3["Append-only audit and lineage truth"]
+    R4["Later publication and archive consumers"]
+    R5["The hot path becomes an authoritative historical truth boundary"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Decision identity"]
+    C2["Action and outcome identity"]
+    C3["Run identity"]
+    C4["Lineage links from decision to outcome to audit artifact"]
+    C5["Enough provenance for later replay, incident review, and downstream learning support"]
+    C6["The explainability posture requires traceability to run identity, context surfaces, feature groups, policy/bundle used, action emitted, audit entry appended, and archive/evidence refs"]
+    C7["The audit surface narrows that into lineage completeness from decision to outcome to audit artifact"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats audit truth as a first-class owned append-only surface"]
+    L2["It is not something that can be reconstructed later from side effects if needed"]
+    L3["There is a dedicated runtime boundary whose job is to append authoritative audit and lineage truth"]
+    L4["The decision chain is not considered committed without it"]
+    L5["That makes the current wired system look governed rather than hand-wavy"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The copied baseline wired graphs show the audit surface as a distinct deployment in the RTDL namespace"]
+    S2["Required run pins flow to that surface"]
+    S3["The run-process phase map places decision, action, and audit surfaces together inside the live RTDL decision corridor rather than treating audit as later offline convenience"]
+    S4["The broader authority keeps the decision, action, and audit surfaces in the RTDL ownership-logic corridor, with the audit surface retained as a distinct ownership-heavy runtime boundary unless semantic parity is proven elsewhere"]
+    S5["The live implementation trail shows the audit surface present in the active RTDL runtime set"]
+    S6["Bounded proof snapshots recorded append_success_total, append_failure_total, and replay_divergence_total"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses to let auditability be implied by runtime success"]
+    Y2["The decision-chain closure explicitly separates decision, action, and audit into three closure elements"]
+    Y3["Audit append is not allowed to hide inside a generic claim that the hot path passed"]
+    Y4["The audit surface was deliberately not collapsed into a managed replacement by default"]
+    Y5["The broader authority keeps it as custom-runtime until full semantic parity is proven"]
+    Y6["The current shape is driven by truth ownership and append semantics, not convenience or simplification pressure"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The audit component contract defines what this boundary must mean"]
+    X2["Append-only behavior under replay and duplicate pressure"]
+    X3["Zero replay divergence on the same bounded basis"]
+    X4["Lineage completeness, bounded unresolved-lineage age, and readback integrity"]
+    X5["The decision-chain closure contract says there is no decision-chain closure without append-only audit evidence"]
+    X6["The append-only ownership law says append-only ownership violations are stop-the-line conditions"]
+    X7["So the platform is treating this as hard truth boundary, not soft reporting surface"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds another explicit truth boundary to the hot path"]
+    T2["That costs complexity because the system must preserve append-only discipline, duplicate and replay safety, lineage completeness, unresolved-lineage surfacing, and readback integrity"]
+    T3["It also explains why the audit surface has not simply been replaced with a cheaper generic sink yet: semantic parity is prioritized over simplification"]
+    T4["But that cost buys something important: later case handling, evidence sinks, replay, and learning do not need to infer audit history from scattered clues"]
+    T5["They can depend on a named append-only audit boundary"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still ingest traffic, build context, materialize features, classify guardrail posture, form decisions, and emit actions"]
+    N2["But it loses a clean answer to where authoritative runtime audit truth comes from"]
+    N3["It loses a clean answer to whether lineage from decision to outcome is durably preserved"]
+    N4["It loses a clean answer to whether replay divergence is visible"]
+    N5["It loses a clean answer to whether later reviewers are reading true audit record or just reconstructing history from fragments"]
+    N6["That would weaken A immediately because the system would have runtime behavior but no explicit owner for the append-only truth that makes that behavior explainable later"]
+    N7["Without the audit surface, you may have decisions but not authoritative audit truth"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Append-only audit and lineage truth for the current run and current runtime event chain"]
+    O2["This path closes when the real-time lane has an authoritative audit append"]
+    O3["It does not yet include later audit-topic handoff or archive preservation"]
+    O4["Owned outcome: append-only audit truth"]
+    A1["Purpose claim:<br/>the platform has a distinct job for appending authoritative runtime audit and lineage truth"]
+    A2["Intentionality claim:<br/>audit append is a required closure element in the decision chain, not an optional afterthought"]
+    A3["Materialization claim:<br/>the audit surface is concrete live runtime workload in the RTDL plane, not just a conceptual box"]
+    A4["Contract claim:<br/>this path is governed by append-only discipline, replay-divergence expectations, lineage completeness, and readback integrity"]
+    A5["Constraint-awareness claim:<br/>the system already knows this boundary is semantically delicate, which is why the audit surface is retained as custom-runtime until managed replacement can prove full parity"]
+    A6["Material participation evidence:<br/>bounded RTDL proof recorded append_success_total = 2494, append_failure_total = 0, replay_divergence_total = 0 as evidence the boundary is real, active, and instrumented"]
+    A7["A-level meaning:<br/>runtime behavior becomes authoritative append-only audit truth instead of leaving later reviewers to reconstruct history from fragments"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4 --> E5
+  E5 --> R1 --> R2 --> R3 --> R4 --> R5
+
+  R1 --> C1
+  R1 --> C2
+  R1 --> C3
+  R2 --> C4 --> C5 --> C6 --> C7
+
+  R1 --> L1
+  R2 --> L2
+  R3 --> L3
+  R4 --> L4
+  R5 --> L5
+
+  R2 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5 --> S6
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5 --> Y6
+
+  R3 --> X1
+  X1 --> X2 --> X3 --> X4 --> X5 --> X6 --> X7
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4 --> T5
+
+  R3 --> O1
+  R3 --> O2
+  O1 --> O3
+  O2 --> O3
+  O3 --> O4
+
+  T5 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X7 --> A4
+  T5 --> A5
+  S6 --> A6
+  N7 --> A7
+  A1 --> A7
+  A2 --> A7
+  A3 --> A7
+  A4 --> A7
+  A5 --> A7
+  A6 --> A7
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,E5,C1,C2,C3,C4,C5,C6,C7,S1,S2,S3,S4,S5,S6 base;
+  class R1,R2,R3,R4,R5 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,Y6,X1,X2,X3,X4,X5,X6,X7,T1,T2,T3,T4,T5,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6,A7 close;

@@ -1,0 +1,152 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+flowchart LR
+
+  subgraph INTENT["1. Path objective"]
+    G1["Turn live platform behavior into trustworthy operator visibility and drift-attestation truth"]
+    G2["Keep this path narrower than run reconstruction, governance closure, and final-verdict publication"]
+    G3["Answer whether operators can see the right runtime surfaces, detect drift before false certification, and trust that visible green belongs to the active path"]
+  end
+
+  subgraph ENTRY["2. Entry basis"]
+    E1["The entry is not that some logs exist"]
+    E2["The entry is a working platform with a declared active runtime path, the real runtime surfaces that path uses, and observability plus control scope ready to attest those same surfaces live"]
+    E3["The final-phase telemetry plan already assumes this proof runs on top of the working platform"]
+    E4["The broader design authority pins one active runtime path per phase, records it in run-control evidence, and forbids in-phase path switching"]
+  end
+
+  subgraph SPINE["5. Broad route logic"]
+    R1["Declared active runtime path plus live telemetry, traces, and logs from those same surfaces"]
+    R2["Freshness, alert, drift, and handle checks"]
+    R3["Observability attestation truth for the run"]
+  end
+
+  subgraph CARRIES["4. What the path carries"]
+    C1["Run-scoped correlation fields"]
+    C2["Telemetry from the actual active runtime surfaces"]
+    C3["Dashboard and alarm state"]
+    C4["Handle-resolution state for the active path"]
+    C5["Durable attestation artifacts such as correlation audits or freshness and coverage checks"]
+    C6["OpenTelemetry enablement, pinned correlation mode, required correlation fields, correlation-audit surface, and named dashboards and alarms for platform ops, cost guardrails, error rate, RTDL lag, and ingress HTTP anomaly"]
+  end
+
+  subgraph LOGIC["6. Logical design reading"]
+    L1["The platform treats runtime execution truth and runtime visibility truth as two different boundaries"]
+    L2["The system is not saying because the platform is running, operators must be able to see it correctly"]
+    L3["It is saying there is a dedicated boundary where freshness, alert coverage, drift visibility, correlation continuity, and active-path fidelity have to be proven as their own truth"]
+    L4["That is a much more serious operational posture than simply having metrics present"]
+    L5["This is strong A-level design signal because truthful live visibility has an explicit owner and closure object"]
+  end
+
+  subgraph SEATING["7. Concrete seating in the current wired system"]
+    S1["The path is materially seated in the current wired platform"]
+    S2["The handles registry pins the platform log-group namespace, collector surface, primary metrics and log exporter, required correlation headers and fields, correlation-audit surface, dashboards, and critical alarms"]
+    S3["The implementation trail shows this was treated as an executed proof boundary rather than static config"]
+    S4["The earlier observability proof lane explicitly probed the ingress edge, orchestrator surface, stream-lane telemetry surface, and observability lane"]
+    S5["It failed closed when ingress correlation-carriage proof and telemetry proof were insufficient, and the fix was repinned to emit structured correlation evidence before rerunning green"]
+  end
+
+  subgraph RATIONALE["8. Why the design looks like this"]
+    Y1["The platform refuses two weak shortcuts: dashboards as proxy for trustworthy observability, and stale or partial telemetry as proxy for active-path truth"]
+    Y2["The operations, governance, and meta readiness definition says this plane is not production-ready merely because dashboards, receipts, budgets, or teardown workflows exist"]
+    Y3["The platform must show observability is usable for diagnosis and prevention, drift is visible, and hidden operational shortcuts are not accepted"]
+    Y4["The earlier observability implementation history reinforces that intent"]
+    Y5["When the live ingress boundary lacked correlation-carriage proof, the answer was not to relax the gate but to remediate the runtime boundary and rerun the proof"]
+  end
+
+  subgraph CONTRACT["9. What larger contracts are shaping this path"]
+    X1["The operations, governance, and meta metric contract defines closure criteria: metric freshness, critical alert coverage, placeholder-handle count, required-handle resolution, and drift-detection success"]
+    X2["The final-phase telemetry plan defines how those criteria are observed: dashboard freshness, alert fire and clear counts, active drift checks on the same runtime surfaces, and fail-fast on drift between live runtime and declared active path"]
+    X3["The design authority pins OpenTelemetry-first, run-scoped correlation continuity across edge, stream processors, orchestrators, custom runtimes, and evidence writers, with fail-closed closure if required correlation fields are missing"]
+  end
+
+  subgraph TRADEOFFS["10. Trade-offs and constraints"]
+    T1["This path deliberately adds another formal boundary on top of already-running lanes"]
+    T2["That costs more instrumentation, explicit correlation propagation, dashboard and alert validation, freshness checks, active-path drift checks, and handle and secret attestation for the runtime actually in use"]
+    T3["But that cost buys the ability to answer whether operators had truthful live view of what ran, whether alerts covered the right failure families, and whether the green-looking system was actually the declared active path rather than stale or wrong surface"]
+    T4["That is why the final-phase plan treats drift visibility before certification as a qualitative proof objective instead of leaving it implicit"]
+  end
+
+  subgraph NECESSITY["11. Necessity test"]
+    N1["If this path is removed, the platform can still execute lanes, append governance facts, publish final verdict, and maybe even tear down safely"]
+    N2["But it loses a clean answer to whether the metrics were fresh"]
+    N3["It loses a clean answer to whether alarms covered real critical failures"]
+    N4["It loses a clean answer to whether the active runtime path matched the observed surfaces"]
+    N5["It loses a clean answer to whether handles and secrets on the live path were actually resolved"]
+    N6["It loses a clean answer to whether operators could have detected drift before falsely certifying the run"]
+    N7["That would weaken A immediately because the platform would run and report but have no explicit owner for truthful live visibility and drift attestation"]
+  end
+
+  subgraph CLOSURE["3. Owned outcome and 12. What this path proves for A"]
+    O1["Metric freshness is within budget"]
+    O2["Critical alert coverage exists for declared failure families"]
+    O3["Placeholder-handle count in the active runtime path is zero, required handle and secret resolution succeeds, and drift between live runtime and declared active path is visible rather than hidden"]
+    O4["Owned outcome: observability attestation truth that the active runtime path is visible, fresh, attributable, and drift-checked enough to support safe certification"]
+    A1["Purpose claim:<br/>the platform has a distinct job for turning live platform behavior into trustworthy operator visibility rather than treating observability as decoration"]
+    A2["Intentionality claim:<br/>freshness, alert coverage, drift visibility, correlation continuity, and active-path fidelity are designed proof objects, not dashboard side effects"]
+    A3["Materialization claim:<br/>this boundary is concretely seated in pinned observability handles, dashboards, alarms, correlation fields, and the already-executed observability proof lane"]
+    A4["Contract claim:<br/>this path is governed by metric freshness, critical alert coverage, required-handle resolution, placeholder-handle elimination, active-path drift checks, and fail-closed correlation continuity"]
+    A5["Constraint-awareness claim:<br/>the platform already knows visible green can be false if it comes from stale or wrong surfaces, which is why the path insists on active-path fidelity and drift detection before certification"]
+    A6["A-level meaning:<br/>the platform can prove truthful live visibility as its own operational truth instead of assuming that a running system is automatically a visible and governable one"]
+  end
+
+  G1 --> G2 --> G3 --> E1
+  E1 --> E2 --> E3 --> E4
+  E4 --> R1 --> R2 --> R3
+
+  R1 --> C1
+  R1 --> C2
+  R2 --> C3
+  R2 --> C4
+  R3 --> C5
+  C5 --> C6
+
+  R3 --> L1
+  L1 --> L2 --> L3 --> L4 --> L5
+
+  R1 --> S1
+  S1 --> S2 --> S3 --> S4 --> S5
+
+  R2 --> Y1
+  Y1 --> Y2 --> Y3 --> Y4 --> Y5
+
+  R2 --> X1
+  X1 --> X2 --> X3
+
+  L5 --> T1
+  T1 --> T2 --> T3 --> T4
+
+  R2 --> O1
+  R2 --> O2
+  R2 --> O3
+  O1 --> O4
+  O2 --> O4
+  O3 --> O4
+
+  T4 --> N1
+  N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7
+
+  O4 --> A1
+  O4 --> A2
+  O4 --> A3
+  X3 --> A4
+  T4 --> A5
+  N7 --> A6
+  A1 --> A6
+  A2 --> A6
+  A3 --> A6
+  A4 --> A6
+  A5 --> A6
+
+  classDef base fill:#e3f2fd,stroke:#1565c0,color:#111,stroke-width:1.2px;
+  classDef spine fill:#fff3e0,stroke:#ef6c00,color:#111,stroke-width:1.3px;
+  classDef reason fill:#f3e5f5,stroke:#6a1b9a,color:#111,stroke-width:1.2px;
+  classDef close fill:#e8f5e9,stroke:#2e7d32,color:#111,stroke-width:1.3px;
+
+  class G1,G2,G3,E1,E2,E3,E4,C1,C2,C3,C4,C5,C6,S1,S2,S3,S4,S5 base;
+  class R1,R2,R3 spine;
+  class L1,L2,L3,L4,L5,Y1,Y2,Y3,Y4,Y5,X1,X2,X3,T1,T2,T3,T4,N1,N2,N3,N4,N5,N6,N7 reason;
+  class O1,O2,O3,O4,A1,A2,A3,A4,A5,A6 close;

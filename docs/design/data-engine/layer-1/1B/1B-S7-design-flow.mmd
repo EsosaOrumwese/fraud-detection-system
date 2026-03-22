@@ -1,0 +1,5 @@
+flowchart LR
+  A["Authority inputs<br/>s5_site_tile_assignment<br/>s6_site_jitter<br/>tile_bounds<br/>1A outlet_catalogue under S0 gate"] --> B["Owned transformation<br/>Join assignment to jitter and geometry<br/>reconstruct final absolute site points<br/>assert inside-pixel and coverage parity<br/>prepare deterministic per-site synthesis"]
+  B --> C["Authority outputs<br/>s7_site_synthesis<br/>egress-ready site rows<br/>with 1A coverage parity preserved"]
+
+  D["Implemented design shifts<br/>S7 made outlet_catalogue parity an explicit design burden<br/>not just a post-hoc check<br/>and it preserves the rule that 1B still does not create inter-country order"] -.-> B

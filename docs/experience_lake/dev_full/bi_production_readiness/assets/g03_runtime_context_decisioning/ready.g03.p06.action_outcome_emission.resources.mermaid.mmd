@@ -1,0 +1,46 @@
+---
+config:
+  layout: dagre
+  theme: default
+---
+%% Bi / Group 3 / Path 6
+%% Action and outcome emission path - production-ready resources
+flowchart LR
+
+  subgraph LEGEND["How to Read This Graph"]
+    LG1["Square node = concrete resource or active promoted runtime seat"]
+    LG2(("Round node = explicit downstream handoff or owned outcome truth"))
+    LG3["This graph names the concrete seats that materially realize production-ready RTDL output truth without collapsing into Group 4 audit ownership"]
+  end
+
+  subgraph ENTRY["Committed decision resources"]
+    EKS["EKS cluster<br/>fraud-platform-dev-full"]
+    NODEGROUP["Nodegroup<br/>fraud-platform-dev-full-m6f-workers<br/>m6i.xlarge<br/>min 2 / desired 4 / max 8"]
+    NSRTDL["Namespace<br/>fraud-platform-rtdl"]
+    SADEC["ServiceAccount<br/>decision-lane"]
+    DF["Deployment<br/>fp-pr3-df"]
+    TRTDL(("Topic<br/>fp.bus.rtdl.v1"))
+    REGISTRY(("Active bundle truth<br/>bundle da1b8f...@v0-29d2b27919a7"))
+  end
+
+  subgraph RTDL["Production-ready action and outcome resources"]
+    RTDLIMG["Pinned image family<br/>fraud-platform-dev-full@sha256:c984..."]
+    AL["Deployment<br/>fp-pr3-al"]
+    CONTRACT["Action contract seam<br/>duplicate-safe semantics<br/>ambiguity recording<br/>decision-to-output trace completeness"]
+    PROOF["Downstream-usability proof surface<br/>timing / starvation / lineage-safe output posture"]
+    TAUDIT(("Topic<br/>fp.bus.audit.v1"))
+    OUT(("Owned outcome<br/>production-ready RTDL action and outcome truth"))
+  end
+
+  EKS -->|contains| NODEGROUP
+  EKS -->|contains| NSRTDL
+  NSRTDL -->|binds identity through| SADEC
+  NSRTDL -->|runs| AL
+  RTDLIMG -->|pins deployment family for| AL
+  DF -->|supplies explicit decision truth to| AL
+  TRTDL -->|carries decision publication basis into| AL
+  REGISTRY -->|preserves authority attribution for| AL
+  CONTRACT -->|governs deterministic, attributable effect formation for| AL
+  PROOF -->|governs downstream-usable output posture for| AL
+  AL -->|publishes immediate action / outcome visibility to| TAUDIT
+  AL -->|materially closes this path as| OUT
