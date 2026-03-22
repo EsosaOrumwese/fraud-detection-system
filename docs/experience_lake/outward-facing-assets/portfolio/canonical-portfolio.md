@@ -1467,3 +1467,17 @@ This table exists to decode the current platform stack in recruiter-readable ter
 | Model registry, promotion, and rollback | MLflow | Carries candidate lineage, promotion, rollback, and runtime-active bundle authority. |
 | Observability, alerts, and cost control | Amazon CloudWatch, AWS Budgets | Provides logs, metrics, alarms, dashboards, and budget guardrails for day-2 operation and cost accountability. |
 | Identity and platform access | IAM, GitHub OIDC | Secures CI/CD, runtime execution roles, cross-account data access, and managed service permissions. |
+
+---
+
+## Appendix G — Cost Breakdown Across the Accepted Proving Window
+
+This appendix complements Section 10. The ranked service-family bar in the main section answers which cost families dominated the accepted window. This appendix answers the second question: how daily spend moved inside that same bounded window, and which families were active on each day.
+
+### Appendix G.1 — Daily Cost Movement
+
+![_Appendix G Panel 1 — Daily Cost Movement Inside the Accepted Proving Window_](_assets/appendix_g_cost_window_daily_breakdown.png)
+
+Interpretation:
+
+The accepted proving window did not burn cost at a flat rate. Daily spend moved between **$275.10** on `10 Mar`, **$533.49** on `11 Mar`, **$317.49** on `12 Mar`, and **$521.75** on `13 Mar`, which is exactly what a real bounded readiness push should look like: quieter days when fewer coupled surfaces were active, and materially higher days when the platform was being exercised more broadly. The matrix below the line keeps that movement readable instead of collapsing it into stacked layers. You can see the exact daily values for the dominant families directly: `DynamoDB`, `Lambda`, and `API Gateway` remain the clearest contributors throughout the window, while `S3`, `RDS / Aurora`, and `MSK` stay materially present rather than disappearing into “background infrastructure.” Read correctly, this chart is not saying spend was volatile for no reason; it is saying the accepted proving window had real daily shape, and that shape stayed tied to the actual platform surfaces doing the readiness work.
