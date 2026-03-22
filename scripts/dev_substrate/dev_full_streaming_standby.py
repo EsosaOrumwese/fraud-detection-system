@@ -26,7 +26,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 ROOT = Path(__file__).resolve().parents[2]
 STREAMING_TF_DIR = ROOT / "infra" / "terraform" / "dev_full" / "streaming"
-BACKEND_HCL = STREAMING_TF_DIR / "backend.hcl"
+DEFAULT_BACKEND_CONFIG = STREAMING_TF_DIR / "backend.hcl.example"
 DEFAULT_RUN_ROOT = ROOT / "runs" / "dev_substrate" / "dev_full" / "proving_plane" / "run_control"
 
 
@@ -58,10 +58,23 @@ def tf_cmd(*args: str, timeout: int = 1800, check: bool = True) -> subprocess.Co
     return run(["terraform", f"-chdir={STREAMING_TF_DIR}", *args], timeout=timeout, check=check)
 
 
-def tf_init() -> dict[str, Any]:
-    proc = tf_cmd("init", "-backend-config", str(BACKEND_HCL), timeout=900)
+def resolve_backend_config(raw_path: str) -> Path:
+    candidate = Path(raw_path).expanduser() if raw_path else DEFAULT_BACKEND_CONFIG
+    if not candidate.is_absolute():
+        candidate = (ROOT / candidate).resolve()
+    if not candidate.exists():
+        raise FileNotFoundError(f"backend_config_missing:{candidate}")
+    return candidate
+
+
+def failure_payload(exc: Exception) -> dict[str, str]:
+    return {"type": type(exc).__name__, "message": str(exc)}
+
+
+def tf_init(backend_config: Path) -> dict[str, Any]:
+    proc = tf_cmd("init", "-reconfigure", "-backend-config", str(backend_config), timeout=900)
     return {
-        "command": "terraform init -backend-config backend.hcl",
+        "command": f"terraform init -reconfigure -backend-config {backend_config}",
         "returncode": proc.returncode,
         "stdout_tail": proc.stdout[-2000:],
         "stderr_tail": proc.stderr[-2000:],
@@ -145,20 +158,37 @@ def runtime_standby_posture(
     eks = boto3.client("eks", region_name=region)
     rds = boto3.client("rds", region_name=region)
 
-    nodegroup = eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name)["nodegroup"]
-    scaling = dict(nodegroup.get("scalingConfig") or {})
-    desired = int(scaling.get("desiredSize") or 0)
-    minimum = int(scaling.get("minSize") or 0)
-    maximum = int(scaling.get("maxSize") or 0)
+    blockers: list[str] = []
+    desired = 0
+    minimum = 0
+    maximum = 0
+    try:
+        nodegroup = eks.describe_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name)["nodegroup"]
+        scaling = dict(nodegroup.get("scalingConfig") or {})
+        desired = int(scaling.get("desiredSize") or 0)
+        minimum = int(scaling.get("minSize") or 0)
+        maximum = int(scaling.get("maxSize") or 0)
+    except ClientError as exc:
+        code = str(exc.response.get("Error", {}).get("Code") or "").strip()
+        blockers.append(f"EKS_NODEGROUP_DESCRIBE_FAILED:{code or 'UNKNOWN'}")
+    except BotoCoreError as exc:
+        blockers.append(f"EKS_NODEGROUP_DESCRIBE_FAILED:{type(exc).__name__}")
 
     cluster_status = ""
     try:
         rds_payload = rds.describe_db_clusters(DBClusterIdentifier=aurora_cluster_id)["DBClusters"][0]
         cluster_status = str(rds_payload.get("Status") or "").strip().lower()
+    except ClientError as exc:
+        code = str(exc.response.get("Error", {}).get("Code") or "").strip()
+        cluster_status = f"describe_failed:{code or 'UNKNOWN'}"
+        blockers.append(f"AURORA_DESCRIBE_FAILED:{code or 'UNKNOWN'}")
+    except BotoCoreError as exc:
+        cluster_status = f"describe_failed:{type(exc).__name__}"
+        blockers.append(f"AURORA_DESCRIBE_FAILED:{type(exc).__name__}")
     except Exception as exc:  # noqa: BLE001
         cluster_status = f"describe_failed:{exc}"
+        blockers.append(f"AURORA_DESCRIBE_FAILED:{type(exc).__name__}")
 
-    blockers: list[str] = []
     if desired != 0:
         blockers.append(f"EKS_NODEGROUP_DESIRED_NOT_ZERO:{desired}")
     if minimum != 0:
@@ -184,11 +214,16 @@ def build_execution_root(run_root: Path, prefix: str, execution_id: str | None) 
     return run_root / eid
 
 
+def has_lookup_error(payload: Any) -> bool:
+    return isinstance(payload, dict) and bool(payload.get("lookup_error"))
+
+
 def do_teardown(args: argparse.Namespace) -> int:
     kafka = boto3.client("kafka", region_name=args.aws_region)
     ssm = boto3.client("ssm", region_name=args.aws_region)
     execution_root = build_execution_root(Path(args.run_control_root), "streaming_teardown", args.execution_id)
     execution_root.mkdir(parents=True, exist_ok=True)
+    receipt_path = execution_root / "streaming_teardown_receipt.json"
 
     receipt: dict[str, Any] = {
         "action": "teardown",
@@ -198,83 +233,102 @@ def do_teardown(args: argparse.Namespace) -> int:
         "aws_region": args.aws_region,
         "precondition_force": bool(args.force),
     }
+    try:
+        backend_config = resolve_backend_config(args.backend_config)
+        receipt["backend_config"] = str(backend_config)
 
-    if args.force:
-        standby = {
-            "standby_ready": True,
-            "skipped": True,
-            "reason": "force_bypass",
-            "cluster_name": args.eks_cluster_name,
-            "nodegroup_name": args.nodegroup_name,
-            "aurora_cluster_id": args.aurora_cluster_id,
-            "blocker_ids": [],
-        }
-    else:
-        standby = runtime_standby_posture(
-            region=args.aws_region,
-            cluster_name=args.eks_cluster_name,
-            nodegroup_name=args.nodegroup_name,
-            aurora_cluster_id=args.aurora_cluster_id,
+        if args.force:
+            standby = {
+                "standby_ready": True,
+                "skipped": True,
+                "reason": "force_bypass",
+                "cluster_name": args.eks_cluster_name,
+                "nodegroup_name": args.nodegroup_name,
+                "aurora_cluster_id": args.aurora_cluster_id,
+                "blocker_ids": [],
+            }
+        else:
+            standby = runtime_standby_posture(
+                region=args.aws_region,
+                cluster_name=args.eks_cluster_name,
+                nodegroup_name=args.nodegroup_name,
+                aurora_cluster_id=args.aurora_cluster_id,
+            )
+        receipt["runtime_standby_precheck"] = standby
+        if not args.force and not standby["standby_ready"]:
+            receipt["overall_pass"] = False
+            receipt["blocker_ids"] = ["STREAMING_TEARDOWN_PRECONDITION_FAILED", *standby["blocker_ids"]]
+            dump_json(receipt_path, receipt)
+            return 1
+
+        receipt["terraform_init"] = tf_init(backend_config)
+        outputs_before = tf_outputs()
+        receipt["terraform_outputs_before"] = outputs_before
+
+        values = outputs_before.get("values") or {}
+        cluster_name = str(values.get("msk_cluster_name") or args.msk_cluster_name).strip()
+        cluster_arn = str(values.get("msk_cluster_arn") or "").strip()
+        param_name = str(values.get("ssm_msk_bootstrap_brokers_path") or args.ssm_bootstrap_param).strip()
+
+        cluster_before = None
+        try:
+            cluster_before = find_cluster_by_name(kafka, cluster_name)
+        except (BotoCoreError, ClientError) as exc:
+            cluster_before = {"lookup_error": str(exc)}
+        receipt["cluster_before"] = cluster_before
+        try:
+            receipt["ssm_parameter_before"] = get_parameter_state(ssm, param_name)
+        except (BotoCoreError, ClientError) as exc:
+            receipt["ssm_parameter_before"] = {"present": False, "lookup_error": str(exc)}
+
+        destroy = tf_cmd(
+            "destroy",
+            "-auto-approve",
+            "-input=false",
+            "-lock-timeout=5m",
+            timeout=args.destroy_timeout_seconds,
         )
-    receipt["runtime_standby_precheck"] = standby
-    if not args.force and not standby["standby_ready"]:
+        receipt["terraform_destroy"] = {
+            "returncode": destroy.returncode,
+            "stdout_tail": destroy.stdout[-4000:],
+            "stderr_tail": destroy.stderr[-4000:],
+        }
+
+        time.sleep(10)
+        try:
+            cluster_after = find_cluster_by_name(kafka, cluster_name)
+        except (BotoCoreError, ClientError) as exc:
+            cluster_after = {"lookup_error": str(exc)}
+        receipt["cluster_after"] = cluster_after
+        try:
+            receipt["ssm_parameter_after"] = get_parameter_state(ssm, param_name)
+        except (BotoCoreError, ClientError) as exc:
+            receipt["ssm_parameter_after"] = {"present": False, "lookup_error": str(exc)}
+        receipt["terraform_state_after"] = tf_state_list()
+
+        blockers: list[str] = []
+        if has_lookup_error(cluster_after):
+            blockers.append("MSK_CLUSTER_LOOKUP_FAILED_AFTER_DESTROY")
+        elif cluster_after:
+            blockers.append("MSK_CLUSTER_STILL_PRESENT_AFTER_DESTROY")
+        if receipt["ssm_parameter_after"].get("lookup_error"):
+            blockers.append("MSK_BOOTSTRAP_PARAM_LOOKUP_FAILED_AFTER_DESTROY")
+        elif receipt["ssm_parameter_after"].get("present"):
+            blockers.append("MSK_BOOTSTRAP_PARAM_STILL_PRESENT_AFTER_DESTROY")
+        if receipt["terraform_state_after"]:
+            blockers.append("STREAMING_TF_STATE_NOT_EMPTY_AFTER_DESTROY")
+
+        receipt["cluster_arn_before"] = cluster_arn
+        receipt["overall_pass"] = len(blockers) == 0
+        receipt["blocker_ids"] = blockers
+        dump_json(receipt_path, receipt)
+        return 0 if receipt["overall_pass"] else 1
+    except Exception as exc:  # noqa: BLE001
         receipt["overall_pass"] = False
-        receipt["blocker_ids"] = ["STREAMING_TEARDOWN_PRECONDITION_FAILED", *standby["blocker_ids"]]
-        dump_json(execution_root / "streaming_teardown_receipt.json", receipt)
+        receipt["blocker_ids"] = ["STREAMING_TEARDOWN_EXECUTION_FAILED"]
+        receipt["exception"] = failure_payload(exc)
+        dump_json(receipt_path, receipt)
         return 1
-
-    receipt["terraform_init"] = tf_init()
-    outputs_before = tf_outputs()
-    receipt["terraform_outputs_before"] = outputs_before
-
-    values = outputs_before.get("values") or {}
-    cluster_name = str(values.get("msk_cluster_name") or args.msk_cluster_name).strip()
-    cluster_arn = str(values.get("msk_cluster_arn") or "").strip()
-    param_name = str(values.get("ssm_msk_bootstrap_brokers_path") or args.ssm_bootstrap_param).strip()
-
-    cluster_before = None
-    try:
-        cluster_before = find_cluster_by_name(kafka, cluster_name)
-    except (BotoCoreError, ClientError) as exc:
-        cluster_before = {"lookup_error": str(exc)}
-    receipt["cluster_before"] = cluster_before
-    try:
-        receipt["ssm_parameter_before"] = get_parameter_state(ssm, param_name)
-    except (BotoCoreError, ClientError) as exc:
-        receipt["ssm_parameter_before"] = {"present": False, "lookup_error": str(exc)}
-
-    destroy = tf_cmd("destroy", "-auto-approve", "-input=false", "-lock-timeout=5m", timeout=args.destroy_timeout_seconds)
-    receipt["terraform_destroy"] = {
-        "returncode": destroy.returncode,
-        "stdout_tail": destroy.stdout[-4000:],
-        "stderr_tail": destroy.stderr[-4000:],
-    }
-
-    time.sleep(10)
-    try:
-        cluster_after = find_cluster_by_name(kafka, cluster_name)
-    except (BotoCoreError, ClientError) as exc:
-        cluster_after = {"lookup_error": str(exc)}
-    receipt["cluster_after"] = cluster_after
-    try:
-        receipt["ssm_parameter_after"] = get_parameter_state(ssm, param_name)
-    except (BotoCoreError, ClientError) as exc:
-        receipt["ssm_parameter_after"] = {"present": False, "lookup_error": str(exc)}
-    receipt["terraform_state_after"] = tf_state_list()
-
-    blockers: list[str] = []
-    if cluster_after:
-        blockers.append("MSK_CLUSTER_STILL_PRESENT_AFTER_DESTROY")
-    if receipt["ssm_parameter_after"].get("present"):
-        blockers.append("MSK_BOOTSTRAP_PARAM_STILL_PRESENT_AFTER_DESTROY")
-    if receipt["terraform_state_after"]:
-        blockers.append("STREAMING_TF_STATE_NOT_EMPTY_AFTER_DESTROY")
-
-    receipt["cluster_arn_before"] = cluster_arn
-    receipt["overall_pass"] = len(blockers) == 0
-    receipt["blocker_ids"] = blockers
-    dump_json(execution_root / "streaming_teardown_receipt.json", receipt)
-    return 0 if receipt["overall_pass"] else 1
 
 
 def do_restore(args: argparse.Namespace) -> int:
@@ -282,6 +336,7 @@ def do_restore(args: argparse.Namespace) -> int:
     ssm = boto3.client("ssm", region_name=args.aws_region)
     execution_root = build_execution_root(Path(args.run_control_root), "streaming_restore", args.execution_id)
     execution_root.mkdir(parents=True, exist_ok=True)
+    receipt_path = execution_root / "streaming_restore_receipt.json"
 
     receipt: dict[str, Any] = {
         "action": "restore",
@@ -290,45 +345,58 @@ def do_restore(args: argparse.Namespace) -> int:
         "terraform_dir": str(STREAMING_TF_DIR),
         "aws_region": args.aws_region,
     }
-
-    receipt["terraform_init"] = tf_init()
-    apply = tf_cmd("apply", "-auto-approve", "-input=false", "-lock-timeout=5m", timeout=args.apply_timeout_seconds)
-    receipt["terraform_apply"] = {
-        "returncode": apply.returncode,
-        "stdout_tail": apply.stdout[-4000:],
-        "stderr_tail": apply.stderr[-4000:],
-    }
-
-    outputs_after = tf_outputs()
-    receipt["terraform_outputs_after"] = outputs_after
-    values = outputs_after.get("values") or {}
-    cluster_name = str(values.get("msk_cluster_name") or args.msk_cluster_name).strip()
-    param_name = str(values.get("ssm_msk_bootstrap_brokers_path") or args.ssm_bootstrap_param).strip()
-
     try:
-        cluster_after = find_cluster_by_name(kafka, cluster_name)
-    except (BotoCoreError, ClientError) as exc:
-        cluster_after = {"lookup_error": str(exc)}
-    receipt["cluster_after"] = cluster_after
+        backend_config = resolve_backend_config(args.backend_config)
+        receipt["backend_config"] = str(backend_config)
 
-    try:
-        receipt["ssm_parameter_after"] = get_parameter_state(ssm, param_name)
-    except (BotoCoreError, ClientError) as exc:
-        receipt["ssm_parameter_after"] = {"present": False, "lookup_error": str(exc)}
+        receipt["terraform_init"] = tf_init(backend_config)
+        apply = tf_cmd("apply", "-auto-approve", "-input=false", "-lock-timeout=5m", timeout=args.apply_timeout_seconds)
+        receipt["terraform_apply"] = {
+            "returncode": apply.returncode,
+            "stdout_tail": apply.stdout[-4000:],
+            "stderr_tail": apply.stderr[-4000:],
+        }
 
-    blockers: list[str] = []
-    state = str((cluster_after or {}).get("State") or "").strip()
-    if not cluster_after:
-        blockers.append("MSK_CLUSTER_MISSING_AFTER_RESTORE")
-    elif state not in {"ACTIVE", "CREATING"}:
-        blockers.append(f"MSK_CLUSTER_UNEXPECTED_STATE_AFTER_RESTORE:{state or 'unknown'}")
-    if not receipt["ssm_parameter_after"].get("present"):
-        blockers.append("MSK_BOOTSTRAP_PARAM_MISSING_AFTER_RESTORE")
+        outputs_after = tf_outputs()
+        receipt["terraform_outputs_after"] = outputs_after
+        values = outputs_after.get("values") or {}
+        cluster_name = str(values.get("msk_cluster_name") or args.msk_cluster_name).strip()
+        param_name = str(values.get("ssm_msk_bootstrap_brokers_path") or args.ssm_bootstrap_param).strip()
 
-    receipt["overall_pass"] = len(blockers) == 0
-    receipt["blocker_ids"] = blockers
-    dump_json(execution_root / "streaming_restore_receipt.json", receipt)
-    return 0 if receipt["overall_pass"] else 1
+        try:
+            cluster_after = find_cluster_by_name(kafka, cluster_name)
+        except (BotoCoreError, ClientError) as exc:
+            cluster_after = {"lookup_error": str(exc)}
+        receipt["cluster_after"] = cluster_after
+
+        try:
+            receipt["ssm_parameter_after"] = get_parameter_state(ssm, param_name)
+        except (BotoCoreError, ClientError) as exc:
+            receipt["ssm_parameter_after"] = {"present": False, "lookup_error": str(exc)}
+
+        blockers: list[str] = []
+        state = str((cluster_after or {}).get("State") or "").strip()
+        if has_lookup_error(cluster_after):
+            blockers.append("MSK_CLUSTER_LOOKUP_FAILED_AFTER_RESTORE")
+        elif not cluster_after:
+            blockers.append("MSK_CLUSTER_MISSING_AFTER_RESTORE")
+        elif state not in {"ACTIVE", "CREATING"}:
+            blockers.append(f"MSK_CLUSTER_UNEXPECTED_STATE_AFTER_RESTORE:{state or 'unknown'}")
+        if receipt["ssm_parameter_after"].get("lookup_error"):
+            blockers.append("MSK_BOOTSTRAP_PARAM_LOOKUP_FAILED_AFTER_RESTORE")
+        elif not receipt["ssm_parameter_after"].get("present"):
+            blockers.append("MSK_BOOTSTRAP_PARAM_MISSING_AFTER_RESTORE")
+
+        receipt["overall_pass"] = len(blockers) == 0
+        receipt["blocker_ids"] = blockers
+        dump_json(receipt_path, receipt)
+        return 0 if receipt["overall_pass"] else 1
+    except Exception as exc:  # noqa: BLE001
+        receipt["overall_pass"] = False
+        receipt["blocker_ids"] = ["STREAMING_RESTORE_EXECUTION_FAILED"]
+        receipt["exception"] = failure_payload(exc)
+        dump_json(receipt_path, receipt)
+        return 1
 
 
 def main() -> int:
@@ -339,6 +407,7 @@ def main() -> int:
     common.add_argument("--aws-region", default="eu-west-2")
     common.add_argument("--run-control-root", default=str(DEFAULT_RUN_ROOT))
     common.add_argument("--execution-id", default="")
+    common.add_argument("--backend-config", default=str(DEFAULT_BACKEND_CONFIG))
     common.add_argument("--msk-cluster-name", default="fraud-platform-dev-full-msk")
     common.add_argument("--ssm-bootstrap-param", default="/fraud-platform/dev_full/msk/bootstrap_brokers")
 

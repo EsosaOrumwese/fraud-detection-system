@@ -8281,3 +8281,25 @@ The Terraform implication is also now explicit:
 
 - this stream should **not** be expected to reappear in a future plan/apply for the accepted production-ready platform
 - if someone intentionally re-enters the old `M14.F` archive-connector build proof, they should treat it as a separate historical build-lane surface rather than as a hidden dependency of the current ready platform
+
+## 2026-03-22 19:18:30 +00:00 - The first reviewer pass on the engineering-only post-cert PR caught real operator-path defects in the new streaming standby control, so I fixed the tool before merge instead of arguing around them
+
+The review comments were useful because they were not nitpicks; they were pointing at exactly the sort of handoff defect that would make an operator-facing cost-control tool look present in the repo while still failing in a fresh checkout.
+
+The three real issues were:
+
+- the script assumed `infra/terraform/dev_full/streaming/backend.hcl`, but that file is intentionally ignored and only `backend.hcl.example` is tracked
+- the runbook promised `terraform init -reconfigure`, but the script was not actually passing `-reconfigure`
+- teardown and restore claimed to write durable receipts, but an early `terraform init` / `destroy` / `apply` exception would skip receipt emission entirely
+
+I treated those as legitimate blockers to merge because the whole point of this control is to make post-readiness teardown reliable in review and handoff situations where the operator may be on a clean checkout and should not have to guess local backend state.
+
+The fix posture was:
+
+- resolve backend config explicitly and default it to the tracked `backend.hcl.example`
+- keep an override path with `--backend-config` for operators who intentionally want a different local file
+- make `terraform init` run with `-reconfigure` so reused workspaces fail less mysteriously
+- catch execution-path exceptions and still write teardown / restore failure receipts
+- fail closed in the standby precheck when EKS or Aurora describe calls themselves fail, with explicit blocker ids instead of an unstructured crash
+
+This is the right kind of reviewer-driven correction: it does not change the readiness verdict or widen scope, but it does make the operator control more truthful and more usable outside my own local workspace.

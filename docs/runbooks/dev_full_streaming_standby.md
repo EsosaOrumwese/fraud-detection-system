@@ -58,13 +58,21 @@ python scripts/dev_substrate/dev_full_streaming_standby.py teardown --execution-
 python scripts/dev_substrate/dev_full_streaming_standby.py restore --execution-id streaming_restore_YYYYMMDDTHHMMSSZ
 ```
 
+Optional explicit backend config override:
+
+```powershell
+python scripts/dev_substrate/dev_full_streaming_standby.py teardown --backend-config infra/terraform/dev_full/streaming/backend.hcl
+python scripts/dev_substrate/dev_full_streaming_standby.py restore --backend-config infra/terraform/dev_full/streaming/backend.hcl
+```
+
 ## What teardown does
 
 1. Checks standby preconditions unless `--force` is used.
-2. Runs `terraform init -reconfigure -backend-config=backend.hcl` in `infra/terraform/dev_full/streaming`.
-3. Snapshots current Terraform outputs.
-4. Reads current MSK cluster presence and bootstrap-SSM parameter presence.
-5. Runs:
+2. Resolves the backend config file, defaulting to `infra/terraform/dev_full/streaming/backend.hcl.example`.
+3. Runs `terraform init -reconfigure -backend-config=<resolved backend config>` in `infra/terraform/dev_full/streaming`.
+4. Snapshots current Terraform outputs.
+5. Reads current MSK cluster presence and bootstrap-SSM parameter presence.
+6. Runs:
 
 ```powershell
 terraform -chdir=infra/terraform/dev_full/streaming destroy -auto-approve -input=false -lock-timeout=5m
@@ -74,7 +82,7 @@ terraform -chdir=infra/terraform/dev_full/streaming destroy -auto-approve -input
    - the MSK cluster is no longer present
    - the bootstrap-SSM parameter is gone
    - the streaming Terraform state is empty
-7. Writes a durable receipt under:
+7. Writes a durable receipt under, including failure-path receipts if `terraform init` or `terraform destroy` aborts:
 
 ```text
 runs/dev_substrate/dev_full/proving_plane/run_control/<execution_id>/streaming_teardown_receipt.json
@@ -82,17 +90,18 @@ runs/dev_substrate/dev_full/proving_plane/run_control/<execution_id>/streaming_t
 
 ## What restore does
 
-1. Runs `terraform init -reconfigure -backend-config=backend.hcl`.
-2. Runs:
+1. Resolves the backend config file, defaulting to `infra/terraform/dev_full/streaming/backend.hcl.example`.
+2. Runs `terraform init -reconfigure -backend-config=<resolved backend config>`.
+3. Runs:
 
 ```powershell
 terraform -chdir=infra/terraform/dev_full/streaming apply -auto-approve -input=false -lock-timeout=5m
 ```
 
-3. Verifies that:
+4. Verifies that:
    - the MSK cluster exists again
    - the bootstrap-SSM parameter exists again
-4. Writes a durable receipt under:
+5. Writes a durable receipt under, including failure-path receipts if `terraform init` or `terraform apply` aborts:
 
 ```text
 runs/dev_substrate/dev_full/proving_plane/run_control/<execution_id>/streaming_restore_receipt.json
