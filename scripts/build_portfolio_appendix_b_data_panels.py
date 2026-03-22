@@ -126,7 +126,7 @@ def build_panel_1_daily_rhythm() -> None:
     ax.set_ylabel("Daily arrivals (millions)")
     ax.set_xlabel("Local calendar date")
     ax.grid(axis="y", linestyle="--", color=GRID, alpha=0.9)
-    ax.legend(frameon=False, loc="upper left")
+    ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(0.0, 1.01), ncol=2)
     ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
     plt.setp(ax.get_xticklabels(), rotation=0, ha="center")
@@ -142,7 +142,7 @@ def build_panel_1_daily_rhythm() -> None:
         color=TEXT,
         bbox=dict(boxstyle="round,pad=0.35", facecolor="#FCFAF6", edgecolor=GRID),
     )
-    plt.tight_layout(rect=[0, 0.00, 1, 0.88])
+    plt.tight_layout(rect=[0, 0.00, 1, 0.86])
     save(fig, "appendix_b_panel_temporal_realism")
 
 
@@ -346,7 +346,7 @@ def build_panel_4_event_volume_timeline() -> None:
     ax.set_ylabel("Daily events (millions)")
     ax.set_xlabel("UTC date")
     ax.grid(axis="y", linestyle="--", color=GRID, alpha=0.9)
-    ax.legend(frameon=False, loc="upper left", ncol=3)
+    ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(0.0, 1.01), ncol=3)
     ax.xaxis.set_major_locator(mdates.MonthLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
 
@@ -374,7 +374,7 @@ def build_panel_4_event_volume_timeline() -> None:
         bbox=dict(boxstyle="round,pad=0.35", facecolor="#FCFAF6", edgecolor=GRID),
     )
 
-    plt.tight_layout(rect=[0, 0.00, 1, 0.88])
+    plt.tight_layout(rect=[0, 0.00, 1, 0.86])
     save(fig, "appendix_b_panel_shared_world_event_timeline")
 
 
@@ -486,7 +486,14 @@ def build_panel_5_supervision_operations_timeline() -> None:
 
     handles_1, labels_1 = ax.get_legend_handles_labels()
     handles_2, labels_2 = ax2.get_legend_handles_labels()
-    ax.legend(handles_1 + handles_2, labels_1 + labels_2, frameon=False, loc="upper left")
+    fig.legend(
+        handles_1 + handles_2,
+        labels_1 + labels_2,
+        frameon=False,
+        loc="upper left",
+        bbox_to_anchor=(0.06, 0.82),
+        ncol=2,
+    )
 
     ax.text(
         0.985,
@@ -504,7 +511,7 @@ def build_panel_5_supervision_operations_timeline() -> None:
         bbox=dict(boxstyle="round,pad=0.35", facecolor="#FCFAF6", edgecolor=GRID),
     )
 
-    plt.tight_layout(rect=[0, 0.00, 1, 0.88])
+    plt.tight_layout(rect=[0, 0.00, 1, 0.84])
     save(fig, "appendix_b_panel_shared_world_supervision_operations_timeline")
 
 
