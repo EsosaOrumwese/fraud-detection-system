@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import matplotlib
@@ -14,7 +15,7 @@ from matplotlib.colors import LinearSegmentedColormap
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSET_DIR = ROOT / "docs" / "experience_lake" / "outward-facing-assets" / "portfolio" / "_assets"
-SRC_CSV = ROOT / "scratch_files" / "costs.csv"
+DEFAULT_SRC_CSV = ROOT / "scratch_files" / "costs.csv"
 
 BG = "#F7F4ED"
 TEXT = "#161514"
@@ -30,8 +31,24 @@ def _money(x: float) -> str:
     return f"${x:,.2f}"
 
 
-def load_cost_data() -> tuple[pd.DataFrame, pd.DataFrame]:
-    raw = pd.read_csv(SRC_CSV)
+def resolve_path(raw_path: str, *, default: Path, label: str) -> Path:
+    candidate = Path(raw_path).expanduser() if raw_path else default
+    if not candidate.is_absolute():
+        candidate = (ROOT / candidate).resolve()
+    if not candidate.exists():
+        raise FileNotFoundError(f"missing_{label}:{candidate}")
+    return candidate
+
+
+def resolve_output_dir(raw_path: str, *, default: Path) -> Path:
+    candidate = Path(raw_path).expanduser() if raw_path else default
+    if not candidate.is_absolute():
+        candidate = (ROOT / candidate).resolve()
+    return candidate
+
+
+def load_cost_data(src_csv: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+    raw = pd.read_csv(src_csv)
     metric_cols = [c for c in raw.columns if c != "Service"]
 
     totals_row = raw.loc[raw["Service"] == "Service total"].copy()
@@ -86,15 +103,16 @@ def style_axes(ax: plt.Axes) -> None:
     ax.title.set_color(TEXT)
 
 
-def save(fig: plt.Figure, stem: str) -> None:
-    ASSET_DIR.mkdir(parents=True, exist_ok=True)
-    fig.savefig(ASSET_DIR / f"{stem}.png", dpi=300, bbox_inches="tight", facecolor=BG)
-    fig.savefig(ASSET_DIR / f"{stem}.svg", bbox_inches="tight", facecolor=BG)
+def save(fig: plt.Figure, stem: str, asset_dir: Path) -> None:
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(asset_dir / f"{stem}.png", dpi=300, bbox_inches="tight", facecolor=BG)
+    fig.savefig(asset_dir / f"{stem}.svg", bbox_inches="tight", facecolor=BG)
     plt.close(fig)
 
 
-def build_cost_window_panel() -> None:
-    merged, daily_totals = load_cost_data()
+def build_cost_window_panel(*, asset_dir: Path, src_csv: Path) -> None:
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    merged, daily_totals = load_cost_data(src_csv)
 
     top_n = 10
     service_rank = (
@@ -134,7 +152,7 @@ def build_cost_window_panel() -> None:
     export = heat.copy()
     export["window_total"] = totals
     export = export.reset_index().rename(columns={"service": "service"})
-    export.to_csv(ASSET_DIR / "appendix_g_cost_window_daily_breakdown.source.csv", index=False)
+    export.to_csv(asset_dir / "appendix_g_cost_window_daily_breakdown.source.csv", index=False)
 
     cmap = LinearSegmentedColormap.from_list("cost_heat", [HEAT_LOW, "#D6C6B6", ACCENT, HEAT_HIGH])
 
@@ -219,8 +237,21 @@ def build_cost_window_panel() -> None:
     cbar.ax.tick_params(colors=MUTED, labelsize=9)
     cbar.set_label("Daily service cost (USD)", color=MUTED, fontsize=9.5)
 
-    save(fig, "appendix_g_cost_window_daily_breakdown")
+    save(fig, "appendix_g_cost_window_daily_breakdown", asset_dir)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Build the outward-facing Appendix G cost movement panel from a cost CSV input."
+    )
+    parser.add_argument("--src-csv", default=str(DEFAULT_SRC_CSV))
+    parser.add_argument("--asset-dir", default=str(ASSET_DIR))
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    build_cost_window_panel()
+    args = parse_args()
+    build_cost_window_panel(
+        asset_dir=resolve_output_dir(args.asset_dir, default=ASSET_DIR),
+        src_csv=resolve_path(args.src_csv, default=DEFAULT_SRC_CSV, label="cost_csv"),
+    )

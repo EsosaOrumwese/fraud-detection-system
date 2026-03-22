@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 from pathlib import Path
@@ -16,8 +17,8 @@ import matplotlib.pyplot as plt
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSET_DIR = ROOT / "docs" / "experience_lake" / "outward-facing-assets" / "portfolio" / "_assets"
-RUN_ROOT = ROOT / "runs" / "local_full_run-7" / "a3bd8cac9a4284cd36072c6b9624a0c1" / "data"
-PHASE5_SUMMARY = (
+DEFAULT_RUN_ROOT = ROOT / "runs" / "local_full_run-7" / "a3bd8cac9a4284cd36072c6b9624a0c1" / "data"
+DEFAULT_PHASE5_SUMMARY = (
     ROOT
     / "runs"
     / "dev_substrate"
@@ -28,12 +29,14 @@ PHASE5_SUMMARY = (
     / "phase5_ofs_dataset_basis_summary.json"
 )
 
-ARRIVAL_GLOB = str(RUN_ROOT / "layer2" / "5B" / "arrival_events" / "**" / "*.parquet")
-EVENT_GLOB = str(RUN_ROOT / "layer3" / "6B" / "s3_event_stream_with_fraud_6B" / "**" / "*.parquet")
-EVENT_LABEL_GLOB = str(RUN_ROOT / "layer3" / "6B" / "s4_event_labels_6B" / "**" / "*.parquet")
-CAMPAIGN_GLOB = str(RUN_ROOT / "layer3" / "6B" / "s3_campaign_catalogue_6B" / "**" / "*.parquet")
-LABEL_GLOB = str(RUN_ROOT / "layer3" / "6B" / "s4_flow_truth_labels_6B" / "**" / "*.parquet")
-CASE_GLOB = str(RUN_ROOT / "layer3" / "6B" / "s4_case_timeline_6B" / "**" / "*.parquet")
+RUN_ROOT = DEFAULT_RUN_ROOT
+PHASE5_SUMMARY = DEFAULT_PHASE5_SUMMARY
+ARRIVAL_GLOB = ""
+EVENT_GLOB = ""
+EVENT_LABEL_GLOB = ""
+CAMPAIGN_GLOB = ""
+LABEL_GLOB = ""
+CASE_GLOB = ""
 
 BG = "#F7F4ED"
 TEXT = "#161514"
@@ -48,6 +51,66 @@ PLUM = "#8E6C8A"
 
 def ensure_dir() -> None:
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def resolve_existing_path(raw_path: str, *, default: Path, label: str) -> Path:
+    candidate = Path(raw_path).expanduser() if raw_path else default
+    if not candidate.is_absolute():
+        candidate = (ROOT / candidate).resolve()
+    if not candidate.exists():
+        raise FileNotFoundError(f"missing_{label}:{candidate}")
+    return candidate
+
+
+def resolve_output_dir(raw_path: str, *, default: Path) -> Path:
+    candidate = Path(raw_path).expanduser() if raw_path else default
+    if not candidate.is_absolute():
+        candidate = (ROOT / candidate).resolve()
+    return candidate
+
+
+def assert_has_parquet(directory: Path, *, label: str) -> None:
+    if not directory.exists():
+        raise FileNotFoundError(f"missing_{label}_dir:{directory}")
+    if not any(directory.rglob("*.parquet")):
+        raise FileNotFoundError(f"missing_{label}_parquet:{directory}")
+
+
+def configure_inputs(*, run_root: Path, phase5_summary: Path, asset_dir: Path) -> None:
+    global ASSET_DIR
+    global RUN_ROOT
+    global PHASE5_SUMMARY
+    global ARRIVAL_GLOB
+    global EVENT_GLOB
+    global EVENT_LABEL_GLOB
+    global CAMPAIGN_GLOB
+    global LABEL_GLOB
+    global CASE_GLOB
+
+    RUN_ROOT = run_root
+    PHASE5_SUMMARY = phase5_summary
+    ASSET_DIR = asset_dir
+
+    arrival_dir = RUN_ROOT / "layer2" / "5B" / "arrival_events"
+    event_dir = RUN_ROOT / "layer3" / "6B" / "s3_event_stream_with_fraud_6B"
+    event_label_dir = RUN_ROOT / "layer3" / "6B" / "s4_event_labels_6B"
+    campaign_dir = RUN_ROOT / "layer3" / "6B" / "s3_campaign_catalogue_6B"
+    label_dir = RUN_ROOT / "layer3" / "6B" / "s4_flow_truth_labels_6B"
+    case_dir = RUN_ROOT / "layer3" / "6B" / "s4_case_timeline_6B"
+
+    assert_has_parquet(arrival_dir, label="arrival_events")
+    assert_has_parquet(event_dir, label="event_stream")
+    assert_has_parquet(event_label_dir, label="event_labels")
+    assert_has_parquet(campaign_dir, label="campaign_catalogue")
+    assert_has_parquet(label_dir, label="flow_truth_labels")
+    assert_has_parquet(case_dir, label="case_timeline")
+
+    ARRIVAL_GLOB = str(arrival_dir / "**" / "*.parquet")
+    EVENT_GLOB = str(event_dir / "**" / "*.parquet")
+    EVENT_LABEL_GLOB = str(event_label_dir / "**" / "*.parquet")
+    CAMPAIGN_GLOB = str(campaign_dir / "**" / "*.parquet")
+    LABEL_GLOB = str(label_dir / "**" / "*.parquet")
+    CASE_GLOB = str(case_dir / "**" / "*.parquet")
 
 
 def write_csv(path: Path, df: pd.DataFrame) -> None:
@@ -656,6 +719,23 @@ def build_panel_6_campaign_occupancy_distribution() -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Build Appendix B outward-facing data-world panels from a chosen local run root."
+    )
+    parser.add_argument("--run-root", default=str(DEFAULT_RUN_ROOT))
+    parser.add_argument("--phase5-summary", default=str(DEFAULT_PHASE5_SUMMARY))
+    parser.add_argument("--asset-dir", default=str(ASSET_DIR))
+    args = parser.parse_args()
+
+    configure_inputs(
+        run_root=resolve_existing_path(args.run_root, default=DEFAULT_RUN_ROOT, label="run_root"),
+        phase5_summary=resolve_existing_path(
+            args.phase5_summary,
+            default=DEFAULT_PHASE5_SUMMARY,
+            label="phase5_summary",
+        ),
+        asset_dir=resolve_output_dir(args.asset_dir, default=ASSET_DIR),
+    )
     ensure_dir()
     build_panel_1_daily_rhythm()
     build_panel_2_concentration()

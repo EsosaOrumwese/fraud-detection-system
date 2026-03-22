@@ -1,6 +1,4 @@
-Yes — let’s pin the **detailed canonical storyline** properly.
-
-This is the storyline every outward asset should inherit:
+This is the canonical storyline every outward asset should inherit:
 resume, LinkedIn, pitches, portfolio, posts, recruiter calls, and interview discussion.
 
 It is **not** the story of “a project I built.”
