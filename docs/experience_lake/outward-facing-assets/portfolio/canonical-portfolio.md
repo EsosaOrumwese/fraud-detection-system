@@ -1412,3 +1412,27 @@ Arrivals are not evenly distributed across the merchant base. A small head of me
 Interpretation:
 
 Supervision in this world is sparse, imbalanced, and delayed. Most flow-truth labels are legitimate, a smaller share is abuse, true fraud is rare, and case resolution stretches from weeks to months at the upper quantiles. This is much closer to real operational truth than to instant balanced labels, which matters because later case, label, and learning claims only mean something if the world itself produces truth under those more realistic conditions.
+
+### Appendix B.4 — Current slice vs raw horizon
+
+![_Appendix B Panel 4 — Current Slice vs Raw Horizon_](_assets/appendix_b_panel_shared_world_event_timeline.png)
+
+Interpretation:
+
+This panel turns the Section 5 event counts into one visible time boundary instead of leaving them as disconnected bullets. The accepted current slice is the same event world up to the promoted 2026-03-05 cutoff, while the raw horizon continues beyond that point into the wider untrimmed history. That is why `331.5M` accepted events and `473.4M` raw-horizon events are both true without meaning the same thing: the former is the bounded current-world slice that later runtime and learning claims are allowed to rely on, while the latter is the larger world the bounded slice was cut from.
+
+### Appendix B.5 — Supervision and operations timeline
+
+![_Appendix B Panel 5 — Supervision and Operations Timeline_](_assets/appendix_b_panel_shared_world_supervision_operations_timeline.png)
+
+Interpretation:
+
+The accepted slice carries persistent supervision pressure through the quarter rather than producing truth in one short burst. Weekly fraud-truth events stay active from the beginning of January through the bounded March cutoff, while weekly fraud-overlay events remain comparatively sparse, which is the more realistic relationship between incident load and downstream truth surfaces. The bounded slice also closes into finite review surfaces rather than infinite raw traces: `175,830` flow-truth labels, `23,681` case-history rows, and `12,350` distinct cases. The point is not just that labels and cases exist, but that they are generated inside the same bounded operating world the platform later consumes.
+
+### Appendix B.6 — Campaign occupancy and distribution
+
+![_Appendix B Panel 6 — Campaign Occupancy and Distribution_](_assets/appendix_b_panel_shared_world_campaign_occupancy_distribution.png)
+
+Interpretation:
+
+The fraud world does not collapse into one synthetic attack mode. Six campaigns recur across the accepted slice, but their weekly share changes over time and their total footprint is uneven. `Bonus Abuse Flow` and `Card Testing Burst` dominate the quarter, while `Promo Fraud Events`, `Refund Abuse`, `ATO Account Sweep`, and `Merchant Collusion` remain visibly present as smaller but persistent modes. That matters because it shows the platform was not asked to operate against one homogeneous fraud signature; it had to answer to a structured adversarial world with multiple concurrently active campaign types.
