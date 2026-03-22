@@ -214,6 +214,10 @@ def build_execution_root(run_root: Path, prefix: str, execution_id: str | None) 
     return run_root / eid
 
 
+def has_lookup_error(payload: Any) -> bool:
+    return isinstance(payload, dict) and bool(payload.get("lookup_error"))
+
+
 def do_teardown(args: argparse.Namespace) -> int:
     kafka = boto3.client("kafka", region_name=args.aws_region)
     ssm = boto3.client("ssm", region_name=args.aws_region)
@@ -303,9 +307,13 @@ def do_teardown(args: argparse.Namespace) -> int:
         receipt["terraform_state_after"] = tf_state_list()
 
         blockers: list[str] = []
-        if cluster_after:
+        if has_lookup_error(cluster_after):
+            blockers.append("MSK_CLUSTER_LOOKUP_FAILED_AFTER_DESTROY")
+        elif cluster_after:
             blockers.append("MSK_CLUSTER_STILL_PRESENT_AFTER_DESTROY")
-        if receipt["ssm_parameter_after"].get("present"):
+        if receipt["ssm_parameter_after"].get("lookup_error"):
+            blockers.append("MSK_BOOTSTRAP_PARAM_LOOKUP_FAILED_AFTER_DESTROY")
+        elif receipt["ssm_parameter_after"].get("present"):
             blockers.append("MSK_BOOTSTRAP_PARAM_STILL_PRESENT_AFTER_DESTROY")
         if receipt["terraform_state_after"]:
             blockers.append("STREAMING_TF_STATE_NOT_EMPTY_AFTER_DESTROY")
@@ -368,11 +376,15 @@ def do_restore(args: argparse.Namespace) -> int:
 
         blockers: list[str] = []
         state = str((cluster_after or {}).get("State") or "").strip()
-        if not cluster_after:
+        if has_lookup_error(cluster_after):
+            blockers.append("MSK_CLUSTER_LOOKUP_FAILED_AFTER_RESTORE")
+        elif not cluster_after:
             blockers.append("MSK_CLUSTER_MISSING_AFTER_RESTORE")
         elif state not in {"ACTIVE", "CREATING"}:
             blockers.append(f"MSK_CLUSTER_UNEXPECTED_STATE_AFTER_RESTORE:{state or 'unknown'}")
-        if not receipt["ssm_parameter_after"].get("present"):
+        if receipt["ssm_parameter_after"].get("lookup_error"):
+            blockers.append("MSK_BOOTSTRAP_PARAM_LOOKUP_FAILED_AFTER_RESTORE")
+        elif not receipt["ssm_parameter_after"].get("present"):
             blockers.append("MSK_BOOTSTRAP_PARAM_MISSING_AFTER_RESTORE")
 
         receipt["overall_pass"] = len(blockers) == 0
