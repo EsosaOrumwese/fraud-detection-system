@@ -1381,3 +1381,34 @@ The portfolio should end as a clean handoff, not as another argument. By this po
 The tone of the close matters. It should feel calm, serious, non-apologetic, and lightly compressed, in the same posture as the rest of the portfolio. It should not turn into a thank-you slide, a final summary, or a plea for consideration. It should simply preserve the same message the deck has already made believable: this is an ML Platform / MLOps engineer using one fraud platform as the evidence surface for broader lifecycle ownership, and the next proof surfaces are now easy to reach.  
 
 That completes the **13-section canonical portfolio source structure**.
+
+---
+
+## Appendix B — Governed World Analytical Panels
+
+These panels exist to supplement Sections 4 and 5 without repeating them.  
+Sections 4 and 5 already establish governed-world legitimacy, black-box discipline, shared-world coherence, and scale. The appendix should therefore do a different job: show the *shape* of the governed world the platform operated in.
+
+### Appendix B.1 — Daily operating rhythm
+
+![_Appendix B Panel 1 — Daily Operating Rhythm_](_assets/appendix_b_panel_temporal_realism.png)
+
+Interpretation:
+
+Arrival volume oscillates in a stable weekly pattern across the quarter instead of behaving like a flat synthetic stream. Weekdays run consistently above weekends, and the 7-day average stays within a narrow band rather than drifting erratically. The point of this panel is not that the data is large; it is that the world shows repeatable civil-time demand shape before the platform touches it.
+
+### Appendix B.2 — Merchant concentration
+
+![_Appendix B Panel 2 — Merchant Concentration_](_assets/appendix_b_panel_load_concentration.png)
+
+Interpretation:
+
+Arrivals are not evenly distributed across the merchant base. A small head of merchants carries a disproportionate share of total traffic, while the remaining merchant set still contributes a meaningful tail. That pattern is closer to a real operating environment than to a uniform synthetic world and helps explain why the platform later had to operate against heterogeneous demand rather than against evenly spread toy load.
+
+### Appendix B.3 — Supervision realism
+
+![_Appendix B Panel 3 — Supervision Realism_](_assets/appendix_b_panel_supervision_realism.png)
+
+Interpretation:
+
+Supervision in this world is sparse, imbalanced, and delayed. Most flow-truth labels are legitimate, a smaller share is abuse, true fraud is rare, and case resolution stretches from weeks to months at the upper quantiles. This is much closer to real operational truth than to instant balanced labels, which matters because later case, label, and learning claims only mean something if the world itself produces truth under those more realistic conditions.

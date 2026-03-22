@@ -116,15 +116,7 @@ def build_panel_1_daily_rhythm() -> None:
         color=TEXT,
         bbox=dict(boxstyle="round,pad=0.35", facecolor="#FCFAF6", edgecolor=GRID),
     )
-    fig.text(
-        0.01,
-        0.01,
-        "Interpretation: arrival volume oscillates in a stable weekly pattern across the quarter instead of behaving like a flat synthetic stream. "
-        "Weekdays consistently run above weekends, and the 7-day average stays within a narrow band, which suggests a governed operating world with repeatable civil-time demand shape.",
-        fontsize=9.6,
-        color=MUTED,
-    )
-    plt.tight_layout(rect=[0, 0.05, 1, 0.88])
+    plt.tight_layout(rect=[0, 0.00, 1, 0.88])
     save(fig, "appendix_b_panel_temporal_realism")
 
 
@@ -171,15 +163,7 @@ def build_panel_2_concentration() -> None:
         ax.scatter([x], [y], color=ORANGE, s=36, zorder=5)
         ax.text(x + 1.4, y + 1.0, f"Top {x}% -> {y:.1f}%", fontsize=10.2, color=TEXT)
 
-    fig.text(
-        0.01,
-        0.01,
-        "Interpretation: arrivals are not evenly distributed across the merchant base. A small head of merchants carries a disproportionate share of total traffic, "
-        "while the remaining merchant set still contributes a meaningful tail. That is closer to a real operating environment than to a uniform synthetic world.",
-        fontsize=9.6,
-        color=MUTED,
-    )
-    plt.tight_layout(rect=[0, 0.05, 1, 0.88])
+    plt.tight_layout(rect=[0, 0.00, 1, 0.88])
     save(fig, "appendix_b_panel_load_concentration")
 
 
@@ -280,15 +264,7 @@ def build_panel_3_supervision() -> None:
         fontsize=10.8,
         color=MUTED,
     )
-    fig.text(
-        0.01,
-        0.01,
-        "Interpretation: supervision in this world is sparse, imbalanced, and delayed. Most flow-truth labels are legitimate, a smaller share is abuse, true fraud is rare, "
-        "and case resolution stretches from weeks to months at the upper quantiles. This is much closer to real operational truth than to instant balanced labels.",
-        fontsize=9.6,
-        color=MUTED,
-    )
-    plt.tight_layout(rect=[0, 0.05, 1, 0.88])
+    plt.tight_layout(rect=[0, 0.00, 1, 0.88])
     save(fig, "appendix_b_panel_supervision_realism")
 
 
