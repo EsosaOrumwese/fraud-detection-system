@@ -6,9 +6,9 @@ They are not raw IO diagrams.
 
 They are recovered design diagrams built from three surfaces together:
 
-- state intent from [state-flow/1B](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/model_spec/data-engine/layer-1/specs/state-flow/1B)
-- remediation and freeze logic from [segment_1B.build_plan.md](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md)
-- actual implemented posture from [segment_1B.impl_actual.md](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md)
+- state intent from [state-flow/1B](../../../../model_spec/data-engine/layer-1/specs/state-flow/1B)
+- remediation and freeze logic from [segment_1B.build_plan.md](../../../../model_spec/data-engine/implementation_maps/segment_1B.build_plan.md)
+- actual implemented posture from [segment_1B.impl_actual.md](../../../../model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md)
 
 The intent is to show, for each state:
 
@@ -19,19 +19,19 @@ The intent is to show, for each state:
 
 Files in this folder:
 
-- [1B-overview-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-overview-design-flow.mmd)
-- [1B-state-synthesis-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-state-synthesis-flow.mmd)
-- [1B-S0-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-S0-design-flow.mmd)
-- [1B-S1-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-S1-design-flow.mmd)
-- [1B-S2-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-S2-design-flow.mmd)
-- [1B-S3-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-S3-design-flow.mmd)
-- [1B-S4-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-S4-design-flow.mmd)
-- [1B-S5-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-S5-design-flow.mmd)
-- [1B-S6-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-S6-design-flow.mmd)
-- [1B-S7-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-S7-design-flow.mmd)
-- [1B-S8-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-S8-design-flow.mmd)
-- [1B-S9-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-S9-design-flow.mmd)
-- [1B-state-synthesis.md](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/1B/1B-state-synthesis.md)
+- [1B-overview-design-flow.mmd](1B-overview-design-flow.mmd)
+- [1B-state-synthesis-flow.mmd](1B-state-synthesis-flow.mmd)
+- [1B-S0-design-flow.mmd](1B-S0-design-flow.mmd)
+- [1B-S1-design-flow.mmd](1B-S1-design-flow.mmd)
+- [1B-S2-design-flow.mmd](1B-S2-design-flow.mmd)
+- [1B-S3-design-flow.mmd](1B-S3-design-flow.mmd)
+- [1B-S4-design-flow.mmd](1B-S4-design-flow.mmd)
+- [1B-S5-design-flow.mmd](1B-S5-design-flow.mmd)
+- [1B-S6-design-flow.mmd](1B-S6-design-flow.mmd)
+- [1B-S7-design-flow.mmd](1B-S7-design-flow.mmd)
+- [1B-S8-design-flow.mmd](1B-S8-design-flow.mmd)
+- [1B-S9-design-flow.mmd](1B-S9-design-flow.mmd)
+- [1B-state-synthesis.md](1B-state-synthesis.md)
 
 Reading rule:
 

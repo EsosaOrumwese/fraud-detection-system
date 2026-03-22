@@ -6,9 +6,9 @@ They are not raw IO diagrams.
 
 They are recovered design diagrams built from three surfaces together:
 
-- state intent from [state-flow/2B](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/model_spec/data-engine/layer-1/specs/state-flow/2B)
-- remediation and freeze logic from [segment_2B.build_plan.md](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/model_spec/data-engine/implementation_maps/segment_2B.build_plan.md)
-- actual implemented posture from [segment_2B.impl_actual.md](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/model_spec/data-engine/implementation_maps/segment_2B.impl_actual.md)
+- state intent from [state-flow/2B](../../../../model_spec/data-engine/layer-1/specs/state-flow/2B)
+- remediation and freeze logic from [segment_2B.build_plan.md](../../../../model_spec/data-engine/implementation_maps/segment_2B.build_plan.md)
+- actual implemented posture from [segment_2B.impl_actual.md](../../../../model_spec/data-engine/implementation_maps/segment_2B.impl_actual.md)
 
 The intent is to show, for each state:
 
@@ -19,18 +19,18 @@ The intent is to show, for each state:
 
 Files in this folder:
 
-- [2B-overview-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-overview-design-flow.mmd)
-- [2B-state-synthesis-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-state-synthesis-flow.mmd)
-- [2B-S0-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-S0-design-flow.mmd)
-- [2B-S1-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-S1-design-flow.mmd)
-- [2B-S2-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-S2-design-flow.mmd)
-- [2B-S3-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-S3-design-flow.mmd)
-- [2B-S4-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-S4-design-flow.mmd)
-- [2B-S5-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-S5-design-flow.mmd)
-- [2B-S6-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-S6-design-flow.mmd)
-- [2B-S7-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-S7-design-flow.mmd)
-- [2B-S8-design-flow.mmd](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-S8-design-flow.mmd)
-- [2B-state-synthesis.md](C:/Users/LEGION/Documents/Data%20Science%20/Python%20%26%20R%20Scripts/fraud-detection-system/docs/design/data-engine/layer-1/2B/2B-state-synthesis.md)
+- [2B-overview-design-flow.mmd](2B-overview-design-flow.mmd)
+- [2B-state-synthesis-flow.mmd](2B-state-synthesis-flow.mmd)
+- [2B-S0-design-flow.mmd](2B-S0-design-flow.mmd)
+- [2B-S1-design-flow.mmd](2B-S1-design-flow.mmd)
+- [2B-S2-design-flow.mmd](2B-S2-design-flow.mmd)
+- [2B-S3-design-flow.mmd](2B-S3-design-flow.mmd)
+- [2B-S4-design-flow.mmd](2B-S4-design-flow.mmd)
+- [2B-S5-design-flow.mmd](2B-S5-design-flow.mmd)
+- [2B-S6-design-flow.mmd](2B-S6-design-flow.mmd)
+- [2B-S7-design-flow.mmd](2B-S7-design-flow.mmd)
+- [2B-S8-design-flow.mmd](2B-S8-design-flow.mmd)
+- [2B-state-synthesis.md](2B-state-synthesis.md)
 
 Reading rule:
 
