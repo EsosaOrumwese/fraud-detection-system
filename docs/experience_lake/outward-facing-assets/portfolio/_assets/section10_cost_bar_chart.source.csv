@@ -1,0 +1,7 @@
+service_family,window_total_usd
+DynamoDB,354.49
+Lambda,290.53
+API Gateway,237.58
+S3,170.41
+RDS / Aurora,142.94
+MSK,130.19
