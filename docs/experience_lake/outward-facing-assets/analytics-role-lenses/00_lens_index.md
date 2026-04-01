@@ -80,10 +80,26 @@ This index is therefore not a fixed taxonomy for all time. It is the current org
 
 The current lens set is the first-pass classification derived from the job ads and ideal-candidate profiles collected so far.
 
-### 4.1 Operational Performance Analytics
+It is important to state clearly that these are currently best understood as:
+- classification aids
+- grouping aids
+- a way to sort role shapes and responsibility patterns
+
+They are not yet the final form of the working lens system.
+
+The deeper purpose of this folder is not simply to group responsibilities in the abstract. The deeper purpose is to support truthful role embodiment inside the platform world.
+
+That means the current classification lenses are useful for orientation, but the future development direction should be:
+- role-anchored lenses
+- execution-shaped lenses
+- lenses that answer not only `what responsibility exists`, but also `what did that responsibility actually look like when carried in this world`
+
+### 4.1 Operational Performance Analytics Over Governed Truth Surfaces
 
 Definition:
 - roles centred on service performance, throughput, targets, workflow pressure, trend tracking, waiting times, operational intervention, and KPI-led monitoring
+- this lens is based primarily on persisted governed truth surfaces rather than on active live platform runtime
+- its default mode is bounded or historical operational analysis over trusted datasets, not real-time operator telemetry
 
 Current role examples feeding this lens:
 - `Data Analyst - HUC`
@@ -201,6 +217,32 @@ Each lens file should grow over time and should eventually contain:
 - what candidate claims this lens unlocks
 - what can be implemented quickly, if needed, to make the lens more concrete for application or interview support
 
+But this also needs an explicit refinement.
+
+The end goal is not to stop at a generic responsibility cluster. The end goal is to make the role real.
+
+So as the system matures, future lens development should increasingly be anchored around roles such as:
+- `Data Scientist`
+- `Operational Data Analyst`
+- `BI / Insight Analyst`
+- `Data Quality / Governance Analyst`
+- `Business Analyst`
+
+Within those role-anchored lenses, responsibilities should appear as sub-surfaces, not as the only organising principle.
+
+The question each mature lens should answer is:
+
+`If I was operating in this world in this role, what did I actually own, do, produce, improve, and defend?`
+
+That means a mature lens should eventually be able to support:
+- responsibility mapping against job-ad evidence
+- deeper execution explanation
+- interview defence when asked `what did that actually look like?`
+
+So the long-run shape is:
+- current classification lenses for orientation
+- role-anchored execution lenses for actual application and interview use
+
 ## 7. Active Analytics Focus Rule
 
 For the current analytics-role expansion phase, the primary focus is the `governed data world`.
@@ -291,6 +333,29 @@ So this folder is the bridge between:
 - role-adoption posture
 - and future application-ready role framing
 
+In practical terms, that bridge has two layers:
+
+### 11.1 Classification layer
+
+This is the layer currently represented by the lens set in this index.
+
+Its purpose is to:
+- sort job ads into broad role/responsibility families
+- show where different ideal-candidate profiles overlap
+- reveal the main analytics-role territories already visible in the corpus
+
+### 11.2 Role-execution layer
+
+This is the layer the folder should move toward next.
+
+Its purpose is to:
+- assume a specific role inside the platform world
+- expose the responsibilities carried in that role
+- show what those responsibilities looked like in execution
+- connect those execution details back to job-ad responsibilities, specifications, and ideal-candidate expectations
+
+This second layer is the one that ultimately matters most for truthful role embodiment and later application defence.
+
 ## 12. Anti-Drift Rules For This Folder
 
 - Do not let one analytics scenario become the master template for every role.
@@ -302,6 +367,8 @@ So this folder is the bridge between:
 - Do not overfocus on one tool, one dashboard, or one reporting surface at the expense of the broader role lens.
 - Do not default to rerunning ingestion or the full platform when the existing governed datasets are already sufficient.
 - Do not let the analytics lane drift into data-engineering work unless that expansion is explicitly needed.
+- Do not stop at abstract responsibility grouping when the real goal is role-shaped execution and defendable claims.
+- Do not mistake the current classification lenses for the final application-facing lens form.
 
 ## 13. Current Working Consequence
 
@@ -315,6 +382,7 @@ The next steps are:
 - keep collecting job ads
 - keep expanding ideal-candidate profiles
 - let those profiles sharpen the lenses
-- then use the lenses to expose more of the platform as truthful role-shaped work
+- use the current classification lenses for orientation
+- then move toward role-anchored execution lenses that expose more of the platform as truthful role-shaped work
 
 That is how the role becomes more real, more executable, and more defensible over time.
