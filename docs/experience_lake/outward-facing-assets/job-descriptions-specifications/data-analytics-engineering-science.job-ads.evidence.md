@@ -13,6 +13,65 @@ Conventions:
 - content is intentionally detailed and close to the original wording
 - where pasted source formatting collapses `essential` and `desirable` columns, that ambiguity is noted rather than guessed
 
+## Current Job-Ad Classification
+
+This section classifies the ads currently captured in this document. The purpose is not to force each posting into only one box, but to identify the main role-shape each employer is actually hiring for.
+
+### 1. Operational Reporting and Performance Analytics
+
+Definition:
+- roles centred on `KPI` tracking, service-performance monitoring, target delivery, waiting times, contractual reporting, and operational decision support
+
+Current ads in this class:
+- `Data Analyst - HUC`
+- `Data and Information Officer - Hertfordshire Partnership University NHS Foundation Trust`
+
+### 2. Insight, BI, and Decision-Support Analytics
+
+Definition:
+- roles centred on reporting, dashboards, board packs, stakeholder insight, data storytelling, and turning operational or organisational data into decision-support outputs
+
+Current ads in this class:
+- `Data Analyst - InHealth Group`
+- `Data & Insight Analyst - Claire House`
+- `Data Insight Analyst - The Money and Pensions Service`
+- `Data Analyst - HUC`
+
+### 3. Domain-Specific Operational Analytics
+
+Definition:
+- roles embedded inside a specialist function where the analyst is expected to understand and improve a specific operational domain such as payroll, customer experience, screening operations, or regulated service performance
+
+Current ads in this class:
+- `Payroll Data Analyst x 2 - Welsh Government`
+- `Data Analyst - InHealth Group`
+- `Data Insight Analyst - The Money and Pensions Service`
+- `Data and Information Officer - Hertfordshire Partnership University NHS Foundation Trust`
+
+### 4. Hybrid Data Science, Data Engineering, and Governance
+
+Definition:
+- roles that combine modelling or advanced analytics with pipeline work, platform alignment, data quality, governance, and production-minded delivery
+
+Current ads in this class:
+- `Data Scientist - Midlands Partnership NHS Foundation Trust`
+
+### 5. Business Change and Data-Adjacent Transformation
+
+Definition:
+- roles that are not primarily analyst roles, but sit close to data-platform, service transformation, requirements definition, and multidisciplinary digital delivery
+
+Current ads in this class:
+- `Business Analyst - The Pensions Regulator`
+
+### 6. High-Level Distribution So Far
+
+- most of the captured ads are `analytics`, `insight`, or `performance-reporting` roles rather than pure `data engineering` roles
+- several postings are strongly embedded in healthcare service operations, compliance, or organisational performance rather than generic commercial analytics
+- one posting is clearly a broader `data science + engineering + governance` role
+- one posting is a `business analysis` role adjacent to data-platform and digital transformation work
+- the current sample suggests that employer demand in this batch is leaning toward `operational analytics`, `BI/reporting`, `domain understanding`, and `stakeholder-facing insight`
+
 ---
 
 ## Data Scientist - Midlands Partnership NHS Foundation Trust
