@@ -693,3 +693,345 @@ This posting is not framed as a modern tooling-heavy analyst role first. It is f
 - communicating difficult performance messages to operational teams and leaders
 
 It is a useful evidence point because it shows a healthcare analytics role where organisational performance management, target delivery, and service improvement are central. The employer is looking for someone who can operate inside a target-driven NHS environment, translate performance frameworks into working practice, and use information to push operational change.
+
+---
+
+## Data Insight Analyst - The Money and Pensions Service
+
+Source:
+- `Civil Service Jobs` - <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=c2VhcmNoc29ydD1zY29yZSZqb2JsaXN0X3ZpZXdfdmFjPTE5OTIyNzkmdXNlcnNlYXJjaGNvbnRleHQ9MTgxNDU2MjI3Jm93bmVyPTUwNzAwMDAmcGFnZWNsYXNzPUpvYnMmcGFnZWFjdGlvbj12aWV3dmFjYnlqb2JsaXN0Jm93bmVydHlwZT1mYWlyJnNlYXJjaHBhZ2U9MSZyZXFzaWc9MTc3NTA2MzY4OC0xMzQ2NDFkYmY0NTM4OWRiNzBiMTViNGM1NDEwNjczZTVjNjQzZWVi>
+
+Role family:
+- `Data Analytics`
+- customer experience / quality / service-improvement analytics
+- public-sector insight role with governance, reporting, and mixed-method evidence synthesis
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Data Insight Analyst` position within the `Customer Experience & Quality (CX&Q)` team. The role is intended to ensure the organisation has accurate, timely, and actionable data on both `MaPS Standards` compliance and customer experience.
+
+The role explicitly combines technical data governance and analytics with support for innovation and agile ways of working for data collection, assessment, and reporting. The employer states that the analyst will work across systems to transform data into meaningful insight that identifies risks, trends, and opportunities for improvement.
+
+The ideal candidate is described as curious, thorough, and able to spot patterns quickly, while balancing hands-on practical data tasks with interpretation and communication that drives service improvement.
+
+### Responsibilities Evidence
+
+#### 1. Data governance, reporting, and dashboard ownership
+
+- Manage data governance and outputs for the `Customer Experience & Quality Team`.
+- Work across systems to transform multiple data sources into meaningful reporting and dashboards.
+- Help identify risks, trends, and opportunities for improvement through reporting outputs.
+- Interrogate data from multiple evidence sources.
+- Provide regular reporting and dashboards for internal and external stakeholders.
+- Build and maintain meaningful insight dashboards and reports using data from `Decision Focus` and `Qualtrics`.
+- Deliver reporting either in source systems or through `Power BI`.
+
+#### 2. Data collection, design, and lightweight solution building
+
+- Support innovation and agile ways of working for data collection, assessment, and reporting.
+- Provide a blend of technical data capability, data design and collection, and focused insight.
+- Support the implementation and embedding of new quality and customer experience measurement systems and tools.
+- Examples explicitly named: `Qualtrics`, `Decision Focus`.
+- Build lightweight data solutions where necessary.
+- Build lightweight analysis pipelines where necessary.
+- Example explicitly given: support for `QA` mechanism testing or pilots.
+- Support creation, setup, and testing of small-scale experimental data collection mechanisms.
+- Examples explicitly given: `MaPS Standards` testing and ad hoc feedback trend analysis.
+- Lead data analysis for new `QA` mechanisms or customer-experience measurement initiatives.
+
+#### 3. Data quality and standards alignment
+
+- Ensure high standards of data governance.
+- Carry out validation, cleansing, transformation, and documentation.
+- Set and manage `CX&Q` data requirements.
+- Maintain structured data sources.
+- Ensure consistent and compliant data handling.
+- Work with `Technology & Change`, `Data & Analytics`, and operational teams to ensure correct data flows.
+- Align work with organisational data standards and strategy.
+
+#### 4. Insight generation and performance monitoring
+
+- Analyse structured data to identify patterns or gaps.
+- Analyse unstructured data to identify patterns or gaps.
+- Support development and monitoring of `KPIs` or measurements relevant to the `CX&Q` framework and supporting models.
+- Combine insight from multiple sources to create holistic insight.
+- Sources explicitly named: `Customer Voice`, `QA outputs`, operational `MI`, complaints, and qualitative feedback.
+- Identify early warning indicators of risk.
+- Use investigation and root-cause analysis of data to identify those early warnings.
+- Produce easy-to-digest insight summaries, dashboards, and visualisations.
+- Tailor outputs to varied audiences.
+- Track progress of `CX&Q`-led improvements.
+- Assess the impact of change.
+- Champion `CX & Quality` performance by synthesising different data sources into regular insight and performance reports.
+- Provide reports for delivery partners, service owners, and other `MaPS` teams and forums.
+
+#### 5. Stakeholder engagement and communication
+
+- Work closely with `CX&Q`, `Service Delivery`, and colleagues across `MaPS` to ensure data is interpreted accurately.
+- Present findings in clear and accessible ways for non-technical audiences.
+- Support a culture of evidence-based decision-making and storytelling.
+
+### Person Specification Evidence
+
+#### 1. Experience and expertise: essential
+
+- Experience in data analysis and insight generation in public or private sector settings.
+- Ideal domain examples explicitly named: customer experience, quality, service delivery, or operational improvement.
+- Strong capability in the practical application of `Excel`, `Power BI`, and tool dashboards for data collation, preparation, analysis, and visualisation.
+- Ability to work confidently with both quantitative and qualitative data.
+- Understanding of data validation, quality, and data-governance principles.
+- Strong communication, data visualisation, and presentation skills to turn complex findings into clear, easy-to-understand, actionable insight.
+- Ability to manage competing priorities and work flexibly.
+- Ability to apply attention to detail to ensure high-quality reporting is distributed effectively to key stakeholders.
+
+#### 2. Experience and expertise: preferred
+
+- Understanding of the debt, money, and or pensions sectors.
+- Working knowledge of complexity in delivery models.
+- Understanding of drivers of good quality, customer experience, and outcomes.
+- Knowledge of statistical techniques.
+- Knowledge of mixed-method analysis.
+- Experience supporting data collection mechanisms such as surveys and `QA` monitoring frameworks.
+
+### Additional Process and Assessment Evidence
+
+- Hybrid working with a minimum of `2 days in the office per month`.
+- Single-stage virtual interview process.
+- Interview process includes competency-based questions.
+- Interview process also requires a short presentation.
+- Successful candidates must undergo a criminal record check.
+- Successful candidates must complete `baseline personnel security standard` checks.
+
+### Hiring Signal Summary
+
+This posting is a `Data Insight Analyst` role oriented around:
+- customer-experience and quality analytics
+- data governance and compliant data handling
+- mixed-source reporting across structured and unstructured evidence
+- lightweight solution building and pilot-support analytics
+- risk detection, root-cause analysis, and improvement tracking
+- strong presentation of insight to non-technical stakeholders
+
+It is a useful evidence point because it shows a public-sector analytics role that goes beyond standard reporting and explicitly values mixed-method evidence synthesis, customer-experience measurement, governance discipline, and practical insight that drives service improvement.
+
+---
+
+## Payroll Data Analyst x 2 - Welsh Government
+
+Source:
+- `Civil Service Jobs` - <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=cGFnZWFjdGlvbj12aWV3dmFjYnlqb2JsaXN0Jm93bmVydHlwZT1mYWlyJnNlYXJjaHBhZ2U9MSZvd25lcj01MDcwMDAwJnBhZ2VjbGFzcz1Kb2JzJmpvYmxpc3Rfdmlld192YWM9MTk5MjcwOSZ1c2Vyc2VhcmNoY29udGV4dD0xODE0NTYyMjcmc2VhcmNoc29ydD1zY29yZSZyZXFzaWc9MTc3NTA2MzY4OC0xMzQ2NDFkYmY0NTM4OWRiNzBiMTViNGM1NDEwNjczZTVjNjQzZWVi>
+
+Role family:
+- `Data Analytics`
+- payroll / finance operations / compliance analytics
+- public-sector operational data role with reconciliation, forecasting, audit, and process-improvement ownership
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Payroll Data Analyst` position responsible for ensuring accurate and efficient payroll processing through payroll-data analysis, trend identification, and actionable insight. The role also carries responsibility for leading process creation and improvement where necessary.
+
+The job is explicitly positioned as cross-functional, working closely with `HR`, `Finance`, and `ICT` teams to maintain compliance with payroll regulations while optimising payroll systems and processes.
+
+### Responsibilities Evidence
+
+#### 1. Payroll data analysis and control
+
+- Analyse payroll data to ensure accuracy.
+- Validate payroll data to ensure compliance with `UK` employment and tax laws.
+- Identify discrepancies in payroll data.
+- Resolve payroll-related data issues promptly.
+- Conduct trend analysis to identify areas for process improvement in the pay team.
+- Contribute forecasting insight to help teams prepare for the financial impact of changes in payroll legislation and tax regulation.
+- Contribute forecasting insight related to events such as industrial action that directly affect payroll costs.
+
+#### 2. Payroll processing support
+
+- Prepare payroll reconciliation reports.
+- Review payroll reconciliation reports.
+- Distribute payroll reconciliation reports.
+- Provide data-driven support for monthly payroll cycles.
+- Help ensure timely and accurate employee payments.
+- Lead troubleshooting of system issues.
+- Lead troubleshooting of process issues.
+- Lead troubleshooting of customer enquiries.
+- Implement data-driven solutions.
+- Manage databases and associated tools on an ongoing basis.
+
+#### 3. Compliance, audit, and statutory reporting
+
+- Ensure adherence to `HMRC` guidelines.
+- Compliance areas explicitly named include `PAYE`, `National Insurance`, pensions, and statutory payments.
+- Support internal audits by providing payroll-related data and analysis.
+- Support external audits by providing payroll-related data and analysis.
+
+#### 4. System and process optimisation
+
+- Work with key stakeholders such as `HR` and `IT` teams to implement payroll systems and processes.
+- Work with key stakeholders such as `HR` and `IT` teams to optimise payroll systems and processes.
+- Identify inefficiencies in payroll processes.
+- Propose new or improved methods.
+- Identify suitable automation opportunities.
+- Lead development of improved processes by gathering input from stakeholders.
+- Test solutions.
+- Provide user support for solutions and process changes.
+- Maintain reporting dashboards for payroll `KPIs`.
+- Improve reporting dashboards for payroll `KPIs`.
+- Proactively identify potential risks or benefits that could affect supported systems or operational effectiveness.
+- Adopt a holistic approach to problem-solving.
+- Report actionable options to relevant stakeholders.
+
+#### 5. Stakeholder collaboration and service support
+
+- Act as a liaison between payroll, `HR`, `ICT`, and finance departments.
+- Ensure cohesive data management across those departments.
+- Respond to employee queries regarding payroll data and discrepancies.
+- Provide insights and recommendations to senior payroll management based on payroll-data trends.
+- Offer continuous end-to-end process support to the `Pay and Pensions Team` and external teams in the organisation.
+- Remain adaptable and use the most effective communication methods for each audience.
+
+### Person Specification Evidence
+
+#### 1. Behaviours assessed during selection
+
+- `Delivering at Pace`
+- `Communicating and Influencing`
+
+#### 2. Technical skill explicitly assessed during selection
+
+- Ability to work with large or complex datasets to identify patterns, trends, or discrepancies.
+- Ability to validate and reconcile data.
+- Ability to explain outputs clearly.
+- Ability to use findings to support decisions, improve accuracy, or resolve issues.
+
+### Additional Process and Assessment Evidence
+
+- Selection is under `Success Profiles`.
+- Selection assesses `Behaviours`, `Experience`, and `Technical skills`.
+- `2`-stage process:
+- `Stage 1`: Application Form
+- `Stage 2`: Interview
+- A `45`-minute assessment on Technical 1, `Payroll Data Analytics`, is required at `Stage 2` as a pre-interview assessment.
+- Assessment and interviews will take place in `Cardiff`.
+- In case of a large number of applications, the initial sift will be conducted against `Delivering at Pace`.
+- Tie-break ordering stated by the employer:
+- `1. Delivering at Pace`
+- `2. Technical`
+- `3. Experience`
+- `4. Welsh`
+- A reserve list may be held for `12 months`.
+
+### Hiring Signal Summary
+
+This posting is a strong operational analytics role centred on:
+- payroll-data validation and discrepancy resolution
+- reconciliation, audit support, and statutory compliance
+- forecasting the cost impact of policy, regulation, and workforce events
+- process optimisation and automation opportunity identification
+- cross-functional work with `HR`, finance, and `ICT`
+- practical problem-solving on high-consequence administrative data
+
+It is a useful evidence point because it shows a `Data Analyst` role where the employer is not primarily looking for exploratory insight work. They are looking for a control-oriented analyst who can keep payroll data accurate, compliant, explainable, and operationally useful while improving systems and processes over time.
+
+---
+
+## Business Analyst - The Pensions Regulator
+
+Source:
+- `Civil Service Jobs` - <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=dXNlcnNlYXJjaGNvbnRleHQ9MTgxNDU2MjI3JnBhZ2VjbGFzcz1Kb2JzJm93bmVyPTUwNzAwMDAmcGFnZWFjdGlvbj12aWV3dmFjYnlqb2JsaXN0JnNlYXJjaHNvcnQ9c2NvcmUmam9ibGlzdF92aWV3X3ZhYz0xOTkyMzMxJm93bmVydHlwZT1mYWlyJnNlYXJjaHBhZ2U9MyZyZXFzaWc9MTc3NTA2NDM0NC04NGEyN2U1YmM0YzRmZmEyZjA2NWQxNGI2MjFkNmQzM2Y1M2ZhYzcx>
+
+Role family:
+- `Business Analysis`
+- digital transformation / data-enabled service change
+- public-sector change role with explicit connection to Azure data platform delivery
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Business Analyst` position within the `Planning, Partnering and Corporate Reporting` team at `TPR`. The wider organisational context is significant: the regulator states it has undergone major technological and business change, including full migration to `Microsoft Azure`, the standing up of new systems, and an enterprise-scale `Azure` data platform and engineering capability.
+
+The role is intended to provide high-quality analysis and design products to digital initiatives across the product delivery lifecycle as the organisation builds, maintains, and transforms services. The employer also explicitly ties the role to a wider digital-transformation journey in which data is becoming a key enabler of the regulator's mission.
+
+### Responsibilities Evidence
+
+#### 1. Business problem analysis and requirements development
+
+- Apply structured approaches to identify complex business problems and opportunities.
+- Investigate complex business problems and opportunities.
+- Analyse complex business problems and opportunities.
+- Communicate complex business problems and opportunities.
+- Analyse objectives, business functions, and processes.
+- Use information and data to support the development of requirements.
+- Help ensure proposed solutions meet business and user needs.
+
+#### 2. Options, feasibility, impact, and business-case work
+
+- Conduct options analysis.
+- Conduct feasibility studies.
+- Assess operational impact.
+- Quantify potential business benefits.
+- Contribute to business-case development.
+
+#### 3. Delivery, independence, and output ownership
+
+- Work independently with limited direction.
+- Complete tasks and defined outputs linked to the initiative.
+
+#### 4. Stakeholder engagement and community development
+
+- Carry out business engagement.
+- Own stakeholder relationships.
+- Act as a key point of contact for the business.
+- Actively share knowledge.
+- Develop the business-analysis community by sharing best practice.
+- Mentor others.
+
+### Person Specification Evidence
+
+#### 1. Core business-analysis experience expected
+
+- Solid experience in a `Business Analyst` role.
+- Experience using a business-analysis toolkit and a variety of tools to identify improvements and recommend suitable solutions with measurable outcomes.
+- Experience working with users to understand problems and clarify needs.
+- Experience identifying, building, and maintaining relationships with senior stakeholders.
+
+#### 2. Elicitation, workshop, and delivery-shaping capabilities
+
+- Experience leading and hosting workshops.
+- Experience conducting interviews.
+- Experience using observation techniques.
+- Ability to translate research into features, user stories, and acceptance criteria to deliver value and good outcomes.
+
+#### 3. Process, risk, and change analysis
+
+- Experience in business-process mapping.
+- Experience in risk identification.
+- Experience in process improvement.
+- Ability to conduct impact and risk analysis covering how business processes, systems, structures, data, and roles may be affected by business or technology changes.
+
+#### 4. Data-platform and multidisciplinary delivery alignment
+
+- Experience working with data analysts on data platforms to help deliver digital services.
+- Experience working with product owners, user researchers, developers, and multidisciplinary teams in a matrix-managed environment with delivery leads.
+- Ability to challenge stakeholders and suppliers and understand recommended solutions to ensure they meet business needs and outcomes.
+- Ability to review and understand technical documents from internal and third-party suppliers.
+
+### Additional Process and Environment Evidence
+
+- Location stated as `Brighton`.
+- Organisation describes hybrid working and flexible shift patterns.
+- Working pattern includes a `35`-hour full-time week and flexitime.
+- Candidates who are shortlisted will be contacted after the closing date.
+- Candidates with disabilities who meet the stated criteria are offered an interview under the `Disability Confident` commitment.
+- Successful candidates must undergo a criminal record check.
+- Successful candidates must complete `baseline personnel security standard` checks.
+
+### Hiring Signal Summary
+
+This posting is not a data-analysis role in the narrow sense. It is a `Business Analyst` role with clear relevance to data-enabled transformation because the employer is operating in a context of:
+- enterprise `Azure` migration
+- data-platform and engineering capability build-out
+- digital-service transformation
+- structured requirements and design work
+- process, risk, and impact analysis
+- collaboration with data analysts and multidisciplinary product teams
+
+It is a useful evidence point because it shows that some roles adjacent to analytics and data engineering expect the candidate to bridge business change, data-platform delivery, stakeholder challenge, and digital product execution rather than only produce reports or code.
