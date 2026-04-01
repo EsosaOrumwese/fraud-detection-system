@@ -15,6 +15,7 @@ Boundary:
 
 Related documents:
 - [analytics-role-adoption-posture.md](c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system\docs\experience_lake\outward-facing-assets\analytics-angle\analytics-role-adoption-posture.md)
+- [01_progression_and_entry_point.md](c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system\docs\experience_lake\outward-facing-assets\analytics-role-lenses\01_progression_and_entry_point.md)
 - [fraud_operations_risk_intelligence.md](c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system\docs\experience_lake\outward-facing-assets\analytics-angle\fraud_operations_risk_intelligence.md)
 - [data-analytics-engineering-science.job-ads.evidence.md](c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system\docs\experience_lake\outward-facing-assets\job-descriptions-specifications\data-analytics-engineering-science.job-ads.evidence.md)
 - [data-analytics-engineering-science.ideal-candidate-profiles.md](c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system\docs\experience_lake\outward-facing-assets\job-descriptions-specifications\data-analytics-engineering-science.ideal-candidate-profiles.md)
@@ -32,6 +33,21 @@ This folder exists to prevent that.
 It treats analytics-role interpretation as a growing system of lenses rather than as a single fixed storyline. Each lens reveals a different responsibility surface within the same platform world. As more job ads are collected, more ideal-candidate profiles are written, and more outward-facing role thinking develops, these lenses should grow, refine, split, and become more specific.
 
 The intent is not to create more noise. The intent is to progressively expose more of what this world can truthfully hold as role-shaped work.
+
+## 1A. Folder Structure Rule
+
+This folder should stay scalable as job ads grow.
+
+So the structure should be:
+- top-level index and control documents at the folder root
+- role-execution files inside role-specific subfolders
+
+Examples:
+- `analytics-role-lenses\\data_scientist\\`
+- `analytics-role-lenses\\data_analyst\\`
+- `analytics-role-lenses\\business_analyst\\`
+
+This keeps the top level readable while allowing role-specific work to grow without clutter.
 
 ## 2. What A Lens Means Here
 
