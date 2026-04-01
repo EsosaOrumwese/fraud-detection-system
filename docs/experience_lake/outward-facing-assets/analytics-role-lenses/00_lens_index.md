@@ -203,6 +203,38 @@ Current role examples feeding this lens:
 Future lens file:
 - `07_advanced-analytics-data-science.md`
 
+### 4.8 Stakeholder Translation, Communication, and Decision Influence
+
+Definition:
+- roles centred on explaining complex analytical outputs to non-technical audiences, shaping stakeholder understanding, packaging evidence for decision forums, and turning governed analysis into action-oriented meaning
+
+Current role examples feeding this lens:
+- `Data Scientist - Midlands Partnership NHS Foundation Trust`
+- `Data Analyst - HUC`
+- `Data Analyst - InHealth Group`
+- `Data & Insight Analyst - Claire House`
+- `Data and Information Officer - Hertfordshire Partnership University NHS Foundation Trust`
+- `Data Insight Analyst - The Money and Pensions Service`
+- `Business Analyst - The Pensions Regulator`
+
+Future lens file:
+- `08_stakeholder-translation-communication-influence.md`
+
+### 4.9 Analytical Delivery Operating Discipline
+
+Definition:
+- roles centred on reproducibility, version control, lineage, stable definitions, regeneration paths, reusable analytical products, and the controlled operating discipline needed to keep analytical work trustworthy over time
+
+Current role examples feeding this lens:
+- `Data Scientist - Midlands Partnership NHS Foundation Trust`
+- `Data & Insight Analyst - Claire House`
+- `Data Insight Analyst - The Money and Pensions Service`
+- `Payroll Data Analyst x 2 - Welsh Government`
+- `Business Analyst - The Pensions Regulator` partially
+
+Future lens file:
+- `09_analytical-delivery-operating-discipline.md`
+
 ## 5. Status Of The Existing Analytics Scenario
 
 [fraud_operations_risk_intelligence.md](c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system\docs\experience_lake\outward-facing-assets\analytics-angle\fraud_operations_risk_intelligence.md) remains useful, but its role is now clarified:
