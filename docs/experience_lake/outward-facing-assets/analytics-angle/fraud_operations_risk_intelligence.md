@@ -226,20 +226,193 @@ So the Power BI angle in this project is not merely “I can build dashboards.�
 
 ## 11. DAX Angle
 
-_To be developed._
+DAX is important in this pack because it is the layer that turns the analytical model into governed business measures inside the Power BI semantic model. If SQL shapes the source views and Power BI presents the report, DAX is what makes the KPI layer reusable, consistent, and time-aware. In other words, DAX is where many of the reporting definitions become portable measures rather than one-off chart calculations.
+
+The most important DAX principle in this scenario is `central measure definition`. Metrics such as suspicious-event rate, case conversion rate, case-to-label yield, aged-case share, turnaround, and cost-per-outcome should not be recreated separately on different visuals. They should exist as governed measures that every page reuses. That matters because this analytics product depends on preserving the distinctions between event activity, case workload, authoritative label outcomes, and cost. DAX is the place where those distinctions can be made explicit and kept stable across the entire report.
+
+The second DAX principle is `time intelligence with business meaning`. This scenario depends heavily on trend and change analysis, so DAX would naturally be used for measures such as daily and weekly deltas, rolling seven-day averages, moving suspicious-volume trends, month-over-month change, and trend in case-to-label turnaround. The point is not to use time intelligence because it is available; the point is that the reporting questions in this pack are fundamentally temporal. Stakeholders want to know what changed, how quickly it changed, and whether the change is sustained or temporary.
+
+The third DAX principle is `conversion and funnel logic`. Several of the most important KPIs in this pack are not simple counts. They are relationships between stages in the operational flow: suspicious events to cases, cases to accepted labels, open cases to aged cases, cost to outcomes, and concentration share within a broader total. DAX is particularly useful for these ratio-style measures because it allows them to be defined once and reused across pages, segments, and filter states without reimplementing the logic each time.
+
+The fourth DAX principle is `context-sensitive slicing`. A strong Power BI report should allow a stakeholder to view the same KPI by campaign, geography, period, case status, or label outcome without rewriting the metric. DAX supports that by allowing measures to respond correctly to filter context while still preserving the governed logic of the underlying calculation. In this scenario, that matters because the report is meant to support different stakeholders and drill paths. A campaign-level view and a leadership summary should still rely on the same semantic definition even though the visible numbers are scoped differently.
+
+The fifth DAX principle is `safe handling of mixed grains`. Because the analytical model includes events, cases, timelines, labels, and cost/run facts, DAX has to be used carefully. Some measures should be built from event grain, some from case grain, some from label grain, and some from supporting cost grain. The role of DAX here is not to erase those differences. It is to respect them and expose them safely. This is one reason the prior model discipline matters: DAX works best when the fact tables and dimensions already reflect the real business grain.
+
+In practical terms, the DAX layer for this report would likely include several measure groups:
+- volume measures
+- conversion measures
+- workflow/backlog measures
+- outcome-quality measures
+- turnaround measures
+- concentration/share measures
+- cost-efficiency measures
+- trust/scope indicator measures
+
+Examples of the kinds of DAX measures that naturally fit this pack include:
+- suspicious event volume
+- suspicious-event rate
+- suspicious-to-case conversion rate
+- open case count
+- aged-case share
+- labels accepted
+- label acceptance rate
+- case-to-label yield
+- average case-to-label turnaround
+- top-campaign contribution share
+- rolling seven-day suspicious trend
+- cost per accepted fraud outcome
+
+From an application point of view, the DAX angle strengthens the claim that this is a real BI and analytics workflow rather than just report design. It shows that the pack is thinking in terms of reusable business logic, controlled semantic definitions, and time-aware analytical measures. That is exactly the type of thinking recruiters expect when they ask about Power BI and DAX in a serious analyst or BI role.
 
 ## 12. Excel Angle
 
-_To be developed._
+Excel remains important in this pack because not every analytical task belongs in a governed BI report. In real analyst work, Excel is often the fastest and most practical surface for ad hoc slicing, reconciliation, spot checks, investigation extracts, exception review, and stakeholder-ready working analysis. In this scenario, Excel should not be framed as a substitute for the analytical model or the Power BI report. It should be framed as a flexible operational analysis tool that sits alongside them.
+
+The first Excel use case is `reconciliation and cross-checking`. Before a KPI or trend is trusted in a dashboard, analysts often need to pull intermediate outputs, compare totals, inspect exceptions, and verify whether event, case, label, or cost numbers line up the way they should. Excel is well suited to this because it allows quick tabular inspection, pivoting, lookup-style checks, conditional highlighting, and manual comparison of slices that might be cumbersome to inspect directly in a dashboard view. In a scenario like this, Excel is a practical way to validate that the reporting layer is still aligned with governed platform truth.
+
+The second use case is `pivot-driven operational analysis`. Fraud operations and business analysts frequently need answers quickly without waiting for a formal dashboard iteration. Excel pivots and slicers are useful for rapidly exploring questions like suspicious volume by period, case backlog by status, accepted label outcomes by campaign, or turnaround distributions by segment. This type of work is especially credible in this project because the analytical model already defines the grain and KPI families clearly; Excel becomes a fast working surface on top of that logic rather than a place where the definitions themselves are invented.
+
+The third use case is `investigation extracts`. There are times when a stakeholder wants a filtered population rather than a summarized dashboard view. For example, an analyst may need a list of aged cases, a segment of suspicious events linked to a campaign spike, or a set of label outcomes needing closer review. Excel is a natural tool for this because it supports sortable, filterable working tables that can be shared, annotated, or reviewed collaboratively. In analyst roles, this kind of extract work is common and often highly valued because it turns analytical findings into something operational teams can act on directly.
+
+The fourth use case is `scenario and sensitivity analysis`. Excel is often the quickest place to do lightweight what-if analysis around workload, cost, conversion, or turnaround assumptions. In this pack, that could mean testing how a change in suspicious volume affects expected case load, how different conversion rates change operational workload, or how cost per outcome shifts under alternative throughput assumptions. This is not the same as governed reporting, but it is a realistic part of analyst work and a useful complement to the dashboard layer.
+
+The fifth use case is `stakeholder-facing working summaries`. Not every stakeholder consumes information best through a BI report. Some want a simple extract, a table, a pivot summary, or a quick workbook that isolates a specific issue. Excel is strong for this kind of targeted communication, especially when the request is narrow and time-sensitive. In the context of this pack, that might include a campaign-specific summary, a weekly fraud-operations review sheet, or a case-and-label progress snapshot prepared for a manager or operational lead.
+
+The sixth use case is `definition support and KPI prototyping`. Before formalizing a new metric in DAX or publishing it into a Power BI page, analysts often prototype the logic in a more transparent surface first. Excel is useful for this because calculations, intermediate tables, and business assumptions can be made highly visible. In a governed workflow, Excel should not become the hidden final source of truth, but it is a sensible place to pressure-test a metric definition before promoting it into the wider reporting model.
+
+So the Excel angle in this project is not “I can make spreadsheets.” It is “I understand where Excel fits in a serious analytical workflow.” It supports reconciliation, pivots, extracts, scenario work, and practical stakeholder communication on top of a governed analytical foundation. That is the right claim for analyst roles, because many day-to-day analytical decisions are still made in this layer even when a more formal BI product also exists.
 
 ## 13. Data Storytelling Angle
 
-_To be developed._
+Data storytelling is a critical part of this analytics pack because the value of the reporting layer is not simply that it can display governed numbers. Its value is that it can help different stakeholders understand what those numbers mean, why they changed, and what they should do next. In a fraud-operations setting, this matters especially because the environment is dynamic, multi-stage, and operationally consequential. A good report does not just show pressure, backlog, and outcomes. It explains the relationship between them.
+
+The first storytelling principle in this pack is `start with the operational question, not the chart`. Every page and every narrative summary should begin with the decision problem being answered. Is suspicious pressure rising? Is a campaign dominating accepted fraud outcomes? Is the case workflow slowing down? Is cost rising without corresponding outcome improvement? This matters because stakeholders rarely want a walkthrough of visuals. They want help understanding a changing operating situation. The narrative therefore has to lead with the issue, not with the tool.
+
+The second storytelling principle is `move from signal to explanation`. A useful analytical story in this scenario has a natural sequence:
+- what changed
+- where the change is concentrated
+- how the workflow responded
+- what outcome quality followed
+- what action or escalation should be considered
+
+That structure matches the logic of the underlying platform. It also prevents storytelling from collapsing into descriptive commentary. For example, it is not enough to say suspicious volume increased. The better story is that suspicious volume increased, the increase was concentrated in a small number of campaigns, case conversion did or did not keep pace, label outcomes did or did not remain healthy, and operational attention should therefore be focused in a particular area.
+
+The third storytelling principle is `separate activity from outcome`. This is one of the most important narrative disciplines in the entire pack. A dashboard full of rising counts can look impressive or alarming, but the business meaning depends on whether activity is becoming operational work and whether operational work is producing authoritative outcomes. So the storytelling layer should repeatedly distinguish:
+- event activity
+- operational handling
+- authoritative label outcome
+- efficiency or cost implication
+
+That distinction is what turns the reporting layer from a generic activity monitor into a decision-support product.
+
+The fourth storytelling principle is `use segmentation to make the story specific`. Broad trends are useful, but stakeholder action often depends on concentration. A strong analytical narrative should be able to say not only that something changed, but that it changed in a specific campaign, period, geography, merchant context, or workflow segment. This makes the story more actionable because it narrows the problem and gives the stakeholder a starting point for intervention or investigation.
+
+The fifth storytelling principle is `show trade-offs honestly`. In this project, some stories will naturally involve tension between pressure, speed, outcome quality, and cost. For example, higher volume may increase operational workload, a faster case pipeline may not always improve label quality, or higher cost may or may not correspond to better outcome coverage. The storytelling layer should not hide those trade-offs. It should help the stakeholder see them clearly so that decisions are made against the real operating balance rather than against a single flattering KPI.
+
+The sixth storytelling principle is `tailor the story to decision altitude`. The same data does not need the same narration for every audience. Leadership needs concise explanation: what changed, why it matters, and where attention is needed. Operations needs a more process-oriented story: where pressure is entering the workflow, where it is stalling, and what teams need to do. Risk strategy needs a concentration story: what is driving the pattern, where fraud is clustering, and whether the pattern is shifting structurally. Good storytelling keeps the governed logic constant while changing the emphasis to suit the audience.
+
+The seventh storytelling principle is `preserve trust through scope clarity`. Because this project distinguishes between bounded current slices, raw horizons, and accepted windows, the narrative has to be explicit about what scope a chart or KPI is describing. A well-told story is not only compelling; it is precise. That means it should be clear whether a statement refers to the bounded analytical slice, a proving window, or the broader operating horizon. This protects the credibility of the report and prevents overstatement.
+
+So the data-storytelling angle in this pack is not about making the dashboard sound polished. It is about turning governed fraud-platform truth into explanations that help stakeholders understand pressure, workflow performance, outcome quality, concentration, timing, and cost in a way that leads to action. That is the analytical storytelling skill that matters in interviews and in actual analyst work.
 
 ## 14. What I Can Honestly Claim
 
-_To be developed._
+This section exists to keep the analytics angle strong without making it brittle or overstated. The pack is intentionally ambitious, but it is still derived from a real project with real boundaries. So the right way to describe the work is not to flatten everything into either "fully built" or "just an idea." The more honest and more useful framing is to separate the claim into three levels:
+- `Built / evidenced`
+- `Designed / specified in detail`
+- `Directly translatable / implementation-ready`
+
+The `Built / evidenced` claim is the strongest and most concrete. What is directly evidenced in this project is that the platform already exists as a governed fraud world with event truth, case chronology, label truth, campaign structure, cost/evidence traces, and bounded production-ready platform proofs. It is also directly evidenced that this repo carries enough analytical structure to support a real reporting layer: the source families are known, the grain distinctions are known, the stakeholder questions are coherent, and the KPI/reporting logic can be tied back to actual governed truths rather than invented CSVs. So the honest built claim is not "I shipped a full enterprise BI function." The honest built claim is "I built and operated a platform rich enough that a credible fraud-operations and risk-intelligence analytical layer can be derived directly from it, and I can define that layer in truthful business and BI terms."
+
+The `Designed / specified in detail` claim is the next layer. This is where the pack is especially valuable. The analytical model, KPI layer, dashboard page structure, SQL posture, Power BI posture, DAX posture, Excel posture, and storytelling posture are all specified at a level of detail that makes them concrete, discussable, and defensible. That means I can honestly say I have designed how a fraud-operations and risk-intelligence reporting product would be structured on top of this platform, including its stakeholders, measures, reporting pages, and tool-specific implementation posture. This is not hand-wavy aspiration. It is detailed analytical design grounded in the same governed system the rest of the project already proved.
+
+The `Directly translatable / implementation-ready` claim is slightly different from the "designed" claim. It means the work is not only conceptual; it is close enough to execution that it could be built quickly without inventing a new business context or rethinking the analytical model from scratch. In this project, that is a fair claim because the scenario, sources, grain, metrics, page structure, and tool roles have all been defined against a real governed platform. If I were asked to stand up a Power BI report, SQL views, DAX measures, or Excel reconciliation workflow around this scenario, the heavy thinking has already been done. The path from design to implementation is short and concrete.
+
+There are also claims I should explicitly avoid. I should not claim that a polished Power BI product was already shipped to live business stakeholders if that did not happen. I should not claim that all DAX measures, dashboards, and Excel workflows were physically implemented and adopted if they were not. I should not imply that this analytical pack is a separate production BI program detached from the platform. And I should not blur the distinction between what the project has already proven and what this pack is responsibly deriving from that proof base.
+
+So the truthful application claim looks like this:
+- I worked on a governed fraud platform with enough real operating truth to support serious analytics work.
+- I can map that platform into a credible analyst-facing reporting product with clear stakeholders, questions, data model, KPIs, dashboards, and tool posture.
+- I understand how to express that product through SQL, Power BI, DAX, Excel, and stakeholder storytelling.
+- I can talk honestly about which parts are already evidenced by the platform and which parts are specified in implementation-ready detail.
+
+That is the right boundary for this pack. It is strong enough for analyst, BI, and data-storytelling applications, but precise enough that it does not collapse into overclaiming.
 
 ## 15. Resume / Interview Extraction
 
-_To be developed._
+This section turns the pack into direct application material. Its purpose is practical: when applying for analyst, BI, reporting, or data-storytelling roles, I should be able to lift language from here quickly without having to reinterpret the whole project each time. The key is to keep the wording strong, specific, and honest to the evidence boundary already defined above.
+
+### Resume-style extraction
+
+The first reusable resume claim is:
+
+> Derived a credible `Fraud Operations and Risk Intelligence` analytics layer from a governed fraud platform, translating event, case, label, campaign, and cost truth into an analyst-ready reporting model with clear KPI, dashboard, and stakeholder structure.
+
+The second reusable claim is:
+
+> Defined a star-schema-style analytical model for fraud-operations reporting, separating event, case, case-timeline, label, and cost facts and mapping them into business-safe dimensions, reusable KPI logic, and investigation-ready reporting views.
+
+The third reusable claim is:
+
+> Designed the BI delivery posture for the platform across `SQL`, `Power BI`, `DAX`, and `Excel`, including source shaping, metric validation, dashboard page architecture, drill-through investigation flow, and stakeholder-specific reporting narratives.
+
+The fourth reusable claim is:
+
+> Structured fraud-operations reporting around decision-critical KPI families such as suspicious volume, case conversion, workflow health, label outcome quality, turnaround, concentration, and cost efficiency, with reporting trust protected through reconciliation and scope-aware interpretation.
+
+The fifth reusable claim is:
+
+> Framed the platform's analytical outputs for multiple stakeholder levels, from executive summary and risk concentration reporting to operational backlog visibility, label-yield monitoring, and drill-through investigation support.
+
+Depending on the application, these lines can be used individually or grouped into a stronger experience block.
+
+### Short interview explanation
+
+If asked what the analytics side of the project was, the short answer is:
+
+> The project was not only an MLOps and platform-engineering exercise. It also produced a governed fraud data world that could support a real analyst-facing reporting layer. I mapped that into a fraud-operations and risk-intelligence product with defined stakeholders, business questions, source truth, analytical model, KPI families, dashboard pages, and tool posture across SQL, Power BI, DAX, and Excel.
+
+If asked what makes the analytics angle credible, the short answer is:
+
+> It is credible because it is derived from the same governed system that already produced event truth, case chronology, label truth, campaign structure, and cost/evidence context. I was not inventing a dashboard story on top of random files. I was defining the analyst-consumer layer of a platform that already existed.
+
+If asked what tool experience this supports, the short answer is:
+
+> It supports a truthful BI workflow claim: SQL for shaping and validation, Power BI for semantic modeling and stakeholder reporting, DAX for governed business measures, and Excel for reconciliation, pivots, extracts, and working analysis.
+
+### Application-angle variants
+
+For a `Data Analyst` role, the strongest emphasis is:
+- business questions
+- KPI design
+- dashboard structure
+- SQL + Excel + Power BI
+- data storytelling
+
+For a `BI / Reporting Analyst` role, the strongest emphasis is:
+- star-schema modeling
+- semantic measure discipline
+- Power BI page architecture
+- DAX posture
+- reconciliation and reporting trust
+
+For a `Business / Operations Analyst` role, the strongest emphasis is:
+- fraud-operations control-room reporting
+- workflow bottlenecks
+- turnaround and backlog visibility
+- concentration and campaign analysis
+- stakeholder-ready summary and escalation framing
+
+### Proof-of-work explanation
+
+If asked to explain what could be shown quickly as proof, the best answer is:
+
+> I can explain the analytical model, the stakeholder map, the KPI families, the report-page structure, and the tool-specific implementation posture for a fraud-operations reporting product built on top of a governed fraud platform. Even where the full BI product was not separately shipped, the design is detailed enough to be implementation-ready and the source truth is already real.
+
+### Safe closing claim
+
+The safest strong closing line from this pack is:
+
+> I can take a complex governed operating system and translate it into a truthful analytics product that supports reporting, KPI design, stakeholder communication, and decision-making across SQL, Power BI, DAX, and Excel.
+
+That is the main application value of this document.
