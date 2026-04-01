@@ -15,7 +15,8 @@ The progression for this work is:
 
 1. `job ads and person specifications`
 2. `ideal candidate profiles`
-3. `role-execution lenses`
+3. `responsibility-based lenses`
+4. `execution-depth inside those lenses`
 
 This order matters.
 
@@ -35,26 +36,28 @@ Then it is translated into the kind of person the employer is trying to hire in:
 
 Only after those two layers are in place do we come here and ask:
 
-`If this ideal candidate were operating inside this platform world as their actual job, what responsibilities would they carry and what would that look like in execution?`
+`What responsibility families are repeating across these job ads and ideal-candidate profiles, and what do those responsibilities actually mean inside this platform world?`
 
-That is the purpose of the role-execution lens layer.
+Only after that deepening do we ask whether any role-shaped expression is useful.
 
-## 2. What The Role-Execution Layer Is For
+That is the correct progression for this folder.
 
-The role-execution layer exists to turn:
+## 2. What The Responsibility-Lens Layer Is For
+
+The responsibility-lens layer exists to turn:
 - employer requirements
 - person specifications
 - ideal-candidate responsibility shapes
 
 into:
-- actual responsibilities carried inside this platform world
+- actual responsibility families inside this platform world
 - actual execution surfaces
 - actual outputs, controls, and judgments that role would own here
 
 This is not yet resume work.
 This is not a generic project summary.
 
-This is the point where the platform starts being treated as a real job environment under a chosen role lens.
+This is the point where the platform starts being treated as a real responsibility-bearing environment rather than only a built system.
 
 ## 3. Folder Entry Order
 
@@ -65,23 +68,16 @@ If resuming this work later, the reading order should be:
 3. this document
 4. the job-ad evidence doc
 5. the ideal-candidate profiles doc
-6. the relevant role subfolder under `analytics-role-lenses`
+6. the relevant responsibility lens work under `analytics-role-lenses`
 
-## 4. Role-Subfolder Convention
+## 4. Folder Convention
 
-Role-execution files should be kept in subfolders by role so this area does not become cluttered as job ads increase.
+This folder should stay structurally flexible.
 
-Examples:
-- `analytics-role-lenses\data_scientist\`
-- `analytics-role-lenses\data_analyst\`
-- `analytics-role-lenses\bi_insight_analyst\`
-- `analytics-role-lenses\business_analyst\`
-
-The point of the subfolder structure is:
-- easier growth
-- easier role-specific review
-- less top-level clutter
-- cleaner continuation when new job ads are added
+If later responsibility-lens files or role-derived files become numerous, subfolders may still be used.
+But the governing structure should follow the active method:
+- responsibility-based development first
+- role-shaped derivatives later if needed
 
 ## 5. The Practical Rule
 
@@ -91,7 +87,8 @@ When new material is added, do not start by asking:
 Start by asking:
 - what is the employer asking for?
 - what kind of candidate are they describing?
-- if I place that role into this platform world, what responsibilities does that person actually carry here?
+- what responsibility families are recurring across those ads?
+- what do those responsibilities actually mean in this platform world?
 - what does that look like in execution?
 
 That is the correct entry point for this whole folder.

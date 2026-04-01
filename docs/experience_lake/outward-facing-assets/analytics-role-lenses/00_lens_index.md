@@ -94,21 +94,20 @@ This index is therefore not a fixed taxonomy for all time. It is the current org
 
 ## 4. Current Lens Set
 
-The current lens set is the first-pass classification derived from the job ads and ideal-candidate profiles collected so far.
+The current lens set is the active working form of the lens system.
 
-It is important to state clearly that these are currently best understood as:
-- classification aids
-- grouping aids
-- a way to sort role shapes and responsibility patterns
+These lenses are best understood as:
+- responsibility-based lenses
+- grouping surfaces for related job-ad demands
+- a way to take repeated responsibility patterns from the job ads and examine what those responsibilities mean inside this platform world
 
-They are not yet the final form of the working lens system.
+This is the preferred direction because it keeps the work anchored to actual responsibilities rather than allowing it to become too vague at the role-description level.
 
-The deeper purpose of this folder is not simply to group responsibilities in the abstract. The deeper purpose is to support truthful role embodiment inside the platform world.
+So the main governing question for a lens is:
 
-That means the current classification lenses are useful for orientation, but the future development direction should be:
-- role-anchored lenses
-- execution-shaped lenses
-- lenses that answer not only `what responsibility exists`, but also `what did that responsibility actually look like when carried in this world`
+`When this responsibility family is transferred into our platform world, what does it actually mean, what does it touch, and what work does it create here?`
+
+That is the active interpretation that should guide future lens development.
 
 ### 4.1 Operational Performance Analytics Over Governed Truth Surfaces
 
@@ -223,41 +222,23 @@ Over time, additional worked lanes may emerge under other lenses.
 
 Each lens file should grow over time and should eventually contain:
 - the definition of the lens
-- what kind of ideal candidate this lens describes
 - which job ads currently feed it
 - which ideal-candidate profiles currently feed it
 - which parts of the platform world this lens exposes
 - what responsibilities this lens would carry in that world
 - what outputs or deliverables this lens would produce
 - what problems this lens would solve
-- what candidate claims this lens unlocks
 - what can be implemented quickly, if needed, to make the lens more concrete for application or interview support
 
-But this also needs an explicit refinement.
+The key is that the lens file should not stop at naming a responsibility family.
 
-The end goal is not to stop at a generic responsibility cluster. The end goal is to make the role real.
+It should go further and answer:
+- what does this responsibility family actually mean in this platform world?
+- which governed datasets or truth surfaces would it work on?
+- what kind of analyses, routines, artefacts, and judgements would it involve?
+- how would it be defended if challenged in detail?
 
-So as the system matures, future lens development should increasingly be anchored around roles such as:
-- `Data Scientist`
-- `Operational Data Analyst`
-- `BI / Insight Analyst`
-- `Data Quality / Governance Analyst`
-- `Business Analyst`
-
-Within those role-anchored lenses, responsibilities should appear as sub-surfaces, not as the only organising principle.
-
-The question each mature lens should answer is:
-
-`If I was operating in this world in this role, what did I actually own, do, produce, improve, and defend?`
-
-That means a mature lens should eventually be able to support:
-- responsibility mapping against job-ad evidence
-- deeper execution explanation
-- interview defence when asked `what did that actually look like?`
-
-So the long-run shape is:
-- current classification lenses for orientation
-- role-anchored execution lenses for actual application and interview use
+Role-specific expression may still be derived later, but it should be derived from mature responsibility lenses rather than used as the primary organising principle.
 
 ## 7. Active Analytics Focus Rule
 
@@ -341,8 +322,8 @@ The intended workflow is:
 3. write ideal-candidate profiles
 4. map those profiles into lenses
 5. grow the lens files
-6. expose the platform through each lens
-7. derive role-specific claims and later CV/interview material
+6. expose the platform through each responsibility lens
+7. only later derive role-shaped interpretation where useful
 
 So this folder is the bridge between:
 - job-market evidence
@@ -360,14 +341,13 @@ Its purpose is to:
 - show where different ideal-candidate profiles overlap
 - reveal the main analytics-role territories already visible in the corpus
 
-### 11.2 Role-execution layer
+### 11.2 Execution-depth layer
 
 This is the layer the folder should move toward next.
 
 Its purpose is to:
-- assume a specific role inside the platform world
-- expose the responsibilities carried in that role
-- show what those responsibilities looked like in execution
+- take one responsibility lens at a time
+- expose what that responsibility means in execution inside the platform world
 - connect those execution details back to job-ad responsibilities, specifications, and ideal-candidate expectations
 
 This second layer is the one that ultimately matters most for truthful role embodiment and later application defence.
@@ -383,8 +363,8 @@ This second layer is the one that ultimately matters most for truthful role embo
 - Do not overfocus on one tool, one dashboard, or one reporting surface at the expense of the broader role lens.
 - Do not default to rerunning ingestion or the full platform when the existing governed datasets are already sufficient.
 - Do not let the analytics lane drift into data-engineering work unless that expansion is explicitly needed.
-- Do not stop at abstract responsibility grouping when the real goal is role-shaped execution and defendable claims.
-- Do not mistake the current classification lenses for the final application-facing lens form.
+- Do not jump too early into role-shaped prose if it weakens the depth of the actual responsibility analysis.
+- Do not let ideal-candidate language flatten the concrete responsibility surfaces the platform can actually support.
 
 ## 13. Current Working Consequence
 
@@ -398,7 +378,8 @@ The next steps are:
 - keep collecting job ads
 - keep expanding ideal-candidate profiles
 - let those profiles sharpen the lenses
-- use the current classification lenses for orientation
-- then move toward role-anchored execution lenses that expose more of the platform as truthful role-shaped work
+- deepen the active responsibility-based lenses
+- use those lenses to expose more of the platform as truthful responsibility-shaped work
+- only derive role-shaped interpretation later where it genuinely helps
 
 That is how the role becomes more real, more executable, and more defensible over time.
