@@ -615,3 +615,211 @@ DIVIDE (
 ### Truth boundary for this appendix
 
 These examples are deliberately simple and readable. In an actual implementation, the final DAX would need to reflect the exact model column names, status mappings, time semantics, and filter rules used in the chosen BI model. The point of the appendix is not to freeze final production syntax. The point is to show that the KPI layer is concrete enough to be expressed as governed semantic measures rather than vague reporting ideas.
+
+## Appendix B. Sample SQL Analytical Views
+
+This appendix makes the SQL angle more concrete. These are not being claimed as already published production warehouse objects. They are compact example view patterns that follow directly from the analytical model and reporting questions already defined in the pack.
+
+The intention is to show the kind of SQL layer that would sit between governed platform truth and downstream BI tools:
+- shaping raw facts into analyst-readable views
+- reconciling stage-to-stage workflow logic
+- publishing stable aggregates for dashboards
+- giving analysts a direct way to investigate anomalies below the report surface
+
+### 1. Daily suspicious-event trend view
+
+Business purpose: provide a stable daily trend surface for suspicious volume, total volume, and suspicious-event rate.
+
+```sql
+create or replace view analytics.vw_daily_event_pressure as
+select
+    cast(e.event_ts_utc as date) as event_date,
+    count(*) as total_event_volume,
+    sum(case when e.is_suspicious = true then 1 else 0 end) as suspicious_event_volume,
+    1.0 * sum(case when e.is_suspicious = true then 1 else 0 end) / nullif(count(*), 0) as suspicious_event_rate
+from event_fact e
+group by cast(e.event_ts_utc as date);
+```
+
+Why it matters:
+- supports the executive overview and pressure/trend pages
+- gives Power BI and Excel a clean daily grain
+- keeps suspicious-rate logic out of ad hoc visual formulas
+
+### 2. Campaign concentration view
+
+Business purpose: show how suspicious pressure and accepted outcomes are distributed by campaign.
+
+```sql
+create or replace view analytics.vw_campaign_pressure_outcomes as
+select
+    c.campaign_name,
+    count(distinct e.event_id) as total_events,
+    sum(case when e.is_suspicious = true then 1 else 0 end) as suspicious_events,
+    count(distinct cs.case_id) as cases_created,
+    sum(case when l.label_outcome = 'ACCEPTED' then 1 else 0 end) as accepted_labels
+from event_fact e
+left join campaign_dim c
+    on e.campaign_key = c.campaign_key
+left join case_fact cs
+    on e.event_id = cs.source_event_id
+left join label_fact l
+    on cs.case_id = l.case_id
+group by c.campaign_name;
+```
+
+Why it matters:
+- supports risk concentration analysis
+- allows top-campaign share logic in Power BI / DAX
+- gives analysts a direct way to explain where fraud pressure is clustering
+
+### 3. Case workflow health view
+
+Business purpose: expose the operational case pipeline in a dashboard-friendly shape.
+
+```sql
+create or replace view analytics.vw_case_workflow_health as
+select
+    cast(cs.case_created_ts_utc as date) as case_created_date,
+    cs.case_status,
+    count(*) as case_count,
+    avg(cs.case_age_days) as avg_case_age_days,
+    sum(case when cs.case_age_days > 7 and cs.case_status = 'OPEN' then 1 else 0 end) as aged_open_case_count
+from case_fact cs
+group by
+    cast(cs.case_created_ts_utc as date),
+    cs.case_status;
+```
+
+Why it matters:
+- supports backlog and aged-case reporting
+- makes workflow health visible at a daily/status grain
+- gives operations stakeholders a stable case-management surface
+
+### 4. Case-to-label outcome yield view
+
+Business purpose: connect case workload to authoritative label outcomes.
+
+```sql
+create or replace view analytics.vw_case_label_yield as
+select
+    cast(cs.case_created_ts_utc as date) as case_created_date,
+    count(distinct cs.case_id) as cases_created,
+    sum(case when l.label_outcome = 'ACCEPTED' then 1 else 0 end) as accepted_labels,
+    sum(case when l.label_outcome = 'PENDING' then 1 else 0 end) as pending_labels,
+    sum(case when l.label_outcome = 'REJECTED' then 1 else 0 end) as rejected_labels,
+    1.0 * sum(case when l.label_outcome = 'ACCEPTED' then 1 else 0 end)
+        / nullif(count(distinct cs.case_id), 0) as case_to_label_yield
+from case_fact cs
+left join label_fact l
+    on cs.case_id = l.case_id
+group by cast(cs.case_created_ts_utc as date);
+```
+
+Why it matters:
+- separates operational activity from authoritative outcome
+- supports the supervision-quality page
+- gives a reusable definition of case-to-label yield before DAX consumes it
+
+### 5. Turnaround and service-performance view
+
+Business purpose: measure how long the workflow takes from event to case and case to label.
+
+```sql
+create or replace view analytics.vw_turnaround_performance as
+select
+    cast(cs.case_created_ts_utc as date) as case_created_date,
+    avg(cs.event_to_case_hours) as avg_event_to_case_hours,
+    avg(l.case_to_label_hours) as avg_case_to_label_hours,
+    max(cs.event_to_case_hours) as max_event_to_case_hours,
+    max(l.case_to_label_hours) as max_case_to_label_hours
+from case_fact cs
+left join label_fact l
+    on cs.case_id = l.case_id
+group by cast(cs.case_created_ts_utc as date);
+```
+
+Why it matters:
+- supports timing and turnaround reporting
+- connects operational delay to daily workflow performance
+- gives analysts a clean surface for identifying deterioration over time
+
+### 6. Cost-efficiency by day view
+
+Business purpose: connect service cost to operational and outcome activity over a reporting period.
+
+```sql
+create or replace view analytics.vw_daily_cost_efficiency as
+select
+    d.event_date,
+    coalesce(cost.total_cost_usd, 0) as total_cost_usd,
+    d.suspicious_event_volume,
+    coalesce(y.cases_created, 0) as cases_created,
+    coalesce(y.accepted_labels, 0) as accepted_labels,
+    1.0 * coalesce(cost.total_cost_usd, 0) / nullif(d.suspicious_event_volume, 0) as cost_per_suspicious_event,
+    1.0 * coalesce(cost.total_cost_usd, 0) / nullif(coalesce(y.accepted_labels, 0), 0) as cost_per_accepted_label
+from analytics.vw_daily_event_pressure d
+left join (
+    select
+        cost_date,
+        sum(cost_usd) as total_cost_usd
+    from cost_run_fact
+    group by cost_date
+) cost
+    on d.event_date = cost.cost_date
+left join analytics.vw_case_label_yield y
+    on d.event_date = y.case_created_date;
+```
+
+Why it matters:
+- supports the cost-and-efficiency page
+- connects platform effort to fraud-operational outcome
+- gives Excel and Power BI a stable daily efficiency surface
+
+### 7. Campaign anomaly drill view
+
+Business purpose: support ad hoc analyst investigation when one campaign, segment, or period behaves unusually.
+
+```sql
+create or replace view analytics.vw_campaign_anomaly_drill as
+select
+    cast(e.event_ts_utc as date) as event_date,
+    c.campaign_name,
+    e.merchant_key,
+    e.geo_key,
+    count(*) as total_events,
+    sum(case when e.is_suspicious = true then 1 else 0 end) as suspicious_events,
+    count(distinct cs.case_id) as cases_created,
+    sum(case when l.label_outcome = 'ACCEPTED' then 1 else 0 end) as accepted_labels
+from event_fact e
+left join campaign_dim c
+    on e.campaign_key = c.campaign_key
+left join case_fact cs
+    on e.event_id = cs.source_event_id
+left join label_fact l
+    on cs.case_id = l.case_id
+group by
+    cast(e.event_ts_utc as date),
+    c.campaign_name,
+    e.merchant_key,
+    e.geo_key;
+```
+
+Why it matters:
+- supports investigation and drill-through pages
+- gives analysts a way to narrow spikes by campaign, merchant, and geography
+- makes anomaly explanation more concrete than a top-line chart alone
+
+### How these example views fit the pack
+
+- `vw_daily_event_pressure`: trend and pressure analysis
+- `vw_campaign_pressure_outcomes`: concentration analysis
+- `vw_case_workflow_health`: backlog and workflow analysis
+- `vw_case_label_yield`: outcome-quality analysis
+- `vw_turnaround_performance`: timing analysis
+- `vw_daily_cost_efficiency`: cost and efficiency analysis
+- `vw_campaign_anomaly_drill`: investigation support
+
+### Truth boundary for this appendix
+
+These examples are intentionally compact and illustrative. Final SQL would depend on the chosen serving environment, exact table/view names, primary keys, status mappings, and performance requirements. The point of this appendix is not to claim a finished warehouse product already exists. The point is to show that the analytical reporting layer can be translated directly into stable SQL view patterns that support Power BI, Excel, and ad hoc analyst investigation.
