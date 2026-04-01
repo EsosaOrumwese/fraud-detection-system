@@ -92,3 +92,8 @@ Start by asking:
 - what does that look like in execution?
 
 That is the correct entry point for this whole folder.
+
+Also remember:
+- the governed datasets used in this analytics lane are currently in the `Oracle store`
+- they are not to be casually treated as permanently local repo files
+- any local analytical work should be framed as bounded extracts, shaped slices, or derived analytical views from the oracle-resident governed world

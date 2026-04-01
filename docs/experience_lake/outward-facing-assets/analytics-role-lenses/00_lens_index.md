@@ -249,6 +249,11 @@ That means the main analytical substrate for the lens system is:
 - the trusted truth surfaces already available in the oracle-facing world
 - event truth, case truth, label truth, timeline truth, context structure, and other persisted analytical surfaces
 
+Important operational note:
+- these governed datasets are currently resident in the `Oracle store`
+- they should not be casually described as if they are sitting locally in the repo as ready-to-query local analytical files
+- where local work is needed, it should be thought of as working from bounded extracts, shaped slices, or derived analytical views from the oracle-resident governed world
+
 This is the area that carries the strongest analytical value because:
 - it is where the statistical and analytical substance already exists
 - it supports KPI design, SQL work, reporting logic, dashboards, DAX-style thinking, anomaly investigation, and decision-support interpretation
