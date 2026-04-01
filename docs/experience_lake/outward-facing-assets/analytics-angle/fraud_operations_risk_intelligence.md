@@ -416,3 +416,202 @@ The safest strong closing line from this pack is:
 > I can take a complex governed operating system and translate it into a truthful analytics product that supports reporting, KPI design, stakeholder communication, and decision-making across SQL, Power BI, DAX, and Excel.
 
 That is the main application value of this document.
+
+---
+
+## Appendix A. Sample KPI and DAX-Style Measures
+
+This appendix exists to make the pack more concrete for analyst, BI, and Power BI conversations. These measures are not being claimed as already published production semantics inside a live report. They are sample implementation-ready definitions that follow directly from the analytical model, KPI layer, and DAX posture already described in the main pack.
+
+### KPI-to-measure examples
+
+`Suspicious Event Volume`
+Business meaning: the count of governed events currently classified as suspicious or risk-relevant within the selected filter scope.
+
+```DAX
+Suspicious Event Volume :=
+CALCULATE (
+    COUNTROWS ( 'Event Fact' ),
+    'Event Fact'[is_suspicious] = TRUE ()
+)
+```
+
+`Suspicious Event Rate`
+Business meaning: the share of total governed events that are suspicious within the selected period or segment.
+
+```DAX
+Suspicious Event Rate :=
+DIVIDE (
+    [Suspicious Event Volume],
+    COUNTROWS ( 'Event Fact' )
+)
+```
+
+`Case Creation Count`
+Business meaning: the number of cases created in the selected scope.
+
+```DAX
+Case Creation Count :=
+COUNTROWS ( 'Case Fact' )
+```
+
+`Suspicious-to-Case Conversion Rate`
+Business meaning: how effectively suspicious platform signal is turning into operational case workload.
+
+```DAX
+Suspicious to Case Conversion Rate :=
+DIVIDE (
+    [Case Creation Count],
+    [Suspicious Event Volume]
+)
+```
+
+`Open Case Count`
+Business meaning: the current workload of cases that remain operationally open.
+
+```DAX
+Open Case Count :=
+CALCULATE (
+    COUNTROWS ( 'Case Fact' ),
+    'Case Fact'[case_status] = "OPEN"
+)
+```
+
+`Aged Case Count`
+Business meaning: the number of open cases whose age exceeds a business threshold, here shown as 7 days for illustration.
+
+```DAX
+Aged Case Count :=
+CALCULATE (
+    COUNTROWS ( 'Case Fact' ),
+    'Case Fact'[case_status] = "OPEN",
+    'Case Fact'[case_age_days] > 7
+)
+```
+
+`Aged Case Share`
+Business meaning: the proportion of open workload that has exceeded the defined aging threshold.
+
+```DAX
+Aged Case Share :=
+DIVIDE (
+    [Aged Case Count],
+    [Open Case Count]
+)
+```
+
+`Labels Accepted`
+Business meaning: the number of authoritative accepted label outcomes in the selected scope.
+
+```DAX
+Labels Accepted :=
+CALCULATE (
+    COUNTROWS ( 'Label Fact' ),
+    'Label Fact'[label_outcome] = "ACCEPTED"
+)
+```
+
+`Label Acceptance Rate`
+Business meaning: the share of all label records that ended in accepted authoritative supervision.
+
+```DAX
+Label Acceptance Rate :=
+DIVIDE (
+    [Labels Accepted],
+    COUNTROWS ( 'Label Fact' )
+)
+```
+
+`Case-to-Label Yield`
+Business meaning: the share of cases that ultimately resulted in accepted label truth.
+
+```DAX
+Case to Label Yield :=
+DIVIDE (
+    [Labels Accepted],
+    [Case Creation Count]
+)
+```
+
+`Average Event-to-Case Hours`
+Business meaning: the average elapsed time between event occurrence and case creation.
+
+```DAX
+Average Event to Case Hours :=
+AVERAGEX (
+    'Case Fact',
+    'Case Fact'[event_to_case_hours]
+)
+```
+
+`Average Case-to-Label Hours`
+Business meaning: the average elapsed time between case creation and accepted label completion.
+
+```DAX
+Average Case to Label Hours :=
+AVERAGEX (
+    'Label Fact',
+    'Label Fact'[case_to_label_hours]
+)
+```
+
+`Top Campaign Contribution Share`
+Business meaning: the share of suspicious volume attributable to the top contributing campaign in the current filter context.
+
+```DAX
+Top Campaign Suspicious Volume :=
+MAXX (
+    VALUES ( 'Campaign Dimension'[campaign_name] ),
+    [Suspicious Event Volume]
+)
+
+Top Campaign Contribution Share :=
+DIVIDE (
+    [Top Campaign Suspicious Volume],
+    [Suspicious Event Volume]
+)
+```
+
+`Rolling 7-Day Suspicious Volume`
+Business meaning: the moving weekly view of suspicious pressure used to smooth noisy daily changes.
+
+```DAX
+Rolling 7 Day Suspicious Volume :=
+CALCULATE (
+    [Suspicious Event Volume],
+    DATESINPERIOD (
+        'Date Dimension'[Date],
+        MAX ( 'Date Dimension'[Date] ),
+        -7,
+        DAY
+    )
+)
+```
+
+`Cost per Accepted Fraud Outcome`
+Business meaning: the level of platform/proving cost associated with each accepted fraud outcome in the selected scope.
+
+```DAX
+Total Cost :=
+SUM ( 'Cost Run Fact'[cost_usd] )
+
+Cost per Accepted Fraud Outcome :=
+DIVIDE (
+    [Total Cost],
+    [Labels Accepted]
+)
+```
+
+### KPI families these measures support
+
+- `Volume and pressure`: suspicious event volume, suspicious event rate, rolling suspicious trend
+- `Conversion`: case creation count, suspicious-to-case conversion rate
+- `Workflow health`: open case count, aged case count, aged case share
+- `Outcome quality`: labels accepted, label acceptance rate, case-to-label yield
+- `Timing and turnaround`: average event-to-case hours, average case-to-label hours
+- `Concentration`: top campaign contribution share
+- `Cost and efficiency`: total cost, cost per accepted fraud outcome
+
+### Truth boundary for this appendix
+
+These examples are deliberately simple and readable. In an actual implementation, the final DAX would need to reflect the exact model column names, status mappings, time semantics, and filter rules used in the chosen BI model. The point of the appendix is not to freeze final production syntax. The point is to show that the KPI layer is concrete enough to be expressed as governed semantic measures rather than vague reporting ideas.
