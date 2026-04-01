@@ -114,10 +114,28 @@ In this platform world, that would likely involve:
 - pressure or workload prediction over bounded windows
 - scoring cohorts by likely downstream operational value
 
+Typical feature families here would likely include:
+- event sequence and timing behaviour
+- flow-level context from flow anchors
+- arrival and entity attachments
+- campaign or segment context
+- bounded historical behavioural characteristics
+
+Typical target choices here would likely include:
+- event-level authoritative fraud labels
+- flow-level truth outcomes
+- case-creation or case-yield style targets where the question is operational rather than purely fraud-likelihood
+
 The point here is not simply “train a model.” It is to build predictive logic that distinguishes:
 - noise from likely fraud
 - pressure from value
 - suspicious activity from activity likely to produce authoritative truth
+
+Natural evaluation outputs would likely include:
+- discrimination between high-yield and low-yield cohorts
+- bounded precision / recall style trade-offs where useful
+- ranking quality by segment or period
+- stability of model usefulness across bounded windows
 
 ### 4.2 Build Descriptive And Statistical Explanation Layers
 
@@ -132,6 +150,12 @@ In this platform world, that would likely involve:
 - case-yield comparison across cohorts
 - outcome-mix analysis
 - distribution analysis of timing, concentration, or case progression
+
+Typical outputs here would likely include:
+- cohort comparison tables
+- segment-level distribution summaries
+- pattern explanations showing where behaviour diverges materially
+- statistical summaries that explain why certain cohorts behave differently
 
 This is where the lens stops being “just modelling” and becomes analytical explanation.
 
@@ -178,6 +202,12 @@ In this platform world, that would likely involve:
 - creating bounded training, validation, and explanation windows
 - preserving the exact join path and assumptions used
 
+The practical substance here is that the lens must decide:
+- which fields are usable as features
+- which fields are labels or truth only
+- which fields would leak future knowledge
+- what slice should be training-only versus explanation-ready
+
 This is one of the strongest responsibilities in this lens because the platform already provides explicit join posture and truth products.
 
 ### 4.6 Keep Analytical Work Reproducible And Governed
@@ -207,6 +237,12 @@ In this platform world, that would likely involve:
 - showing where pressure is rising faster than case conversion
 - identifying which segments should receive operational focus
 - turning model outputs into prioritisation or intervention suggestions
+
+For this lens, “good” analytical usefulness would mean outputs that are:
+- interpretable enough to explain
+- bounded enough to trust
+- differentiated enough to separate valuable from low-value pressure
+- stable enough to be worth operational attention
 
 ## 5. What This Lens Would Analyse
 

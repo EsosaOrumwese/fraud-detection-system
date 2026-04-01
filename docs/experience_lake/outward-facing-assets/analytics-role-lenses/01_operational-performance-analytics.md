@@ -50,6 +50,16 @@ It begins with:
 - measurable performance
 - interpretable outcomes
 
+This lens should also be distinguished clearly from `BI, Insight, and Reporting Analytics`.
+
+The primary ownership here is:
+- KPI logic
+- workflow diagnosis
+- throughput and bottleneck analysis
+- operational interpretation
+
+The reporting surface may later present these outputs, but this lens owns the operating logic underneath them.
+
 ## 2. Why This Lens Fits This Platform World
 
 This lens is credible here because the platform world already contains the main analytical ingredients required for operational performance work:
@@ -117,6 +127,8 @@ In this world, that would likely involve:
 - defining label-outcome quality measures
 - defining turnaround measures across bounded windows
 
+The important distinction is that this lens is responsible for whether the performance layer is analytically sound, not only whether it is displayed attractively.
+
 ### 4.2 Monitor Workflow Health
 
 This means:
@@ -166,6 +178,10 @@ In this world, that would likely involve:
 - highlighting which segments need operational focus first
 - showing where performance deterioration is most material
 - showing where improved action could reduce waste or improve yield
+
+This is still different from the `BI / Reporting` lens:
+- this lens decides what the operating problem is
+- the `BI / Reporting` lens decides how that problem is packaged, navigated, and surfaced
 
 ## 5. What This Lens Would Monitor
 
@@ -243,13 +259,13 @@ More specifically, the outputs would likely take forms such as:
 
 ### 6.2 Dashboard / BI Outputs
 
-- executive overview page
-- pressure and trend page
-- workflow health page
-- label outcomes page
-- turnaround and aging page
-- concentration analysis page
-- anomaly drill-through page
+- operating KPI pages whose primary purpose is to expose workflow health and performance movement
+- pressure and trend views grounded in governed operating logic
+- workflow health views grounded in state and timeline movement
+- label-outcome views grounded in outcome-quality logic
+- turnaround and aging views grounded in bounded timing measures
+- concentration views grounded in operational burden and outcome distribution
+- anomaly drill-through pages grounded in diagnosis rather than presentation alone
 
 ### 6.3 Analytical Narrative Outputs
 
@@ -300,13 +316,13 @@ The important thing is that all of this can be done from the existing governed d
 
 This lens would naturally be expressed through:
 - `SQL` for KPI shaping, bounded comparison views, drill-through slices, and operational summaries
-- `Power BI` or equivalent BI surface for dashboard pages and decision-support views
+- `Power BI` or equivalent BI surface only as the presentation layer for already-defined operating logic
 - `Excel` for ad hoc reconciliation, extracts, quick reviews, or stakeholder-ready slices where useful
 - `DAX` or equivalent semantic-measure logic if the reporting layer is built in a BI model
 
 The tool mention matters here because this lens is one of the most natural routes into:
 - KPI definition
-- dashboard implementation
+- operational metric implementation
 - drill-through reporting
 - time-window performance analysis
 

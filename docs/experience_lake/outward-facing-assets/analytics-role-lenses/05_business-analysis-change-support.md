@@ -119,6 +119,7 @@ In this platform world, that would likely involve:
 - identifying where pressure accumulates
 - identifying where workflow or outcome quality weakens
 - identifying what information is needed at each stage
+- expressing those stages as concrete process maps and decision points rather than leaving them as narrative only
 
 ### 4.2 Define Information And Reporting Requirements
 
@@ -133,6 +134,12 @@ In this platform world, that would likely involve:
 - deciding which reporting outputs support operational review versus strategic understanding
 - turning platform truth into structured information requirements
 
+More concretely, this would likely produce artefacts such as:
+- a page-by-page reporting requirement map
+- a stakeholder-to-view matrix
+- KPI purpose notes tied to actual decision points
+- drill-through requirement notes for anomaly and exception investigation
+
 ### 4.3 Assess Impact And Trade-Offs
 
 This means:
@@ -143,6 +150,11 @@ In this platform world, that would likely involve:
 - assessing how a segmentation change affects prioritisation
 - assessing the effect of changing which truth surface is used for a view
 - assessing whether a new report or drill-through helps or confuses stakeholders
+
+This should be understood as concrete analytical and reporting trade-off work, for example:
+- whether event truth or case truth is the right basis for a given metric
+- whether leadership needs summary stability while analysts need segment volatility exposed
+- whether a change creates better actionability or just more noise
 
 This lens is especially useful here because the platform already has enough governed structure to make such trade-offs meaningful.
 
@@ -158,6 +170,8 @@ In this platform world, that would likely involve:
 - explaining what accepted-label yield means for outcome quality
 - translating concentration analysis into prioritisation logic
 
+This is one of the strongest responsibilities in this lens because the platform already has clear movement from event truth to operational burden to authoritative outcome. The business-analysis task is to make that chain legible.
+
 ### 4.5 Support Change Through Structured Analysis
 
 This means:
@@ -171,6 +185,12 @@ In this platform world, that would likely involve:
 - defining clearer KPI ownership and interpretation
 - shaping a more structured reporting or analytical product
 
+The output here should be thought of as something tangible, such as:
+- a proposed revised dashboard information architecture
+- a refined KPI ownership map
+- a recommended anomaly-review structure
+- a proposal for separating executive, operational, and analytical views more cleanly
+
 ### 4.6 Challenge Assumptions And Clarify Requirements
 
 This means:
@@ -182,6 +202,8 @@ In this platform world, that would likely involve:
 - checking whether the requested view is possible from the available truth surfaces
 - clarifying the real stakeholder need behind a reporting request
 - ensuring the final output reflects the actual question rather than a vague ask
+
+This is also where the lens protects the environment from weak change requests that are visually attractive but analytically unhelpful.
 
 ## 5. What This Lens Would Examine
 
@@ -242,6 +264,8 @@ More specifically, the output forms would likely include:
 - KPI definition candidates
 - report/page requirement notes
 - user-view or stakeholder-view breakdowns
+- view-to-decision mapping tables
+- process-stage-to-information-need mappings
 
 ### 6.2 Impact And Change Outputs
 
@@ -249,6 +273,7 @@ More specifically, the output forms would likely include:
 - impact summaries
 - metric-change notes
 - report-structure change proposals
+- trade-off tables showing what is gained or lost by a definition or structure change
 
 ### 6.3 Translation Outputs
 
@@ -288,12 +313,14 @@ A practical first pass on this platform would likely be:
 - drill-through needs
 - anomaly review structure
 - leadership summary structure
+- process and decision maps showing where each output is intended to help
 
 This would result in a business-analysis layer where:
 - platform truth becomes easier to interpret
 - reporting and analytics become more purpose-driven
 - stakeholders have clearer visibility into what they need
 - the analytical environment becomes easier to evolve intentionally
+- proposed changes are easier to defend because they are tied to actual process, decision, and information-need analysis
 
 ## 9. Practical Tooling Expression
 

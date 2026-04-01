@@ -43,6 +43,18 @@ It is about:
 
 So the person working through this lens is not primarily the builder of the platform. They are the person who turns the platform's truth into a reporting and insight product.
 
+This lens should also be distinguished clearly from `Operational Performance Analytics`.
+
+The primary ownership here is:
+- presentation design
+- audience layering
+- dashboard and page structure
+- semantic measure presentation
+- summary-pack and board-pack communication
+- making the governed truth legible and navigable
+
+This lens does not primarily own whether the operating KPI is the right KPI in the first place. It owns how that KPI is surfaced, explained, grouped, and consumed.
+
 ## 2. Why This Lens Fits This Platform World
 
 This lens fits this platform strongly because the world already contains:
@@ -110,6 +122,8 @@ In this platform world, that would likely involve:
 - defining outcome and quality views
 - defining concentration and cost-supporting views
 
+This is the place where the lens becomes more than “build a dashboard.” It is responsible for the information architecture of the reporting product.
+
 ### 4.2 Translate KPI Logic Into Reporting Logic
 
 This means:
@@ -122,6 +136,10 @@ In this platform world, that would likely involve:
 - turning case backlog into queue/state summaries
 - turning accepted / pending / rejected labels into outcome-quality reporting
 - turning turnaround into aging and delay views
+
+The important distinction is:
+- `Operational Performance Analytics` defines the operating logic of these measures
+- this lens turns that logic into reusable reporting and semantic surfaces
 
 ### 4.3 Design Audience-Appropriate Views
 
@@ -147,6 +165,8 @@ In this platform world, that would likely involve:
 - explaining why backlog increased or outcome quality deteriorated
 - identifying whether performance issues are broad or concentrated
 - turning reporting changes into operational interpretation
+
+This is where the lens becomes stronger than generic BI work. It is responsible not just for charts, but for narrative packaging of what matters and why.
 
 ### 4.5 Support Reporting Requests Without Losing Consistency
 
@@ -220,7 +240,7 @@ More specifically, the output forms would likely include:
 
 - executive overview page
 - pressure and trend page
-- case operations page
+- case operations page designed for navigability and audience fit
 - label outcomes page
 - concentration page
 - cost / efficiency support page
@@ -232,6 +252,8 @@ More specifically, the output forms would likely include:
 - leadership update packs
 - board-pack style summary views
 - “what changed” or “exception review” summaries
+
+These are the most distinctive outputs of this lens, because they represent packaging and communication responsibility rather than only metric logic.
 
 ### 6.3 Definition And Consistency Surfaces
 
@@ -282,7 +304,7 @@ This would likely result in a reporting layer where:
 
 This lens would naturally be expressed through:
 - `Power BI` or equivalent BI tooling for interactive dashboards and semantic-measure presentation
-- `SQL` for reporting-ready views, shaped analytical tables, and drill-through slices
+- `SQL` for reporting-ready views, shaped analytical tables, and drill-through slices that feed the presentation layer
 - `DAX` or equivalent semantic-model logic for measures, trends, ratios, and time-aware reporting
 - `Excel` for ad hoc packs, extracts, pivots, and quick stakeholder slices where useful
 - presentation-ready packs or summary notes for leadership and operational reviews

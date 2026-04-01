@@ -60,6 +60,8 @@ This is one of the strongest lenses for this platform because the world already 
 - time-safety rules
 - authoritative label and case truth
 - gate-based readiness logic
+- `No PASS -> no read` discipline from the black-box interface
+- explicit output scope and partition meaning
 
 That means the platform is already much closer to a governed information environment than to a loose data playground.
 
@@ -67,6 +69,8 @@ So this lens fits naturally because it can focus on:
 - whether the governed structure is being respected
 - whether downstream analytical use remains trustworthy
 - whether outputs built on top of the data world are explainable and defensible
+
+This lens is stronger here than in a loose analytics project because the platform already gives it concrete governance mechanics to steward rather than vague “best practice” aspirations.
 
 ## 3. Core Governed Data Surfaces For This Lens
 
@@ -116,6 +120,7 @@ In this platform world, that would likely involve:
 - confirming whether label truth is authoritative enough for a target or outcome view
 - checking whether case chronology is being used appropriately for workflow questions
 - making sure offline truth is not being used in a way that would distort live-like interpretation
+- checking whether the output scope and partition identity match the analytical use being proposed
 
 ### 4.2 Reconcile Connected Surfaces
 
@@ -128,6 +133,7 @@ In this platform world, that would likely involve:
 - checking whether event-to-label and flow-to-label joins are behaving correctly
 - checking whether case timelines align with the expected case-centric truth
 - confirming whether campaign or cohort totals remain coherent across reporting layers
+- checking whether path-embedded lineage and row-level lineage remain coherent where relevant
 
 This is one of the clearest responsibilities in this lens because the platform has explicit join law and truth products.
 
@@ -166,6 +172,7 @@ In this platform world, that would likely involve:
 - recording the join path used
 - documenting assumptions, exclusions, and bounded window logic
 - preserving enough detail that an output can be challenged and defended later
+- keeping explicit note of whether a surface is traffic, behavioural context, truth, audit evidence, or ops telemetry
 
 ### 4.6 Enforce Appropriate Use Of Governed Truth
 
@@ -178,6 +185,8 @@ In this platform world, that would likely involve:
 - making sure case truth is not confused with event truth
 - ensuring that context surfaces are used appropriately in analytical joins
 - protecting the difference between convenient usage and correct usage
+- respecting time-safe versus batch-only usage boundaries
+- applying the platform's “authoritative source” posture rather than letting ad hoc derived views become de facto truth
 
 ## 5. What This Lens Would Monitor Or Evaluate
 
@@ -220,6 +229,8 @@ These can be organised into families:
 - respect for truth boundaries
 - respect for time-safety rules
 - lineage documentation and traceability
+- respect for output scope and partition identity
+- respect for gate and authority posture
 
 ## 6. What Artifacts This Lens Would Naturally Produce
 
