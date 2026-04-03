@@ -1,0 +1,14 @@
+{
+  "slice": "huc/03_conversion_discrepancy_handling",
+  "kpi": "suspicious_to_case_conversion",
+  "current_corrected_conversion_rate": 0.09593298647875051,
+  "current_discrepant_conversion_rate": 0.047966493239375255,
+  "current_absolute_gap": 0.047966493239375255,
+  "prior_corrected_conversion_rate": 0.09621225622954904,
+  "prior_discrepant_conversion_rate": 0.04810612811477452,
+  "prior_absolute_gap": 0.04810612811477452,
+  "current_case_opened_rows": 1780031,
+  "release_checks_passed": 3,
+  "release_check_count": 3,
+  "regeneration_seconds": 2.38
+}

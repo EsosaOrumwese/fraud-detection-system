@@ -1,0 +1,4 @@
+check_name,passed_flag,observed_value,expected_value
+two_period_rows_present,1,2.0,2.0
+material_gap_detected,1,0.047966493239375255,0.01
+before_after_rows_present,1,6.0,6.0
