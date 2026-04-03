@@ -276,18 +276,18 @@ The requirement asks for someone who can:
 - operationalise analytical work into stakeholder-facing products rather than leaving it as technical analysis only
 
 The claim therefore needs to answer back in evidence form:
-- I have turned governed analytical outputs into dashboard and decision-support products
-- I have done that through stable reporting-ready layers and audience-specific views, not one-off screenshots
-- I have paired visuals with action notes and caveats so the pack is usable outside technical circles
+- I have integrated analytical outputs into dashboard and reporting surfaces rather than leaving them as technical analysis only
+- I have made those outputs understandable to non-technical users through stable KPI logic, audience-shaped views, and action notes
+- I have turned model and cohort outputs into usable decision-support reporting rather than passive charts
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Operationalised governed model and cohort outputs into decision-support reporting, as measured by delivery of `3` audience-specific dashboard views, consistent reuse of one shared KPI family across executive, workflow, and drill-through pages, and regeneration of the pack from controlled reporting-ready views over `1.38M` bounded scored rows, by shaping selected model and pathway outputs into reporting-ready SQL-backed views, building a compact executive/operational/drill-through dashboard pack, and adding briefing and challenge-response notes for non-technical stakeholders.
+> Integrated governed model and cohort outputs into stakeholder-facing dashboard and decision-support reporting, as measured by delivery of `3` audience-shaped views over `1.38M` bounded scored rows, consistent reuse of one shared KPI family across executive, workflow, and drill-through pages, and completion of executive, operations, and challenge-response briefing notes around a `142,800`-flow current review queue, by shaping selected model and pathway outputs into reporting-ready views and translating them into a compact annotated dashboard pack for non-technical users.
 
 ### 10.2 Shorter recruiter-facing version
 
-> Turned governed analytical outputs into dashboard and decision-support products, as measured by consistent KPI reuse across multiple views and completion of executive, operational, and drill-through reporting surfaces, by packaging model and cohort results into reporting-ready views and annotated dashboard summaries for non-technical users.
+> Turned governed analytical outputs into dashboard and decision-support products, as measured by consistent KPI reuse across multiple views and completion of executive, operational, and drill-through reporting surfaces, by packaging model and cohort results into reporting-ready views and annotated dashboard summaries that non-technical users could act on.
 
 ### 10.3 Closer direct-response version
 
-> Integrated analytical outputs into stakeholder-facing decision-support reporting, as measured by reusable dashboard views, documented KPI logic, and completed action-oriented notes for different audiences, by translating governed model and cohort outputs into clear reporting surfaces and explanation packs rather than leaving them as technical analysis only.
+> Integrated analytical outputs into stakeholder-facing dashboards and decision-support reporting, as measured by reusable dashboard views, documented KPI logic, and completed action-oriented notes for different audiences, by translating governed model and cohort outputs into clear reporting surfaces and explanation packs rather than leaving them as technical analysis only.
