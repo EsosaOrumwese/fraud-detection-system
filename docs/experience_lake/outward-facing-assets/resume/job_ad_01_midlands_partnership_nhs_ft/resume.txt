@@ -1,0 +1,14 @@
+Esosa Orumwese
+Data Scientist | Advanced Analytics, Model Governance & Decision Support
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Scientist with experience building governed predictive analytics, reusable analytical datasets, and stakeholder-facing decision-support outputs over complex multi-source data. Strong in SQL and Python, with a track record of improving risk identification, strengthening data quality, and delivering explainable models and reporting products that support operational and service decisions.
+
+CORE SKILLS
+Advanced Analytics: Predictive modelling, statistical analysis, cohorting, segmentation
+Data & Tooling: SQL, Python, multi-source linked-data analysis
+Data Quality & Governance: Reconciliation, KPI governance, fit-for-use checks, documentation
+Reporting & Decision Support: Reporting-ready datasets, dashboard reporting, stakeholder-facing insight
+Model Governance: Explainable model delivery, threshold setting, caveats, reviewable outputs
+
