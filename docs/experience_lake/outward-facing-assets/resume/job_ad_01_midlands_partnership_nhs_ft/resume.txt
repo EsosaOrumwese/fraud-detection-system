@@ -1,21 +1,21 @@
-Esosa Orumwese
+**Esosa Orumwese**
 Data Scientist | Advanced Analytics, Model Governance & Decision Support
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
-PERSONAL SUMMARY
+**PERSONAL SUMMARY**
 Data Scientist with experience building governed predictive analytics, reusable analytical datasets, and stakeholder-facing decision-support outputs over complex multi-source data. Strong in SQL and Python, with a track record of improving risk identification, strengthening data quality, and delivering explainable models and reporting products that support operational and service decisions.
 
-CORE SKILLS
+**CORE SKILLS**
 Advanced Analytics: Predictive modelling, statistical analysis, cohorting, segmentation
 Data & Tooling: SQL, Python, multi-source linked-data analysis
 Data Quality & Governance: Reconciliation, KPI governance, fit-for-use checks, documentation
 Reporting & Decision Support: Reporting-ready datasets, dashboard reporting, stakeholder-facing insight
 Model Governance: Explainable model delivery, threshold setting, caveats, reviewable outputs
 
-RELEVANT EXPERIENCE
+**RELEVANT EXPERIENCE**
 
-Data Scientist & Analytics Engineer
-AWS-hosted Fraud Decisioning Platform — Exeter, UK | May 2025 - Present
+**Data Scientist & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
 
 - Improved operational risk identification and short-range case planning, as measured by 2.29x High-cohort and 1.98x Medium-cohort fraud-truth yield, by building a bounded predictive workflow over governed multi-source fraud data with reusable scoring and cohort outputs.
 - Applied robust linked-data analysis to population, cohort, and pathway questions, as measured by clean join coverage, zero duplicate flow rows, and one canonical KPI definition set, by building a governed fraud population slice with source rules, reconciliation controls, and reporting-ready summaries.
@@ -24,22 +24,22 @@ AWS-hosted Fraud Decisioning Platform — Exeter, UK | May 2025 - Present
 - Delivered a governed fraud-risk scoring workflow, as measured by stable high-band lift, explicit model-selection and threshold decisions, and a completed caveat pack, by comparing bounded logistic scoring approaches and turning the selected score into a reviewable stakeholder decision surface.
 - Turned governed analytical outputs into dashboard and decision-support products, as measured by consistent KPI reuse across multiple views and completion of executive, operational, and drill-through surfaces, by packaging model and cohort results into reporting-ready views and annotated summaries for non-technical users.
 
-EDUCATION
+**EDUCATION**
 
-University of Exeter
+**University of Exeter**
 Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
 
-ADDITIONAL EXPERIENCE
+**ADDITIONAL EXPERIENCE**
 
-Crew Member
-Five Guys — Exeter, UK | Sep 2024 - Present
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
 
 - Work in a fast-paced customer operations team, maintaining accuracy, speed, and service quality during high-volume shifts.
 - Follow strict hygiene, food-safety, cash-handling, and operational procedures to support reliable day-to-day service.
 - Contribute to smooth shift execution through dependable teamwork, clear communication, punctuality, and consistent handovers.
 
-Field Engineer (Trainee)
-South Western Technologies & Oilfield Services Ltd — Rivers, Nigeria | Jul 2021 - Aug 2022
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
 
 - Worked in field teams on completion operations with service partners, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
 - Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
