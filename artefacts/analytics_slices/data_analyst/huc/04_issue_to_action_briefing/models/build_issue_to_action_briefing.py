@@ -402,43 +402,31 @@ def main() -> None:
         )
 
     rate_df = plot_df.loc[plot_df["rate_metric"]].copy()
+    rate_df["delta_pp"] = (rate_df["current_value"] - rate_df["prior_value"]) * 100
     y_positions = list(range(len(rate_df)))
-    bar_height = 0.32
+    colors = ["#3d85c6" if value >= 0 else "#e69138" for value in rate_df["delta_pp"]]
     axes[1].barh(
-        [y - bar_height / 2 for y in y_positions],
-        rate_df["prior_value"],
-        height=bar_height,
-        color="#9fc5e8",
-        label="Prior",
-    )
-    axes[1].barh(
-        [y + bar_height / 2 for y in y_positions],
-        rate_df["current_value"],
-        height=bar_height,
-        color="#3d85c6",
-        label="Current",
+        y_positions,
+        rate_df["delta_pp"],
+        color=colors,
+        height=0.52,
     )
     axes[1].set_yticks(y_positions)
     axes[1].set_yticklabels(rate_df["metric"])
-    axes[1].set_xlim(0.08, 0.82)
-    axes[1].set_title("Core Rates Were Broadly Flat")
-    axes[1].set_xlabel("Rate")
+    max_delta = max(abs(rate_df["delta_pp"]).max(), 0.05)
+    axes[1].set_xlim(-max_delta * 1.8, max_delta * 1.8)
+    axes[1].axvline(0, color="#666666", linewidth=1.2)
+    axes[1].set_title("Rate Movement vs Prior Was Minimal")
+    axes[1].set_xlabel("Change from prior (percentage points)")
     axes[1].set_ylabel("")
-    axes[1].legend(title="", loc="lower right", fontsize=10)
     for pos, row in enumerate(rate_df.itertuples(index=False)):
         axes[1].text(
-            float(row.current_value) + 0.01,
-            pos + bar_height / 2,
-            short_pct(float(row.current_value)),
+            float(row.delta_pp) + (0.01 if row.delta_pp >= 0 else -0.01),
+            pos,
+            f"{row.delta_pp:+.2f} pp",
             fontsize=8.5,
             va="center",
-        )
-        axes[1].text(
-            float(row.prior_value) + 0.01,
-            pos - bar_height / 2,
-            short_pct(float(row.prior_value)),
-            fontsize=8.5,
-            va="center",
+            ha="left" if row.delta_pp >= 0 else "right",
         )
 
     fig.suptitle("Figure 1 - Topline Movement and Issue Context", fontsize=18, y=1.02)
@@ -493,7 +481,9 @@ def main() -> None:
             fontsize=8.5,
         )
 
-    fig.suptitle("Figure 2 - Segment Burden Versus Quality", fontsize=18, y=1.02)
+    axes[0].set_title("Current Weekly Case-Open Rate by Segment")
+    axes[1].set_title("Current Weekly Truth Quality by Segment")
+    fig.suptitle("Figure 2 - Bounded Weekly Segment Burden Versus Quality", fontsize=18, y=1.02)
     fig.tight_layout()
     fig.savefig(FIGURES_DIR / "segment_burden_versus_quality.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
