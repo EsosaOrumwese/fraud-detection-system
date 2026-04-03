@@ -1,0 +1,18 @@
+[
+  {
+    "metric_name":"avg_seconds_event_to_case_open",
+    "metric_value":0.0
+  },
+  {
+    "metric_name":"exact_event_case_open_ts_match_flows",
+    "metric_value":361504.0
+  },
+  {
+    "metric_name":"flows_with_multiple_cases",
+    "metric_value":0.0
+  },
+  {
+    "metric_name":"linked_event_case_flows",
+    "metric_value":361504.0
+  }
+]

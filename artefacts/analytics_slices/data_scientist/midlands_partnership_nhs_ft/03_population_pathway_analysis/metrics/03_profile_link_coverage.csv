@@ -1,0 +1,7 @@
+metric_name,metric_value
+case_flows_with_bank_view,361504.0
+case_flows_with_truth,361504.0
+event_flows_with_anchor,3455613.0
+event_flows_with_bank_view,3455613.0
+event_flows_with_case,361504.0
+event_flows_with_truth,3455613.0
