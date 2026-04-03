@@ -1,7 +1,7 @@
 {
   "generated_figures": [
-    "executive_overview.png",
-    "workflow_health.png",
-    "drillthrough_detail.png"
+    "source_integration_and_trust_boundary.png",
+    "current_vs_prior_kpi_movement.png",
+    "segment_and_stage_issue_pattern.png"
   ]
 }

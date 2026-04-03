@@ -1,15 +1,15 @@
 # Service Line Reporting Pack v1
 
-This pack operationalises the bounded multi-source service-performance slice into three stakeholder-facing pages.
+This pack operationalises the bounded multi-source service-performance slice into three complementary evidence figures.
 
-## Page 1 - Executive Overview
+## Figure 1 - Source Integration and Trust Boundary
 
-![Executive overview](figures/executive_overview.png)
+![Source integration and trust boundary](figures/source_integration_and_trust_boundary.png)
 
-## Page 2 - Workflow Health
+## Figure 2 - Current vs Prior KPI Movement
 
-![Workflow health](figures/workflow_health.png)
+![Current vs prior KPI movement](figures/current_vs_prior_kpi_movement.png)
 
-## Page 3 - Drill-Through Detail
+## Figure 3 - Segment and Stage Issue Pattern
 
-![Drill-through detail](figures/drillthrough_detail.png)
+![Segment and stage issue pattern](figures/segment_and_stage_issue_pattern.png)

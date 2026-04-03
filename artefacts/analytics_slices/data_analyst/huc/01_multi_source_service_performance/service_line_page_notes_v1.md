@@ -1,14 +1,13 @@
 # Service Line Page Notes v1
 
-Page 1 - Executive overview:
-- compares current week to prior week for the bounded service-line question
-- keeps focus on pressure, conversion, burden, and quality
+Figure 1 - Source integration and trust boundary:
+- shows that the bounded service-line view really combines four governed source families
+- keeps the linkage posture and trust caveat visible
 
-Page 2 - Workflow health:
-- shows where conversion and long-lifecycle burden sit by amount band
-- includes the truth-versus-bank discrepancy note because source trust affects outcome reading
+Figure 2 - Current vs prior KPI movement:
+- focuses on top-line weekly movement in the KPI family
+- keeps the service-line reading centered on pressure, conversion, burden, and quality
 
-Page 3 - Drill-through and detail:
-- shows segment-level quality comparison
-- keeps the discrepancy sample small and readable
-- links the operational issue directly to follow-up action
+Figure 3 - Segment and stage issue pattern:
+- shows where the structural burden issue sits
+- combines segment burden-versus-quality and pathway-stage yield so the operational problem is visible without a dashboard page

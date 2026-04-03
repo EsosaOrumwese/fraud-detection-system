@@ -296,17 +296,17 @@ def main() -> None:
         """
         # Service Line Page Notes v1
 
-        Page 1 - Executive service-line overview:
-        - focuses on current versus prior movement in the four KPI families
-        - highlights one issue only so the leadership view stays readable
+        Figure 1 - Reporting cycle scope and stable reporting contract:
+        - shows the fixed cadence, audience pair, and recurring reporting purpose
+        - keeps the owned-cycle contract visible without turning the figure into a prose-heavy page
 
-        Page 2 - Operational performance:
-        - focuses on conversion, burden, and the quality-trust caveat
-        - should remain the main page for operational interpretation
+        Figure 2 - Period comparison and exception evidence:
+        - shows current-versus-prior KPI movement and the recurring exception segment gap
+        - keeps the figure visual-first rather than explanatory-text-first
 
-        Page 3 - Exception detail and controls:
-        - carries the recurring exception summary and the release-control posture together
-        - makes clear that the slice is proving reporting ownership and rerun discipline, not a deeper row-level drill-through surface
+        Figure 3 - Release controls and regeneration posture:
+        - shows release checks, regeneration posture, and stability controls
+        - makes clear that the slice is proving reporting-cycle ownership and repeatable release discipline
         """,
     )
 
@@ -415,39 +415,49 @@ def main() -> None:
     )
 
     # Figures
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-    cards = pd.DataFrame(
+    fig, axes = plt.subplots(1, 2, figsize=(16.5, 6.8), gridspec_kw={"width_ratios": [0.95, 1.05]})
+    scope_df = pd.DataFrame(
         {
-            "metric": ["Flow pressure", "Case-open", "Long lifecycle"],
-            "current": [
-                current_row["flow_rows"],
-                current_row["case_open_rate"],
-                current_row["long_lifecycle_share"],
-            ],
-            "prior": [
-                prior_row["flow_rows"],
-                prior_row["case_open_rate"],
-                prior_row["long_lifecycle_share"],
-            ],
+            "measure": ["Audience groups", "KPI families", "Reporting figures", "Release checks"],
+            "count": [2, 4, 3, release_check_count],
         }
     )
-    for idx, (_, row) in enumerate(cards.iterrows()):
-        axes[idx].axis("off")
-        if row["metric"] == "Flow pressure":
-            current_label = comma(float(row["current"]))
-            prior_label = comma(float(row["prior"]))
-        else:
-            current_label = short_pct(float(row["current"]))
-            prior_label = short_pct(float(row["prior"]))
-        axes[idx].text(0.03, 0.82, row["metric"], fontsize=15, fontweight="bold")
-        axes[idx].text(0.03, 0.54, f"Current: {current_label}", fontsize=24, color="#1c4587")
-        axes[idx].text(0.03, 0.30, f"Prior: {prior_label}", fontsize=16, color="#666666")
-    fig.suptitle("Recurring Reporting Cycle - Executive Overview", fontsize=18, y=1.02)
+    sns.barplot(data=scope_df, x="measure", y="count", hue="measure", palette="Blues", legend=False, ax=axes[0])
+    axes[0].set_title("Owned Cycle Scope Counts")
+    axes[0].set_xlabel("")
+    axes[0].set_ylabel("Count")
+    for container in axes[0].containers:
+        axes[0].bar_label(container, labels=[f"{v:.0f}" for v in container.datavalues], padding=3, fontsize=9)
+
+    matrix_df = pd.DataFrame(
+        [
+            {"kpi_family": "Flow pressure", "Scope figure": 1, "Period figure": 1, "Control figure": 0},
+            {"kpi_family": "Case-open conversion", "Scope figure": 1, "Period figure": 1, "Control figure": 1},
+            {"kpi_family": "Long-lifecycle burden", "Scope figure": 0, "Period figure": 1, "Control figure": 0},
+            {"kpi_family": "Truth quality", "Scope figure": 0, "Period figure": 1, "Control figure": 1},
+        ]
+    ).set_index("kpi_family")
+    sns.heatmap(
+        matrix_df,
+        cmap=sns.light_palette("#1c4587", as_cmap=True),
+        vmin=0,
+        vmax=1,
+        linewidths=1,
+        linecolor="white",
+        cbar=False,
+        annot=True,
+        fmt=".0f",
+        ax=axes[1],
+    )
+    axes[1].set_title("Stable Reporting Contract")
+    axes[1].set_xlabel("")
+    axes[1].set_ylabel("")
+    fig.suptitle("Figure 1 - Reporting Cycle Scope and Stable Reporting Contract", fontsize=18, y=1.02)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "executive_service_line_overview.png", dpi=200, bbox_inches="tight")
+    fig.savefig(FIGURES_DIR / "reporting_cycle_scope_and_kpi_reuse.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(16.5, 6.5), gridspec_kw={"width_ratios": [1.0, 0.95]})
     operational_plot = pd.DataFrame(
         {
             "kpi": ["Case-open", "Long lifecycle", "Truth quality", "Mismatch"],
@@ -525,7 +535,7 @@ def main() -> None:
     axes[1].set_yticks(list(range(len(current_exception))))
     axes[1].set_yticklabels(current_exception["amount_band_short"])
     axes[1].set_xlim(0.08, 0.22)
-    axes[1].set_title("Current Exception Segment Gap")
+    axes[1].set_title("Recurring Exception Segment Gap")
     axes[1].set_xlabel("Rate")
     axes[1].set_ylabel("Amount band")
     axes[1].legend(title="", loc="lower right", fontsize=10)
@@ -537,12 +547,12 @@ def main() -> None:
             fontsize=8.5,
             va="center",
         )
-    fig.suptitle("Recurring Reporting Cycle - Operational View", fontsize=18, y=1.02)
+    fig.suptitle("Figure 2 - Period Comparison and Exception Evidence", fontsize=18, y=1.02)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "operational_performance_view.png", dpi=200, bbox_inches="tight")
+    fig.savefig(FIGURES_DIR / "period_comparison_and_exception_evidence.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6), gridspec_kw={"width_ratios": [1.0, 1.1]})
+    fig, axes = plt.subplots(1, 2, figsize=(16.5, 6.5), gridspec_kw={"width_ratios": [0.9, 1.1]})
     checklist_plot = release_df.copy()
     checklist_plot["check_label"] = checklist_plot["check_name"].str.replace("_", "\n")
     sns.barplot(
@@ -561,27 +571,36 @@ def main() -> None:
     for container in axes[0].containers:
         axes[0].bar_label(container, labels=["pass" if v >= 1 else "fail" for v in container.datavalues], padding=3, fontsize=9)
 
-    axes[1].axis("off")
-    axes[1].set_title("Exception Detail and Cycle Controls", loc="left", pad=10)
-    axes[1].text(
-        0.0,
-        0.92,
-        (
-            f"Cadence: weekly\n"
-            f"Audience views: 3\n"
-            f"KPI families: 4\n"
-            f"Release checks passed: {release_pass_count}/{release_check_count}\n"
-            f"Main exception: 50+ segment\n"
-            f"Case-open: {short_pct(float(top_segment['case_open_rate']))}\n"
-            f"Truth quality: {short_pct(float(top_segment['case_truth_rate']))}\n"
-            f"Trust caveat: bank view is comparison-only"
-        ),
-        fontsize=14,
-        va="top",
+    control_df = pd.DataFrame(
+        {
+            "control_asset": [
+                "KPI definition",
+                "Run checklist",
+                "Caveat note",
+                "Changelog",
+                "Regeneration README",
+            ],
+            "present_flag": [1, 1, 1, 1, 1],
+        }
     )
-    fig.suptitle("Recurring Reporting Cycle - Exception Detail and Controls", fontsize=18, y=1.02)
+    sns.barplot(
+        data=control_df,
+        x="present_flag",
+        y="control_asset",
+        hue="control_asset",
+        palette="Greens",
+        legend=False,
+        ax=axes[1],
+    )
+    axes[1].set_title("Control Assets Present")
+    axes[1].set_xlabel("Present flag")
+    axes[1].set_ylabel("")
+    axes[1].set_xlim(0, 1.1)
+    for container in axes[1].containers:
+        axes[1].bar_label(container, labels=["yes" if v >= 1 else "no" for v in container.datavalues], padding=3, fontsize=9)
+    fig.suptitle("Figure 3 - Release Controls and Regeneration Posture", fontsize=18, y=1.02)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "drillthrough_and_controls.png", dpi=200, bbox_inches="tight")
+    fig.savefig(FIGURES_DIR / "release_controls_and_regeneration_posture.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
     write_md(
@@ -589,19 +608,19 @@ def main() -> None:
         """
         # Service Line Reporting Pack v1
 
-        This pack operationalises one owned weekly service-line reporting cycle into three recurring pages.
+        This pack operationalises one owned weekly service-line reporting cycle into three complementary evidence figures.
 
-        ## Page 1 - Executive Service-Line Overview
+        ## Figure 1 - Reporting Cycle Scope and Stable Reporting Contract
 
-        ![Executive service-line overview](figures/executive_service_line_overview.png)
+        ![Reporting cycle scope and KPI reuse](figures/reporting_cycle_scope_and_kpi_reuse.png)
 
-        ## Page 2 - Operational Performance View
+        ## Figure 2 - Period Comparison and Exception Evidence
 
-        ![Operational performance view](figures/operational_performance_view.png)
+        ![Period comparison and exception evidence](figures/period_comparison_and_exception_evidence.png)
 
-        ## Page 3 - Exception Detail and Controls
+        ## Figure 3 - Release Controls and Regeneration Posture
 
-        ![Exception detail and controls](figures/drillthrough_and_controls.png)
+        ![Release controls and regeneration posture](figures/release_controls_and_regeneration_posture.png)
         """,
     )
 
@@ -636,15 +655,24 @@ def main() -> None:
         json.dumps(
             {
                 "generated_figures": [
-                    "executive_service_line_overview.png",
-                    "operational_performance_view.png",
-                    "drillthrough_and_controls.png",
+                    "reporting_cycle_scope_and_kpi_reuse.png",
+                    "period_comparison_and_exception_evidence.png",
+                    "release_controls_and_regeneration_posture.png",
                 ]
             },
             indent=2,
         ),
         encoding="utf-8",
     )
+
+    for stale_name in [
+        "executive_service_line_overview.png",
+        "operational_performance_view.png",
+        "drillthrough_and_controls.png",
+    ]:
+        stale_path = FIGURES_DIR / stale_name
+        if stale_path.exists():
+            stale_path.unlink()
 
     print("reporting_cycle_ownership build complete")
 

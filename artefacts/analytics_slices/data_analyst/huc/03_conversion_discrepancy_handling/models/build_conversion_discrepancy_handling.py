@@ -415,22 +415,12 @@ def main() -> None:
             padding=3,
             fontsize=9,
         )
-    axes[1].text(
-        0.02,
-        -0.26,
-        "Status: resolved in reporting logic.\nControl added: release check against flow-based conversion.",
-        transform=axes[1].transAxes,
-        fontsize=9.5,
-        va="top",
-        ha="left",
-        color="#7a0000",
-    )
-    fig.suptitle("Conversion Exception Pack - Exception Summary", fontsize=18, y=1.02)
+    fig.suptitle("Figure 1 - Conversion Discrepancy Summary", fontsize=18, y=1.02)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "conversion_exception_summary.png", dpi=200, bbox_inches="tight")
+    fig.savefig(FIGURES_DIR / "conversion_discrepancy_summary.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6), gridspec_kw={"width_ratios": [1.15, 1.0]})
+    fig, axes = plt.subplots(1, 2, figsize=(15.5, 6.2), gridspec_kw={"width_ratios": [1.0, 1.0]})
     line_df = discrepancy_df.copy()
     x_positions = list(range(len(line_df)))
     axes[0].hlines(
@@ -473,28 +463,35 @@ def main() -> None:
             va="center",
         )
 
-    axes[1].axis("off")
-    axes[1].set_title("Root Cause and Corrected Interpretation", loc="left", pad=10)
-    axes[1].text(
-        0.0,
-        0.92,
-        (
-            "Root cause:\n"
-            "Same case-open numerator was reused against\n"
-            "`entry_event_rows` instead of `flow_rows`.\n\n"
-            "Why it mattered:\n"
-            "The discrepant view halved apparent conversion\n"
-            "and suggested false deterioration.\n\n"
-            "Correct interpretation:\n"
-            "Weekly conversion stayed stable; the issue was\n"
-            "denominator drift in reporting logic."
-        ),
-        fontsize=13.5,
-        va="top",
+    denominator_plot = pd.DataFrame(
+        {
+            "week_role": ["current", "current", "prior", "prior"],
+            "denominator": ["flow_rows", "entry_event_rows", "flow_rows", "entry_event_rows"],
+            "rows_millions": [
+                float(current_row["flow_rows"]) / 1_000_000,
+                float(current_row["entry_event_rows"]) / 1_000_000,
+                float(prior_row["flow_rows"]) / 1_000_000,
+                float(prior_row["entry_event_rows"]) / 1_000_000,
+            ],
+        }
     )
-    fig.suptitle("Conversion Exception Pack - Drill-Through and Explanation", fontsize=18, y=1.02)
+    sns.barplot(
+        data=denominator_plot,
+        x="week_role",
+        y="rows_millions",
+        hue="denominator",
+        palette=["#3d85c6", "#e69138"],
+        ax=axes[1],
+    )
+    axes[1].set_title("Denominator Drift That Caused the Gap")
+    axes[1].set_xlabel("Week")
+    axes[1].set_ylabel("Rows (millions)")
+    axes[1].legend(title="", loc="best", fontsize=10)
+    for container in axes[1].containers:
+        axes[1].bar_label(container, labels=[f"{v:.2f}M" for v in container.datavalues], padding=3, fontsize=8.5)
+    fig.suptitle("Figure 2 - Root Cause and Corrected Interpretation", fontsize=18, y=1.02)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "conversion_drillthrough_and_explanation.png", dpi=200, bbox_inches="tight")
+    fig.savefig(FIGURES_DIR / "conversion_root_cause_and_correction.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
     write_md(
@@ -502,15 +499,15 @@ def main() -> None:
         """
         # Conversion Exception Pack v1
 
-        This pack operationalises one anomaly-to-resolution cycle for suspicious-to-case conversion.
+        This pack operationalises one anomaly-to-resolution cycle for suspicious-to-case conversion through two complementary evidence figures.
 
-        ## Page 1 - Exception Summary
+        ## Figure 1 - Conversion Discrepancy Summary
 
-        ![Conversion exception summary](figures/conversion_exception_summary.png)
+        ![Conversion discrepancy summary](figures/conversion_discrepancy_summary.png)
 
-        ## Page 2 - Drill-Through and Explanation
+        ## Figure 2 - Root Cause and Corrected Interpretation
 
-        ![Conversion drill-through and explanation](figures/conversion_drillthrough_and_explanation.png)
+        ![Conversion root cause and correction](figures/conversion_root_cause_and_correction.png)
         """,
     )
 
@@ -538,14 +535,22 @@ def main() -> None:
         json.dumps(
             {
                 "generated_figures": [
-                    "conversion_exception_summary.png",
-                    "conversion_drillthrough_and_explanation.png",
+                    "conversion_discrepancy_summary.png",
+                    "conversion_root_cause_and_correction.png",
                 ]
             },
             indent=2,
         ),
         encoding="utf-8",
     )
+
+    for stale_name in [
+        "conversion_exception_summary.png",
+        "conversion_drillthrough_and_explanation.png",
+    ]:
+        stale_path = FIGURES_DIR / stale_name
+        if stale_path.exists():
+            stale_path.unlink()
 
     print("conversion_discrepancy_handling build complete")
 

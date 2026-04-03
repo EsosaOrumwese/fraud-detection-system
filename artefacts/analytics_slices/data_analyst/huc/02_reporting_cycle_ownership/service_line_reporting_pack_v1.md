@@ -1,15 +1,15 @@
 # Service Line Reporting Pack v1
 
-This pack operationalises one owned weekly service-line reporting cycle into three recurring pages.
+This pack operationalises one owned weekly service-line reporting cycle into three complementary evidence figures.
 
-## Page 1 - Executive Service-Line Overview
+## Figure 1 - Reporting Cycle Scope and Stable Reporting Contract
 
-![Executive service-line overview](figures/executive_service_line_overview.png)
+![Reporting cycle scope and KPI reuse](figures/reporting_cycle_scope_and_kpi_reuse.png)
 
-## Page 2 - Operational Performance View
+## Figure 2 - Period Comparison and Exception Evidence
 
-![Operational performance view](figures/operational_performance_view.png)
+![Period comparison and exception evidence](figures/period_comparison_and_exception_evidence.png)
 
-## Page 3 - Exception Detail and Controls
+## Figure 3 - Release Controls and Regeneration Posture
 
-![Exception detail and controls](figures/drillthrough_and_controls.png)
+![Release controls and regeneration posture](figures/release_controls_and_regeneration_posture.png)

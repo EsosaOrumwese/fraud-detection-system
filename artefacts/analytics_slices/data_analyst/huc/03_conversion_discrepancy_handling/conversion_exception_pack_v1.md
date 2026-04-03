@@ -1,11 +1,11 @@
 # Conversion Exception Pack v1
 
-This pack operationalises one anomaly-to-resolution cycle for suspicious-to-case conversion.
+This pack operationalises one anomaly-to-resolution cycle for suspicious-to-case conversion through two complementary evidence figures.
 
-## Page 1 - Exception Summary
+## Figure 1 - Conversion Discrepancy Summary
 
-![Conversion exception summary](figures/conversion_exception_summary.png)
+![Conversion discrepancy summary](figures/conversion_discrepancy_summary.png)
 
-## Page 2 - Drill-Through and Explanation
+## Figure 2 - Root Cause and Corrected Interpretation
 
-![Conversion drill-through and explanation](figures/conversion_drillthrough_and_explanation.png)
+![Conversion root cause and correction](figures/conversion_root_cause_and_correction.png)

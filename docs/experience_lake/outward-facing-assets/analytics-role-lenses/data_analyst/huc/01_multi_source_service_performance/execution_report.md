@@ -72,8 +72,8 @@ The execution stayed aligned to the approved HUC requirement-A slice rather than
 The delivered scope maps back to the planned lens responsibilities as follows:
 - `03 - Data Quality, Governance, and Trusted Information Stewardship`: source map, authoritative-source rules, join lineage, discrepancy log, and discrepancy summary
 - `01 - Operational Performance Analytics`: merged service-performance base, shared KPI layer, current-versus-prior comparison, and one explicit operational problem statement
-- `02 - BI, Insight, and Reporting Analytics`: one compact three-page reporting pack with executive, workflow-health, and drill-through pages
-- `08 - Stakeholder Translation, Communication, and Decision Influence`: executive brief, action note, challenge-response note, and annotated page notes
+- `02 - BI, Insight, and Reporting Analytics`: one compact three-figure evidence pack covering source trust, period movement, and issue pattern
+- `08 - Stakeholder Translation, Communication, and Decision Influence`: executive brief, action note, challenge-response note, and annotated figure notes
 
 The report therefore needs to be read as proof that multiple operational datasets were brought together for one service-line performance purpose, not as proof that every HUC reporting responsibility has already been executed.
 
@@ -172,7 +172,7 @@ Operational reading:
 
 ### 5.5 Stage-level detail
 
-The drill-through page also needed one bounded pathway reading.
+The issue-pattern evidence also needed one bounded pathway reading.
 
 Observed current-week pathway-stage profile:
 
@@ -188,92 +188,89 @@ Operational reading:
 - it has almost no authoritative truth yield
 - the pack therefore supports a practical reading about low-value operational burden rather than only total case volume
 
-## 6. Reporting Pack Actually Delivered
+## 6. Evidence Figures Actually Delivered
 
-### 6.1 Page 1 - Executive overview
+### 6.1 Figure 1 - Source integration and trust boundary
 
-The executive page was designed to answer:
-- what changed?
-- is the current topline materially worse?
-- what is the single issue leadership should know first?
-
-Delivered components:
-- headline KPI cards
-- current-versus-prior comparison
-- one weekly trend view
-- one short issue summary
-
-The page keeps the leadership reading compact:
-- pressure is slightly up
-- conversion and authoritative quality are broadly flat
-- the main issue is not top-line collapse
-- the main issue is persistent low-yield burden in the higher-amount segment
-
-### 6.2 Page 2 - Workflow health
-
-The workflow page was designed to answer:
-- is conversion changing?
-- is long-lifecycle burden worsening?
-- what trust caveat affects operational reading?
+The first figure was designed to answer:
+- were the sources actually brought together cleanly?
+- where is the real trust boundary?
+- is the issue linkage failure or source-meaning disagreement?
 
 Delivered components:
-- conversion comparison
-- long-lifecycle burden comparison
-- discrepancy comparison between bank view and authoritative truth
+- bounded source map
+- linkage-coverage comparison
+- truth-versus-bank trust boundary
 
-The strongest operational reading on this page is:
-- the workload is not materially cleaner than the prior week
-- long-lifecycle burden remains near `80%`
-- outcome-quality reading would be badly overstated if bank view were treated as authoritative
+The figure keeps the source-reading disciplined:
+- linkage is structurally clean
+- the outcome-trust issue is semantic rather than join failure
+- bank view stays visible as comparison-only rather than being allowed to masquerade as authoritative truth
 
-### 6.3 Page 3 - Drill-through detail
+### 6.2 Figure 2 - Current versus prior KPI movement
 
-The drill-through page was designed to answer:
-- which slice is driving the problem?
-- what do the detail surfaces actually show?
-- what should the reader conclude from the combined view?
+The second figure was designed to answer:
+- did the topline materially worsen?
+- how much movement is real across the stable KPI family?
+- should the weekly reading be deterioration or structural persistence?
 
 Delivered components:
-- amount-band comparison
-- pathway-stage detail
-- discrepancy note
+- current-versus-prior KPI comparison
+- pressure-volume context
 - short interpretation note
 
-This is what turns the pack into decision support rather than passive reporting:
+The strongest reading from this figure is:
+- top-line movement is small
+- conversion, burden, and authoritative quality are broadly flat
+- the correct service-line story is persistent burden rather than a sudden weekly shock
+
+### 6.3 Figure 3 - Segment and stage issue pattern
+
+The third figure was designed to answer:
+- which slice is driving the problem?
+- how does burden compare with authoritative quality?
+- what stage context explains why the issue matters operationally?
+
+Delivered components:
+- amount-band burden-versus-quality gap
+- pathway-stage yield context
+- short issue-pattern interpretation
+
+This is what turns the slice into bounded decision support rather than passive reporting:
 - it identifies the `50_plus` band as the clearest structural burden problem
 - it shows that the dominant stage is `opened_only`
-- it keeps the trust caveat visible instead of hiding it under the visuals
+- it keeps the problem explanation concrete without falling back into a generic dashboard layout
 
 ## 7. Figures
 
 The figure pack is part of execution for this slice, not an afterthought.
 
-### 7.1 Executive overview
+### 7.1 Source integration and trust boundary
 
-![Executive overview](../../../../../../../artefacts/analytics_slices/data_analyst/huc/01_multi_source_service_performance/figures/executive_overview.png)
+![Source integration and trust boundary](../../../../../../../artefacts/analytics_slices/data_analyst/huc/01_multi_source_service_performance/figures/source_integration_and_trust_boundary.png)
 
-This page carries the leadership story:
-- top-line metrics are mostly flat week over week
-- pressure is slightly higher
-- the real issue is a structural burden pattern, not a sudden KPI shock
+This figure carries the trust story:
+- the four source families are explicit
+- linkage stays clean across the bounded window
+- the real warning sits at the truth-versus-bank meaning boundary
 
-### 7.2 Workflow health
+### 7.2 Current versus prior KPI movement
 
-![Workflow health](../../../../../../../artefacts/analytics_slices/data_analyst/huc/01_multi_source_service_performance/figures/workflow_health.png)
+![Current versus prior KPI movement](../../../../../../../artefacts/analytics_slices/data_analyst/huc/01_multi_source_service_performance/figures/current_vs_prior_kpi_movement.png)
 
-This page carries the operations story:
-- case-open conversion and long-lifecycle burden are visible together
-- the trust caveat around bank-view versus authoritative truth is surfaced directly
-- the page reads as workflow interpretation rather than a generic trend chart
+This figure carries the period-comparison story:
+- current and prior KPI movement stays readable without becoming a dashboard wall
+- pressure context is visible beside the KPI movement
+- the reading remains “stable topline, persistent issue”
 
-### 7.3 Drill-through detail
+### 7.3 Segment and stage issue pattern
 
-![Drill-through detail](../../../../../../../artefacts/analytics_slices/data_analyst/huc/01_multi_source_service_performance/figures/drillthrough_detail.png)
+![Segment and stage issue pattern](../../../../../../../artefacts/analytics_slices/data_analyst/huc/01_multi_source_service_performance/figures/segment_and_stage_issue_pattern.png)
 
-This page carries the detail story:
+This figure carries the issue-pattern story:
 - the amount-band problem is visible directly
 - stage-level context is bounded and concrete
-- the pack remains readable without abandoning the trust caveat
+- the problem reads as a complementary operational figure rather than a forced drill-through page
 
 ## 8. Audience and Trust Packs Produced
 
@@ -287,7 +284,7 @@ Trust and source-governance notes:
 
 Reporting and explanation notes:
 - KPI definitions note
-- page notes
+- figure notes
 - executive brief
 - action note
 - challenge-response note
@@ -301,7 +298,7 @@ This slice supports truthful statements such as:
 - integrated multiple operational datasets into one trusted service-performance slice
 - worked through imperfect source data by exposing discrepancy checks and source-authority rules explicitly
 - defined a stable KPI family for one bounded operational question rather than a broad reporting estate
-- turned the combined view into executive, workflow, and drill-through reporting plus action-oriented briefing notes
+- turned the combined view into source-trust, period-movement, and issue-pattern evidence figures plus action-oriented briefing notes
 
 The slice does not support claiming that:
 - a broad HUC reporting estate is already complete
@@ -326,7 +323,7 @@ The claim therefore needs to answer back in evidence form:
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Brought multiple operational datasets together for one unified service-performance purpose, as measured by successful integration of `4` governed source families into a bounded current-versus-prior review, zero multi-case linkage defects across `36.9M` merged rows, and consistent reuse of `4` KPI families across executive, workflow, and drill-through reporting outputs, by combining event, flow, case, and outcome data, working through imperfect source disagreement with reconciliation and source-authority rules, and packaging the results into operational and leadership decision-support reporting.
+> Brought multiple operational datasets together for one unified service-performance purpose, as measured by successful integration of `4` governed source families into a bounded current-versus-prior review, zero multi-case linkage defects across `36.9M` merged rows, and consistent reuse of `4` KPI families across source-trust, period-movement, and issue-pattern evidence outputs, by combining event, flow, case, and outcome data, working through imperfect source disagreement with reconciliation and source-authority rules, and packaging the results into operational and leadership decision-support reporting.
 
 ### 10.2 Shorter recruiter-facing version
 

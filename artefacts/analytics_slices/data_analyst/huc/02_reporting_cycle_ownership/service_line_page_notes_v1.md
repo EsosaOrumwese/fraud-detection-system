@@ -1,13 +1,13 @@
 # Service Line Page Notes v1
 
-Page 1 - Executive service-line overview:
-- focuses on current versus prior movement in the four KPI families
-- highlights one issue only so the leadership view stays readable
+Figure 1 - Reporting cycle scope and stable reporting contract:
+- shows the fixed cadence, audience pair, and recurring reporting purpose
+- keeps the owned-cycle contract visible without turning the figure into a prose-heavy page
 
-Page 2 - Operational performance:
-- focuses on conversion, burden, and the quality-trust caveat
-- should remain the main page for operational interpretation
+Figure 2 - Period comparison and exception evidence:
+- shows current-versus-prior KPI movement and the recurring exception segment gap
+- keeps the figure visual-first rather than explanatory-text-first
 
-Page 3 - Exception detail and controls:
-- carries the recurring exception summary and the release-control posture together
-- makes clear that the slice is proving reporting ownership and rerun discipline, not a deeper row-level drill-through surface
+Figure 3 - Release controls and regeneration posture:
+- shows release checks, regeneration posture, and stability controls
+- makes clear that the slice is proving reporting-cycle ownership and repeatable release discipline

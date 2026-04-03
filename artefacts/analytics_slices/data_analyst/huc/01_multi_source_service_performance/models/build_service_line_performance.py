@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 import textwrap
 from pathlib import Path
 
@@ -134,13 +135,23 @@ def main() -> None:
     con = duckdb.connect()
     con.execute("PRAGMA threads=4")
 
-    for sql_name in [
-        "01_build_service_line_performance_base.sql",
-        "02_build_service_line_kpis.sql",
-        "03_build_service_line_segment_summary.sql",
-        "04_build_service_line_discrepancy_summary.sql",
-    ]:
-        con.execute(render_sql(read_sql(sql_name), replacements))
+    rebuild_sql = "--rebuild-sql" in sys.argv or not all(
+        path.exists()
+        for path in [
+            SERVICE_LINE_BASE,
+            SERVICE_LINE_KPIS,
+            SERVICE_LINE_SEGMENTS,
+            SERVICE_LINE_DISCREPANCY,
+        ]
+    )
+    if rebuild_sql:
+        for sql_name in [
+            "01_build_service_line_performance_base.sql",
+            "02_build_service_line_kpis.sql",
+            "03_build_service_line_segment_summary.sql",
+            "04_build_service_line_discrepancy_summary.sql",
+        ]:
+            con.execute(render_sql(read_sql(sql_name), replacements))
 
     kpi_df = con.execute(
         f"SELECT * FROM parquet_scan({sql_path(SERVICE_LINE_KPIS)}) ORDER BY CASE week_role WHEN 'prior' THEN 1 ELSE 2 END"
@@ -222,24 +233,6 @@ def main() -> None:
         METRICS_DIR / "06_service_line_stage_summary.json",
     )
 
-    sample_df = con.execute(
-        f"""
-        SELECT
-            week_role,
-            CAST(flow_id AS VARCHAR) AS flow_id,
-            amount_band,
-            pathway_stage,
-            amount,
-            lifecycle_hours,
-            is_fraud_truth,
-            is_fraud_bank_view,
-            truth_bank_mismatch_flag
-        FROM parquet_scan({sql_path(SERVICE_LINE_BASE)})
-        WHERE week_role = 'current' AND amount_band = '50_plus'
-        ORDER BY truth_bank_mismatch_flag DESC, amount DESC
-        LIMIT 8
-        """
-    ).fetchdf()
     con.close()
 
     current = kpi_df[kpi_df["week_role"] == "current"].iloc[0]
@@ -402,18 +395,17 @@ def main() -> None:
         """
         # Service Line Page Notes v1
 
-        Page 1 - Executive overview:
-        - compares current week to prior week for the bounded service-line question
-        - keeps focus on pressure, conversion, burden, and quality
+        Figure 1 - Source integration and trust boundary:
+        - shows that the bounded service-line view really combines four governed source families
+        - keeps the linkage posture and trust caveat visible
 
-        Page 2 - Workflow health:
-        - shows where conversion and long-lifecycle burden sit by amount band
-        - includes the truth-versus-bank discrepancy note because source trust affects outcome reading
+        Figure 2 - Current vs prior KPI movement:
+        - focuses on top-line weekly movement in the KPI family
+        - keeps the service-line reading centered on pressure, conversion, burden, and quality
 
-        Page 3 - Drill-through and detail:
-        - shows segment-level quality comparison
-        - keeps the discrepancy sample small and readable
-        - links the operational issue directly to follow-up action
+        Figure 3 - Segment and stage issue pattern:
+        - shows where the structural burden issue sits
+        - combines segment burden-versus-quality and pathway-stage yield so the operational problem is visible without a dashboard page
         """,
     )
 
@@ -465,33 +457,56 @@ def main() -> None:
         """,
     )
 
-    fig, axes = plt.subplots(1, 3, figsize=(18.5, 6.5), gridspec_kw={"width_ratios": [1.0, 1.05, 1.0]})
-    axes[0].axis("off")
-    axes[0].text(0.0, 0.95, "Executive Overview", fontsize=20, fontweight="bold", ha="left", va="top")
-    axes[0].text(0.0, 0.82, "Current week compared to the prior week for one bounded service-line review question.", fontsize=11, ha="left", va="top")
-    kpis = [
-        ("Flows in scope", comma(float(current["flow_rows"])), comma(float(prior["flow_rows"]))),
-        ("Case-open rate", short_pct(float(current["case_open_rate"])), short_pct(float(prior["case_open_rate"]))),
-        ("Long lifecycle share", short_pct(float(current["long_lifecycle_share"])), short_pct(float(prior["long_lifecycle_share"]))),
-        ("Case truth rate", short_pct(float(current["case_truth_rate"])), short_pct(float(prior["case_truth_rate"]))),
-    ]
-    y = 0.62
-    for label, current_value, prior_value in kpis:
-        axes[0].text(0.02, y, label, fontsize=12, ha="left", va="center")
-        axes[0].text(0.72, y, current_value, fontsize=12, fontweight="bold", ha="right", va="center")
-        axes[0].text(0.98, y, prior_value, fontsize=11, color="#666666", ha="right", va="center")
-        y -= 0.11
-    axes[0].text(
-        0.02,
-        0.10,
-        f"Top issue: the {short_band(issue_row['amount_band'])} segment converts into case work most often\n"
-        f"but delivers only {short_pct(float(issue_row['case_truth_rate_current']))} authoritative truth.",
-        fontsize=10.5,
-        ha="left",
-        va="bottom",
-        bbox={"boxstyle": "round,pad=0.4", "facecolor": "#eef5fb", "edgecolor": "#9fc5e8"},
-    )
+    fig, axes = plt.subplots(1, 2, figsize=(15.5, 6.2))
 
+    linkage_plot = discrepancy_df.melt(
+        id_vars="week_role",
+        value_vars=["event_link_rate", "case_row_link_rate", "truth_link_rate", "bank_link_rate"],
+        var_name="metric_name",
+        value_name="metric_value",
+    )
+    linkage_plot["metric_name"] = linkage_plot["metric_name"].map(
+        {
+            "event_link_rate": "Event link",
+            "case_row_link_rate": "Case link",
+            "truth_link_rate": "Truth link",
+            "bank_link_rate": "Bank link",
+        }
+    )
+    sns.barplot(data=linkage_plot, x="metric_name", y="metric_value", hue="week_role", palette=["#d9ead3", "#6aa84f"], ax=axes[0])
+    axes[0].set_title("Source Linkage Coverage")
+    axes[0].set_xlabel("")
+    axes[0].set_ylabel("Rate")
+    axes[0].legend(title="", loc="best", fontsize=10)
+    for container in axes[0].containers:
+        axes[0].bar_label(container, labels=[short_pct(v) for v in container.datavalues], padding=3, fontsize=8.5)
+
+    trust_plot = discrepancy_df.melt(
+        id_vars="week_role",
+        value_vars=["truth_case_rate", "bank_case_rate", "truth_bank_mismatch_rate"],
+        var_name="metric_name",
+        value_name="metric_value",
+    )
+    trust_plot["metric_name"] = trust_plot["metric_name"].map(
+        {
+            "truth_case_rate": "Truth quality",
+            "bank_case_rate": "Bank-view quality",
+            "truth_bank_mismatch_rate": "Mismatch rate",
+        }
+    )
+    sns.barplot(data=trust_plot, x="metric_name", y="metric_value", hue="week_role", palette=["#f4cccc", "#cc0000"], ax=axes[1])
+    axes[1].set_title("Truth vs Bank-View Boundary")
+    axes[1].set_xlabel("")
+    axes[1].set_ylabel("Rate")
+    axes[1].legend(title="", loc="best", fontsize=10)
+    for container in axes[1].containers:
+        axes[1].bar_label(container, labels=[short_pct(v) for v in container.datavalues], padding=3, fontsize=8.5)
+    fig.suptitle("Figure 1 - Source Integration and Trust Boundary", y=1.02, fontsize=18)
+    fig.tight_layout()
+    fig.savefig(FIGURES_DIR / "source_integration_and_trust_boundary.png", dpi=200, bbox_inches="tight")
+    plt.close(fig)
+
+    fig, axes = plt.subplots(1, 2, figsize=(16.5, 6.5), gridspec_kw={"width_ratios": [1.0, 0.95]})
     kpi_plot_df = pd.DataFrame(
         {
             "kpi": ["Case-open", "Long lifecycle", "Truth quality"],
@@ -499,84 +514,39 @@ def main() -> None:
             "current": [float(current["case_open_rate"]), float(current["long_lifecycle_share"]), float(current["case_truth_rate"])],
         }
     ).melt(id_vars="kpi", var_name="week_role", value_name="metric_value")
-    sns.barplot(data=kpi_plot_df, x="kpi", y="metric_value", hue="week_role", palette=["#9fc5e8", "#3d85c6"], ax=axes[1])
-    axes[1].set_title("Current vs Prior KPI Read")
-    axes[1].set_xlabel("")
-    axes[1].set_ylabel("Rate")
-    axes[1].legend(title="", loc="best", fontsize=10)
-    for container in axes[1].containers:
-        axes[1].bar_label(container, labels=[short_pct(v) for v in container.datavalues], padding=3, fontsize=9)
-
-    cohort_issue_df = current_segments.sort_values("case_open_rate", ascending=False)
-    sns.barplot(data=cohort_issue_df, x="case_open_rate", y="amount_band_short", hue="amount_band_short", palette="Blues_r", legend=False, ax=axes[2])
-    axes[2].set_title("Current Conversion by Amount Band")
-    axes[2].set_xlabel("Case-open rate")
-    axes[2].set_ylabel("")
-    for container in axes[2].containers:
-        axes[2].bar_label(container, labels=[short_pct(v) for v in container.datavalues], padding=4, fontsize=9)
-    fig.suptitle("Reporting Pack Page 1 - Executive Overview", y=1.02, fontsize=18)
-    fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "executive_overview.png", dpi=200, bbox_inches="tight")
-    plt.close(fig)
-
-    fig, axes = plt.subplots(1, 3, figsize=(19, 7), gridspec_kw={"width_ratios": [1.0, 1.0, 0.95]})
-    conversion_plot = segment_df.copy()
-    conversion_plot["amount_band_short"] = conversion_plot["amount_band"].map(short_band)
-    sns.barplot(data=conversion_plot, x="amount_band_short", y="case_open_rate", hue="week_role", palette=["#9fc5e8", "#3d85c6"], ax=axes[0])
-    axes[0].set_title("Conversion Into Case Work")
-    axes[0].set_xlabel("Amount band")
-    axes[0].set_ylabel("Case-open rate")
+    sns.barplot(data=kpi_plot_df, x="kpi", y="metric_value", hue="week_role", palette=["#9fc5e8", "#3d85c6"], ax=axes[0])
+    axes[0].set_title("Current vs Prior KPI Movement")
+    axes[0].set_xlabel("")
+    axes[0].set_ylabel("Rate")
     axes[0].legend(title="", loc="best", fontsize=10)
     for container in axes[0].containers:
-        axes[0].bar_label(container, labels=[short_pct(v) for v in container.datavalues], padding=3, fontsize=8.5)
+        axes[0].bar_label(container, labels=[short_pct(v) for v in container.datavalues], padding=3, fontsize=9)
 
-    sns.barplot(data=conversion_plot, x="amount_band_short", y="long_lifecycle_share", hue="week_role", palette=["#d9ead3", "#6aa84f"], ax=axes[1])
-    axes[1].set_title("Long Lifecycle Burden")
-    axes[1].set_xlabel("Amount band")
-    axes[1].set_ylabel("Share of case-opened flows >= 168h")
-    axes[1].legend(title="", loc="best", fontsize=10)
-    for container in axes[1].containers:
-        axes[1].bar_label(container, labels=[short_pct(v) for v in container.datavalues], padding=3, fontsize=8.5)
-
-    discrepancy_plot = discrepancy_df.melt(
-        id_vars="week_role",
-        value_vars=["truth_case_rate", "bank_case_rate", "truth_bank_mismatch_rate"],
-        var_name="metric_name",
-        value_name="metric_value",
-    )
-    discrepancy_plot["metric_name"] = discrepancy_plot["metric_name"].map(
+    volume_plot = pd.DataFrame(
         {
-            "truth_case_rate": "Truth quality",
-            "bank_case_rate": "Bank-view quality",
-            "truth_bank_mismatch_rate": "Mismatch rate",
+            "metric": ["Flow rows", "Entry events"],
+            "prior_millions": [float(prior["flow_rows"]) / 1_000_000, float(prior["entry_event_rows"]) / 1_000_000],
+            "current_millions": [float(current["flow_rows"]) / 1_000_000, float(current["entry_event_rows"]) / 1_000_000],
         }
-    )
-    sns.barplot(data=discrepancy_plot, x="metric_name", y="metric_value", hue="week_role", palette=["#f4cccc", "#cc0000"], ax=axes[2])
-    axes[2].set_title("Outcome Trust Check")
-    axes[2].set_xlabel("")
-    axes[2].set_ylabel("Rate")
-    axes[2].legend(title="", loc="best", fontsize=10)
-    for container in axes[2].containers:
-        axes[2].bar_label(container, labels=[short_pct(v) for v in container.datavalues], padding=3, fontsize=8.5)
-    fig.suptitle("Reporting Pack Page 2 - Workflow Health", y=1.02, fontsize=18)
+    ).melt(id_vars="metric", var_name="week_role", value_name="millions")
+    volume_plot["week_role"] = volume_plot["week_role"].map({"prior_millions": "prior", "current_millions": "current"})
+    sns.barplot(data=volume_plot, x="metric", y="millions", hue="week_role", palette=["#c9daf8", "#1c4587"], ax=axes[1])
+    axes[1].set_title("Pressure Volume Context")
+    axes[1].set_xlabel("")
+    axes[1].set_ylabel("Rows (millions)")
+    axes[1].legend(title="", loc="best", fontsize=10)
+    for container in axes[1].containers:
+        axes[1].bar_label(container, labels=[f"{v:.2f}M" for v in container.datavalues], padding=3, fontsize=9)
+    fig.suptitle("Figure 2 - Current vs Prior KPI Movement", y=1.02, fontsize=18)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "workflow_health.png", dpi=200, bbox_inches="tight")
+    fig.savefig(FIGURES_DIR / "current_vs_prior_kpi_movement.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
-    fig, axes = plt.subplots(1, 3, figsize=(19, 7), gridspec_kw={"width_ratios": [1.0, 1.0, 1.25]})
-    quality_plot = conversion_plot.copy()
-    sns.barplot(data=quality_plot, x="amount_band_short", y="case_truth_rate", hue="week_role", palette=["#b6d7a8", "#38761d"], ax=axes[0])
-    axes[0].set_title("Authoritative Outcome Quality")
-    axes[0].set_xlabel("Amount band")
-    axes[0].set_ylabel("Case truth rate")
-    axes[0].legend(title="", loc="best", fontsize=10)
-    for container in axes[0].containers:
-        axes[0].bar_label(container, labels=[short_pct(v) for v in container.datavalues], padding=3, fontsize=8.5)
-
+    fig, axes = plt.subplots(1, 2, figsize=(16.5, 6.5), gridspec_kw={"width_ratios": [1.0, 0.95]})
     gap_df = current_segments.copy()
     gap_df = gap_df.sort_values("case_open_rate", ascending=True).reset_index(drop=True)
     y_positions = list(range(len(gap_df)))
-    axes[1].hlines(
+    axes[0].hlines(
         y=y_positions,
         xmin=gap_df["case_open_rate"],
         xmax=gap_df["case_truth_rate"],
@@ -584,59 +554,31 @@ def main() -> None:
         linewidth=3,
         alpha=0.9,
     )
-    axes[1].scatter(
-        gap_df["case_open_rate"],
-        y_positions,
-        s=220,
-        color="#3d85c6",
-        label="Case-open rate",
-        zorder=3,
-    )
-    axes[1].scatter(
-        gap_df["case_truth_rate"],
-        y_positions,
-        s=220,
-        color="#38761d",
-        label="Truth quality",
-        zorder=3,
-    )
-    axes[1].set_title("Current Segment Burden vs Quality Gap")
-    axes[1].set_xlabel("Rate")
-    axes[1].set_ylabel("Amount band")
-    axes[1].set_yticks(y_positions)
-    axes[1].set_yticklabels(gap_df["amount_band_short"])
-    axes[1].legend(title="", loc="lower right", fontsize=10)
-    axes[1].set_xlim(0.08, 0.22)
+    axes[0].scatter(gap_df["case_open_rate"], y_positions, s=220, color="#3d85c6", label="Case-open rate", zorder=3)
+    axes[0].scatter(gap_df["case_truth_rate"], y_positions, s=220, color="#38761d", label="Truth quality", zorder=3)
+    axes[0].set_title("Current Segment Burden vs Quality")
+    axes[0].set_xlabel("Rate")
+    axes[0].set_ylabel("Amount band")
+    axes[0].set_yticks(y_positions)
+    axes[0].set_yticklabels(gap_df["amount_band_short"])
+    axes[0].legend(title="", loc="lower right", fontsize=10)
+    axes[0].set_xlim(0.08, 0.22)
     for idx, row in gap_df.iterrows():
-        axes[1].text(
-            float(row["case_truth_rate"]) + 0.003,
-            idx,
-            f"{short_pct(float(row['case_open_rate']))} -> {short_pct(float(row['case_truth_rate']))}",
-            fontsize=8.5,
-            va="center",
-            ha="left",
-        )
+        axes[0].text(float(row["case_truth_rate"]) + 0.003, idx, f"{short_pct(float(row['case_open_rate']))} -> {short_pct(float(row['case_truth_rate']))}", fontsize=8.5, va="center")
 
-    sample_df["flow_id"] = sample_df["flow_id"].str[-8:]
-    sample_df["amount"] = sample_df["amount"].map(lambda v: f"{v:,.0f}")
-    sample_df["amount_band"] = sample_df["amount_band"].map(short_band)
-    sample_df["pathway_stage"] = sample_df["pathway_stage"].map(short_stage)
-    sample_df["truth_bank_mismatch_flag"] = sample_df["truth_bank_mismatch_flag"].map(lambda v: "yes" if int(v) == 1 else "no")
-    axes[2].axis("off")
-    axes[2].set_title("Current Segment Sample", loc="left", pad=12)
-    table = axes[2].table(
-        cellText=sample_df[["week_role", "flow_id", "amount_band", "pathway_stage", "amount", "truth_bank_mismatch_flag"]].values.tolist(),
-        colLabels=["Week", "Flow", "Band", "Stage", "Amount", "Mismatch"],
-        loc="center",
-        cellLoc="left",
-        colLoc="left",
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(8.5)
-    table.scale(1.0, 1.3)
-    fig.suptitle("Reporting Pack Page 3 - Detail and Interpretation", y=1.02, fontsize=18)
+    current_stage = stage_df[stage_df["week_role"] == "current"].copy()
+    current_stage["pathway_stage_short"] = current_stage["pathway_stage"].map(short_stage)
+    current_stage = current_stage.sort_values("flow_rows", ascending=True)
+    sns.barplot(data=current_stage, x="fraud_truth_rate", y="pathway_stage_short", hue="pathway_stage_short", palette="Greens", legend=False, ax=axes[1])
+    axes[1].set_title("Current Pathway Stage Yield")
+    axes[1].set_xlabel("Authoritative truth rate")
+    axes[1].set_ylabel("")
+    for idx, row in current_stage.reset_index(drop=True).iterrows():
+        axes[1].text(float(row["fraud_truth_rate"]) + 0.01, idx, f"{comma(float(row['flow_rows']))} flows", fontsize=8.5, va="center")
+    axes[1].set_xlim(0, 1.05)
+    fig.suptitle("Figure 3 - Segment and Stage Issue Pattern", y=1.02, fontsize=18)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "drillthrough_detail.png", dpi=200, bbox_inches="tight")
+    fig.savefig(FIGURES_DIR / "segment_and_stage_issue_pattern.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
     write_md(
@@ -644,30 +586,39 @@ def main() -> None:
         """
         # Service Line Reporting Pack v1
 
-        This pack operationalises the bounded multi-source service-performance slice into three stakeholder-facing pages.
+        This pack operationalises the bounded multi-source service-performance slice into three complementary evidence figures.
 
-        ## Page 1 - Executive Overview
+        ## Figure 1 - Source Integration and Trust Boundary
 
-        ![Executive overview](figures/executive_overview.png)
+        ![Source integration and trust boundary](figures/source_integration_and_trust_boundary.png)
 
-        ## Page 2 - Workflow Health
+        ## Figure 2 - Current vs Prior KPI Movement
 
-        ![Workflow health](figures/workflow_health.png)
+        ![Current vs prior KPI movement](figures/current_vs_prior_kpi_movement.png)
 
-        ## Page 3 - Drill-Through Detail
+        ## Figure 3 - Segment and Stage Issue Pattern
 
-        ![Drill-through detail](figures/drillthrough_detail.png)
+        ![Segment and stage issue pattern](figures/segment_and_stage_issue_pattern.png)
         """,
     )
 
     figure_manifest = {
         "generated_figures": [
-            "executive_overview.png",
-            "workflow_health.png",
-            "drillthrough_detail.png",
+            "source_integration_and_trust_boundary.png",
+            "current_vs_prior_kpi_movement.png",
+            "segment_and_stage_issue_pattern.png",
         ]
     }
     (FIGURES_DIR / "figure_manifest.json").write_text(json.dumps(figure_manifest, indent=2), encoding="utf-8")
+
+    for stale_name in [
+        "executive_overview.png",
+        "workflow_health.png",
+        "drillthrough_detail.png",
+    ]:
+        stale_path = FIGURES_DIR / stale_name
+        if stale_path.exists():
+            stale_path.unlink()
 
     fact_pack = {
         "slice": "huc/01_multi_source_service_performance",
