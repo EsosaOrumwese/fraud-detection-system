@@ -1,0 +1,21 @@
+{
+  "slice": "huc/04_issue_to_action_briefing",
+  "decision_question": "is the current issue broad deterioration or concentrated segment burden",
+  "audiences": [
+    "operations",
+    "leadership"
+  ],
+  "page_count": 2,
+  "kpi_family_count": 4,
+  "selected_issue_segment": "50_plus",
+  "current_flow_rows": 18554942,
+  "current_case_open_rate": 0.09593298647875051,
+  "current_long_lifecycle_share": 0.7964378148470448,
+  "current_case_truth_rate": 0.19893529944141422,
+  "selected_segment_case_open_rate": 0.1078193975162007,
+  "selected_segment_case_truth_rate": 0.1822792625915145,
+  "selected_segment_flow_rows": 1892665,
+  "current_corrected_conversion_rate": 0.09593298647875051,
+  "recommendation": "review 50_plus queue case-opening or escalation rules before broad lane-wide intervention",
+  "regeneration_seconds": 2.52
+}
