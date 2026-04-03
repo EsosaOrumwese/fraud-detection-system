@@ -1,0 +1,86 @@
+{
+  "selected_model_name": "challenger_logistic_encoded_history",
+  "selected_features": [
+    "log_amount",
+    "log_arrival_seq",
+    "flow_hour_utc",
+    "flow_dow_utc",
+    "flow_month_utc",
+    "log_merchant_flow_count",
+    "log_party_flow_count",
+    "log_account_flow_count",
+    "log_instrument_flow_count",
+    "log_device_flow_count",
+    "log_ip_flow_count",
+    "merchant_train_fraud_rate",
+    "party_train_fraud_rate",
+    "account_train_fraud_rate",
+    "instrument_train_fraud_rate",
+    "device_train_fraud_rate",
+    "ip_train_fraud_rate"
+  ],
+  "top_coefficients": [
+    {
+      "feature": "device_train_fraud_rate",
+      "coefficient": 192.3505446914924,
+      "abs_coefficient": 192.3505446914924
+    },
+    {
+      "feature": "instrument_train_fraud_rate",
+      "coefficient": 192.35054469148704,
+      "abs_coefficient": 192.35054469148704
+    },
+    {
+      "feature": "party_train_fraud_rate",
+      "coefficient": 192.35054469148648,
+      "abs_coefficient": 192.35054469148648
+    },
+    {
+      "feature": "account_train_fraud_rate",
+      "coefficient": 192.3505446914733,
+      "abs_coefficient": 192.3505446914733
+    },
+    {
+      "feature": "log_party_flow_count",
+      "coefficient": -43.74251870455966,
+      "abs_coefficient": 43.74251870455966
+    },
+    {
+      "feature": "merchant_train_fraud_rate",
+      "coefficient": 33.54828932902951,
+      "abs_coefficient": 33.54828932902951
+    },
+    {
+      "feature": "log_device_flow_count",
+      "coefficient": 21.246651351294986,
+      "abs_coefficient": 21.246651351294986
+    },
+    {
+      "feature": "log_instrument_flow_count",
+      "coefficient": 10.06833226733029,
+      "abs_coefficient": 10.06833226733029
+    }
+  ],
+  "selected_validation_metrics": {
+    "model_name": "challenger_logistic_encoded_history",
+    "split_role": "validation",
+    "rows": 691122,
+    "positives": 18841,
+    "positive_rate": 0.027261467584594325,
+    "roc_auc": 0.6227552578754579,
+    "average_precision": 0.045567635107273664,
+    "high_threshold": 0.0001290455921677446,
+    "medium_threshold": 2.681923549853644e-05
+  },
+  "selected_test_metrics": {
+    "model_name": "challenger_logistic_encoded_history",
+    "split_role": "test",
+    "rows": 691122,
+    "positives": 18888,
+    "positive_rate": 0.027329472943995417,
+    "roc_auc": 0.6239804738783975,
+    "average_precision": 0.04569916727439689,
+    "high_threshold": 0.0001290455921677446,
+    "medium_threshold": 2.681923549853644e-05
+  }
+}
