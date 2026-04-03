@@ -28,3 +28,28 @@ AWS-hosted Fraud Decisioning Platform — Exeter, UK | May 2025 - Present
 - Delivered a governed fraud-risk scoring workflow, as measured by stable high-band lift, explicit model-selection and threshold decisions, and a completed caveat pack, by comparing bounded logistic scoring approaches and turning the selected score into a reviewable stakeholder decision surface.
 
 - Turned governed analytical outputs into dashboard and decision-support products, as measured by consistent KPI reuse across multiple views and completion of executive, operational, and drill-through surfaces, by packaging model and cohort results into reporting-ready views and annotated summaries for non-technical users.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+ADDITIONAL EXPERIENCE
+
+Crew Member
+Five Guys — Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-paced customer operations team, maintaining accuracy, speed, and service quality during high-volume shifts.
+
+- Follow strict hygiene, food-safety, cash-handling, and operational procedures to support reliable day-to-day service.
+
+- Contribute to smooth shift execution through dependable teamwork, clear communication, punctuality, and consistent handovers.
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in field teams on completion operations with service partners, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
+
+- Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
+
+- Documented operational readings, issues, and handovers clearly, helping keep cross-team work coordinated under field constraints and time pressure.
