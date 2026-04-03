@@ -260,13 +260,38 @@ The slice does not support claiming that:
 
 ## 10. Candidate Resume Claim Surfaces
 
-Longer `X by Y by Z` form:
+This section should be read as a response to the Midlands responsibility, not as a generic project summary.
 
-> Improved bounded fraud-review prioritisation and near-term case planning, as measured by `2.29x` fraud-truth lift in the highest-risk test band, `30.08%` positive capture in the medium-risk band, and `7.31%` test MAPE on daily case-demand forecasting, by shaping a model-ready `flow_id` dataset in `SQL`, building a statistical risk-stratification workflow in `Python`, and packaging the outputs into reusable cohort, scoring, and planning artefacts over governed fraud surfaces.
+The responsibility asks for someone who can:
+- develop predictive and statistical models in a real delivery setting
+- use tools such as `Python`, `R`, and `SQL`
+- apply those models to forecasting, segmentation, risk identification, or service improvement
+- make the outputs usable beyond exploratory analysis
 
-Shorter recruiter-facing form:
+The claim therefore needs to answer:
+- I have done that kind of work
+- here is the measured evidence
+- here is how I delivered it in a production-usable analytical form
 
-> Built and operationalised a bounded predictive analytics slice over governed fraud data by creating reusable `SQL` model-base tables, applying `Python`-based risk stratification and cohorting, and improving high-risk fraud-truth yield to `2.29x` baseline while adding a lightweight case-demand forecasting surface.
+### 10.1 Flagship `X by Y by Z` claim
+
+> Developed and operationalised predictive and statistical fraud-prioritisation outputs for service decision-making, as measured by `2.29x` fraud-truth yield in the highest-risk test band, `41.3%` capture of all test positives within the top `20.1%` of scored flows, and `7.31%` test `MAPE` on bounded daily case-demand forecasting, by shaping reusable governed `flow_id` model-base tables in `SQL`, building flow-level risk stratification and cohort segmentation in `Python`, and packaging the outputs into production-usable prioritisation and planning artefacts.
+
+### 10.2 Stronger risk-identification version
+
+> Improved operational risk identification and short-range case planning, as measured by materially higher fraud-truth yield in `High` and `Medium` cohorts (`2.29x` and `1.98x` baseline respectively) and stable validation/test band performance, by developing a bounded predictive and statistical modelling workflow over governed multi-source fraud data using `SQL` and `Python`, with reusable scoring, segmentation, and cohort outputs for downstream use.
+
+### 10.3 Shorter recruiter-facing version
+
+> Built production-usable predictive, segmentation, and forecasting analytics over governed fraud data, as measured by `6.26%` fraud-truth yield in the highest-risk band versus a `2.73%` overall baseline and `7.31%` test forecasting `MAPE`, by creating leak-safe model-ready datasets in `SQL`, applying statistical risk scoring and cohorting in `Python`, and translating the outputs into prioritisation surfaces and planning-ready evidence.
+
+### 10.4 Framing note
+
+For this role, `operationalised` is safer than `deployed`.
+
+That preserves the truth boundary:
+- the slice produced reusable scoring, cohort, and planning outputs
+- the slice did not create a live scoring API or full production deployment surface
 
 ## 11. Next Best Follow-on Work
 
