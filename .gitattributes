@@ -25,3 +25,8 @@ contracts/dataset_dictionary/** text eol=lf
 contracts/schemas/** text eol=lf
 reference/** text eol=lf
 artefacts/** text eol=lf
+artefacts/**/*.png binary
+artefacts/**/*.jpg binary
+artefacts/**/*.jpeg binary
+artefacts/**/*.gif binary
+artefacts/**/*.webp binary
