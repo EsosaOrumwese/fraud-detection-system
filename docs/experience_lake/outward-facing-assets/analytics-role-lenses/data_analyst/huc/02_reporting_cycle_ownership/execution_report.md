@@ -33,7 +33,7 @@ The bounded answer is:
   - case-open conversion
   - long-lifecycle burden
   - authoritative outcome quality
-- one recurring three-figure evidence set was delivered to show cycle scope, period comparison, and release-control posture
+- one recurring two-figure evidence set was delivered to show operational period comparison and release-control posture
 - one requirements note, one process map, one stakeholder view matrix, one KPI purpose note, one KPI definition sheet, one run checklist, one caveat note, one changelog, and one regeneration README were all produced for the same cycle
 - the cycle passes `3` out of `3` release checks and can be regenerated from compact governed inputs in about `2.14` seconds
 - the current-cycle topline remains stable, while the recurring exception remains the `50_plus` amount band with `10.78%` case-open rate and `18.23%` authoritative truth quality
@@ -58,7 +58,7 @@ The primary proof object was:
 The main delivered outputs were:
 - one reporting-requirements layer
 - one KPI-definition and purpose layer
-- one recurring three-figure reporting evidence set
+- one recurring two-figure reporting evidence set
 - one `what changed` note
 - one intervention note
 - one run checklist
@@ -73,7 +73,7 @@ The execution stayed aligned to the approved HUC `3B + 3C` slice rather than dri
 The delivered scope maps back to the planned lens responsibilities as follows:
 - `05 - Business Analysis, Change, and Decision Support`: reporting requirements note, process map, stakeholder view matrix, and KPI purpose notes
 - `01 - Operational Performance Analytics`: stable KPI family, current-versus-prior interpretation layer, `what changed` note, and intervention note
-- `02 - BI, Insight, and Reporting Analytics`: one recurring three-figure evidence set covering cycle scope, period comparison, and release-control posture
+- `02 - BI, Insight, and Reporting Analytics`: one recurring two-figure evidence set covering period comparison and release-control posture
 - `09 - Analytical Delivery Operating Discipline`: KPI definition sheet, run checklist, caveats note, changelog, regeneration README, and release checks
 
 The report therefore needs to be read as proof that one reporting lane was defined, owned, and made repeatable, not as proof that every HUC reporting requirement has already been industrialised.
@@ -186,26 +186,9 @@ Reading:
 
 ## 6. Evidence Figures Actually Delivered
 
-### 6.1 Figure 1 - Reporting cycle scope and stable reporting contract
+### 6.1 Figure 1 - Period comparison and exception evidence
 
 The first figure was designed to answer:
-- what reporting lane is being owned?
-- which audiences and cadence are fixed?
-- what makes the cycle stable rather than ad hoc?
-
-Delivered components:
-- cycle-scope summary
-- audience and cadence statement
-- stable reporting contract summary
-
-The figure keeps the ownership story explicit:
-- this is a controlled weekly cycle, not another one-off pack
-- the audience pair is fixed
-- the control posture is visible instead of being implied
-
-### 6.2 Figure 2 - Period comparison and exception evidence
-
-The second figure was designed to answer:
 - what does the current-versus-prior movement actually look like?
 - what recurring exception deserves operational attention?
 - where does the trust caveat still matter?
@@ -219,9 +202,9 @@ The strongest operational reading from this figure is:
 - the weekly cycle should keep surfacing the `50+` segment as the main operational exception
 - the trust caveat is still necessary when talking about outcome quality
 
-### 6.3 Figure 3 - Release controls and regeneration posture
+### 6.2 Figure 2 - Release controls and regeneration posture
 
-The third figure was designed to answer:
+The second figure was designed to answer:
 - does the cycle have real release discipline?
 - how fast can the bounded pack be regenerated?
 - what control assets make the cycle ownable?
@@ -240,16 +223,7 @@ This is what turns the slice into reporting ownership rather than another servic
 
 The figure pack is part of execution for this slice, not an afterthought.
 
-### 7.1 Reporting cycle scope and stable reporting contract
-
-![Reporting cycle scope and stable reporting contract](../../../../../../../artefacts/analytics_slices/data_analyst/huc/02_reporting_cycle_ownership/figures/reporting_cycle_scope_and_kpi_reuse.png)
-
-This figure carries the ownership-scope story:
-- cadence, audience, and pack purpose are explicit
-- the stable reporting contract is visible directly
-- the slice reads as owned reporting logic, not a default dashboard layout
-
-### 7.2 Period comparison and exception evidence
+### 7.1 Period comparison and exception evidence
 
 ![Period comparison and exception evidence](../../../../../../../artefacts/analytics_slices/data_analyst/huc/02_reporting_cycle_ownership/figures/period_comparison_and_exception_evidence.png)
 
@@ -258,14 +232,14 @@ This figure carries the operational story:
 - the exception segment gap is made explicit rather than buried in a dense table
 - the trust caveat remains attached to the figure
 
-### 7.3 Release controls and regeneration posture
+### 7.2 Release controls and regeneration posture
 
 ![Release controls and regeneration posture](../../../../../../../artefacts/analytics_slices/data_analyst/huc/02_reporting_cycle_ownership/figures/release_controls_and_regeneration_posture.png)
 
 This figure carries the control story:
 - release checks are visible
 - regeneration posture is explicit
-- the cycle reads as controlled and repeatable rather than as another visual page in a dashboard pack
+- the cycle reads as controlled and repeatable without forcing weak pseudo-quantitative charts
 
 ## 8. Reporting-Cycle Control Assets Produced
 

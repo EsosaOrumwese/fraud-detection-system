@@ -561,7 +561,7 @@ def main() -> None:
     axes[0].set_ylabel("Amount band")
     axes[0].set_yticks(y_positions)
     axes[0].set_yticklabels(gap_df["amount_band_short"])
-    axes[0].legend(title="", loc="lower right", fontsize=10)
+    axes[0].legend(title="", loc="upper left", fontsize=10)
     axes[0].set_xlim(0.08, 0.22)
     for idx, row in gap_df.iterrows():
         axes[0].text(float(row["case_truth_rate"]) + 0.003, idx, f"{short_pct(float(row['case_open_rate']))} -> {short_pct(float(row['case_truth_rate']))}", fontsize=8.5, va="center")

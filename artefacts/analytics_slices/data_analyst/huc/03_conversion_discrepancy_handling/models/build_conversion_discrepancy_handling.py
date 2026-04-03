@@ -363,7 +363,7 @@ def main() -> None:
         """,
     )
 
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+    fig, ax = plt.subplots(1, 1, figsize=(9.5, 6.2))
     summary_plot = before_after_df.loc[
         before_after_df["metric_version"].isin(
             ["original_discrepant_view", "corrected_flow_view"]
@@ -381,35 +381,14 @@ def main() -> None:
         y="conversion_rate",
         hue="metric_label",
         palette=["#e69138", "#3d85c6"],
-        ax=axes[0],
+        ax=ax,
     )
-    axes[0].set_title("Original vs Corrected Conversion")
-    axes[0].set_xlabel("Week")
-    axes[0].set_ylabel("Conversion rate")
-    axes[0].legend(title="")
-    for container in axes[0].containers:
-        axes[0].bar_label(
-            container,
-            labels=[short_pct(v) for v in container.datavalues],
-            padding=3,
-            fontsize=9,
-        )
-
-    gap_plot = discrepancy_df.copy()
-    sns.barplot(
-        data=gap_plot,
-        x="week_role",
-        y="absolute_gap",
-        palette=["#f4cccc", "#cc0000"],
-        hue="week_role",
-        legend=False,
-        ax=axes[1],
-    )
-    axes[1].set_title("Discrepancy Magnitude")
-    axes[1].set_xlabel("Week")
-    axes[1].set_ylabel("Absolute gap")
-    for container in axes[1].containers:
-        axes[1].bar_label(
+    ax.set_title("Original vs Corrected Conversion")
+    ax.set_xlabel("Week")
+    ax.set_ylabel("Conversion rate")
+    ax.legend(title="", loc="upper left", fontsize=10)
+    for container in ax.containers:
+        ax.bar_label(
             container,
             labels=[short_pct(v) for v in container.datavalues],
             padding=3,
