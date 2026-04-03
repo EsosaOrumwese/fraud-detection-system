@@ -1,0 +1,22 @@
+[
+  {
+    "input_name":"event_stream",
+    "rows":473383388
+  },
+  {
+    "input_name":"flow_anchor",
+    "rows":236691694
+  },
+  {
+    "input_name":"case_timeline",
+    "rows":59775740
+  },
+  {
+    "input_name":"flow_truth",
+    "rows":236691694
+  },
+  {
+    "input_name":"flow_bank_view",
+    "rows":236691694
+  }
+]

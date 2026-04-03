@@ -1,0 +1,30 @@
+[
+  {
+    "week_role":"prior",
+    "week_start_date":"2026-03-16T00:00:00.000",
+    "week_end_date":"2026-03-16T00:00:00.000",
+    "entry_event_rows":36639490.0,
+    "flow_rows":18319745,
+    "case_open_rate":0.0962122562,
+    "long_lifecycle_share":0.796090853,
+    "very_long_lifecycle_share":0.6560805045,
+    "case_truth_rate":0.1985885495,
+    "bank_case_rate":0.5126808141,
+    "truth_bank_mismatch_rate":0.5875725639,
+    "avg_lifecycle_hours":647.5123948703
+  },
+  {
+    "week_role":"current",
+    "week_start_date":"2026-03-23T00:00:00.000",
+    "week_end_date":"2026-03-23T00:00:00.000",
+    "entry_event_rows":37109884.0,
+    "flow_rows":18554942,
+    "case_open_rate":0.0959329865,
+    "long_lifecycle_share":0.7964378148,
+    "very_long_lifecycle_share":0.6563144125,
+    "case_truth_rate":0.1989352994,
+    "bank_case_rate":0.5111888501,
+    "truth_bank_mismatch_rate":0.5862083301,
+    "avg_lifecycle_hours":647.6508122611
+  }
+]

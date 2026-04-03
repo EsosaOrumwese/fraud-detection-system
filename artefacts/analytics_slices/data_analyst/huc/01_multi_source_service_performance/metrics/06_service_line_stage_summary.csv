@@ -1,0 +1,9 @@
+week_role,pathway_stage,flow_rows,fraud_truth_rate
+prior,opened_only,1291719,0.002598862446089281
+prior,chargeback_decision,261297,0.9652885413915966
+prior,customer_dispute,135193,0.6241965190505425
+prior,detection_event_attached,74375,0.13523361344537815
+current,opened_only,1303764,0.0027052442006375386
+current,chargeback_decision,262251,0.9656626666819192
+current,customer_dispute,138338,0.6288004742008704
+current,detection_event_attached,75678,0.1367768704246941

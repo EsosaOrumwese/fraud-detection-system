@@ -1,0 +1,26 @@
+[
+  {
+    "week_role":"prior",
+    "flow_rows":18319745,
+    "event_link_rate":1.0,
+    "case_row_link_rate":0.0962122562,
+    "truth_link_rate":1.0,
+    "bank_link_rate":1.0,
+    "multi_case_flow_rate":0.0,
+    "truth_bank_mismatch_rate":0.5875725639,
+    "bank_case_rate":0.5126808141,
+    "truth_case_rate":0.1985885495
+  },
+  {
+    "week_role":"current",
+    "flow_rows":18554942,
+    "event_link_rate":1.0,
+    "case_row_link_rate":0.0959329865,
+    "truth_link_rate":1.0,
+    "bank_link_rate":1.0,
+    "multi_case_flow_rate":0.0,
+    "truth_bank_mismatch_rate":0.5862083301,
+    "bank_case_rate":0.5111888501,
+    "truth_case_rate":0.1989352994
+  }
+]

@@ -1,0 +1,3 @@
+week_role,flow_rows,event_link_rate,case_row_link_rate,truth_link_rate,bank_link_rate,multi_case_flow_rate,truth_bank_mismatch_rate,bank_case_rate,truth_case_rate
+prior,18319745,1.0,0.09621225622954904,1.0,1.0,0.0,0.5875725639175211,0.5126808140775134,0.19858854953863192
+current,18554942,1.0,0.09593298647875051,1.0,1.0,0.0,0.5862083300796447,0.5111888500818245,0.19893529944141422
