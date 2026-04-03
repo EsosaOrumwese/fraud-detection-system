@@ -16,7 +16,7 @@ Boundary:
 Placement rule:
 - this file lives under the role-shaped lens tree because it is execution-depth material, not a top-level lens definition
 - the role folder should hold multiple employer or role-execution lanes over time
-- the employer folder should hold one note per targeted responsibility slice so repeated work stays grouped and readable
+- the employer folder should hold one folder per targeted responsibility slice so repeated work stays grouped and readable
 
 Primary source basis:
 - [07_advanced-analytics-data-science.md](c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system\docs\experience_lake\outward-facing-assets\analytics-role-lenses\07_advanced-analytics-data-science.md)
@@ -248,15 +248,15 @@ This note therefore exists to protect against overclaiming while still preservin
 
 The strongest eventual claim shape for this slice is:
 
-> Improved fraud-review prioritisation and near-term case planning, as measured by [X%] lift in confirmed-yield within the highest-risk band, [Y%] capture of positive outcomes within the top-ranked flows, and [Z%] forecast error on next-window case demand, by building and operationalising a bounded flow-level predictive and statistical modelling slice in `Python` and `SQL` over governed event, flow, case, and outcome data, packaging the outputs into reusable score tables, cohort views, and stakeholder-ready decision summaries.
+> Improved fraud-review prioritisation and near-term case planning, as measured by lift in confirmed-yield within the highest-risk band, capture of positive outcomes in top-ranked flows, and bounded forecast accuracy on next-window case demand, by building and operationalising a flow-level predictive and statistical modelling slice in `Python` and `SQL` over governed event, flow, case, and outcome data, packaging the results into reusable score tables, cohort views, and stakeholder-ready decision summaries.
 
 A shorter variant, if the forecast portion is dropped, is:
 
-> Improved operational fraud prioritisation, as measured by [X%] higher positive-yield in high-risk cohorts and stable time-split validation performance, by shaping model-ready governed datasets in `SQL`, developing a flow-level risk stratification model in `Python`, versioning feature and target logic, and turning scored outputs into reusable reporting-ready views and action summaries.
+> Improved operational fraud prioritisation, as measured by higher positive-yield in high-risk cohorts and stable time-split validation performance, by shaping model-ready governed datasets in `SQL`, developing a flow-level risk stratification model in `Python`, versioning feature and target logic, and turning scored outputs into reusable reporting-ready views and action summaries.
 
 The recruiter-readable responsibility version is:
 
-> Built and deployed predictive and statistical analytics over governed fraud data, as measured by risk-band yield improvement and stable validation performance, by creating reusable model-ready slices, applying `Python`/`SQL`-based segmentation and scoring, and operationalising the outputs into prioritisation views and decision-support reporting.
+> Built and operationalised predictive and statistical analytics over governed fraud data by creating reusable model-ready slices, applying `Python` and `SQL` for segmentation and scoring, and turning the outputs into prioritisation views and decision-support reporting.
 
 ## 12. Immediate Next-Step Order
 
