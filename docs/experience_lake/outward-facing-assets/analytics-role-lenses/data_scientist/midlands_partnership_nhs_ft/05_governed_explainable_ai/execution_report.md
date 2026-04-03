@@ -315,28 +315,28 @@ The slice does not support claiming that:
 This section should be read as a response to the Midlands requirement, not as a generic modelling statement.
 
 The requirement asks for someone who can:
-- understand when machine learning is appropriate
-- design models and datasets fit for governed deployment
+- judge when machine learning is appropriate for a bounded use case
+- build models and datasets fit for governed deployment rather than ad hoc experimentation
 - document assumptions, caveats, and usage boundaries
-- consider explainability and operational risk
-- support responsible AI assurance rather than shipping opaque model logic
+- keep explainability and operational risk inside the delivery decision
+- support responsible AI assurance rather than circulating opaque model logic
 
-The claim therefore needs to answer:
-- I have delivered that kind of bounded governed model workflow
-- here is the measured evidence
-- here is how the score was kept reviewable and safely usable
+The claim therefore needs to answer back in evidence form:
+- I have delivered that kind of bounded governed scoring use case
+- I made an explicit usefulness-versus-explainability decision rather than defaulting to either simplicity or raw score
+- I documented thresholds, caveats, and non-use boundaries so the output was reviewable and safe to use
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Delivered a governed and explainable fraud-risk scoring slice, as measured by improving bounded-window ROC AUC from `0.519` to `0.623` at validation, concentrating authoritative fraud truth into a `High` band with `6.31%` truth rate and `2.32x` lift, and completing explicit model-choice, threshold, explanation, and caveat decisions for downstream review, by building a flow-level predictive model over governed event, flow, case, and outcome data, selecting a reviewable encoded-history logistic challenger over a weaker structural baseline, and packaging the score with safe-use boundaries, challenge-response notes, and stakeholder decision materials.
+> Delivered governed and explainable AI for a bounded fraud-prioritisation use case, as measured by improving validation ROC AUC from `0.519` in a simpler structural baseline to `0.623` in the selected reviewable challenger, concentrating authoritative fraud truth into a `High` band with `6.31%` truth rate and `2.32x` lift, and completing explicit model-choice, threshold, explanation, and caveat decisions for downstream review, by defining a governed flow-level scoring question over authoritative event, flow, case, and outcome data, selecting an encoded-history logistic model only after weighing its uplift against added explanation burden, and packaging the score with safe-use boundaries, challenge-response notes, and stakeholder decision materials.
 
 ### 10.2 Shorter recruiter-facing version
 
-> Delivered a governed fraud-risk scoring workflow, as measured by stable high-band lift, explicit model-selection and threshold decisions, and a completed explanation-and-caveat pack, by comparing interpretable logistic approaches over governed fraud data and turning the selected score into a reviewable stakeholder decision surface rather than an opaque model output.
+> Delivered a governed fraud-risk scoring workflow, as measured by stable high-band lift, explicit model-selection and threshold decisions, and a completed explanation-and-caveat pack, by comparing bounded logistic scoring approaches over governed fraud data and turning the selected score into a reviewable stakeholder decision surface rather than an opaque model output.
 
 ### 10.3 Closer direct-response version
 
-> Implemented governed and explainable AI delivery for a bounded fraud-prioritisation use case, as measured by validated model uplift, documented safe-use boundaries, and completed threshold, explanation, and challenge-response materials, by designing a reviewable scoring slice over governed data and embedding model-risk, source-authority, and stakeholder-use controls into the workflow.
+> Implemented governed and explainable AI delivery for a bounded fraud-prioritisation use case, as measured by validated uplift over a simpler baseline, documented safe-use boundaries, and completed threshold, explanation, and challenge-response materials, by designing a reviewable scoring slice over governed data and embedding model-risk, source-authority, and stakeholder-use controls into the workflow.
 
 ### 10.4 Framing note
 
