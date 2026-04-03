@@ -131,7 +131,7 @@ def main() -> None:
 
     fig.suptitle("Prioritisation Surface for Scored Test Flows", y=1.03, fontsize=18)
     fig.tight_layout()
-    fig.savefig(figures_dir / "01_flow_risk_band_performance.png", dpi=200, bbox_inches="tight")
+    fig.savefig(figures_dir / "flow_risk_band_performance.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
     stability = pd.concat(
@@ -170,7 +170,7 @@ def main() -> None:
     axes[1].legend(title="")
     fig.suptitle("Validation/Test Stability of the Risk Bands", y=1.03, fontsize=18)
     fig.tight_layout()
-    fig.savefig(figures_dir / "02_validation_test_band_stability.png", dpi=200, bbox_inches="tight")
+    fig.savefig(figures_dir / "validation_test_band_stability.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
     cohort_long = cohort.melt(
@@ -203,7 +203,7 @@ def main() -> None:
         ax.legend(title="")
     fig.suptitle("Fraud-Truth vs Bank-View Rates by Cohort", y=1.03, fontsize=18)
     fig.tight_layout()
-    fig.savefig(figures_dir / "03_cohort_truth_vs_bank_view_rates.png", dpi=200, bbox_inches="tight")
+    fig.savefig(figures_dir / "cohort_truth_vs_bank_view_rates.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(14, 6))
@@ -254,15 +254,15 @@ def main() -> None:
     order_idx = [2, 3, 0, 1]
     ax.legend([handles[i] for i in order_idx], [labels[i] for i in order_idx], loc="upper left", ncol=2)
     fig.tight_layout()
-    fig.savefig(figures_dir / "04_case_demand_forecast_vs_actual.png", dpi=200, bbox_inches="tight")
+    fig.savefig(figures_dir / "case_demand_forecast_vs_actual.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
     manifest = {
         "generated_figures": [
-            "01_flow_risk_band_performance.png",
-            "02_validation_test_band_stability.png",
-            "03_cohort_truth_vs_bank_view_rates.png",
-            "04_case_demand_forecast_vs_actual.png",
+            "flow_risk_band_performance.png",
+            "validation_test_band_stability.png",
+            "cohort_truth_vs_bank_view_rates.png",
+            "case_demand_forecast_vs_actual.png",
         ]
     }
     (figures_dir / "figure_manifest.json").write_text(json.dumps(manifest, indent=2))

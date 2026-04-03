@@ -192,7 +192,7 @@ This is a lightweight planning signal, not a production-grade forecasting estate
 
 ### 7.1 Flow risk-band performance
 
-![Flow risk-band performance](../../../../../../../artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/figures/01_flow_risk_band_performance.png)
+![Flow risk-band performance](../../../../../../../artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/figures/flow_risk_band_performance.png)
 
 Interpretation:
 - the first panel makes the queue-size trade-off explicit: only `4.9%` of test flows fell into `High`, while `79.9%` remained in `Low`
@@ -201,7 +201,7 @@ Interpretation:
 
 ### 7.2 Validation/test stability of the risk bands
 
-![Validation/test band stability](../../../../../../../artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/figures/02_validation_test_band_stability.png)
+![Validation/test band stability](../../../../../../../artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/figures/validation_test_band_stability.png)
 
 Interpretation:
 - the validation and test lifts are closely aligned across all three bands
@@ -210,7 +210,7 @@ Interpretation:
 
 ### 7.3 Fraud-truth and bank-view cohort separation
 
-![Fraud-truth vs bank-view cohort separation](../../../../../../../artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/figures/03_cohort_truth_vs_bank_view_rates.png)
+![Fraud-truth vs bank-view cohort separation](../../../../../../../artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/figures/cohort_truth_vs_bank_view_rates.png)
 
 Interpretation:
 - ordering is preserved in both validation and test
@@ -219,7 +219,7 @@ Interpretation:
 
 ### 7.4 Daily case-demand forecast
 
-![Daily case-demand forecast](../../../../../../../artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/figures/04_case_demand_forecast_vs_actual.png)
+![Daily case-demand forecast](../../../../../../../artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/figures/case_demand_forecast_vs_actual.png)
 
 Interpretation:
 - the figure now separates validation and test windows directly, so the reader can see what part of the line supported model choice and what part supported final evaluation
