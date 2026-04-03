@@ -158,7 +158,7 @@ The first figure was designed to answer:
 
 Delivered components:
 - corrected versus discrepant conversion comparison
-- current and prior week side-by-side
+- current and prior week carried as supporting hue rather than the main visual split
 
 The figure makes the core point immediately:
 - the discrepant interpretation halves the apparent conversion rate
@@ -173,7 +173,7 @@ The second figure was designed to answer:
 
 Delivered components:
 - direct visual divergence between the two conversion views
-- denominator comparison between `flow_rows` and `entry_event_rows`
+- denominator comparison between the authoritative flow denominator and the event-row denominator that caused the drift
 
 This is what turns the slice into discrepancy handling rather than only discrepancy display:
 - the figure shows the problem and the mechanism at the same time
@@ -252,15 +252,15 @@ The strongest bounded claim surfaces from this slice are therefore:
 
 Flagship version:
 
-> Strengthened anomaly detection and discrepancy handling in operational reporting, as measured by identifying and correcting a `4.80` percentage point suspicious-to-case conversion gap between linked weekly reporting views, validating the corrected KPI over `1,780,031` current case-opened rows, and embedding `3` repeatable release checks into the rerun workflow, by tracing the mismatch to denominator drift from `flow_rows` to `entry_event_rows`, restoring the flow-based KPI authority rule, and packaging the correction into controlled exception and root-cause evidence outputs.
+> Highlighted, investigated, and resolved a material anomaly in weekly operational reporting, as measured by identifying and correcting a `4.80` percentage point suspicious-to-case conversion gap between linked reporting views, validating the corrected KPI across `1,780,031` current case-opened rows, and embedding `3` repeatable release checks into the rerun workflow, by tracing the non-alignment to denominator drift from `flow_rows` to `entry_event_rows`, restoring the authoritative flow-based KPI rule, and packaging the fix into controlled discrepancy and root-cause evidence outputs.
 
 Shorter recruiter-readable version:
 
-> Improved reporting accuracy and discrepancy handling, as measured by corrected KPI outputs and repeatable release checks around a material weekly conversion mismatch, by investigating unexpected reporting divergence, tracing it to denominator logic drift, and embedding the fix into the recurring workflow.
+> Strengthened anomaly detection and discrepancy handling, as measured by corrected KPI outputs and repeatable release checks around a material weekly conversion mismatch, by spotting when linked reporting views did not align, investigating the cause, and embedding the fix into the recurring workflow.
 
 Closest direct response version:
 
-> Strengthened anomaly detection and discrepancy handling in weekly operational reporting, as measured by validated source consistency, corrected suspicious-to-case conversion output, and introduction of repeatable quality checks, by spotting when linked reporting views did not align, investigating the cause, resolving the issue, and preventing it from undermining reporting quality or decision-making.
+> Strengthened anomaly detection and discrepancy handling in weekly operational reporting, as measured by corrected suspicious-to-case conversion output, validated view-to-view alignment, and introduction of repeatable quality checks, by spotting when linked reporting views did not align, investigating the cause, resolving the discrepancy, and preventing it from undermining reporting quality or decision-making.
 
 ## 11. Bottom Line
 

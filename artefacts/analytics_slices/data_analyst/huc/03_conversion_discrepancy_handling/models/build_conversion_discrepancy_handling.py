@@ -363,7 +363,7 @@ def main() -> None:
         """,
     )
 
-    fig, ax = plt.subplots(1, 1, figsize=(9.5, 6.2))
+    fig, ax = plt.subplots(1, 1, figsize=(9.8, 6.2))
     summary_plot = before_after_df.loc[
         before_after_df["metric_version"].isin(
             ["original_discrepant_view", "corrected_flow_view"]
@@ -377,16 +377,16 @@ def main() -> None:
     )
     sns.barplot(
         data=summary_plot,
-        x="week_role",
+        x="metric_label",
         y="conversion_rate",
-        hue="metric_label",
-        palette=["#e69138", "#3d85c6"],
+        hue="week_role",
+        palette=["#9fc5e8", "#3d85c6"],
         ax=ax,
     )
-    ax.set_title("Original vs Corrected Conversion")
-    ax.set_xlabel("Week")
+    ax.set_title("Corrected vs Discrepant Conversion")
+    ax.set_xlabel("")
     ax.set_ylabel("Conversion rate")
-    ax.legend(title="", loc="upper left", fontsize=10)
+    ax.legend(title="", loc="upper right", fontsize=10)
     for container in ax.containers:
         ax.bar_label(
             container,
@@ -445,7 +445,12 @@ def main() -> None:
     denominator_plot = pd.DataFrame(
         {
             "week_role": ["current", "current", "prior", "prior"],
-            "denominator": ["flow_rows", "entry_event_rows", "flow_rows", "entry_event_rows"],
+            "denominator": [
+                "Authoritative flow denominator",
+                "Event-row denominator",
+                "Authoritative flow denominator",
+                "Event-row denominator",
+            ],
             "rows_millions": [
                 float(current_row["flow_rows"]) / 1_000_000,
                 float(current_row["entry_event_rows"]) / 1_000_000,
