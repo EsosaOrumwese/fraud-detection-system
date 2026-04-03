@@ -320,18 +320,18 @@ The requirement asks for someone who can:
 - use the combined view to measure service performance and support decisions
 
 The claim therefore needs to answer back in evidence form:
-- I have brought multiple operational datasets together for one service-performance purpose
-- I have handled imperfect source data through reconciliation, discrepancy logging, and source-authority rules
-- I have turned the combined view into operational and leadership reporting rather than leaving it as technical analysis
+- I have brought multiple operational datasets together for one service-performance purpose rather than analysing them in isolation
+- I have handled imperfect source data through reconciliation, discrepancy logging, and explicit source-authority rules rather than assuming one surface was already safe to trust
+- I have used the combined view to measure service performance and support decisions through stable KPI logic and reporting outputs rather than leaving it as technical analysis only
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Improved service-line performance visibility and decision support, as measured by successful integration of `4` operational source families into one governed performance slice, zero multi-case linkage defects across `36.9M` bounded merged rows, and consistent reuse of `4` KPI families across a three-page reporting pack and stakeholder briefing notes, by combining event, flow, case, and outcome data into a unified current-versus-prior service-line review, validating discrepancy and source-authority rules, and translating the results into executive, workflow, and drill-through reporting outputs.
+> Brought multiple operational datasets together for one unified service-performance purpose, as measured by successful integration of `4` governed source families into a bounded current-versus-prior review, zero multi-case linkage defects across `36.9M` merged rows, and consistent reuse of `4` KPI families across executive, workflow, and drill-through reporting outputs, by combining event, flow, case, and outcome data, working through imperfect source disagreement with reconciliation and source-authority rules, and packaging the results into operational and leadership decision-support reporting.
 
 ### 10.2 Shorter recruiter-facing version
 
-> Integrated multiple operational data sources into one trusted service-performance slice, as measured by validated source consistency, reusable KPI logic, and delivery of executive and operational reporting outputs, by combining, checking, and interpreting governed workflow and outcome data for decision support.
+> Integrated multiple operational data sources into one trusted service-performance slice, as measured by validated source consistency, reusable KPI logic, and delivery of executive and operational reporting outputs, by combining, checking, and interpreting imperfect workflow and outcome data for decision support.
 
 ### 10.3 Closer direct-response version
 
-> Brought multiple operational datasets together for a unified service-performance purpose, as measured by reconciled multi-source views, stable KPI definitions, and reporting outputs used to track trends and support decisions, by combining imperfect source data, checking consistency, and packaging the results into operational and leadership reporting.
+> Analysed data from multiple operational sources for a unified service-performance purpose, as measured by reconciled multi-source views, stable KPI definitions, and reporting outputs used to track trends and support decisions, by combining imperfect source data, checking consistency, and turning the result into operational and leadership reporting.

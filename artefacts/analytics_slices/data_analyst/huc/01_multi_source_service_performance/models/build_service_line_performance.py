@@ -573,23 +573,49 @@ def main() -> None:
     for container in axes[0].containers:
         axes[0].bar_label(container, labels=[short_pct(v) for v in container.datavalues], padding=3, fontsize=8.5)
 
-    scatter_df = current_segments.copy()
-    sns.scatterplot(
-        data=scatter_df,
-        x="case_open_rate",
-        y="case_truth_rate",
-        size="flow_rows",
-        hue="amount_band_short",
-        sizes=(180, 900),
-        palette="mako",
-        legend=False,
-        ax=axes[1],
+    gap_df = current_segments.copy()
+    gap_df = gap_df.sort_values("case_open_rate", ascending=True).reset_index(drop=True)
+    y_positions = list(range(len(gap_df)))
+    axes[1].hlines(
+        y=y_positions,
+        xmin=gap_df["case_open_rate"],
+        xmax=gap_df["case_truth_rate"],
+        color="#b7b7b7",
+        linewidth=3,
+        alpha=0.9,
     )
-    axes[1].set_title("Current Segment Burden vs Quality")
-    axes[1].set_xlabel("Case-open rate")
-    axes[1].set_ylabel("Case truth rate")
-    for _, row in scatter_df.iterrows():
-        axes[1].text(row["case_open_rate"], row["case_truth_rate"], f"{row['amount_band_short']}\n{short_pct(float(row['case_truth_rate']))}", fontsize=8.5, ha="left", va="bottom")
+    axes[1].scatter(
+        gap_df["case_open_rate"],
+        y_positions,
+        s=220,
+        color="#3d85c6",
+        label="Case-open rate",
+        zorder=3,
+    )
+    axes[1].scatter(
+        gap_df["case_truth_rate"],
+        y_positions,
+        s=220,
+        color="#38761d",
+        label="Truth quality",
+        zorder=3,
+    )
+    axes[1].set_title("Current Segment Burden vs Quality Gap")
+    axes[1].set_xlabel("Rate")
+    axes[1].set_ylabel("Amount band")
+    axes[1].set_yticks(y_positions)
+    axes[1].set_yticklabels(gap_df["amount_band_short"])
+    axes[1].legend(title="", loc="lower right", fontsize=10)
+    axes[1].set_xlim(0.08, 0.22)
+    for idx, row in gap_df.iterrows():
+        axes[1].text(
+            float(row["case_truth_rate"]) + 0.003,
+            idx,
+            f"{short_pct(float(row['case_open_rate']))} -> {short_pct(float(row['case_truth_rate']))}",
+            fontsize=8.5,
+            va="center",
+            ha="left",
+        )
 
     sample_df["flow_id"] = sample_df["flow_id"].str[-8:]
     sample_df["amount"] = sample_df["amount"].map(lambda v: f"{v:,.0f}")
