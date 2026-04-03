@@ -1,0 +1,11 @@
+metric_name,metric_value
+avg_case_lifecycle_hours,643.0973577728944
+cases_with_case_closed,361504.0
+cases_with_case_opened,361504.0
+cases_with_chargeback_decision,51788.0
+cases_with_chargeback_initiated,51788.0
+cases_with_customer_dispute,79306.0
+cases_with_detection_event_attached,39105.0
+flows_with_multiple_cases,0.0
+flows_with_single_case,361504.0
+max_case_lifecycle_hours,3220.88923916671

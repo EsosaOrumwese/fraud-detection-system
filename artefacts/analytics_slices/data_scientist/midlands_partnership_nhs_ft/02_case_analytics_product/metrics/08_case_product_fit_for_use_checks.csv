@@ -1,0 +1,14 @@
+metric_name,metric_value
+analytics_base_distinct_case_id,361504.0
+analytics_base_distinct_flow_id,361504.0
+analytics_base_duplicate_case_rows,0.0
+analytics_base_negative_lifecycle_rows,0.0
+analytics_base_null_case_id_rows,0.0
+analytics_base_null_flow_id_rows,0.0
+analytics_base_rows,361504.0
+bank_view_non_null_rows,361504.0
+model_ready_distinct_case_id,361504.0
+model_ready_rows,361504.0
+reporting_ready_distinct_case_id,361504.0
+reporting_ready_rows,361504.0
+target_non_null_rows,361504.0
