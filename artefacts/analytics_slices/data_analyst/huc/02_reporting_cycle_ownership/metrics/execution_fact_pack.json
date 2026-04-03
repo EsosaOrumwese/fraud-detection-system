@@ -1,0 +1,24 @@
+{
+  "slice": "huc/02_reporting_cycle_ownership",
+  "reporting_cadence": "weekly",
+  "audiences": [
+    "operations",
+    "leadership"
+  ],
+  "kpi_family_count": 4,
+  "page_count": 3,
+  "current_week_flow_rows": 18554942,
+  "prior_week_flow_rows": 18319745,
+  "current_case_open_rate": 0.09593298647875051,
+  "current_long_lifecycle_share": 0.7964378148470448,
+  "current_case_truth_rate": 0.19893529944141422,
+  "current_truth_bank_mismatch_rate": 0.5862083300796447,
+  "top_exception_segment": {
+    "amount_band": "50_plus",
+    "case_open_rate": 0.1078193975162007,
+    "case_truth_rate": 0.1822792625915145
+  },
+  "release_checks_passed": 3,
+  "release_check_count": 3,
+  "regeneration_seconds": 2.14
+}

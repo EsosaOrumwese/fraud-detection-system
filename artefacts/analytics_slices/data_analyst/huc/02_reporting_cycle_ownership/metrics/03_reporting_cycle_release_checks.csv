@@ -1,0 +1,4 @@
+check_name,passed_flag,observed_value,expected_value
+period_rows_present,1,2.0,2.0
+current_segments_present,1,4.0,4.0
+discrepancy_rows_present,1,2.0,2.0
