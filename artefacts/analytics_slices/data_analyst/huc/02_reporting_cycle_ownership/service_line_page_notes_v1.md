@@ -8,6 +8,6 @@ Page 2 - Operational performance:
 - focuses on conversion, burden, and the quality-trust caveat
 - should remain the main page for operational interpretation
 
-Page 3 - Drill-through and detail:
-- focuses on the exception segment and the reason it matters
-- keeps the interpretation note visible so the page is not just a detail table
+Page 3 - Exception detail and controls:
+- carries the recurring exception summary and the release-control posture together
+- makes clear that the slice is proving reporting ownership and rerun discipline, not a deeper row-level drill-through surface

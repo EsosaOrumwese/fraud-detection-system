@@ -304,9 +304,9 @@ def main() -> None:
         - focuses on conversion, burden, and the quality-trust caveat
         - should remain the main page for operational interpretation
 
-        Page 3 - Drill-through and detail:
-        - focuses on the exception segment and the reason it matters
-        - keeps the interpretation note visible so the page is not just a detail table
+        Page 3 - Exception detail and controls:
+        - carries the recurring exception summary and the release-control posture together
+        - makes clear that the slice is proving reporting ownership and rerun discipline, not a deeper row-level drill-through surface
         """,
     )
 
@@ -485,6 +485,16 @@ def main() -> None:
             padding=3,
             fontsize=8.5,
         )
+    axes[0].text(
+        0.02,
+        -0.26,
+        "Trust note: bank-view quality is comparison-only.\nAuthoritative truth remains the KPI source for outcome quality.",
+        transform=axes[0].transAxes,
+        fontsize=9.5,
+        va="top",
+        ha="left",
+        color="#7a0000",
+    )
 
     current_exception = exception_df.copy()
     current_exception["amount_band_short"] = current_exception["amount_band"].map(short_band)
@@ -532,7 +542,7 @@ def main() -> None:
     fig.savefig(FIGURES_DIR / "operational_performance_view.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6), gridspec_kw={"width_ratios": [1.2, 1.0]})
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6), gridspec_kw={"width_ratios": [1.0, 1.1]})
     checklist_plot = release_df.copy()
     checklist_plot["check_label"] = checklist_plot["check_name"].str.replace("_", "\n")
     sns.barplot(
@@ -552,22 +562,24 @@ def main() -> None:
         axes[0].bar_label(container, labels=["pass" if v >= 1 else "fail" for v in container.datavalues], padding=3, fontsize=9)
 
     axes[1].axis("off")
-    axes[1].set_title("Cycle Ownership Summary", loc="left", pad=10)
+    axes[1].set_title("Exception Detail and Cycle Controls", loc="left", pad=10)
     axes[1].text(
         0.0,
-        0.85,
+        0.92,
         (
             f"Cadence: weekly\n"
             f"Audience views: 3\n"
             f"KPI families: 4\n"
             f"Release checks passed: {release_pass_count}/{release_check_count}\n"
             f"Main exception: 50+ segment\n"
+            f"Case-open: {short_pct(float(top_segment['case_open_rate']))}\n"
+            f"Truth quality: {short_pct(float(top_segment['case_truth_rate']))}\n"
             f"Trust caveat: bank view is comparison-only"
         ),
         fontsize=14,
         va="top",
     )
-    fig.suptitle("Recurring Reporting Cycle - Drill-Through and Controls", fontsize=18, y=1.02)
+    fig.suptitle("Recurring Reporting Cycle - Exception Detail and Controls", fontsize=18, y=1.02)
     fig.tight_layout()
     fig.savefig(FIGURES_DIR / "drillthrough_and_controls.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -587,9 +599,9 @@ def main() -> None:
 
         ![Operational performance view](figures/operational_performance_view.png)
 
-        ## Page 3 - Drill-Through and Controls
+        ## Page 3 - Exception Detail and Controls
 
-        ![Drill-through and controls](figures/drillthrough_and_controls.png)
+        ![Exception detail and controls](figures/drillthrough_and_controls.png)
         """,
     )
 

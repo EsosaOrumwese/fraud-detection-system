@@ -10,6 +10,6 @@ This pack operationalises one owned weekly service-line reporting cycle into thr
 
 ![Operational performance view](figures/operational_performance_view.png)
 
-## Page 3 - Drill-Through and Controls
+## Page 3 - Exception Detail and Controls
 
-![Drill-through and controls](figures/drillthrough_and_controls.png)
+![Exception detail and controls](figures/drillthrough_and_controls.png)

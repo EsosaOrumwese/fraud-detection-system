@@ -32,7 +32,7 @@ The bounded answer is:
   - case-open conversion
   - long-lifecycle burden
   - authoritative outcome quality
-- one recurring `3`-page service-line pack was delivered with distinct executive, operational, and drill-through-plus-controls views
+- one recurring `3`-page service-line pack was delivered with distinct executive, operational, and exception-detail-plus-controls views
 - one requirements note, one process map, one stakeholder view matrix, one KPI purpose note, one KPI definition sheet, one run checklist, one caveat note, one changelog, and one regeneration README were all produced for the same cycle
 - the cycle passes `3` out of `3` release checks and can be regenerated from compact governed inputs in about `2.14` seconds
 - the current-cycle topline remains stable, while the recurring exception remains the `50_plus` amount band with `10.78%` case-open rate and `18.23%` authoritative truth quality
@@ -72,7 +72,7 @@ The execution stayed aligned to the approved HUC `3B + 3C` slice rather than dri
 The delivered scope maps back to the planned lens responsibilities as follows:
 - `05 - Business Analysis, Change, and Decision Support`: reporting requirements note, process map, stakeholder view matrix, and KPI purpose notes
 - `01 - Operational Performance Analytics`: stable KPI family, current-versus-prior interpretation layer, `what changed` note, and intervention note
-- `02 - BI, Insight, and Reporting Analytics`: one recurring three-page pack with explicit executive, operational, and drill-through-plus-controls structure
+- `02 - BI, Insight, and Reporting Analytics`: one recurring three-page pack with explicit executive, operational, and exception-detail-plus-controls structure
 - `09 - Analytical Delivery Operating Discipline`: KPI definition sheet, run checklist, caveats note, changelog, regeneration README, and release checks
 
 The report therefore needs to be read as proof that one reporting lane was defined, owned, and made repeatable, not as proof that every HUC reporting requirement has already been industrialised.
@@ -213,25 +213,27 @@ Delivered components:
 - current-versus-prior KPI comparison
 - exception-segment gap view
 - direct comparison between case-open rate and authoritative truth quality
+- on-figure trust note stating that bank-view quality is comparison-only
 
 The strongest operational reading on this page is:
 - the weekly cycle should keep surfacing the `50+` segment as the main operational exception
 - the trust caveat is still necessary when talking about outcome quality
 
-### 6.3 Page 3 - Drill-through and controls
+### 6.3 Page 3 - Exception detail and controls
 
 The third page was designed to answer:
+- what recurring exception is the cycle carrying?
 - what control posture does this reporting cycle have?
 - does the pack have real release discipline?
-- what should the reader conclude about cycle ownership?
 
 Delivered components:
+- exception summary for the `50+` segment
 - release-check status
 - cycle-ownership summary
 - on-page statement of cadence, audience count, KPI family count, and trust caveat
 
 This is what turns the slice into reporting ownership rather than another service-line pack:
-- the page makes the rerun and release-control posture visible
+- the page keeps the recurring exception visible while also making the rerun and release-control posture visible
 - it shows that the reporting cycle is documented and controlled
 
 ## 7. Figures
@@ -256,11 +258,12 @@ This page carries the operational story:
 - the exception segment gap is made explicit rather than buried in a dense table
 - the pack still keeps the trust caveat visible
 
-### 7.3 Drill-through and controls
+### 7.3 Exception detail and controls
 
-![Drill-through and controls](../../../../../../../artefacts/analytics_slices/data_analyst/huc/02_reporting_cycle_ownership/figures/drillthrough_and_controls.png)
+![Exception detail and controls](../../../../../../../artefacts/analytics_slices/data_analyst/huc/02_reporting_cycle_ownership/figures/drillthrough_and_controls.png)
 
 This page carries the ownership story:
+- the recurring exception remains visible rather than being separated from the cycle controls
 - all release checks are visible
 - cycle cadence and pack structure are explicit
 - the pack reads as a controlled reporting cycle rather than an ad hoc export
@@ -316,13 +319,13 @@ The requirement asks for someone who can:
 - translate requirements into reporting outputs that different audiences can use
 
 The claim therefore needs to answer back in evidence form:
-- I have taken ownership of a bounded recurring reporting lane
+- I have taken ownership of a bounded recurring reporting lane rather than only producing one pack once
 - I have pinned stable KPI and pack logic rather than redefining the reporting every cycle
-- I have documented rerun and release controls so the reporting cycle is actually ownable
+- I have documented rerun and release controls so the reporting cycle is actually ownable and supportable on time
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Owned a recurring service-line performance reporting cycle, as measured by stable reuse of `4` KPI families across `3` audience-shaped reporting pages, completion of `3/3` release checks for the weekly pack, and regeneration of the full output from controlled compact inputs in `2.14` seconds, by mapping stakeholder reporting needs into a bounded KPI framework, packaging the current-versus-prior service-line view into a structured recurring pack, and documenting the run logic, caveats, and release controls needed to keep the cycle stable and usable.
+> Owned a recurring service-line performance reporting cycle, as measured by stable reuse of `4` KPI families across `3` reporting views for operations and leadership, completion of `3/3` release checks for the weekly pack, and regeneration of the full output from controlled compact inputs in `2.14` seconds, by translating stakeholder reporting requirements into a bounded KPI framework, packaging the current-versus-prior service-line view into a structured recurring pack, and documenting the run logic, caveats, and release controls needed to keep the cycle stable, repeatable, and usable.
 
 ### 10.2 Shorter recruiter-facing version
 
@@ -330,4 +333,4 @@ The claim therefore needs to answer back in evidence form:
 
 ### 10.3 Closer direct-response version
 
-> Took ownership of recurring performance reporting in a target-driven environment, as measured by reusable KPI logic, controlled weekly pack regeneration, and clear executive and operational tracking across periods, by defining the reporting requirements, building the governed KPI layer, packaging the outputs into service-line reports, and maintaining the checklist, caveat, and change-control notes needed to keep the cycle stable and usable.
+> Took ownership of recurring performance reporting in a target-driven environment, as measured by reusable KPI logic, controlled weekly pack regeneration, and clear executive and operational tracking across periods, by defining the reporting requirements, building the governed KPI layer, packaging the outputs into service-line reports, and maintaining the checklist, caveat, and change-control notes needed to keep the cycle stable, on time, and usable.
