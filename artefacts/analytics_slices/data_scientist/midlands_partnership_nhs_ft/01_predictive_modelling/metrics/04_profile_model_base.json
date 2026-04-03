@@ -1,0 +1,32 @@
+[
+  {
+    "split_role":"train",
+    "flow_rows":2073369,
+    "fraud_truth_rows":55642.0,
+    "fraud_truth_rate":0.0268365158,
+    "min_flow_ts_utc":1767225603,
+    "max_flow_ts_utc":1771934229,
+    "avg_amount":24.3130835467,
+    "avg_log_amount":2.7894996384
+  },
+  {
+    "split_role":"validation",
+    "flow_rows":691122,
+    "fraud_truth_rows":18841.0,
+    "fraud_truth_rate":0.0272614676,
+    "min_flow_ts_utc":1771934229,
+    "max_flow_ts_utc":1773485115,
+    "avg_amount":24.3093926398,
+    "avg_log_amount":2.7892713226
+  },
+  {
+    "split_role":"test",
+    "flow_rows":691122,
+    "fraud_truth_rows":18888.0,
+    "fraud_truth_rate":0.0273294729,
+    "min_flow_ts_utc":1773485115,
+    "max_flow_ts_utc":1775001597,
+    "avg_amount":24.3060492938,
+    "avg_log_amount":2.7884107407
+  }
+]

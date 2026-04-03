@@ -1,0 +1,20 @@
+{
+  "const":-30.7537593739,
+  "log_amount":-0.0085083151,
+  "log_arrival_seq":-0.023725279,
+  "flow_hour_utc":-0.0014848968,
+  "flow_dow_utc":-0.0093998583,
+  "flow_month_utc":-0.0395800476,
+  "log_merchant_flow_count":0.0630319751,
+  "log_party_flow_count":-11.3483233343,
+  "log_account_flow_count":10.178082813,
+  "log_instrument_flow_count":10.1780828128,
+  "log_device_flow_count":-11.3483233348,
+  "log_ip_flow_count":0.0471322421,
+  "merchant_train_fraud_rate":35.5473255314,
+  "party_train_fraud_rate":189.9527476304,
+  "account_train_fraud_rate":189.9258854873,
+  "instrument_train_fraud_rate":189.9258854873,
+  "device_train_fraud_rate":189.9527476304,
+  "ip_train_fraud_rate":5.546537926
+}

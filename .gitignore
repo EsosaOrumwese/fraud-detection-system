@@ -193,3 +193,10 @@ runs/fraud-platform/**
 .env.platform.local
 .env.dev_min
 infra/terraform/dev_min/demo/$planFile
+
+# Analytics slice regenerated heavyweight artefacts
+artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/extracts/flow_model_base_v1.parquet
+artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/extracts/flow_model_base_v2.parquet
+artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/extracts/validation_scores_v1.parquet
+artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/extracts/test_scores_v1.parquet
+artefacts/analytics_slices/data_scientist/midlands_partnership_nhs_ft/01_predictive_modelling/models/statsmodels_glm_binomial.pkl

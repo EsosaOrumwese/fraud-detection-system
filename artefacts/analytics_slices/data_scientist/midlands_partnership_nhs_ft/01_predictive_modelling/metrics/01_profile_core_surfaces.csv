@@ -1,0 +1,2 @@
+flow_rows,min_flow_ts_utc,max_flow_ts_utc,avg_amount,min_amount,max_amount,distinct_merchants,distinct_parties,distinct_accounts,target_rows,fraud_truth_rows,fraud_truth_rate,case_timeline_rows,distinct_cases,flows_with_cases,total_target_flows,target_flows_with_cases,fraud_truth_flows_with_cases
+236691694,2026-01-01T00:00:00.001940Z,2026-03-31T23:59:59.944516Z,24.312742096890627,0.04,3401.78,4050,5588988,5589035,236691694,5940539.0,0.025098214895534102,59775740,22752610,22752610,236691694,22752610.0,4521817.0
