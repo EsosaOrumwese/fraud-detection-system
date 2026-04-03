@@ -304,15 +304,15 @@ The claim therefore needs to answer:
 
 ### 11.1 Flagship `X by Y by Z` claim
 
-> Improved the trustworthiness of downstream fraud analytics and reporting, as measured by exposing a `35.44` percentage point distortion between raw bank-view and authoritative-truth case-selected yield in the test window, validating `5` governed surfaces with zero structural linkage defects on the bounded path, and identifying a mismatch class affecting `62.41%` of case-selected test flows, by building a repeatable data-quality assurance layer over governed event, flow, case, and outcome data that reconciled source semantics, pinned authoritative outcome rules, and replaced ambiguous yield logic with corrected before-and-after KPI comparisons.
+> Strengthened dataset fitness for use and trusted fraud reporting inputs, as measured by exposing a `35.44` percentage point distortion between bank-view and authoritative-truth case-selected yield in the test window, identifying truth-versus-bank disagreement in `62.41%` of case-selected test flows, and validating `5` governed surfaces with zero structural linkage defects on the bounded path, by owning a semantic outcome-surface defect end to end, reconciling authoritative versus comparison-only source meaning, and embedding repeatable validation, source-rule, and before-and-after KPI controls into the analytical workflow.
 
 ### 11.2 Shorter recruiter-facing version
 
-> Improved analytical data quality and reporting trust, as measured by validated joins, repeatable mismatch checks, and corrected KPI readings over critical yield views, by detecting a semantic outcome-surface defect, reconciling authoritative versus comparison-only fields, and embedding the validation logic into controlled SQL-based workflows.
+> Detected and resolved a material data-quality defect in downstream fraud reporting, as measured by corrected yield interpretation, repeatable mismatch checks, and validated linkage across critical governed inputs, by reconciling authoritative-truth and bank-view outcome semantics and hardening the SQL workflow so comparison fields could no longer be used as trusted yield logic.
 
 ### 11.3 Closer direct-response version
 
-> Strengthened dataset fitness for use and trusted reporting inputs, as measured by reproducible reconciliation checks, anomaly detection over critical outcome fields, and corrected raw-versus-truth KPI interpretation, by treating data quality as part of the analytical job and building validation, source-rule, and root-cause controls directly into the workflow.
+> Contributed to validation, reconciliation, and assurance of trusted analytical inputs, as measured by reproducible quality checks, anomaly detection over critical outcome fields, and corrected raw-versus-truth KPI interpretation, by treating data quality as part of the analytical job and building root-cause, source-rule, and monitoring controls directly into the workflow.
 
 ### 11.4 Framing note
 
