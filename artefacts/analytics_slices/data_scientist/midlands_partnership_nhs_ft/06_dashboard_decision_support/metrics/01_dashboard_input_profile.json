@@ -1,0 +1,18 @@
+[
+  {
+    "input_name":"validation_scores_selected_v1",
+    "rows":691122
+  },
+  {
+    "input_name":"test_scores_selected_v1",
+    "rows":691122
+  },
+  {
+    "input_name":"population_pathway_reporting_v1",
+    "rows":15
+  },
+  {
+    "input_name":"population_pathway_kpis_v1",
+    "rows":3
+  }
+]

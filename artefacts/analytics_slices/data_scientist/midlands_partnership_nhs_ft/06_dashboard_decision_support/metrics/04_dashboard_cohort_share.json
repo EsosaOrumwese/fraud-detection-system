@@ -1,0 +1,22 @@
+[
+  {
+    "cohort_label":"high_burden_low_yield",
+    "flow_rows":29675,
+    "share":0.4029520395
+  },
+  {
+    "cohort_label":"low_burden_low_yield",
+    "flow_rows":29601,
+    "share":0.4019472055
+  },
+  {
+    "cohort_label":"fast_converting_high_yield",
+    "flow_rows":7212,
+    "share":0.097930585
+  },
+  {
+    "cohort_label":"slow_converting_high_yield",
+    "flow_rows":7156,
+    "share":0.09717017
+  }
+]
