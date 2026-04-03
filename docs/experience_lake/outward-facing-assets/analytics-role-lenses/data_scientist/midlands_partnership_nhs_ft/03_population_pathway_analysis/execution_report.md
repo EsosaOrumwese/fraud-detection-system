@@ -323,21 +323,21 @@ The requirement asks for someone who can:
 - understand data meaning, reporting consistency, and governance-correct use of linked data
 
 The claim therefore needs to answer:
-- I have done that kind of linked population and pathway work
+- I have done that kind of population-level linked-data work
 - here is the measured evidence
-- here is how the trust and source-discipline layer was handled
+- here is how the trust, source-meaning, and reporting-consistency layer was handled
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Built a governed linked population and pathway analysis layer for fraud operations, as measured by successful linkage of `5` governed data surfaces into one canonical flow-level population view, exact event-to-`CASE_OPENED` alignment across `361,504` linked flows with zero multi-case linkage defects, and cohort and pathway analysis showing that `80.4%` of case-selected test workload sat in low-yield cohorts, by defining a bounded entry population from event and flow data, constructing reusable cohort, pathway, and KPI outputs over event, flow, case, and outcome truth, and packaging the slice with trusted-source rules, reconciliation checks, lineage notes, and operational interpretation.
+> Delivered population-level cohort, pathway, and outcome analysis over linked governed fraud data, as measured by successful linkage of `5` governed data surfaces into one canonical population view, exact event-to-`CASE_OPENED` alignment across `361,504` linked flows with zero multi-case linkage defects, and identification of an operating burden pattern in which `80.4%` of case-selected test workload sat in low-yield cohorts, by defining a trusted bounded population, validating authoritative-source and join rules, and packaging consistent cohort, pathway, and KPI outputs over event, flow, case, and outcome data.
 
 ### 10.2 Governance-heavier version
 
-> Improved the trust and usability of linked cohort and pathway analysis, as measured by clean multi-surface join coverage, zero duplicate flow rows in the linked base, and reuse of one canonical set of population, cohort, and KPI definitions across reporting outputs, by building a governed fraud population-pathway slice over event, flow, case, and outcome data and packaging it with source vocabulary, authoritative-source rules, fit-for-use checks, and reporting-ready summaries.
+> Applied governance-correct linked-data analysis to population, cohort, and pathway questions, as measured by clean multi-surface join coverage, zero duplicate flow rows in the linked base, and reuse of one canonical set of population, cohort, and KPI definitions across reporting outputs, by building a bounded governed fraud population slice with explicit source vocabulary, authoritative-field rules, fit-for-use checks, reconciliation controls, and reporting-ready summaries.
 
 ### 10.3 Shorter recruiter-facing version
 
-> Delivered linked population, cohort, and pathway analysis over governed fraud data, as measured by trusted multi-surface linkage, stable split-level KPI definitions, and clear differentiation in burden and outcome patterns across cohorts, by combining event, flow, case, and outcome surfaces into reusable analytical views and turning the results into action-oriented operational summaries.
+> Performed linked population, cohort, pathway, and outcome analysis over governed fraud data, as measured by trusted multi-surface linkage, stable reuse of one cohort and KPI definition set, and clear differentiation in burden and outcome patterns across segments, by combining event, flow, case, and outcome surfaces into reusable analytical views and action-oriented operational summaries.
 
 ### 10.4 Framing note
 
