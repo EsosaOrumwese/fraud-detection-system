@@ -12,3 +12,19 @@ Data Quality & Governance: Reconciliation, KPI governance, fit-for-use checks, d
 Reporting & Decision Support: Reporting-ready datasets, dashboard reporting, stakeholder-facing insight
 Model Governance: Explainable model delivery, threshold setting, caveats, reviewable outputs
 
+RELEVANT EXPERIENCE
+
+Data Scientist & Analytics Engineer (Self-Directed Platform Build)
+AWS-hosted Fraud Decisioning Platform — Exeter, UK | May 2025 - Present
+
+- Improved operational risk identification and short-range case planning, as measured by 2.29x High-cohort and 1.98x Medium-cohort fraud-truth yield, by building a bounded predictive workflow over governed multi-source fraud data with reusable scoring and cohort outputs.
+
+- Applied governance-correct linked-data analysis to population, cohort, and pathway questions, as measured by clean join coverage, zero duplicate flow rows, and one canonical KPI definition set, by building a governed fraud population slice with source rules, reconciliation controls, and reporting-ready summaries.
+
+- Detected and resolved a material data-quality defect in fraud reporting, as measured by corrected yield interpretation and repeatable mismatch checks, by reconciling authoritative-truth and bank-view outcome semantics and preventing comparison fields from being used as trusted yield logic.
+
+- Designed a reusable analytical data product for modelling and reporting, as measured by validated joins and full target and outcome coverage across 361,504 bounded cases, by shaping governed fraud data into stable case-grain views and reporting-ready analytical tables.
+
+- Delivered a governed fraud-risk scoring workflow, as measured by stable high-band lift, explicit model-selection and threshold decisions, and a completed caveat pack, by comparing bounded logistic scoring approaches and turning the selected score into a reviewable stakeholder decision surface.
+
+- Turned governed analytical outputs into dashboard and decision-support products, as measured by consistent KPI reuse across multiple views and completion of executive, operational, and drill-through surfaces, by packaging model and cohort results into reporting-ready views and annotated summaries for non-technical users.
