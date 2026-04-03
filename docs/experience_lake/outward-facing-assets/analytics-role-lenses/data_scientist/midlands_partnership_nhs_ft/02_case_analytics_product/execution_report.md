@@ -280,21 +280,26 @@ The responsibility asks for someone who can:
 - keep the preparation layer documented, versioned, and reusable
 
 The claim therefore needs to answer:
-- I have done that kind of work
-- here is the measured evidence
-- here is how the product was made reusable and trustworthy
+- I have done that kind of analytical-product work
+- here is the measured evidence that the product was reusable and trustworthy
+- here is how the preparation layer was made production-usable rather than left as one-off analysis
+
+So the response should mirror the employer ask directly:
+- if they ask for analytical datasets and transformations, the claim should say that those were designed and maintained
+- if they ask for reproducible workflows, the claim should say that the workflow was versioned, documented, and regenerable
+- if they ask for production-usable analysis, the claim should show reuse across real downstream consumers rather than only a private build
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Built a reusable case-centric analytical preparation layer for downstream fraud modelling and reporting, as measured by successful reuse across model-ready and reporting-ready outputs over `361,504` bounded cases, zero duplicate case rows or null critical keys after transformation, and stable pathway-stage separation from train through test, by designing a governed case analytics product that linked chronology, flow context, authoritative fraud truth, and bank-view outcomes into stable SQL-shaped products with documented lineage, fit-for-use checks, and regeneration guidance.
+> Designed and maintained a reusable case-centric analytical dataset and transformation workflow for downstream fraud modelling and reporting, as measured by successful reuse across model-ready and reporting-ready outputs over `361,504` bounded cases, zero duplicate case rows or null critical keys after transformation, and full target and bank-view coverage across the engineered product, by building a governed case analytics product in `SQL` and scripted workflows that linked chronology, flow context, authoritative fraud truth, and operational comparison surfaces with documented lineage, fit-for-use checks, and regeneration guidance.
 
 ### 10.2 Shorter recruiter-facing version
 
-> Built a reusable analytical data product for downstream modelling and reporting, as measured by validated join consistency, full target and outcome coverage across `361,504` bounded cases, and reuse across multiple analytical outputs, by shaping governed multi-source fraud data into stable case-grain views, documented model-ready slices, and reporting-ready analytical tables.
+> Designed a reusable analytical data product for downstream modelling and reporting, as measured by validated join consistency, full target and outcome coverage across `361,504` bounded cases, and reuse across multiple analytical outputs, by shaping governed multi-source fraud data into stable case-grain views, documented model-ready slices, and reporting-ready analytical tables.
 
 ### 10.3 Closest direct response to the requirement
 
-> Made analysis production-usable, as measured by reusable model-ready and reporting-ready datasets, documented transformation logic and lineage, and clean fit-for-use checks across a bounded governed case product, by designing and maintaining a reproducible analytical preparation layer over linked case chronology, flow context, and outcome surfaces.
+> Made analysis production-usable, as measured by reusable model-ready and reporting-ready datasets, clean fit-for-use checks across a bounded governed case product, and documented transformation logic, lineage, and usage boundaries, by designing and maintaining a reproducible analytical preparation layer over linked case chronology, flow context, and outcome surfaces.
 
 ### 10.4 Framing note
 
