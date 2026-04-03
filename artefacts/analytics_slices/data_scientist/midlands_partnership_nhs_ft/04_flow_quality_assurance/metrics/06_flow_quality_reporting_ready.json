@@ -1,0 +1,110 @@
+[
+  {
+    "split_role":"test",
+    "pathway_stage":"chargeback_decision",
+    "case_selected_flows":10494,
+    "comparison_outcome_rate":0.3374309129,
+    "authoritative_outcome_rate":0.9582618639,
+    "mismatch_rate":0.6234991424,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  },
+  {
+    "split_role":"test",
+    "pathway_stage":"customer_dispute",
+    "case_selected_flows":5589,
+    "comparison_outcome_rate":0.1288244767,
+    "authoritative_outcome_rate":0.6657720522,
+    "mismatch_rate":0.6346394704,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  },
+  {
+    "split_role":"test",
+    "pathway_stage":"detection_event_attached",
+    "case_selected_flows":3008,
+    "comparison_outcome_rate":0.3178191489,
+    "authoritative_outcome_rate":0.1542553191,
+    "mismatch_rate":0.1635638298,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  },
+  {
+    "split_role":"test",
+    "pathway_stage":"opened_only",
+    "case_selected_flows":54553,
+    "comparison_outcome_rate":0.6461789452,
+    "authoritative_outcome_rate":0.0023280113,
+    "mismatch_rate":0.6485069565,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  },
+  {
+    "split_role":"train",
+    "pathway_stage":"chargeback_decision",
+    "case_selected_flows":30850,
+    "comparison_outcome_rate":0.3399027553,
+    "authoritative_outcome_rate":0.9630470016,
+    "mismatch_rate":0.6269692058,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  },
+  {
+    "split_role":"train",
+    "pathway_stage":"customer_dispute",
+    "case_selected_flows":16464,
+    "comparison_outcome_rate":0.1345359572,
+    "authoritative_outcome_rate":0.6604713314,
+    "mismatch_rate":0.623845967,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  },
+  {
+    "split_role":"train",
+    "pathway_stage":"detection_event_attached",
+    "case_selected_flows":8687,
+    "comparison_outcome_rate":0.3143778059,
+    "authoritative_outcome_rate":0.1582824911,
+    "mismatch_rate":0.1560953148,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  },
+  {
+    "split_role":"train",
+    "pathway_stage":"opened_only",
+    "case_selected_flows":159197,
+    "comparison_outcome_rate":0.6400623127,
+    "authoritative_outcome_rate":0.0026131146,
+    "mismatch_rate":0.6426754273,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  },
+  {
+    "split_role":"validation",
+    "pathway_stage":"chargeback_decision",
+    "case_selected_flows":10444,
+    "comparison_outcome_rate":0.3350248947,
+    "authoritative_outcome_rate":0.9574875527,
+    "mismatch_rate":0.6282075833,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  },
+  {
+    "split_role":"validation",
+    "pathway_stage":"customer_dispute",
+    "case_selected_flows":5465,
+    "comparison_outcome_rate":0.1383348582,
+    "authoritative_outcome_rate":0.6666056725,
+    "mismatch_rate":0.6325709058,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  },
+  {
+    "split_role":"validation",
+    "pathway_stage":"detection_event_attached",
+    "case_selected_flows":2888,
+    "comparison_outcome_rate":0.3057479224,
+    "authoritative_outcome_rate":0.1568559557,
+    "mismatch_rate":0.1488919668,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  },
+  {
+    "split_role":"validation",
+    "pathway_stage":"opened_only",
+    "case_selected_flows":53865,
+    "comparison_outcome_rate":0.646969275,
+    "authoritative_outcome_rate":0.0029332591,
+    "mismatch_rate":0.6499025341,
+    "source_rule_note":"authoritative_outcome_rate comes from s4_flow_truth_labels_6B; comparison_outcome_rate is bank-view only and must not replace truth in yield KPIs"
+  }
+]
