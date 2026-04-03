@@ -14,19 +14,14 @@ Model Governance: Explainable model delivery, threshold setting, caveats, review
 
 RELEVANT EXPERIENCE
 
-Data Scientist & Analytics Engineer (Self-Directed Platform Build)
+Data Scientist & Analytics Engineer
 AWS-hosted Fraud Decisioning Platform — Exeter, UK | May 2025 - Present
 
 - Improved operational risk identification and short-range case planning, as measured by 2.29x High-cohort and 1.98x Medium-cohort fraud-truth yield, by building a bounded predictive workflow over governed multi-source fraud data with reusable scoring and cohort outputs.
-
-- Applied governance-correct linked-data analysis to population, cohort, and pathway questions, as measured by clean join coverage, zero duplicate flow rows, and one canonical KPI definition set, by building a governed fraud population slice with source rules, reconciliation controls, and reporting-ready summaries.
-
+- Applied robust linked-data analysis to population, cohort, and pathway questions, as measured by clean join coverage, zero duplicate flow rows, and one canonical KPI definition set, by building a governed fraud population slice with source rules, reconciliation controls, and reporting-ready summaries.
 - Detected and resolved a material data-quality defect in fraud reporting, as measured by corrected yield interpretation and repeatable mismatch checks, by reconciling authoritative-truth and bank-view outcome semantics and preventing comparison fields from being used as trusted yield logic.
-
 - Designed a reusable analytical data product for modelling and reporting, as measured by validated joins and full target and outcome coverage across 361,504 bounded cases, by shaping governed fraud data into stable case-grain views and reporting-ready analytical tables.
-
 - Delivered a governed fraud-risk scoring workflow, as measured by stable high-band lift, explicit model-selection and threshold decisions, and a completed caveat pack, by comparing bounded logistic scoring approaches and turning the selected score into a reviewable stakeholder decision surface.
-
 - Turned governed analytical outputs into dashboard and decision-support products, as measured by consistent KPI reuse across multiple views and completion of executive, operational, and drill-through surfaces, by packaging model and cohort results into reporting-ready views and annotated summaries for non-technical users.
 
 EDUCATION
@@ -40,16 +35,12 @@ Crew Member
 Five Guys — Exeter, UK | Sep 2024 - Present
 
 - Work in a fast-paced customer operations team, maintaining accuracy, speed, and service quality during high-volume shifts.
-
 - Follow strict hygiene, food-safety, cash-handling, and operational procedures to support reliable day-to-day service.
-
 - Contribute to smooth shift execution through dependable teamwork, clear communication, punctuality, and consistent handovers.
 
 Field Engineer (Trainee)
 South Western Technologies & Oilfield Services Ltd — Rivers, Nigeria | Jul 2021 - Aug 2022
 
 - Worked in field teams on completion operations with service partners, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
-
 - Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
-
 - Documented operational readings, issues, and handovers clearly, helping keep cross-team work coordinated under field constraints and time pressure.
