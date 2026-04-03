@@ -252,11 +252,11 @@ The strongest bounded claim surfaces from this slice are therefore:
 
 Flagship version:
 
-> Communicated analytical findings in plain language and used them to support operational and strategic decisions, as measured by delivery of `2` audience-shaped briefing views over a bounded weekly service-line issue, consistent reuse of `4` KPI families across the pack, and completion of one explicit follow-up recommendation to review `50_plus` queue case-opening or escalation rules, by interpreting stable topline performance against a recurring segment-level burden-versus-quality gap, packaging the issue into concise leadership and operational briefing materials, and explaining what changed, why it mattered, and what should happen next.
+> Communicated analytical findings in plain language and turned them into operational and strategic decision support, as measured by delivery of `2` audience-shaped briefing views over a bounded weekly service-line issue, consistent reuse of `4` KPI families across the pack, and completion of one explicit follow-up recommendation to review `50_plus` queue case-opening or escalation rules, by distinguishing a concentrated segment-level burden-versus-quality problem from a false broad-deterioration story, packaging the issue into concise leadership and operational briefing materials, and explaining what changed, why it mattered, and what should happen next.
 
 Shorter recruiter-readable version:
 
-> Turned bounded service-line analysis into leadership and operational action, as measured by stakeholder-ready issue briefing outputs and a clear follow-up recommendation, by translating KPI movement and segment-level burden into plain-language summaries and decision-support notes.
+> Turned bounded service-line analysis into stakeholder-ready action, as measured by plain-language briefing outputs for leadership and operations and a clear follow-up recommendation, by translating KPI movement and segment-level burden into concise decision-support summaries.
 
 Closest direct response version:
 
