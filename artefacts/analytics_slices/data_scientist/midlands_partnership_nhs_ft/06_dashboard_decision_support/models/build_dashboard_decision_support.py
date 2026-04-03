@@ -100,6 +100,20 @@ def short_cohort_label(value: str) -> str:
     return mapping.get(value, value)
 
 
+def plain_driver_label(value: str) -> str:
+    mapping = {
+        "device_train_fraud_rate": "Device prior fraud rate",
+        "instrument_train_fraud_rate": "Instrument prior fraud rate",
+        "party_train_fraud_rate": "Party prior fraud rate",
+        "account_train_fraud_rate": "Account prior fraud rate",
+        "merchant_train_fraud_rate": "Merchant prior fraud rate",
+        "log_party_flow_count": "Party flow volume",
+        "log_device_flow_count": "Device flow volume",
+        "log_instrument_flow_count": "Instrument flow volume",
+    }
+    return mapping.get(value, value.replace("_", " "))
+
+
 def main() -> None:
     sns.set_theme(style="whitegrid", context="talk")
 
@@ -408,6 +422,16 @@ def main() -> None:
     table.auto_set_font_size(False)
     table.set_fontsize(9)
     table.scale(1.0, 1.35)
+    axes[2].text(
+        0.0,
+        0.06,
+        "`no_case` rows are top-ranked review candidates not yet converted into cases.",
+        transform=axes[2].transAxes,
+        fontsize=9.5,
+        ha="left",
+        va="bottom",
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "#f3f7fb", "edgecolor": "#b7cde3"},
+    )
 
     fig.suptitle("Dashboard Pack Page 2 - Workflow and Prioritisation", y=1.02, fontsize=18)
     fig.tight_layout()
@@ -417,19 +441,30 @@ def main() -> None:
     # Page 3: Explanation and drill-through
     fig, axes = plt.subplots(1, 3, figsize=(19, 7), gridspec_kw={"width_ratios": [1.0, 1.0, 1.25]})
 
-    coeffs = top_coeffs_df.sort_values("abs_coefficient", ascending=True)
+    coeffs = top_coeffs_df.sort_values("abs_coefficient", ascending=True).copy()
+    coeffs["feature_label"] = coeffs["feature"].map(plain_driver_label)
     sns.barplot(
         data=coeffs,
         x="abs_coefficient",
-        y="feature",
-        hue="feature",
+        y="feature_label",
+        hue="feature_label",
         palette=["#cfe2f3"] * len(coeffs),
         legend=False,
         ax=axes[0],
     )
-    axes[0].set_title("Top Selected-Model Drivers")
+    axes[0].set_title("Top Risk Drivers")
     axes[0].set_xlabel("Absolute coefficient")
     axes[0].set_ylabel("")
+    axes[0].text(
+        0.01,
+        0.02,
+        "Higher bars mean stronger influence on the selected score.",
+        transform=axes[0].transAxes,
+        fontsize=9.5,
+        ha="left",
+        va="bottom",
+        bbox={"boxstyle": "round,pad=0.3", "facecolor": "#f3f7fb", "edgecolor": "#d0dbe7"},
+    )
 
     cohort_truth_df = (
         current_case_df.groupby("cohort_label")
@@ -561,9 +596,10 @@ def main() -> None:
         Page 2 - Workflow and prioritisation:
         - workflow pressure is read through pathway stages and current risk-band workload
         - prioritisation table is bounded to the highest-ranked current test flows
+        - `no_case` rows are review-priority candidates that have not yet converted into cases
 
         Page 3 - Explanation and drill-through:
-        - explanation shows the selected-model driver family
+        - explanation shows the selected-model driver family in plainer business language
         - cohort contrast shows where value and burden separate
         - drill-through sample is bounded to the current high-priority queue
         """,
