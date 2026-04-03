@@ -1,0 +1,8 @@
+{
+  "generated_figures": [
+    "01_flow_risk_band_performance.png",
+    "02_validation_test_band_stability.png",
+    "03_cohort_truth_vs_bank_view_rates.png",
+    "04_case_demand_forecast_vs_actual.png"
+  ]
+}
