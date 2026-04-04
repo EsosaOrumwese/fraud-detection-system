@@ -424,12 +424,12 @@ def main() -> None:
     overall_bars = pd.DataFrame(
         {
             "stage": [
-                "Monthly flow rows",
-                "Raw linked case-event rows",
-                "Maintained detailed rows",
+                "Linked monthly flows",
+                "Raw case-event rows on linked flows",
+                "Maintained rows (1 per linked flow)",
             ],
             "rows": [
-                float(overall_profile["flow_rows"]),
+                float(overall_profile["case_linked_rows"]),
                 float(overall_profile["raw_case_event_rows_on_linked_flows"]),
                 float(dataset_metrics["maintained_rows"]),
             ],
@@ -441,9 +441,18 @@ def main() -> None:
         color=["#AAB7C4", "#D95F5F", "#2E5B88"],
     )
     axes[0].ticklabel_format(style="plain", axis="y")
-    axes[0].set_title("Why The Raw Case Timeline Is Unsafe")
+    axes[0].set_title("Why The Raw Event-Grain Join Is Unsafe")
     axes[0].set_ylabel("Rows")
     axes[0].tick_params(axis="x", rotation=18)
+    axes[0].annotate(
+        f"March monthly flow rows: {comma(float(overall_profile['flow_rows']))}\nComparison here is the linked subset only.",
+        xy=(0.02, 0.96),
+        xycoords="axes fraction",
+        ha="left",
+        va="top",
+        fontsize=10,
+        color="#444444",
+    )
 
     axes[1].barh(
         band_profile_df["label"],
