@@ -316,11 +316,11 @@ It should not support claims in the family of:
 
 Long-form planning claim:
 
-> Improved the efficiency and automation of a repeated analytical workflow, as measured by one reusable regeneration path, one repeatability check pack, and one compact supported-output family, by replacing a bounded manual Claire House reporting or data-handling step with a governed rerunnable process built on the existing analytical lane.
+> Improved the efficiency and automation of a repeated analytical workflow, as measured by one reusable regeneration path, one repeatability check pack, and one compact supported-output family, by replacing a bounded manual reporting or data-handling step with a governed rerunnable process built on an existing analytical lane.
 
 Medium-form planning claim:
 
-> Improved workflow efficiency and automation for a bounded analytical process, as measured by a reusable rerun path and repeatability checks, by turning one repeated Claire House manual step into a governed regeneration flow.
+> Improved workflow efficiency and automation for a bounded analytical process, as measured by a reusable rerun path and repeatability checks, by turning one repeated manual step into a governed regeneration flow.
 
 Short-form planning claim:
 

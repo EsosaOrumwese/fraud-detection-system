@@ -1,0 +1,12 @@
+{
+  "slice": "claire_house/06_efficiency_and_automation_improvement",
+  "reporting_window": "Mar 2026",
+  "reusable_regeneration_paths": 1,
+  "governed_input_rows": 4,
+  "supported_output_count": 4,
+  "audience_pack_count": 2,
+  "derived_fields_reused": 10,
+  "workflow_repeatability_checks_passed": 6,
+  "workflow_repeatability_check_count": 6,
+  "regeneration_seconds": 0.20557900000130758
+}
