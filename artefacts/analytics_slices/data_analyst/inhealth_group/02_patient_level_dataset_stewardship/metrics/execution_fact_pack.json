@@ -1,0 +1,19 @@
+{
+  "slice": "inhealth_group/02_patient_level_dataset_stewardship",
+  "current_month": "2026-03-01",
+  "maintained_dataset_rows": 7835199,
+  "distinct_flow_id": 7835199,
+  "distinct_case_id": 7835199,
+  "march_flow_rows": 81360532,
+  "case_linked_rows": 7835199,
+  "case_opened_rows": 7835199,
+  "raw_case_event_rows_on_linked_flows": 20581909,
+  "avg_case_event_rows_when_linked": 2.6268521067556803,
+  "overall_case_open_rate": 0.0963022095283251,
+  "overall_case_truth_rate": 0.19862813950226407,
+  "validation_checks_passed": 5,
+  "validation_check_count": 5,
+  "reconciliation_matches": 4,
+  "reconciliation_count": 4,
+  "regeneration_seconds": 491.0670092000073
+}

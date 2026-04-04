@@ -1,0 +1,32 @@
+[
+  {
+    "check_name":"march_flow_ids_unique",
+    "actual_value":0.0,
+    "expected_rule":"= 0 duplicate monthly flow rows",
+    "passed_flag":1
+  },
+  {
+    "check_name":"truth_surface_unique_flow_ids",
+    "actual_value":0.0,
+    "expected_rule":"= 0 duplicate truth flow rows",
+    "passed_flag":1
+  },
+  {
+    "check_name":"maintained_dataset_unique_flow_ids",
+    "actual_value":0.0,
+    "expected_rule":"= 0 duplicate maintained flow rows",
+    "passed_flag":1
+  },
+  {
+    "check_name":"maintained_dataset_required_fields_complete",
+    "actual_value":0.0,
+    "expected_rule":"= 0 rows with null required fields",
+    "passed_flag":1
+  },
+  {
+    "check_name":"maintained_dataset_case_opened_only",
+    "actual_value":0.0,
+    "expected_rule":"= 0 rows outside the case-opened maintained grain",
+    "passed_flag":1
+  }
+]
