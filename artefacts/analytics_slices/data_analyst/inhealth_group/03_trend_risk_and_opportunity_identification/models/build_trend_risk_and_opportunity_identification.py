@@ -12,6 +12,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from matplotlib.ticker import FuncFormatter
 
 
 BASE = Path(
@@ -52,6 +53,10 @@ def pct(value: float) -> str:
 
 def short_pct(value: float) -> str:
     return f"{value * 100:.1f}%"
+
+
+def axis_pct(decimals: int = 1) -> FuncFormatter:
+    return FuncFormatter(lambda value, _: f"{value:.{decimals}f}%")
 
 
 def month_label(value: str) -> str:
@@ -143,7 +148,7 @@ def render_figures(trend_df: pd.DataFrame, focus_df: pd.DataFrame) -> None:
     trend_plot = trend_df.copy()
     trend_plot["month_label"] = trend_plot["month_start_date"].dt.strftime("%b %Y")
 
-    fig, axes = plt.subplots(3, 1, figsize=(10.8, 8.4), constrained_layout=True)
+    fig, axes = plt.subplots(3, 1, figsize=(10.4, 8.6), sharex=True, constrained_layout=True)
 
     axes[0].bar(
         trend_plot["month_label"],
@@ -153,7 +158,7 @@ def render_figures(trend_df: pd.DataFrame, focus_df: pd.DataFrame) -> None:
     )
     for x, y in zip(trend_plot["month_label"], trend_plot["flow_rows"] / 1_000_000):
         axes[0].text(x, y + 0.45, f"{y:.2f}M", ha="center", va="bottom", fontsize=10, color=text)
-    axes[0].set_title("Monthly Flow Volume")
+    axes[0].set_title("Flow Volume", loc="left", fontsize=14, color=text, pad=8)
     axes[0].set_ylabel("Flows (millions)")
     axes[0].grid(axis="y", color=grid, linewidth=0.8)
     axes[0].spines[["top", "right"]].set_visible(False)
@@ -166,12 +171,23 @@ def render_figures(trend_df: pd.DataFrame, focus_df: pd.DataFrame) -> None:
         linewidth=2.2,
         markersize=8,
     )
-    for x, y in zip(trend_plot["month_label"], trend_plot["case_open_rate"] * 100):
-        axes[1].text(x, y + 0.02, f"{y:.2f}%", ha="center", va="bottom", fontsize=10, color=text)
-    axes[1].set_title("Overall Case-open Rate")
+    axes[1].set_title("Overall Case-open Rate", loc="left", fontsize=14, color=text, pad=8)
     axes[1].set_ylabel("Rate (%)")
+    axes[1].yaxis.set_major_formatter(axis_pct(2))
     axes[1].grid(axis="y", color=grid, linewidth=0.8)
     axes[1].spines[["top", "right"]].set_visible(False)
+    case_last_x = trend_plot["month_label"].iloc[-1]
+    case_last_y = (trend_plot["case_open_rate"] * 100).iloc[-1]
+    axes[1].annotate(
+        f"{case_last_y:.2f}%",
+        xy=(case_last_x, case_last_y),
+        xytext=(8, 0),
+        textcoords="offset points",
+        ha="left",
+        va="center",
+        fontsize=10,
+        color=blue,
+    )
 
     axes[2].plot(
         trend_plot["month_label"],
@@ -181,22 +197,35 @@ def render_figures(trend_df: pd.DataFrame, focus_df: pd.DataFrame) -> None:
         linewidth=2.2,
         markersize=8,
     )
-    for x, y in zip(trend_plot["month_label"], trend_plot["case_truth_rate"] * 100):
-        axes[2].text(x, y + 0.03, f"{y:.2f}%", ha="center", va="bottom", fontsize=10, color=text)
-    axes[2].set_title("Overall Truth Quality")
+    axes[2].set_title("Overall Truth Quality", loc="left", fontsize=14, color=text, pad=8)
     axes[2].set_ylabel("Rate (%)")
     axes[2].set_xlabel("Month")
+    axes[2].yaxis.set_major_formatter(axis_pct(2))
     axes[2].grid(axis="y", color=grid, linewidth=0.8)
     axes[2].spines[["top", "right"]].set_visible(False)
+    truth_last_x = trend_plot["month_label"].iloc[-1]
+    truth_last_y = (trend_plot["case_truth_rate"] * 100).iloc[-1]
+    axes[2].annotate(
+        f"{truth_last_y:.2f}%",
+        xy=(truth_last_x, truth_last_y),
+        xytext=(8, 0),
+        textcoords="offset points",
+        ha="left",
+        va="center",
+        fontsize=10,
+        color=green,
+    )
+    for ax in axes:
+        ax.margins(x=0.05)
 
-    fig.suptitle("Monthly Trend Context", fontsize=18, color=text, y=1.02)
+    fig.suptitle("Three-Month Trend Context", fontsize=18, color=text, y=1.01)
     fig.savefig(FIGURES_DIR / "monthly_trend_context.png", bbox_inches="tight")
     plt.close(fig)
 
     focus_top = focus_df.loc[focus_df["priority_attention_flag"] == 1].copy()
     focus_top["month_label"] = focus_top["month_start_date"].dt.strftime("%b %Y")
 
-    fig, (ax_case, ax_truth) = plt.subplots(1, 2, figsize=(12.6, 5.6), constrained_layout=True)
+    fig, (ax_case, ax_truth) = plt.subplots(1, 2, figsize=(12.4, 5.8), constrained_layout=True)
 
     ax_case.plot(
         focus_top["month_label"],
@@ -205,7 +234,6 @@ def render_figures(trend_df: pd.DataFrame, focus_df: pd.DataFrame) -> None:
         color=red,
         linewidth=2.2,
         markersize=8,
-        label="50+ case-open rate",
     )
     ax_case.plot(
         focus_top["month_label"],
@@ -214,32 +242,43 @@ def render_figures(trend_df: pd.DataFrame, focus_df: pd.DataFrame) -> None:
         color=blue_light,
         linewidth=2.2,
         markersize=8,
-        label="Peer average",
     )
-    for _, row in focus_top.iterrows():
-        ax_case.text(
-            row["month_label"],
-            row["case_open_rate"] * 100 + 0.03,
-            f"{row['case_open_rate'] * 100:.2f}%",
-            ha="center",
-            va="bottom",
-            fontsize=9.8,
-            color=red,
-        )
-        ax_case.text(
-            row["month_label"],
-            row["peer_case_open_rate"] * 100 - 0.05,
-            f"{row['peer_case_open_rate'] * 100:.2f}%",
-            ha="center",
-            va="top",
-            fontsize=9.8,
-            color=blue,
-        )
-    ax_case.set_title("50+ Case-open Rate Vs Peer Average")
     ax_case.set_ylabel("Rate (%)")
+    ax_case.yaxis.set_major_formatter(axis_pct(1))
     ax_case.grid(axis="y", color=grid, linewidth=0.8)
     ax_case.spines[["top", "right"]].set_visible(False)
-    ax_case.legend(frameon=False, loc="lower right", fontsize=9)
+    ax_case.margins(x=0.06)
+    ax_case.text(
+        0.02,
+        0.98,
+        "Case-open Rate Vs Peers",
+        transform=ax_case.transAxes,
+        ha="left",
+        va="top",
+        fontsize=13,
+        color=text,
+    )
+    case_focus_last = focus_top.iloc[-1]
+    ax_case.annotate(
+        f"50+ {case_focus_last['case_open_rate'] * 100:.2f}%",
+        xy=(case_focus_last["month_label"], case_focus_last["case_open_rate"] * 100),
+        xytext=(8, 6),
+        textcoords="offset points",
+        ha="left",
+        va="bottom",
+        fontsize=10,
+        color=red,
+    )
+    ax_case.annotate(
+        f"Peers {case_focus_last['peer_case_open_rate'] * 100:.2f}%",
+        xy=(case_focus_last["month_label"], case_focus_last["peer_case_open_rate"] * 100),
+        xytext=(8, -10),
+        textcoords="offset points",
+        ha="left",
+        va="top",
+        fontsize=10,
+        color=blue,
+    )
 
     ax_truth.plot(
         focus_top["month_label"],
@@ -248,7 +287,6 @@ def render_figures(trend_df: pd.DataFrame, focus_df: pd.DataFrame) -> None:
         color=red,
         linewidth=2.2,
         markersize=8,
-        label="50+ truth quality",
     )
     ax_truth.plot(
         focus_top["month_label"],
@@ -257,34 +295,44 @@ def render_figures(trend_df: pd.DataFrame, focus_df: pd.DataFrame) -> None:
         color=green_light,
         linewidth=2.2,
         markersize=8,
-        label="Peer average",
     )
-    for _, row in focus_top.iterrows():
-        ax_truth.text(
-            row["month_label"],
-            row["case_truth_rate"] * 100 - 0.05,
-            f"{row['case_truth_rate'] * 100:.2f}%",
-            ha="center",
-            va="top",
-            fontsize=9.8,
-            color=red,
-        )
-        ax_truth.text(
-            row["month_label"],
-            row["peer_case_truth_rate"] * 100 + 0.03,
-            f"{row['peer_case_truth_rate'] * 100:.2f}%",
-            ha="center",
-            va="bottom",
-            fontsize=9.8,
-            color=green,
-        )
-    ax_truth.set_title("50+ Truth Quality Vs Peer Average")
     ax_truth.set_ylabel("Rate (%)")
+    ax_truth.yaxis.set_major_formatter(axis_pct(1))
     ax_truth.grid(axis="y", color=grid, linewidth=0.8)
     ax_truth.spines[["top", "right"]].set_visible(False)
-    ax_truth.legend(frameon=False, loc="lower right", fontsize=9)
+    ax_truth.margins(x=0.06)
+    ax_truth.text(
+        0.02,
+        0.98,
+        "Truth Quality Vs Peers",
+        transform=ax_truth.transAxes,
+        ha="left",
+        va="top",
+        fontsize=13,
+        color=text,
+    )
+    ax_truth.annotate(
+        f"50+ {case_focus_last['case_truth_rate'] * 100:.2f}%",
+        xy=(case_focus_last["month_label"], case_focus_last["case_truth_rate"] * 100),
+        xytext=(8, -10),
+        textcoords="offset points",
+        ha="left",
+        va="top",
+        fontsize=10,
+        color=red,
+    )
+    ax_truth.annotate(
+        f"Peers {case_focus_last['peer_case_truth_rate'] * 100:.2f}%",
+        xy=(case_focus_last["month_label"], case_focus_last["peer_case_truth_rate"] * 100),
+        xytext=(8, 6),
+        textcoords="offset points",
+        ha="left",
+        va="bottom",
+        fontsize=10,
+        color=green,
+    )
 
-    fig.suptitle("Persistent Risk Focus: 50+ Vs The Rest Of The Lane", fontsize=18, color=text, y=1.02)
+    fig.suptitle("Persistent Risk Focus: 50+", fontsize=18, color=text, y=1.01)
     fig.savefig(FIGURES_DIR / "risk_or_opportunity_focus.png", bbox_inches="tight")
     plt.close(fig)
 
@@ -296,7 +344,7 @@ def render_figures(trend_df: pd.DataFrame, focus_df: pd.DataFrame) -> None:
             },
             {
                 "file": "risk_or_opportunity_focus.png",
-                "purpose": "Show that 50+ remains the persistent risk pocket when compared with the rest of the lane across the rolling window.",
+                "purpose": "Show that 50+ remains the persistent risk pocket when compared with peer averages across the rolling window.",
             },
         ]
     }
@@ -414,7 +462,7 @@ def main() -> None:
     write_md(
         ARTEFACT / "risk_or_opportunity_note_v1.md",
         f"""
-        # Risk Or Opportunity Note v1
+        # Risk Focus Note v1
 
         Selected focus:
         - persistent risk pocket in `{short_band(str(latest_focus["amount_band"]))}`
@@ -428,6 +476,7 @@ def main() -> None:
         - the band keeps drawing more case effort than the rest of the lane
         - it continues to return weaker truth quality than peers
         - the most defensible attention point is therefore concentrated risk in `{short_band(str(latest_focus["amount_band"]))}`, not broad lane deterioration
+        - no comparably strong positive opportunity signal surfaced in the bounded three-month window
         """,
     )
 

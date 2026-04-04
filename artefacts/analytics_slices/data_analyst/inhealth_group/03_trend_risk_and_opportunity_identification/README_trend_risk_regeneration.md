@@ -14,4 +14,4 @@ Execution order:
 5. regenerate notes and figures
 
 Current regeneration time:
-- about `372.8` seconds
+- about `400.9` seconds
