@@ -293,7 +293,7 @@ The claim therefore needs to answer back in evidence form:
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Supported trusted data provision and integrity for downstream analytical use, as measured by mapping `3` source surfaces into one controlled provision lane, holding `9` release-safe authority rules explicitly across the lane, and passing the inherited `5/5` validation and `4/4` reconciliation checks before releasing `1` protected downstream output, by widening a maintained flow-grain trust foundation into a Claire House-shaped provision path with explicit source, authority, and protection controls.
+> Supported the production, management, protection, and integrity of data provision, as measured by mapping `3` source surfaces into one controlled provision lane, holding `9` release-safe authority rules explicitly across the lane, and carrying the lane through inherited `5/5` validation and `4/4` reconciliation checks before releasing `1` protected downstream output, by widening a maintained flow-grain trust foundation into a Claire House-shaped provision path with explicit source contribution, authority control, and release-safety safeguards.
 
 ### 10.2 Shorter recruiter-facing version
 
@@ -301,4 +301,4 @@ The claim therefore needs to answer back in evidence form:
 
 ### 10.3 Closer direct-response version
 
-> Supported the production, management, protection, and integrity of data provision, as measured by one governed provision lane, `3` mapped source surfaces, `9` explicit authority rules, and one protected downstream output, by defining source contribution, release-safe fields, and integrity safeguards across a bounded analytical pathway.
+> Supported the production, management, protection, and integrity of data provision, as measured by one governed provision lane, `3` mapped source surfaces, `9` explicit authority rules, and one protected downstream output, by defining source contribution, controlling release-safe fields, and applying integrity safeguards across a bounded analytical pathway.
