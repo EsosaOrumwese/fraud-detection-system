@@ -1,0 +1,17 @@
+{
+  "slice": "the_money_and_pensions_service/05_kpi_and_framework_measurement_support",
+  "aligned_reporting_window": "Mar 2026",
+  "framework_measure_count": 3,
+  "kpi_count": 3,
+  "change_tracking_kpi_count": 2,
+  "change_tracking_period_count": 3,
+  "improvement_measurement_output_count": 1,
+  "shared_focus_band": "50_plus",
+  "shared_focus_confirming_streams": 3,
+  "current_focus_case_open_gap_pp": 1.32999264145527,
+  "current_focus_truth_gap_pp": -1.985315845179922,
+  "current_framework_confidence_streams": 3,
+  "release_checks_passed": 7,
+  "release_check_count": 7,
+  "regeneration_seconds": 0.18751699999847915
+}
