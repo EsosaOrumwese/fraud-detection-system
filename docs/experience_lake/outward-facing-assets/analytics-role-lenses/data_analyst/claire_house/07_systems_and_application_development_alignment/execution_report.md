@@ -287,12 +287,12 @@ The claim therefore needs to answer back in evidence form:
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Supported systems and application-development alignment for a governed analytical lane, as measured by controlling `1` explicit maintained-layer to regeneration-path interface with `18` required fields, protecting `4` downstream outputs including `2` audience-pack outputs, and passing `7/7` integration-control checks in `0.17` seconds, by making the producer-to-consumer handoff explicit and verifying that field coverage, grain, upstream controls, and downstream repeatability remained aligned across the boundary.
+> Aligned analytical data work with a systems-facing development boundary and supported seamless downstream pipeline use, as measured by controlling `1` explicit maintained-layer to regeneration-path interface with `18` required fields, protecting `4` downstream outputs including `2` audience-pack outputs, and passing `7/7` integration-control checks in `0.17` seconds, by making the producer-to-consumer handoff explicit and verifying that field coverage, grain, upstream controls, and downstream repeatability remained aligned across the boundary.
 
 ### 10.2 Shorter recruiter-facing version
 
-> Supported systems-facing data integration in a bounded analytical workflow, as measured by `1` explicit interface boundary, `4` protected downstream outputs, and `7/7` integration checks, by controlling the handoff from the maintained analytical layer into the reusable regeneration path.
+> Aligned analytical data work with a systems-facing pipeline boundary, as measured by `1` explicit interface boundary, `4` protected downstream outputs, and `7/7` integration checks, by controlling the handoff from the maintained analytical layer into the reusable regeneration path.
 
 ### 10.3 Closer direct-response version
 
-> Worked across a systems-facing analytical boundary to keep data pipelines and downstream outputs aligned, as measured by a controlled producer-to-consumer handoff with exact downstream continuity, by defining and checking the interface between the maintained analytical layer and the regeneration path used by reporting and audience-ready outputs.
+> Worked across a systems-facing boundary to keep data pipelines and downstream outputs aligned, as measured by a controlled producer-to-consumer handoff with exact downstream continuity, by defining and checking the interface between the maintained analytical layer and the regeneration path used by reporting and audience-ready outputs.
