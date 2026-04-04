@@ -327,11 +327,11 @@ The claim therefore needs to answer back in evidence form:
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Identified a persistent operational risk from rolling monthly performance data, as measured by building a controlled `3`-month trend reading across `4` stable KPI families, confirming `50_plus` as the top attention band in all `3` months, and reproducing the evidence pack with `4/4` release checks in `372.8` seconds, by comparing bounded Jan-to-Mar programme performance at both topline and band level and distinguishing a concentrated `50_plus` pressure-versus-quality gap from a false broad-deterioration story.
+> Identified operational trends and a persistent risk from rolling monthly data, as measured by building a controlled `3`-month comparison across `4` stable KPI families, confirming `50_plus` as the top attention band in all `3` months, and reproducing the evidence pack with `4/4` release checks in `372.8` seconds, by comparing bounded Jan-to-Mar programme performance at both topline and band level and showing that the lane was broadly stable overall while `50_plus` carried the recurring pressure-versus-quality gap that most clearly warranted attention.
 
 ### 10.2 Shorter recruiter-facing version
 
-> Identified a persistent risk pocket from rolling monthly operational data, as measured by a repeatable three-month trend reading that isolated `50_plus` as the consistent attention band, by separating stable topline performance from a concentrated pressure-versus-quality gap in one bounded programme lane.
+> Identified trends and a persistent risk pocket from rolling monthly operational data, as measured by a repeatable three-month trend reading that isolated `50_plus` as the consistent attention band, by separating stable topline performance from a concentrated pressure-versus-quality gap in one bounded programme lane.
 
 ### 10.3 Closer direct-response version
 
