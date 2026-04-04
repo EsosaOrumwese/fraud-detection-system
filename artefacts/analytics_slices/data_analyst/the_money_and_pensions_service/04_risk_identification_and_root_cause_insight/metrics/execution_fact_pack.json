@@ -1,0 +1,18 @@
+{
+  "slice": "the_money_and_pensions_service/04_risk_identification_and_root_cause_insight",
+  "aligned_reporting_window": "Mar 2026",
+  "early_warning_output_count": 1,
+  "investigated_risk_output_count": 1,
+  "likely_driver_links_defended": 3,
+  "intervention_implication_count": 1,
+  "shared_focus_band": "50_plus",
+  "shared_focus_confirming_streams": 3,
+  "focus_case_open_rate_huc": 0.1078193975162007,
+  "focus_case_open_rate_claire": 0.10824597063629793,
+  "focus_case_open_rate_herts": 0.10824597063629793,
+  "focus_truth_gap_pp": -1.985315845179922,
+  "singular_root_cause_supported_flag": 0,
+  "release_checks_passed": 7,
+  "release_check_count": 7,
+  "regeneration_seconds": 0.1525240000046324
+}
