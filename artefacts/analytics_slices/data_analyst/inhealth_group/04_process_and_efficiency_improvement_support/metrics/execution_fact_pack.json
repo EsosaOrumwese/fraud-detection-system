@@ -1,0 +1,23 @@
+{
+  "slice": "inhealth_group/04_process_and_efficiency_improvement_support",
+  "months_compared": [
+    "Jan 2026",
+    "Feb 2026",
+    "Mar 2026"
+  ],
+  "focus_band": "50_plus",
+  "kpi_family_count": 4,
+  "current_focus_flow_share": 0.10196788044601282,
+  "current_focus_case_open_share": 0.11461431930446182,
+  "current_focus_truth_share": 0.10447146452687833,
+  "current_focus_burden_minus_yield_share": 0.01014285477758349,
+  "current_focus_case_open_gap_to_peer": 0.013299926414552701,
+  "current_focus_truth_gap_to_peer": -0.01985315845179922,
+  "current_focus_truth_per_case_open": 0.18105043729246145,
+  "overall_case_open_change_from_start": 0.00047375038096170163,
+  "overall_truth_change_from_start": -0.0002469532200529423,
+  "release_checks_passed": 5,
+  "release_check_count": 5,
+  "regeneration_seconds": 0.1372414000070421,
+  "recommendation": "Review 50_plus queue case-opening or escalation rules before any broad lane-wide intervention."
+}
