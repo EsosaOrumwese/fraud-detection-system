@@ -203,7 +203,40 @@ That is the correct widening:
 - not mere renaming
 - but a reframing of the same controlled trust base into the responsibility Claire House is actually asking for
 
-## 7. Assets Produced
+## 7. Figures
+
+### 7.1 Provision volume control by band
+
+![Provision volume control by band](../../../../../../../artefacts/analytics_slices/data_analyst/claire_house/01_trusted_data_provision_and_integrity/figures/provision_volume_control_by_band.png)
+
+This is the core analytical control plot for the slice.
+
+Its job is to show:
+- by amount band, how many raw case-event rows sit behind the linked subset
+- how that compares to the controlled maintained row count at one row per `flow_id`
+- how much raw row inflation exists before the provision lane is made release-safe
+
+The useful reading is:
+- the raw event-grain surface is materially larger than the maintained release-safe lane in every band
+- the control problem is therefore structural rather than cosmetic
+- the maintained lane is what turns the provision path into something safe for downstream analytical use
+
+### 7.2 Protected release profile by band
+
+![Protected release profile by band](../../../../../../../artefacts/analytics_slices/data_analyst/claire_house/01_trusted_data_provision_and_integrity/figures/protected_release_profile_by_band.png)
+
+This is the downstream analytical plot for the slice.
+
+Its job is to show:
+- the case-open and truth-quality readings released from the controlled provision lane
+- how each band compares with the protected overall reading
+- that the release-safe output is not just internally controlled, but analytically usable
+
+The useful reading is:
+- the controlled provision lane still releases a meaningful band-level analytical profile
+- the downstream output remains stable and interpretable after the raw event-grain path has been controlled
+
+## 8. Assets Produced
 
 The slice produced the assets that make the trusted provision lane credible.
 
@@ -228,7 +261,7 @@ This is the key difference between this slice and a vague “supported data prov
 - the output here is not just one sentence of positioning
 - it is one bounded provision lane plus explicit evidence that the lane is controlled and safe for downstream use
 
-## 8. What This Slice Supports Claiming
+## 9. What This Slice Supports Claiming
 
 This slice supports truthful statements such as:
 - supported trusted data provision through explicit source mapping, field authority, and integrity checks
@@ -242,7 +275,7 @@ The slice does not support claiming that:
 - Claire House-style application or systems integration ownership has already been proven
 - this one lane proves whole-estate information management
 
-## 9. Candidate Resume Claim Surfaces
+## 10. Candidate Resume Claim Surfaces
 
 This section should be read as a direct response to the Claire House `3.A` responsibility, not as a generic “I am good with data quality” statement.
 
@@ -258,14 +291,14 @@ The claim therefore needs to answer back in evidence form:
 - I used integrity checks before release
 - I protected one downstream analytical output by releasing it only from that controlled lane
 
-### 9.1 Flagship `X by Y by Z` claim
+### 10.1 Flagship `X by Y by Z` claim
 
 > Supported trusted data provision and integrity for downstream analytical use, as measured by mapping `3` source surfaces into one controlled provision lane, holding `9` release-safe authority rules explicitly across the lane, and passing the inherited `5/5` validation and `4/4` reconciliation checks before releasing `1` protected downstream output, by widening a maintained flow-grain trust foundation into a Claire House-shaped provision path with explicit source, authority, and protection controls.
 
-### 9.2 Shorter recruiter-facing version
+### 10.2 Shorter recruiter-facing version
 
 > Supported trusted organisational data provision, as measured by explicit source mapping, integrity checks, and one protected downstream analytical output, by turning a bounded maintained analytical lane into a controlled provision path rather than a loose collection of raw extracts.
 
-### 9.3 Closer direct-response version
+### 10.3 Closer direct-response version
 
 > Supported the production, management, protection, and integrity of data provision, as measured by one governed provision lane, `3` mapped source surfaces, `9` explicit authority rules, and one protected downstream output, by defining source contribution, release-safe fields, and integrity safeguards across a bounded analytical pathway.
