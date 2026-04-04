@@ -289,8 +289,21 @@ It does not support inflated claims about:
 
 Within the approved boundary, the slice is complete and credible.
 
-## 10. Claim-Ready Summary
+## 10. Claim Surfaces
 
-The cleanest claim surface supported by this execution is:
+The claim therefore needs to answer back in evidence form:
+- I actively monitored and audited quality rather than only relying on trust from earlier slices
+- I turned the control picture into explicit findings and recommendations
+- I supported governance work in a bounded way without overstating ownership
+
+### 10.1 Flagship `X by Y by Z` claim
 
 > Monitored and audited data quality, recommended improvements, and supported governance tasks on a controlled analytical lane, as measured by running `19` quality checks across `3` monitoring areas, producing `3` audit findings and `3` linked improvement recommendations, and reproducing the audit pack with `5/5` audit checks in `0.10` seconds, by consolidating trusted provision controls and maintained-layer release controls into one repeatable review surface for bounded governance and `IG`-adjacent use.
+
+### 10.2 Shorter recruiter-facing version
+
+> Monitored and audited data quality on a controlled analytical lane, as measured by `19` quality checks, `3` audit findings, and `3` linked recommendations, by turning provision and maintained-layer controls into one repeatable review pack that supported bounded governance work.
+
+### 10.3 Closer direct-response version
+
+> Monitored and audited data quality, made recommendations for improvement, and supported governance and `IG`-adjacent tasks, as measured by `3` green monitoring areas, `3` audit findings, and `5/5` audit checks, by consolidating existing control surfaces into one repeatable audit and review pack for the analytical lane.

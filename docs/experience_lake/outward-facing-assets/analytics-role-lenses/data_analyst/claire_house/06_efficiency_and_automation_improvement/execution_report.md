@@ -291,8 +291,21 @@ Important caution for later reuse:
 - later reuse should keep the wording tied to repeated output assembly, rerunability, maintenance benefit, and bounded automation
 - later reuse should avoid stretching the slice into a broad “general automation” claim that the executed proof does not support
 
-## 10. Claim-Ready Summary
+## 10. Claim Surfaces
 
-The cleanest claim surface supported by this execution is:
+The claim therefore needs to answer back in evidence form:
+- I identified repeated workflow friction rather than only maintaining the analytical layer
+- I replaced that friction with one reusable regeneration path
+- I proved the regenerated outputs still match the governed packs exactly
+
+### 10.1 Flagship `X by Y by Z` claim
 
 > Improved the efficiency and automation of a repeated analytical workflow, as measured by regenerating `4` downstream outputs, including `2` audience-pack outputs, from `1` reusable path over `4` governed maintained-layer rows, and reproducing the pack with `6/6` repeatability checks in `0.21` seconds, by consolidating reporting and audience-ready output assembly into one rerunnable regeneration flow built directly on the maintained analytical layer.
+
+### 10.2 Shorter recruiter-facing version
+
+> Improved workflow efficiency and automation for a bounded analytical process, as measured by `1` reusable regeneration path, `4` regenerated outputs, and `6/6` repeatability checks, by replacing repeated output assembly with one rerunnable governed workflow.
+
+### 10.3 Closer direct-response version
+
+> Identified inefficient reporting and data-handling steps, increased automation, and improved repeatability of an analytical process, as measured by regenerating reporting and audience-ready outputs from one reusable path with exact downstream alignment, by turning repeated pack assembly into a maintained rerun flow over the governed analytical layer.
