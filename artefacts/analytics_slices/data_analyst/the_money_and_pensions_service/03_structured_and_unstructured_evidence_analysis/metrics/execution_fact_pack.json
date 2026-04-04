@@ -1,0 +1,15 @@
+{
+  "slice": "the_money_and_pensions_service/03_structured_and_unstructured_evidence_analysis",
+  "aligned_reporting_window": "Mar 2026",
+  "structured_output_count": 1,
+  "narrative_output_count": 1,
+  "combined_insight_output_count": 1,
+  "shared_focus_band": "50_plus",
+  "shared_focus_confirming_streams": 3,
+  "narrative_stage_count": 3,
+  "narrative_functions_covered": 3,
+  "focus_truth_gap_pp": -1.985315845179922,
+  "release_checks_passed": 6,
+  "release_check_count": 6,
+  "regeneration_seconds": 0.18741280000540428
+}
