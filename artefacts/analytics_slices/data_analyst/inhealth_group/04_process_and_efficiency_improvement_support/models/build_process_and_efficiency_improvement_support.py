@@ -124,7 +124,7 @@ def render_figures(review_df: pd.DataFrame) -> None:
     plot_df = review_df.copy()
     plot_df["month_label"] = plot_df["month_start_date"].dt.strftime("%b %Y")
 
-    fig, ax = plt.subplots(figsize=(10.0, 5.8), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(10.2, 5.8), constrained_layout=True)
     ax.plot(
         plot_df["month_label"],
         plot_df["case_open_share"] * 100,
@@ -174,7 +174,7 @@ def render_figures(review_df: pd.DataFrame) -> None:
         color=green,
     )
     ax.annotate(
-        f"Gap {last['burden_minus_yield_share'] * 100:+.2f} pp",
+        f"Review gap {last['burden_minus_yield_share'] * 100:+.2f} pp",
         xy=(last["month_label"], ((last["case_open_share"] + last["truth_share"]) / 2) * 100),
         xytext=(14, 0),
         textcoords="offset points",
@@ -188,64 +188,55 @@ def render_figures(review_df: pd.DataFrame) -> None:
     plt.close(fig)
 
     latest = plot_df.iloc[-1]
-    fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=(12.4, 5.8), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(10.6, 6.2), constrained_layout=True)
 
-    left_labels = ["Case-open rate", "Truth quality"]
-    left_values = [
-        latest["case_open_change_from_start"] * 100,
-        latest["truth_change_from_start"] * 100,
+    comparison_labels = [
+        "Whole-lane truth change",
+        "Whole-lane case-open change",
+        "50+ burden gap",
+        "50+ case-open gap",
+        "50+ truth gap",
     ]
-    left_colors = [blue, green]
-    ax_left.barh(left_labels, left_values, color=left_colors, height=0.52)
-    left_min = min(left_values)
-    left_max = max(left_values)
-    ax_left.set_xlim(left_min - 0.03, left_max + 0.03)
-    for i, value in enumerate(left_values):
-        ax_left.annotate(
-            f"{value:+.2f} pp",
-            xy=(value, i),
-            xytext=(6 if value >= 0 else -6, 0),
-            textcoords="offset points",
-            va="center",
-            ha="left" if value >= 0 else "right",
-            fontsize=10,
-            color=text,
-        )
-    ax_left.axvline(0, color="#9aa5b1", linewidth=1.0)
-    ax_left.set_title("Whole-lane Jan→Mar change", loc="left", fontsize=14, color=text, pad=8)
-    ax_left.set_xlabel("Percentage points")
-    ax_left.grid(axis="x", color=grid, linewidth=0.8)
-    ax_left.spines[["top", "right"]].set_visible(False)
-
-    right_labels = ["50+ burden gap", "50+ case-open gap", "50+ truth gap"]
-    right_values = [
+    comparison_values = [
+        latest["truth_change_from_start"] * 100,
+        latest["case_open_change_from_start"] * 100,
         latest["burden_minus_yield_share"] * 100,
         latest["case_open_gap_to_peer"] * 100,
         latest["case_truth_gap_to_peer"] * 100,
     ]
-    right_colors = [red, red, blue]
-    ax_right.barh(right_labels, right_values, color=right_colors, height=0.52)
-    right_min = min(right_values)
-    right_max = max(right_values)
-    ax_right.set_xlim(right_min - 0.2, right_max + 0.2)
-    for i, value in enumerate(right_values):
-        ax_right.annotate(
+    comparison_colors = [green, blue, red, red, blue]
+
+    ax.barh(comparison_labels, comparison_values, color=comparison_colors, height=0.58)
+    min_v = min(comparison_values)
+    max_v = max(comparison_values)
+    ax.set_xlim(min_v - 0.35, max_v + 0.35)
+    for i, value in enumerate(comparison_values):
+        ax.annotate(
             f"{value:+.2f} pp",
             xy=(value, i),
-            xytext=(6 if value >= 0 else -6, 0),
+            xytext=(8 if value >= 0 else -8, 0),
             textcoords="offset points",
             va="center",
             ha="left" if value >= 0 else "right",
             fontsize=10,
             color=text,
         )
-    ax_right.axvline(0, color="#9aa5b1", linewidth=1.0)
-    ax_right.set_title("Mar 2026 focus-band gaps", loc="left", fontsize=14, color=text, pad=8)
-    ax_right.set_xlabel("Percentage points")
-    ax_right.grid(axis="x", color=grid, linewidth=0.8)
-    ax_right.spines[["top", "right"]].set_visible(False)
+    ax.axvline(0, color="#9aa5b1", linewidth=1.0)
+    ax.set_title("Why Targeted Review Beats Broad Escalation", loc="left", fontsize=16, color=text, pad=10)
+    ax.set_xlabel("Percentage points")
+    ax.grid(axis="x", color=grid, linewidth=0.8)
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.text(
+        0.02,
+        0.04,
+        "Small whole-lane movement sits near zero; materially larger 50+ gaps support targeted review first.",
+        transform=ax.transAxes,
+        ha="left",
+        va="bottom",
+        fontsize=10,
+        color=text,
+    )
 
-    fig.suptitle("Why Targeted Review Beats Broad Escalation", fontsize=18, color=text, y=1.01)
     fig.savefig(FIGURES_DIR / "targeted_review_vs_broad_escalation.png", bbox_inches="tight")
     plt.close(fig)
 

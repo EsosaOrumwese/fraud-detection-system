@@ -225,8 +225,9 @@ The second figure was designed to answer:
 - or do the focus-band gaps make targeted review the more defensible response?
 
 Delivered components:
-- whole-lane Jan→Mar change in case-open rate and truth quality
-- current-month `50_plus` case-open gap, truth-quality gap, and burden gap
+- one single comparison axis carrying:
+  - whole-lane Jan→Mar change in case-open rate and truth quality
+  - current-month `50_plus` case-open gap, truth-quality gap, and burden gap
 
 The strongest reading from this figure is:
 - whole-lane movement is small
@@ -250,8 +251,8 @@ This figure carries the concentrated burden story:
 ![Why targeted review beats broad escalation](../../../../../../../artefacts/analytics_slices/data_analyst/inhealth_group/04_process_and_efficiency_improvement_support/figures/targeted_review_vs_broad_escalation.png)
 
 This figure carries the recommendation-support story:
-- the left panel shows that whole-lane Jan→Mar movement is small
-- the right panel shows that the current `50_plus` gaps are materially larger
+- small whole-lane movement sits near zero on the same scale
+- the current `50_plus` gaps are materially larger on that same scale
 - the figure therefore justifies a targeted review recommendation rather than broad lane-wide intervention
 
 ## 8. Improvement-Support Assets Produced
