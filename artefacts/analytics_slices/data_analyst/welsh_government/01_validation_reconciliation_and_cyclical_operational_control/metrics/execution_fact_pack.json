@@ -1,0 +1,16 @@
+{
+  "slice": "welsh_government/01_validation_reconciliation_and_cyclical_operational_control",
+  "control_window": "current_plus_prior_week",
+  "validation_rule_count": 1,
+  "discrepancy_class_count": 1,
+  "reconciliation_output_count": 1,
+  "recurring_support_output_count": 1,
+  "current_case_opened_rows": 1780031,
+  "current_authoritative_conversion_rate": 0.09593298647875051,
+  "current_absolute_gap_pp": 4.796649323937525,
+  "prior_absolute_gap_pp": 4.810612811477452,
+  "trusted_control_reference_rate": 0.0963022095283251,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.18212810000113677
+}
