@@ -1,0 +1,22 @@
+{
+  "slice": "hertfordshire_partnership_university_nhs_ft/03_data_quality_and_performance_validity",
+  "reporting_window_count": 3,
+  "reporting_window_start": "2026-01-01",
+  "reporting_window_end": "2026-03-01",
+  "validity_findings_count": 3,
+  "explicit_weak_point_count": 1,
+  "validity_impact_output_count": 1,
+  "improvement_action_count": 3,
+  "complete_peer_comparator_rows": 3,
+  "focus_band_count": 1,
+  "target_reference_count": 1,
+  "focus_band": "50_plus",
+  "current_focus_case_open_gap_to_peer_pp": 1.32999264145527,
+  "current_focus_truth_gap_to_peer_pp": -1.985315845179922,
+  "release_checks_passed": 7,
+  "release_check_count": 7,
+  "inherited_target_release_checks_passed": 6,
+  "priority_improvement_area": "implicit_validity_dependency",
+  "regeneration_seconds": 0.10079369999584742,
+  "inherited_senior_release_checks_passed": 6
+}
