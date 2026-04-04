@@ -342,11 +342,11 @@ The claim therefore needs to answer back in evidence form:
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Maintained, validated, and reconciled a detailed reporting dataset to keep monthly reporting accurate, as measured by applying `5` repeatable validation checks to a controlled `7,835,199`-row maintained dataset, reproducing the downstream reporting lane exactly across `4/4` amount bands, and regenerating the maintained dataset and protected summary in `491.1` seconds, by profiling a bounded March case-linked reporting surface, correcting the raw case timeline from unsafe event-grain joins to one rolled case state per `flow_id`, and releasing a reporting-safe detailed dataset from that controlled definition.
+> Maintained, validated, and reconciled a detailed case-linked reporting dataset to keep monthly reporting accurate, as measured by controlling a `7,835,199`-row maintained dataset at one row per `flow_id`, passing `5/5` repeatable validation checks, and reproducing the downstream reporting lane exactly across `4/4` amount bands, by profiling a bounded March detailed source path, replacing unsafe raw event-grain case joins with one rolled case state per linked flow, and releasing a reporting-safe dataset that preserved the protected `9.63%` case-open and `19.86%` truth-quality readings.
 
 ### 10.2 Shorter recruiter-facing version
 
-> Maintained and reconciled a trusted detailed reporting dataset, as measured by repeatable validation checks, exact reconciliation back to the downstream monthly reporting lane, and controlled regeneration from bounded SQL logic, by replacing unsafe raw case-event joins with a maintained one-row-per-flow dataset fit for reporting use.
+> Maintained and reconciled a trusted detailed reporting dataset, as measured by repeatable validation checks, exact reconciliation back to the downstream monthly reporting lane, and controlled reporting-safe output, by replacing unsafe raw case-event joins with a maintained one-row-per-flow dataset fit for monthly reporting use.
 
 ### 10.3 Closer direct-response version
 
