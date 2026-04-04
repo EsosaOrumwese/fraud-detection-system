@@ -1,0 +1,19 @@
+{
+  "slice": "hertfordshire_partnership_university_nhs_ft/02_senior_performance_analysis_and_reporting",
+  "reporting_window_count": 3,
+  "reporting_window_start": "2026-01-01",
+  "reporting_window_end": "2026-03-01",
+  "kpi_family_count": 4,
+  "senior_facing_view_count": 1,
+  "trend_output_count": 3,
+  "management_action_output_count": 1,
+  "current_case_open_rate": 0.0963022095283251,
+  "current_truth_quality": 0.19862813950226407,
+  "top_attention_band": "50_plus",
+  "top_attention_case_open_gap_pp": 1.32999264145527,
+  "top_attention_truth_gap_pp": -1.985315845179922,
+  "top_attention_burden_gap_pp": 1.014285477758349,
+  "release_checks_passed": 6,
+  "release_check_count": 6,
+  "regeneration_seconds": 0.09984560000884812
+}
