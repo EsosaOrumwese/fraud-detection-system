@@ -308,7 +308,7 @@ The claim therefore needs to answer back in evidence form:
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Supported process and efficiency improvement with targeted analytical evidence, as measured by building one bounded `3`-month improvement-support reading across `4` stable KPI families, confirming a current `50_plus` burden-minus-yield gap of `+1.01` percentage points alongside peer gaps of `+1.33` percentage points in case-opening and `-1.99` percentage points in truth quality, and reproducing the recommendation pack with `5/5` release checks in `0.13` seconds, by extending the trusted Jan-to-Mar risk lane into a focused review case that showed why `50_plus` queue case-opening or escalation rules should be examined before any broad lane-wide intervention.
+> Supported process and efficiency improvement with targeted analytical evidence, as measured by building one bounded `3`-month improvement-support reading across `4` stable KPI families, confirming that `50_plus` carried a current burden-minus-yield gap of `+1.01` percentage points alongside peer gaps of `+1.33` percentage points in case-opening and `-1.99` percentage points in truth quality, and reproducing the recommendation pack with `5/5` release checks in `0.13` seconds, by extending the trusted Jan-to-Mar risk lane into a focused review case that showed why `50_plus` queue case-opening or escalation rules should be examined before any broad lane-wide intervention.
 
 ### 10.2 Shorter recruiter-facing version
 
