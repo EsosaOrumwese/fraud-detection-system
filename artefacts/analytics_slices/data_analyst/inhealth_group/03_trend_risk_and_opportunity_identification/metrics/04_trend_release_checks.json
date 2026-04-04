@@ -1,0 +1,26 @@
+[
+  {
+    "check_name":"three_month_rows_present",
+    "passed_flag":1,
+    "observed_value":3.0,
+    "expected_value":3.0
+  },
+  {
+    "check_name":"twelve_focus_rows_present",
+    "passed_flag":1,
+    "observed_value":12.0,
+    "expected_value":12.0
+  },
+  {
+    "check_name":"monthly_priority_rows_present",
+    "passed_flag":1,
+    "observed_value":3.0,
+    "expected_value":3.0
+  },
+  {
+    "check_name":"persistent_top_band_is_50_plus",
+    "passed_flag":1,
+    "observed_value":3.0,
+    "expected_value":3.0
+  }
+]

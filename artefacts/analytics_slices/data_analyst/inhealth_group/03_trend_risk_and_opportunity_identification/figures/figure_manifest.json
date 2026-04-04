@@ -1,0 +1,12 @@
+{
+  "figures": [
+    {
+      "file": "monthly_trend_context.png",
+      "purpose": "Show the rolling three-month overall trend and confirm that the topline is broadly stable rather than sharply deteriorating."
+    },
+    {
+      "file": "risk_or_opportunity_focus.png",
+      "purpose": "Show that 50+ remains the persistent risk pocket when compared with the rest of the lane across the rolling window."
+    }
+  ]
+}

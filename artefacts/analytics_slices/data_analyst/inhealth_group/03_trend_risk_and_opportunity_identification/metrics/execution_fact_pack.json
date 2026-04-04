@@ -1,0 +1,25 @@
+{
+  "slice": "inhealth_group/03_trend_risk_and_opportunity_identification",
+  "months_compared": [
+    "Jan 2026",
+    "Feb 2026",
+    "Mar 2026"
+  ],
+  "month_count": 3,
+  "kpi_family_count": 4,
+  "earliest_flow_rows": 81678596,
+  "latest_flow_rows": 81360532,
+  "earliest_case_open_rate": 0.0958284591473634,
+  "latest_case_open_rate": 0.0963022095283251,
+  "earliest_case_truth_rate": 0.19887509272231702,
+  "latest_case_truth_rate": 0.19862813950226407,
+  "latest_fifty_plus_share": 0.10196788044601282,
+  "persistent_focus_band": "50_plus",
+  "persistent_focus_case_open_rate": 0.10824597063629793,
+  "persistent_focus_peer_case_open_rate": 0.09494604422174523,
+  "persistent_focus_truth_rate": 0.18105043729246145,
+  "persistent_focus_peer_truth_rate": 0.20090359574426067,
+  "release_checks_passed": 4,
+  "release_check_count": 4,
+  "regeneration_seconds": 372.8480774000054
+}
