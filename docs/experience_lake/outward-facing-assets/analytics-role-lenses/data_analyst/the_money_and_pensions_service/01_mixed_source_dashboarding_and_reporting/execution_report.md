@@ -313,12 +313,12 @@ The claim therefore needs to answer back in evidence form:
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Built dashboards and reports from multiple evidence streams, as measured by combining `3` governed source surfaces into `1` common `amount_band` reporting grain with `4` aligned grain values, producing `1` dashboard-style summary and `1` supporting detail output, and passing `6/6` release checks in `0.18` seconds, by turning inherited operational, reporting, and shortfall surfaces into one coherent mixed-source pack that made `50_plus` the shared attention point across all three streams.
+> Built meaningful dashboards and reports from multiple systems and evidence streams, as measured by combining `3` governed source surfaces into `1` common `amount_band` reporting grain with `4` aligned grain values, producing `1` dashboard-style summary and `1` supporting detail output, and passing `6/6` release checks in `0.18` seconds, by turning inherited operational, reporting, and shortfall surfaces into one coherent mixed-source pack that made `50_plus` the shared attention point across all three streams.
 
 ### 10.2 Shorter recruiter-facing version
 
-> Built mixed-source dashboards and reports, as measured by `3` aligned evidence streams, `1` integrated summary-plus-detail pack, and `6/6` release checks, by combining controlled reporting surfaces into one coherent cross-source view.
+> Built meaningful mixed-source dashboards and reports, as measured by `3` aligned evidence streams, `1` integrated summary-plus-detail pack, and `6/6` release checks, by combining controlled reporting surfaces into one coherent cross-source view.
 
 ### 10.3 Closer direct-response version
 
-> Produced dashboards and reports from multiple systems or evidence sources, as measured by one common reporting grain, one dashboard-style summary, and one supporting detail output on the same governed combined logic, by integrating several controlled analytical surfaces into a single reporting pack.
+> Produced meaningful dashboards and reports from multiple systems or evidence sources, as measured by one common reporting grain, one dashboard-style summary, and one supporting detail output on the same governed combined logic, by integrating several controlled analytical surfaces into a single reporting pack.
