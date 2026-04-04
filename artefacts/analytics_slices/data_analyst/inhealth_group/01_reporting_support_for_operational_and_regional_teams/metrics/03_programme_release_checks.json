@@ -1,0 +1,26 @@
+[
+  {
+    "check_name":"month_band_rows_present",
+    "passed_flag":1,
+    "observed_value":8.0,
+    "expected_value":8.0
+  },
+  {
+    "check_name":"monthly_summary_present",
+    "passed_flag":1,
+    "observed_value":1.0,
+    "expected_value":1.0
+  },
+  {
+    "check_name":"monthly_summary_complete",
+    "passed_flag":1,
+    "observed_value":1.0,
+    "expected_value":1.0
+  },
+  {
+    "check_name":"follow_up_rows_present",
+    "passed_flag":1,
+    "observed_value":4.0,
+    "expected_value":4.0
+  }
+]

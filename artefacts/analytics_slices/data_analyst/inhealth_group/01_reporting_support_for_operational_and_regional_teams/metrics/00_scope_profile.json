@@ -1,0 +1,18 @@
+[
+  {
+    "month_start_date":"2026-02-01T00:00:00.000",
+    "raw_flow_rows":73652566,
+    "case_opened_flow_rows":7090277.0,
+    "truth_linked_flow_rows":73652566.0,
+    "case_link_rate":0.0962665306,
+    "truth_link_rate":1.0
+  },
+  {
+    "month_start_date":"2026-03-01T00:00:00.000",
+    "raw_flow_rows":81360532,
+    "case_opened_flow_rows":7835199.0,
+    "truth_linked_flow_rows":81360532.0,
+    "case_link_rate":0.0963022095,
+    "truth_link_rate":1.0
+  }
+]

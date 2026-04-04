@@ -1,0 +1,12 @@
+{
+  "figures": [
+    {
+      "file": "monthly_position_and_movement.png",
+      "purpose": "show current versus prior month position without forcing unlike KPI levels onto one axis"
+    },
+    {
+      "file": "current_month_follow_up_by_segment.png",
+      "purpose": "show the bounded ad hoc follow-up cut and identify the most useful current-month segment for next reporting attention"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "slice": "inhealth_group/01_reporting_support_for_operational_and_regional_teams",
+  "prior_month": "2026-02-01",
+  "current_month": "2026-03-01",
+  "reporting_cadence": "monthly",
+  "audiences": [
+    "operations",
+    "regional oversight"
+  ],
+  "kpi_family_count": 4,
+  "monthly_flow_rows": 81360532,
+  "prior_month_flow_rows": 73652566,
+  "current_case_open_rate": 0.0963022095283251,
+  "prior_case_open_rate": 0.09626653061890607,
+  "current_case_truth_rate": 0.19862813950226407,
+  "prior_case_truth_rate": 0.1987093028946542,
+  "current_truth_link_rate": 1.0,
+  "current_fifty_plus_share": 0.10196788044601282,
+  "top_follow_up_band": {
+    "amount_band": "50_plus",
+    "case_open_rate": 0.10824597063629793,
+    "case_truth_rate": 0.18105043729246145,
+    "flow_share": 0.10196788044601282
+  },
+  "release_checks_passed": 4,
+  "release_check_count": 4,
+  "regeneration_seconds": 184.91861020000943
+}
