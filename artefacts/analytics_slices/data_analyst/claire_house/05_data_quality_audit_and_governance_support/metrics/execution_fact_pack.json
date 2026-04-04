@@ -1,0 +1,15 @@
+{
+  "slice": "claire_house/05_data_quality_audit_and_governance_support",
+  "reporting_window": "Mar 2026",
+  "quality_checks_monitored": 19,
+  "monitoring_areas_count": 3,
+  "audit_findings_count": 3,
+  "improvement_recommendation_count": 3,
+  "governance_support_outputs_count": 1,
+  "green_monitoring_areas": 3,
+  "top_attention_band": "50+",
+  "priority_improvement_area": "audit_operability",
+  "audit_checks_passed": 5,
+  "audit_check_count": 5,
+  "regeneration_seconds": 0.09852660000615288
+}
