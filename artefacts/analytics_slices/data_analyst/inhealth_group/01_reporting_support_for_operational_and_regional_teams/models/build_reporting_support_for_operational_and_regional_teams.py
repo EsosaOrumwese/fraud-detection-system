@@ -369,13 +369,15 @@ def main() -> None:
         - current flow volume: `{comma(float(summary["flow_rows"]))}`
         - current case-open rate: `{pct(float(summary["case_open_rate"]))}`
         - current truth quality: `{pct(float(summary["case_truth_rate"]))}`
-        - current truth-link coverage: `{pct(float(summary["truth_link_rate"]))}`
 
         Month-on-month movement:
         - flow volume delta: `{comma(float(summary["flow_rows_delta"]))}`
         - case-open rate delta: `{(float(summary["case_open_rate_delta"]) * 100):.2f} pp`
         - truth quality delta: `{(float(summary["case_truth_rate_delta"]) * 100):.2f} pp`
         - `50+` share delta: `{(float(summary["fifty_plus_share_delta"]) * 100):.2f} pp`
+
+        Control note:
+        - authoritative truth-link coverage remained complete at `{pct(float(summary["truth_link_rate"]))}`
 
         Operational note:
         - the monthly lane remains broadly stable in conversion and truth quality, but the `{short_band(str(top_follow_up["amount_band"]))}` band remains the most useful follow-up cut because it carries the highest case-open rate at `{pct(float(top_follow_up["case_open_rate"]))}` while trailing the other bands on truth quality at `{pct(float(top_follow_up["case_truth_rate"]))}`
@@ -442,26 +444,42 @@ def main() -> None:
     # Figure 2: follow-up by segment
     follow_plot = follow_up_df.copy()
     follow_plot["label"] = follow_plot["amount_band"].map(short_band)
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(13, 6), gridspec_kw={"width_ratios": [1, 1.4]})
     y_positions = list(range(len(follow_plot)))
+    flow_colors = ["#D95F5F" if int(flag) == 1 else "#AAB7C4" for flag in follow_plot["priority_attention_flag"]]
+    axes[0].barh(follow_plot["label"], follow_plot["flow_share"] * 100, color=flow_colors)
+    axes[0].invert_yaxis()
+    axes[0].set_title("Current-Month Flow Share", pad=12)
+    axes[0].set_xlabel("Flow share (%)")
+
     for idx, row in follow_plot.iterrows():
-        color = "#D95F5F" if int(row["priority_attention_flag"]) == 1 else "#7A8FA6"
-        ax.plot(
+        line_color = "#D95F5F" if int(row["priority_attention_flag"]) == 1 else "#7A8FA6"
+        axes[1].plot(
             [float(row["case_truth_rate"]) * 100, float(row["case_open_rate"]) * 100],
             [idx, idx],
-            color=color,
-            linewidth=3,
+            color=line_color,
+            linewidth=3 if int(row["priority_attention_flag"]) == 1 else 2,
             solid_capstyle="round",
         )
-        ax.scatter(float(row["case_truth_rate"]) * 100, idx, color="#2E5B88", s=70, zorder=3)
-        ax.scatter(float(row["case_open_rate"]) * 100, idx, color="#D95F5F", s=70, zorder=3)
+        axes[1].scatter(float(row["case_truth_rate"]) * 100, idx, color="#2E5B88", s=75, zorder=3, label="Truth quality" if idx == 0 else None)
+        axes[1].scatter(float(row["case_open_rate"]) * 100, idx, color="#D95F5F", s=75, zorder=3, label="Case-open rate" if idx == 0 else None)
 
-    ax.set_yticks(y_positions)
-    ax.set_yticklabels(follow_plot["label"])
-    ax.set_xlabel("Rate (%)")
-    ax.set_title(f"Current-Month Follow-Up Cut: {current_month_name}")
-    ax.text(0.01, 1.02, "Blue = truth quality, Red = case-open rate", transform=ax.transAxes, fontsize=10)
-    fig.tight_layout()
+    axes[1].set_yticks(y_positions)
+    axes[1].set_yticklabels(follow_plot["label"])
+    axes[1].invert_yaxis()
+    axes[1].set_xlabel("Rate (%)")
+    axes[1].set_title("Rate Gap By Segment", pad=12)
+    axes[1].legend(loc="lower right", frameon=False)
+    priority_row = follow_plot.loc[follow_plot["priority_attention_flag"] == 1].iloc[0]
+    axes[1].annotate(
+        "Priority follow-up",
+        xy=(float(priority_row["case_open_rate"]) * 100, int(priority_row["priority_rank"]) - 1),
+        xytext=(float(priority_row["case_open_rate"]) * 100 + 0.8, int(priority_row["priority_rank"]) - 1 - 0.1),
+        arrowprops={"arrowstyle": "->", "color": "#444444"},
+        fontsize=10,
+        color="#444444",
+    )
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
     fig.savefig(FIGURES_DIR / "current_month_follow_up_by_segment.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
