@@ -1,7 +1,16 @@
 {
-  "generated_figures": [
-    "source_integration_and_trust_boundary.png",
-    "current_vs_prior_kpi_movement.png",
-    "segment_and_stage_issue_pattern.png"
+  "figures": [
+    {
+      "file": "source_integration_and_trust_boundary.png",
+      "purpose": "show that linkage is clean while the real trust boundary is outcome-surface meaning rather than join failure"
+    },
+    {
+      "file": "current_vs_prior_kpi_movement.png",
+      "purpose": "show that topline movement is small even though flow pressure rises slightly"
+    },
+    {
+      "file": "segment_and_stage_issue_pattern.png",
+      "purpose": "show why 50+ is the main structural issue and why opened_only dominates the burden pattern"
+    }
   ]
 }

@@ -2,11 +2,11 @@
   "figures": [
     {
       "file": "raw_case_event_join_risk.png",
-      "purpose": "show why the raw case timeline must be rolled before joining into a detailed reporting dataset"
+      "purpose": "Show why raw event-grain case joins are unsafe and why a maintained one-row-per-flow dataset is needed."
     },
     {
       "file": "maintained_dataset_reporting_protection.png",
-      "purpose": "show the protected downstream monthly rates derived from the maintained dataset and note exact reconciliation to the InHealth 3.A reporting lane"
+      "purpose": "Show the protected band-level rates from the maintained dataset and the exact reconciliation back to the reporting lane."
     }
   ]
 }

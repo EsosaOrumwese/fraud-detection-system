@@ -1,6 +1,12 @@
 {
-  "generated_figures": [
-    "topline_movement_and_issue_context.png",
-    "segment_burden_versus_quality.png"
+  "figures": [
+    {
+      "file": "topline_movement_and_issue_context.png",
+      "purpose": "Show that top-line movement is small and does not support a broad deterioration story."
+    },
+    {
+      "file": "segment_burden_versus_quality.png",
+      "purpose": "Show that 50+ is the current-week segment with the highest burden and weakest quality."
+    }
   ]
 }

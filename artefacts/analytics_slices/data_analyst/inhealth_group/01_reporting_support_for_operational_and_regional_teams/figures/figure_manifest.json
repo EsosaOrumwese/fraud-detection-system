@@ -2,11 +2,11 @@
   "figures": [
     {
       "file": "monthly_position_and_movement.png",
-      "purpose": "show current versus prior month position without forcing unlike KPI levels onto one axis"
+      "purpose": "Show monthly volume position and small KPI movement from the prior month."
     },
     {
       "file": "current_month_follow_up_by_segment.png",
-      "purpose": "show the bounded ad hoc follow-up cut and identify the most useful current-month segment for next reporting attention"
+      "purpose": "Show current-month band share and why 50+ is the useful follow-up cut."
     }
   ]
 }

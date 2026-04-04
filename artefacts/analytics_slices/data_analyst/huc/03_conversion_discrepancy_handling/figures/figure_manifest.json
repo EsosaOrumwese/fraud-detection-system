@@ -1,6 +1,12 @@
 {
-  "generated_figures": [
-    "conversion_discrepancy_summary.png",
-    "conversion_root_cause_and_correction.png"
+  "figures": [
+    {
+      "file": "conversion_discrepancy_summary.png",
+      "purpose": "Show corrected vs discrepant weekly conversion readings and the size of the gap."
+    },
+    {
+      "file": "conversion_root_cause_and_correction.png",
+      "purpose": "Show the numerator/denominator mechanics behind the discrepancy and why the corrected view is authoritative."
+    }
   ]
 }

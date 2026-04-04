@@ -191,16 +191,17 @@ Reading:
 The first figure was designed to answer:
 - what does the current-versus-prior movement actually look like?
 - what recurring exception deserves operational attention?
-- where does the trust caveat still matter?
+- does the recurring exception stay clear once the stable weekly reading is separated from the exception view?
 
 Delivered components:
+- weekly flow-volume comparison
 - current-versus-prior KPI comparison
-- exception-segment gap view
-- on-figure trust note stating that bank-view quality is comparison-only
+- amount-band case-open rate view
+- amount-band authoritative truth-rate view
 
 The strongest operational reading from this figure is:
 - the weekly cycle should keep surfacing the `50+` segment as the main operational exception
-- the trust caveat is still necessary when talking about outcome quality
+- the current-versus-prior reading is stable enough that the exception deserves more attention than topline volatility
 
 ### 6.2 Figure 2 - Release controls and regeneration posture
 
@@ -229,8 +230,8 @@ The figure pack is part of execution for this slice, not an afterthought.
 
 This figure carries the operational story:
 - current-versus-prior KPI comparison remains stable and readable
-- the exception segment gap is made explicit rather than buried in a dense table
-- the trust caveat remains attached to the figure
+- the `50+` exception is made explicit with separate case-open and truth-quality views rather than being buried in a dense table
+- the figure now shows why that band remains the recurring follow-up cut
 
 ### 7.2 Release controls and regeneration posture
 

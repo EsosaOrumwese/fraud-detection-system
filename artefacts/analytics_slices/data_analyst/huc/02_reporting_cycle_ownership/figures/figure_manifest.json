@@ -1,6 +1,12 @@
 {
-  "generated_figures": [
-    "period_comparison_and_exception_evidence.png",
-    "release_controls_and_regeneration_posture.png"
+  "figures": [
+    {
+      "file": "period_comparison_and_exception_evidence.png",
+      "purpose": "show the stable current-versus-prior cycle reading and the recurring 50+ exception in one analytical figure"
+    },
+    {
+      "file": "release_controls_and_regeneration_posture.png",
+      "purpose": "show the release checks and compact rerun posture as a control table rather than a fake chart"
+    }
   ]
 }
