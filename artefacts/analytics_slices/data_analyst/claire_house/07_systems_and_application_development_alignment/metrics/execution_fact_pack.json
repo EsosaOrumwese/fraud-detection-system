@@ -1,0 +1,14 @@
+{
+  "slice": "claire_house/07_systems_and_application_development_alignment",
+  "reporting_window": "Mar 2026",
+  "interface_boundaries_controlled": 1,
+  "required_interface_field_count": 18,
+  "governed_input_rows": 4,
+  "downstream_outputs_protected": 4,
+  "audience_pack_outputs_supported": 2,
+  "focus_band_preserved": "50+",
+  "integration_control_checks_passed": 7,
+  "integration_control_check_count": 7,
+  "supported_output_alignment_rows": 4,
+  "regeneration_seconds": 0.1722371999931056
+}
