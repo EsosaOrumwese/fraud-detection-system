@@ -1,0 +1,15 @@
+{
+  "slice": "welsh_government/04_forward_impact_and_readiness_support",
+  "forward_window": "current_plus_prior_week",
+  "recurring_cycles_reviewed": 2,
+  "forward_impact_output_count": 1,
+  "readiness_support_output_count": 1,
+  "targeted_readiness_action_count": 1,
+  "traceability_stages_reused": 4,
+  "next_cycle_rework_reference_rows": 18554942,
+  "next_cycle_readiness_reference_gap_pp": 4.810612811477452,
+  "current_authoritative_to_control_delta_pp": -0.03692230495745963,
+  "release_checks_passed": 9,
+  "release_check_count": 9,
+  "regeneration_seconds": 0.22820200001297053
+}
