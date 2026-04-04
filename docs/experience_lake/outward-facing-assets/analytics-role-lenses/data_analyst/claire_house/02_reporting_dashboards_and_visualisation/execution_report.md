@@ -308,12 +308,12 @@ The claim therefore needs to answer back in evidence form:
 
 ### 10.1 Flagship `X by Y by Z` claim
 
-> Delivered reports, dashboards, and visualisation outputs from a trusted analytical provision lane, as measured by defining `4` KPI families consistently across `2` reporting views, generating `1` ad hoc supporting detail cut from the same governed logic, and regenerating the full pack with `5/5` release checks in `0.19` seconds, by turning a controlled provision base into a bounded organisational reporting product with explicit scheduled summary, supporting detail, and reuse controls.
+> Produced scheduled and ad hoc reports, dashboards, and visualisation outputs from a trusted analytical provision lane, as measured by defining `4` KPI families consistently across `2` reporting views, generating `1` ad hoc supporting detail cut from the same governed logic, and regenerating the full pack with `5/5` release checks in `0.19` seconds, by turning a controlled provision base into a bounded organisational reporting product with explicit scheduled summary, supporting detail, and reuse controls.
 
 ### 10.2 Shorter recruiter-facing version
 
-> Produced trusted organisational reporting and visualisation outputs, as measured by stable KPI definitions, reusable scheduled and ad hoc views, and controlled regeneration from one governed base, by turning a bounded analytical lane into a usable reporting pack rather than a loose set of charts or extracts.
+> Produced trusted scheduled and ad hoc reporting and visualisation outputs, as measured by stable KPI definitions, reusable scheduled and ad hoc views, and controlled regeneration from one governed base, by turning a bounded analytical lane into a usable reporting pack rather than a loose set of charts or extracts.
 
 ### 10.3 Closer direct-response version
 
-> Produced reports, dashboards, and visualisations that tracked key performance indicators from a governed reporting base, as measured by one reusable reporting pack, one ad hoc supporting detail cut, and repeatable KPI logic, by defining the summary and visual structure, reusing controlled fields consistently, and packaging the outputs for organisational insight use.
+> Produced scheduled and ad hoc reports, dashboards, and visualisations that tracked key performance indicators from a governed reporting base, as measured by one reusable reporting pack, one ad hoc supporting detail cut, and repeatable KPI logic, by defining the summary and visual structure, reusing controlled fields consistently, and packaging the outputs for organisational insight use.
