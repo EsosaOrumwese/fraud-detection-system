@@ -1,0 +1,19 @@
+{
+  "slice": "claire_house/03_senior_leadership_and_external_reporting",
+  "reporting_window": "Mar 2026",
+  "audience_specific_views_count": 2,
+  "shared_kpi_family_count": 4,
+  "leadership_summary_count": 1,
+  "external_oversight_row_count": 2,
+  "overall_flow_rows": 81360532,
+  "overall_case_open_rate": 0.0963022095283251,
+  "overall_truth_quality": 0.19862813950226407,
+  "top_attention_band": "50+",
+  "top_attention_case_open_gap_pp": 0.011943761107972822,
+  "top_attention_truth_quality_gap_pp": -0.01757770220980262,
+  "top_attention_burden_minus_yield_pp": 0.01014285477758349,
+  "focus_band_flow_share": 0.10196788044601282,
+  "release_checks_passed": 6,
+  "release_check_count": 6,
+  "inherited_reporting_checks_passed": 5
+}
