@@ -1,0 +1,21 @@
+{
+  "slice": "hertfordshire_partnership_university_nhs_ft/01_target_performance_monitoring_and_remediation_support",
+  "reporting_window_count": 3,
+  "reporting_window_start": "2026-01-01",
+  "reporting_window_end": "2026-03-01",
+  "kpi_family_count": 4,
+  "target_reference_count": 2,
+  "shortfall_pocket_count": 1,
+  "focus_band": "50_plus",
+  "current_focus_case_open_gap_to_peer_pp": 1.32999264145527,
+  "current_focus_truth_gap_to_peer_pp": -1.985315845179922,
+  "current_focus_burden_minus_yield_gap_pp": 1.014285477758349,
+  "whole_lane_case_open_change_from_start_pp": 0.04737503809617016,
+  "whole_lane_truth_change_from_start_pp": -0.02469532200529423,
+  "remediation_support_output_count": 1,
+  "release_checks_passed": 6,
+  "release_check_count": 6,
+  "inherited_trend_release_checks_passed": 4,
+  "regeneration_seconds": 0.17012989999784622,
+  "inherited_improvement_support_output_count": 3
+}
