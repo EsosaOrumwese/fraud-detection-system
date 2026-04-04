@@ -1,0 +1,15 @@
+{
+  "slice": "the_money_and_pensions_service/02_data_governance_and_output_stewardship",
+  "aligned_reporting_window": "Mar 2026",
+  "governed_outputs_covered": 2,
+  "required_field_count": 10,
+  "required_dimension_count": 2,
+  "control_checks_count": 6,
+  "summary_outputs_covered": 1,
+  "detail_outputs_covered": 1,
+  "shared_focus_band": "50_plus",
+  "shared_focus_confirming_streams": 3,
+  "release_checks_passed": 6,
+  "release_check_count": 6,
+  "regeneration_seconds": 0.13108950000605546
+}
