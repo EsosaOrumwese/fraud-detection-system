@@ -6,6 +6,7 @@ Purpose:
 - turn the chosen InHealth reporting-support slice into a concrete execution order tied to bounded governed analytical outputs already available in the repo
 - keep the work reporting-first, logic-first, and tightly scoped to one monthly reporting cycle plus one ad hoc follow-up output
 - prove dependable monthly and ad hoc reporting support without drifting into a broad dashboard estate, broad reporting-ownership claim, or patient-level stewardship slice
+- keep the execution memory-safe by scanning only the bounded periods and fields needed for the slice rather than treating the raw run like unlimited in-memory working space
 
 Execution substrate:
 - governed local artefacts already available in `artefacts/analytics_slices/`
@@ -18,6 +19,7 @@ Primary rule:
 - build the recurring monthly output first
 - derive one ad hoc follow-up output from the same governed logic
 - harden the rerun and usage posture only after the recurring and follow-up outputs are stable
+- never load broad raw surfaces into pandas or any other in-memory dataframe layer before the SQL gate has already reduced them to compact reporting-ready outputs
 
 ---
 
@@ -58,6 +60,37 @@ The correct posture is:
 
 This matters because the InHealth responsibility here is about dependable reporting support, not decorative reporting surfaces.
 
+## 2A. Memory And Query Discipline
+
+This slice must be executed with explicit memory discipline.
+
+The raw run contains very large surfaces, so the correct posture is:
+- do not pull broad raw parquet surfaces into pandas
+- do not run wide profiling queries across full history unless the slice truly needs them
+- do not assume monthly scope means the whole dataset can be inspected casually
+
+The correct query discipline is:
+- start with summary-stats and metadata profiling before any slice build
+- use `DuckDB` or SQL-style scans with predicate pushdown
+- filter the reporting period at scan time
+- project only the columns needed for the current step
+- materialise compact intermediate outputs only after the filtered SQL logic is stable
+- let Python read only those compact outputs, not the raw source families
+
+The default execution ceiling for this slice is:
+- bounded month selection only
+- bounded field selection only
+- one controlled intermediate output at a time
+
+If a query starts behaving like broad exploratory profiling rather than bounded slice construction, stop and narrow it before proceeding.
+
+The required first-pass summary profiling layer is:
+- raw row counts for each candidate source used in the slice
+- period coverage at month and comparison-window level
+- key coverage for the join path or reporting grain
+- null rates for fields required by the KPI family
+- grain and field-meaning confirmation before any wider transformation logic is written
+
 ## 3. First-Pass Objective
 
 The first-pass objective is:
@@ -86,6 +119,7 @@ The first profiling pass must answer:
 - which KPI fields are stable enough to be reused consistently between recurring and follow-up outputs?
 - what is the most realistic ad hoc reporting follow-up question to support from the same governed logic?
 - what operational audience emphasis differs from the regional audience emphasis without requiring two different KPI definitions?
+- what do the row counts, period coverage, key coverage, and null rates say about the safe scope of the slice before any heavier build begins?
 
 Required checks:
 - period coverage across the candidate compact outputs
@@ -93,6 +127,11 @@ Required checks:
 - consistency of KPI meaning across reusable sources
 - suitability of one segment or follow-up dimension for the ad hoc cut
 - ability to regenerate the monthly and follow-up outputs from the same controlled logic
+
+Those checks should be implemented as:
+- aggregate-only SQL probes
+- filtered month-level scans
+- no broad row materialisation into memory
 
 Decision rule:
 - if one compact source family is stable enough, proceed with the bounded reporting-support slice
@@ -256,6 +295,11 @@ The first-pass reproducibility pack should include:
 - one report-run checklist
 - one caveat note
 
+The Python layer must remain:
+- compact-output only
+- figure and note generation only
+- not a substitute for broad raw-data processing
+
 That should be strong enough that another analyst could:
 - understand the reporting question
 - rebuild the monthly KPI layer
@@ -321,6 +365,7 @@ Stop and reassess if any of the following happens:
 - the reporting pack starts drifting into a broad dashboard estate
 - the follow-up output turns into a second reporting programme rather than one realistic ad hoc response
 - the slice starts drifting into patient-level dataset stewardship, which belongs more naturally to InHealth `3.C`
+- the query posture starts requiring broad raw-data loads or memory-heavy dataframe work that should have been handled in bounded SQL instead
 
 If one of those happens, the adaptation path is:
 - keep the same responsibility lane
