@@ -307,15 +307,15 @@ The slice now supports the following claim surfaces.
 
 ### 10.1 Flagship claim surface
 
-> Conducted mixed-method evaluation to assess whether a bounded support approach appeared effective, as measured by producing `1` quantitative evaluation output, `1` qualitative-style support output with `3` staged support functions, and `1` intervention-effectiveness reading over a shared `50_plus` focus band confirmed by `3` streams, while passing `7/7` release checks in `0.16` seconds, by turning compact inherited change-reading and coded support outputs into a defensible evaluation pack that supported accountability and future decisions without overstating causal proof or quantified benefits.
+> Conducted qualitative and quantitative research to evaluate whether a bounded support approach appeared effective and to support accountability and benefits-style decisions, as measured by producing `1` quantitative evaluation output, `1` qualitative-style support output with `3` staged support functions, and `1` intervention-effectiveness reading over a shared `50_plus` focus band confirmed by `3` streams, while passing `7/7` release checks in `0.16` seconds, by turning compact inherited change-reading and coded support outputs into a defensible evaluation pack that informed future decisions without overstating causal proof or quantified benefits.
 
 ### 10.2 Shorter recruiter-facing claim surface
 
-> Used quantitative and qualitative-style evidence together to evaluate effectiveness, as measured by one bounded mixed-method evaluation pack and one accountability-facing interpretation, by combining a directional change-reading surface with a staged support-evidence surface on the same question.
+> Used qualitative and quantitative evidence together to evaluate effectiveness and support accountability, as measured by one bounded mixed-method evaluation pack and one accountability-facing interpretation, by combining a directional change-reading surface with a staged support-evidence surface on the same question.
 
 ### 10.3 Direct-response claim surface
 
-> Evaluated a bounded intervention or support approach using mixed methods, as measured by `1` quantitative output and `1` qualitative-style support output on the same focus question, by producing a defensible effectiveness reading and accountability-support note without overstating live fieldwork or broader institutional-benefit ownership.
+> Evaluated a bounded intervention or support approach using qualitative and quantitative evidence, as measured by `1` quantitative output and `1` qualitative-style support output on the same focus question, by producing a defensible effectiveness reading and accountability-support note without overstating live fieldwork or broader institutional-benefit ownership.
 
 ## 11. Overall Verdict
 

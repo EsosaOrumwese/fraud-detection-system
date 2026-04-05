@@ -1,0 +1,48 @@
+**Esosa Orumwese**
+Data Insight Analyst | Governance, Reporting & Mixed-Source Insight
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Insight Analyst with experience managing governed reporting outputs, combining fragmented evidence into meaningful dashboards and insight, and turning mixed-source performance signals into practical decision support. Strong in Excel, SQL, Power BI, Tableau, Python, Power Query M, and DAX, with experience synthesising quantitative and qualitative-style evidence, identifying early-warning risks, supporting KPI and framework measurement, and producing clear insight for non-technical stakeholders.
+
+**CORE SKILLS**
+Governance, Reporting & Dashboards: Reporting ownership, dashboard reporting, governed outputs, reporting controls, structured reporting workflows, Power BI, Tableau
+Mixed-Source Insight & Evidence Synthesis: Multi-source reporting, quantitative analysis, qualitative-style evidence synthesis, combined insight outputs, cross-source interpretation
+Risk, Root-Cause & Improvement Insight: Early-warning indicators, risk identification, likely-driver analysis, gap analysis, intervention support, service-improvement analytics
+KPI & Framework Measurement: KPI tracking, framework measurement, directional change tracking, progress review, improvement-measurement support
+Data Structuring & Delivery: SQL, Excel, Python, Power Query M, validation, transformation, documentation, structured data requirements, reusable capture surfaces
+Stakeholder Communication: Insight storytelling, non-technical reporting, easy-to-digest summaries, cross-functional collaboration, action-focused reporting
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Managed data governance and reporting outputs for a mixed-source insight workflow, setting explicit data requirements across summary and detail outputs and keeping reporting structured, usable, and compliant.
+- Built meaningful dashboards and reports from fragmented evidence sources, integrating operational, reporting, and risk signals into one coherent reporting view and producing accurate, timely outputs for stakeholders using Power BI, SQL, Python, and structured reporting logic.
+- Worked confidently with quantitative and qualitative-style evidence, combining structured metrics with coded narrative and feedback evidence to produce clearer interpretation than numeric reporting alone and show where persistent risk was reinforced across multiple sources rather than appearing in only one dataset.
+- Identified trends, gaps, and early-warning indicators through investigation, surfacing a persistent risk area and using bounded root-cause-style analysis to defend a likely-driver chain from controlled evidence without overstating certainty.
+- Supported KPI and framework measurement by fixing a small set of repeatable measures, tracking directional movement over time, and helping stakeholders judge persistence versus bounded progress rather than relying on status-only reporting.
+- Supported lightweight data-collection and evidence-structuring solutions by standardising a reusable capture structure that made later reporting, risk review, and framework tracking easier to run consistently.
+- Produced easy-to-digest insight summaries, dashboards, and visual outputs for non-technical audiences, turning mixed evidence into clear reporting, concise interpretation, and usable decision support for cross-functional teams.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy, speed, and service quality in a high-volume customer operations team under shifting demand and tight turnaround expectations.
+- Follow strict hygiene, food-safety, cash-handling, and operational controls to support reliable day-to-day service and consistent handovers.
+- Support smooth shift execution through dependable teamwork, clear communication, and calm delivery in a busy customer-facing environment.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked with field teams and service partners on completions operations, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
+- Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
+- Documented operational readings, issues, and handovers clearly across crews and supervisors, helping keep cross-team work coordinated under field constraints and time pressure.
