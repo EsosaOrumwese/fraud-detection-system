@@ -235,6 +235,17 @@ Current role examples feeding this lens:
 Future lens file:
 - `09_analytical-delivery-operating-discipline.md`
 
+### 4.10 Research, Evaluation, and Benchmarking Analytics
+
+Definition:
+- roles centred on mixed-method research, intervention evaluation, comparative analysis, benchmarking against internal baselines or external reference points, and defensible evidence for strategy, policy, and service improvement
+
+Current role examples feeding this lens:
+- `Research and Data Analyst - University of Cambridge`
+
+Future lens file:
+- `10_research-evaluation-benchmarking-analytics.md`
+
 ## 5. Status Of The Existing Analytics Scenario
 
 [fraud_operations_risk_intelligence.md](c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system\docs\experience_lake\outward-facing-assets\analytics-angle\fraud_operations_risk_intelligence.md) remains useful, but its role is now clarified:
