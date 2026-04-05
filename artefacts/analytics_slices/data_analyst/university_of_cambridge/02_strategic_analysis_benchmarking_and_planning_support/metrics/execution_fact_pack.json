@@ -1,0 +1,17 @@
+{
+  "slice": "university_of_cambridge/02_strategic_analysis_benchmarking_and_planning_support",
+  "aligned_reporting_window": "Mar 2026",
+  "internal_position_output_count": 1,
+  "comparator_context_output_count": 1,
+  "strategic_comparison_output_count": 1,
+  "shared_focus_band": "50_plus",
+  "confirming_stream_count": 3,
+  "comparator_rows_used": 2,
+  "current_case_pressure_gap_pp": 1.32999264145527,
+  "current_truth_quality_gap_pp": -1.985315845179922,
+  "peer_style_case_gap_pp": 1.32999264145527,
+  "peer_style_truth_gap_pp": -1.985315845179922,
+  "release_checks_passed": 7,
+  "release_check_count": 7,
+  "regeneration_seconds": 0.20468669998808764
+}
