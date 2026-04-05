@@ -1,0 +1,48 @@
+**Esosa Orumwese**
+Associate Data Analyst | Visual Insight, User Support & Analytics Enablement
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience turning governed data into accessible dashboards, visual analytical products, and user-friendly insight for non-technical audiences. Strong in Excel, SQL, Power BI, Tableau, Python, Power Query M, and DAX, with experience shaping data for visual delivery, translating analysis into clear narratives and guidance, supporting demonstrations and user confidence, and improving analytics products through usability-focused refinement.
+
+**CORE SKILLS**
+Visual Insight & Product Delivery: Dashboards, infographic-style outputs, visual analytical products, accessible reporting, user-friendly insight, visual storytelling
+Data Preparation & Querying: SQL, Excel, Power BI, Tableau, Python, Power Query M, DAX, data shaping, reporting-ready outputs, product-ready data
+User Guidance & Adoption Support: Demonstrations, walkthroughs, user support materials, practical guidance, adoption support, confidence-building communication
+Usability & Continuous Improvement: Usability improvement, support prompts, product refinement, method improvement, best-practice contribution, repeatable delivery approaches
+Stakeholder Communication: Plain-language explanation, non-technical reporting, engaging analytical narratives, action-focused support, cross-functional collaboration
+Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Built accessible dashboards, infographic-style products, and other visual analytical outputs that made complex mixed-source data easier for non-technical users to understand.
+- Used SQL-style shaping and visual reporting preparation to turn governed data into product-ready formats, producing dashboard and guided visual outputs from the same controlled base.
+- Translated analytical outputs into user-friendly narratives and guidance, adding plain-language explanation and clear reading order rather than leaving the work as raw analysis.
+- Made service insight easier to interpret through clear, engaging, and usable analytical products, keeping one shared focus signal visible across dashboard, visual-story, and explanatory outputs.
+- Supported demonstrations and practical user guidance by creating walkthrough-ready materials and user-support prompts that helped colleagues understand and use analytical products more confidently.
+- Worked closely with users to improve usability and adoption, anticipating likely points of confusion and adding support materials that made dashboards and analytical outputs more intuitive in practice.
+- Contributed to continuous improvement of dashboards, materials, and delivery methods by refining the product-and-support workflow into a clearer repeatable approach for future reuse.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy, speed, and service quality in a high-volume customer operations team under shifting demand and tight turnaround expectations.
+- Follow strict hygiene, food-safety, cash-handling, and operational controls to support reliable day-to-day service and consistent handovers.
+- Support smooth shift execution through dependable teamwork, clear communication, and calm delivery in a busy customer-facing environment.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked with field teams and service partners on completions operations, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
+- Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
+- Documented operational readings, issues, and handovers clearly across crews and supervisors, helping keep cross-team work coordinated under field constraints and time pressure.
