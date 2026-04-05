@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Data and Information Officer | Performance Reporting, Targets & Service Improvement
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience monitoring, interpreting, and reporting target-style performance information in pressured service environments. Strong in Excel, SQL, Power BI, Tableau, Python, and DAX, with experience producing senior performance reporting, interpreting trends and near-term direction of travel, identifying concentrated shortfalls, improving the validity of performance information, and turning KPI and target reporting into practical remedial and service-improvement support.
+
+**CORE SKILLS**
+Performance Reporting & Targets: Target monitoring, KPI reporting, performance reporting, shortfall analysis, trend analysis, direction-of-travel reporting, senior performance packs
+Service Improvement Support: Remedial action support, improvement-priority analysis, staged action pathways, performance-led decision support, operational improvement support
+Data Quality & Reporting Validity: Data quality review, reporting validity, target-reference controls, comparator checks, release checks, controlled interpretation of performance information
+Data Analysis & Working Tools: Excel, SQL, Power BI, Tableau, Python, DAX, numeracy, analytical interpretation, reporting-ready outputs
+Stakeholder Communication: Senior manager reporting, clear explanation of performance issues, constructive communication of adverse findings, action-focused reporting
+Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Monitored and reported target-style performance information across a three-month service window, tracking 4 KPI measures against clear baseline and peer references and identifying one persistent shortfall area for focused follow-up.
+- Supported KPI and target management by showing that overall performance remained broadly stable while the £50+ amount band continued to underperform peers, helping direct remedial attention more precisely.
+- Produced high-standard performance reports, trend analysis, and senior-facing summaries, turning current position, recent movement, and required management attention into a concise reporting pack with 6/6 release checks.
+- Worked with complex multi-source operational data to support performance reporting and decision-making, reusing validated monthly outputs to produce consistent target, trend, and action-oriented views.
+- Improved data quality where it affected whether performance information could be trusted, identifying an explicit validity dependency in the shortfall reading and translating it into 3 practical control actions.
+- Connected performance reporting to service improvement by turning a persistent shortfall into one bounded improvement priority and a staged next-step pathway rather than passive reporting.
+- Communicated difficult performance messages constructively, distinguishing stable whole-service performance from concentrated underperformance and supporting targeted review before broader escalation.
+- Helped teams act on performance information by linking shortfall visibility, validity controls, and management actions into one clear performance-support pack with 7/7 release checks.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy, speed, and service quality in a high-volume customer operations team under shifting demand and tight turnaround expectations.
+- Follow strict hygiene, food-safety, cash-handling, and operational controls to support reliable day-to-day service and consistent handovers.
+- Support smooth shift execution through dependable teamwork, clear communication, and calm delivery in a busy customer-facing environment.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked with field teams and service partners on completions operations, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
+- Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
+- Documented operational readings, issues, and handovers clearly across crews and supervisors, helping keep cross-team work coordinated under field constraints and time pressure.
