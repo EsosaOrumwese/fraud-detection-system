@@ -1391,3 +1391,163 @@ The strongest-fit candidate would likely go beyond generic analyst claims and sh
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a user-focused analytics communicator who can prepare and visualise data, build accessible insight products, and help colleagues across the organisation use analytics confidently in practice. They are technically capable, visually strong, patient with users, and useful because they turn complex population-health insight into products, guidance, and support that drive everyday understanding and action.
+
+---
+
+## Ideal Candidate Profile - Research and Data Analyst - University of Cambridge
+
+Source role:
+- `Research and Data Analyst`
+- `University of Cambridge`
+- reference `AC49106`
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a narrow reporting analyst and not an academic researcher detached from delivery. The employer is looking for someone who can combine quantitative analysis, qualitative research, dashboard and reporting delivery, benchmarking, evaluation, and stakeholder communication in order to support strategy, policy, and service improvement across a complex higher-education environment.
+
+This person would likely present as someone who is comfortable moving between:
+- large-dataset analysis
+- qualitative and mixed-method research
+- dashboard and reporting production
+- benchmarking using external sector datasets
+- intervention evaluation and benefits analysis
+- committee-facing communication and advisory support
+- training and data-literacy development
+
+They would sound like someone whose work is robust enough for strategic decision-making, but also practical enough to improve everyday service delivery and stakeholder understanding.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in a research, evaluation, or institutional-analysis environment where evidence quality, stakeholder communication, and defensible methodology matter. Their story would show that they can handle complex quantitative and qualitative data, choose suitable methods, produce dashboards and written analysis, benchmark against external data, and turn findings into recommendations for non-specialist decision-makers.
+
+They would likely have experience that sounds like this:
+- analysing large, complex, and diverse datasets for planning, strategy, or evaluation
+- carrying out qualitative and quantitative research using appropriate methodologies
+- producing clear written analysis, dashboards, and recommendations for varied audiences
+- using national or sector datasets for benchmarking and contextual analysis
+- evaluating interventions or programmes to show impact and support accountability
+- delivering training, guidance, or support that improves data literacy and analytical capability across teams
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants strong reporting and dashboard capability
+
+The ideal candidate would sound like someone who can produce accurate routine and ad hoc reporting, build stakeholder self-service dashboards, and use dashboards strategically to reduce repeated one-off analytical demand.
+
+The candidate's evidence would likely include:
+- producing routine and ad hoc reports
+- building and maintaining dashboards for varied audiences
+- designing self-service reporting products
+- creating outputs that are timely, reliable, and understandable to non-specialists
+
+#### B. If the employer wants strong data preparation and large-dataset handling
+
+The ideal candidate would not only consume data. They would show that they can gather, prepare, manipulate, validate, normalise, combine, and organise large and diverse datasets so that data is fit for purpose.
+
+The candidate's evidence would likely include:
+- preparing and manipulating large complex datasets
+- combining data from multiple sources
+- validating and normalising data
+- improving extraction and reporting workflows with tools such as `Alteryx`
+- handling student-journey or similarly longitudinal tracking logic
+
+#### C. If the employer wants qualitative and quantitative research capability
+
+The ideal candidate would sound like someone who can do more than analysis-by-spreadsheet. They would likely show experience choosing suitable methodologies and using mixed methods such as surveys, interviews, focus groups, and quantitative analysis to answer policy, service, or evaluation questions robustly.
+
+The candidate's evidence would likely include:
+- conducting qualitative and quantitative research
+- choosing suitable methodologies
+- using mixed-method designs
+- supporting survey writing, interviews, focus groups, or similar methods
+- ensuring outputs are robust and defensible
+
+#### D. If the employer wants strategic analysis, benchmarking, and planning support
+
+The ideal candidate would sound like someone whose work informs strategy rather than only operational reporting. They would likely show that they can use internal and national datasets to support planning, benchmarking, and wider institutional decision-making.
+
+The candidate's evidence would likely include:
+- producing critical analysis for planning and strategy
+- identifying and using national datasets such as `UCAS`, `HESA`, `HEFCE`, or `UKRI`
+- benchmarking against comparable institutions
+- interpreting findings for strategy and policy use
+- advising stakeholders on options in service or policy development
+
+#### E. If the employer wants intervention evaluation and benefits analysis
+
+The ideal candidate would sound like someone who can assess whether interventions or programmes actually worked. Their evidence would likely show they can evaluate impact, support accountability, and contribute to benefits analysis rather than just report activity.
+
+The candidate's evidence would likely include:
+- evaluating interventions or programmes
+- measuring impact or effectiveness
+- supporting accountability through evidence
+- informing benefits analysis and future decisions
+
+#### F. If the employer wants stakeholder communication and committee-facing clarity
+
+The ideal candidate would sound like someone who can explain complex findings clearly to non-specialists, committees, and working groups. They would likely show that they can produce strong written analysis and recommendations, not just technical outputs.
+
+The candidate's evidence would likely include:
+- writing reports with clear recommendations
+- presenting findings to varied stakeholder groups
+- explaining complex topics clearly and concisely
+- supporting committees or governance groups with data and analysis
+
+#### G. If the employer wants training, guidance, and data-literacy support
+
+The ideal candidate would not be purely an individual contributor. They would likely show that they can act as a source of expertise, identify capability gaps, design training activity, and support communities of practice.
+
+The candidate's evidence would likely include:
+- delivering training and guidance
+- improving data literacy
+- identifying capability gaps in colleagues
+- designing or supporting communities of practice
+- helping embed best practice in analysis and evaluation
+
+#### H. If the employer wants data governance, FOI, and careful institutional handling
+
+The ideal candidate would sound like someone who understands the accountability of working with institutional data. They would likely show awareness of `GDPR`, the `Data Protection Act`, and `FOI`, and be comfortable working in environments where confidentiality, trust, and robust handling matter.
+
+The candidate's evidence would likely include:
+- knowledge of `UK GDPR`, `Data Protection`, and `FOI`
+- supporting `FOI` responses
+- handling and storing data according to good practice
+- understanding the reputational and institutional consequences of weak data governance
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can combine quantitative analysis and qualitative research to produce robust, defensible evidence for strategy, policy, and service improvement.
+- I am comfortable working with large, complex, and diverse datasets, including external benchmark datasets, and turning them into clear reports, dashboards, and recommendations.
+- I can evaluate interventions and programmes, using mixed-method approaches to assess impact, support accountability, and inform benefits analysis.
+- I can present complex findings clearly to non-specialists, committees, and working groups, and adapt my communication to different audiences.
+- I can support data literacy and capability-building through training, guidance, and communities of practice.
+- I understand that high-accountability institutional data work requires careful handling, including `GDPR`, `FOI`, and defensible analytical methods.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is broad, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- strong large-dataset analytical capability
+- robust qualitative and quantitative research skill
+- ability to produce clear written analysis and recommendations
+- comfort presenting to non-specialists and governance-style groups
+- ability to work independently and with judgement
+- awareness of `GDPR`, `FOI`, and careful data handling
+- enough maturity to support strategy, evaluation, and institutional decision-making rather than only routine reporting
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- higher-education, student-data, or public-sector research and analysis experience
+- strong mixed-method research and evaluation capability
+- experience using sector benchmark datasets such as `UCAS` or `HESA`
+- comfort with committees, working groups, or governance-facing reporting
+- experience improving workflows through tools such as `Alteryx`
+- capability-building work such as training or community-of-practice support
+- strong judgement in institutional data environments where quality, defensibility, and trust matter
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a research-capable analyst who can handle complex institutional data, conduct mixed-method analysis, benchmark externally, evaluate interventions, and translate findings into strategic and service-improvement insight. They are methodologically robust, clear in communication, governance-aware, and useful because they help the University make better evidence-based decisions while strengthening data capability across teams.

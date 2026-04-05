@@ -1294,3 +1294,170 @@ It is a useful evidence point because it shows a role where the employer is expl
 - training, workshop, and capability-building work
 
 This makes it a strong fit for the existing lens areas around `BI / Insight / Reporting`, `Stakeholder Translation, Communication, and Decision Influence`, and user-facing analytical enablement.
+
+---
+
+## Research and Data Analyst - University of Cambridge
+
+Source:
+- `University of Cambridge Jobs` - reference `AC49106`
+
+Role family:
+- `Research and Data Analytics`
+- higher education / student data / research and evaluation
+- mixed-method analytics role combining reporting, benchmarking, evaluation, training, and policy-support work
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Research and Data Analyst` position within `Education Services - Data and Digital Services`, specifically in the `Research, Data and Evaluation` sub-team. The purpose is to provide strong quantitative and qualitative analysis that supports data-informed decision-making across Education Services and the wider University.
+
+The role is explicitly positioned as independent, stakeholder-facing, and decision-support oriented. The postholder is expected to produce sound analysis, dashboards, and reports, turn findings into clear insight for varied stakeholders, and support planning, strategy, policy, service delivery, and evaluation across a complex collegiate university environment.
+
+The wider team context is also significant. The employer describes `Data and Digital Services` as a trusted partner function focused on accessible, reliable, and innovative systems, data, and insight. The `Research, Data and Evaluation` sub-team is framed as a centre of best practice covering expert management, interpretation, and use of education- and student-related qualitative and quantitative data across the student lifecycle.
+
+### Responsibilities Evidence
+
+#### 1. Reporting, dashboards, and data-request support
+
+- Produce routine reports that are accurate, reliable, timely, and understandable to non-specialists.
+- Produce ad hoc reports that are accurate, reliable, timely, and understandable to non-specialists.
+- Meet internal data requests.
+- Meet external data requests.
+- Build dashboards for stakeholder self-service.
+- Maintain dashboards for stakeholder self-service.
+- Build strategic dashboards designed to reduce repeated one-off reporting.
+- Produce accurate, timely data reports and dashboards for a range of stakeholders.
+
+#### 2. Data preparation, management, and workflow improvement
+
+- Use appropriate tools, methods, and processes to gather internal education and student-related data.
+- Collate internal education and student-related data.
+- Analyse internal education and student-related data.
+- Share internal education and student-related data.
+- Use `HEAT (Higher Education Access Tracker)` as a key tool.
+- Validate datasets so data is fit for purpose.
+- Normalise datasets so data is fit for purpose.
+- Combine datasets so data can track particular student groups across the student journey.
+- Identify and respond to data obsolescence.
+- Develop improved processes and workflows using software such as `Alteryx` to make reporting and data extraction more efficient.
+- Help develop policies and processes that support this work.
+
+#### 3. Qualitative and quantitative research and evaluation
+
+- Conduct robust qualitative research to inform decision-making.
+- Conduct robust quantitative research to inform decision-making.
+- Use suitable research and analysis designs so outputs are robust and defensible.
+- Apply appropriate research and analysis frameworks so findings are robust and defensible.
+- Support mixed-method data collection including survey writing, interviews, focus groups, and similar approaches.
+- Help evaluate the impact of interventions.
+- Show effectiveness through evaluation.
+- Support accountability through evaluation.
+- Inform benefits analysis through evaluation.
+
+#### 4. Strategic analysis, benchmarking, and decision support
+
+- Produce critical analysis to support planning, strategy, and wider decision-making across Education Services and the collegiate University.
+- Analyse large, complex datasets and national data sources to support planning and benchmarking.
+- Identify, source, interpret, and use national datasets such as `UCAS`, `HEFCE`, `HESA`, and `UKRI`.
+- Benchmark against other higher education institutions.
+- Interpret and explain findings to stakeholders so they can inform strategy.
+- Advise stakeholders on options for using data and analysis in policy, intervention, and service development.
+- Contribute to strategic thinking about data reporting.
+- Provide data and analytical support to committees and groups.
+
+#### 5. Communication, presentation, and stakeholder translation
+
+- Present findings clearly to non-specialist audiences.
+- Present findings to committees and working groups.
+- Write high-quality analysis and reports.
+- Produce clear recommendations for stakeholders with different levels of knowledge.
+- Present insight in ways that non-data specialists can understand and use.
+- Turn findings into clear insight for a wide range of stakeholders.
+
+#### 6. Training, guidance, and data-literacy support
+
+- Support data literacy by delivering training and guidance to colleagues.
+- Act as a central source of expertise on data management and analysis for staff across the collegiate University working in this area.
+- Identify capability gaps in colleagues.
+- Design training activity to address capability gaps.
+- Deliver training activity to address capability gaps.
+- Develop communities of practice so people can share analysis, evaluation findings, and best practice.
+- Support communities of practice so people can share analysis, evaluation findings, and best practice.
+
+#### 7. Stakeholder engagement, independence, and relationship management
+
+- Work independently within agreed priorities.
+- Build effective relationships across teams.
+- Work with operational teams and other stakeholders.
+- Act as a trusted partner to teams across Education Services and the collegiate University.
+- Support wider collegiate University queries and external organisation queries through the wider team function.
+- Work with stakeholders with different levels of analytical literacy and knowledge.
+
+#### 8. Governance, FOI, and data-handling expectations
+
+- Support institutional responses to `Freedom of Information` requests.
+- Work with knowledge of `UK GDPR`, the `Data Protection Act`, and the `Freedom of Information Act`.
+- Apply good practice in handling and storing data.
+- Maintain confidentiality and trust.
+- Operate in a context of accountability, transparency, and careful institutional data handling.
+
+### Person Specification Evidence
+
+#### 1. Experience
+
+- Experience carrying out qualitative and quantitative research, including choosing suitable methodologies. Essential.
+- Experience preparing, manipulating, analysing, and interpreting quantitative and qualitative data, including large, complex, and diverse datasets. Essential.
+- Experience writing reports on findings and producing clear recommendations for stakeholders with different levels of knowledge. Essential.
+- Experience of committee work. Desirable.
+
+#### 2. Skills
+
+- Strong `IT` skills, including `Excel`, especially for interrogating and manipulating large and complex datasets, plus systems for data management and visualisation. Essential.
+- Ability to use `SPSS`. Desirable.
+- Strong written and verbal communication skills, including the ability to present complex topics clearly and concisely for different audiences and purposes. Essential.
+- Strong interpersonal skills across different colleague levels, including relationship building, collaboration, listening, and negotiation. Essential.
+- Ability to work independently and use judgement and initiative. Essential.
+- Knowledge of `UK GDPR`, the `Data Protection Act`, and the `Freedom of Information Act`, including good practice in handling and storing data. Essential.
+- Knowledge of the key national student datasets. Desirable.
+
+#### 3. Qualifications
+
+- First degree or equivalent. Essential.
+- Postgraduate qualification, formal training, or substantial work experience in research and evaluation methods. Desirable or highly desirable.
+
+#### 4. Behavioural attributes and values
+
+- `Valuing Diversity` at level `A`.
+- `Achieving Results` at level `A`.
+- `Communication` at level `A`.
+- `Innovation and Change`.
+- `Negotiating and Influencing`.
+- `People Development`.
+- `Relationship Building`.
+- `Strategic Focus`.
+- Professional services values explicitly named include `Collaboration`, `Respect`, `Integrity`, and `Trust`.
+
+### Additional Process and Environment Evidence
+
+- Permanent appointment.
+- Subject to successful completion of a six-month probation period.
+- Full-time role at `37` hours per week.
+- Applications welcomed from people seeking part-time work or other flexible arrangements.
+- Hybrid working is possible where suitable.
+- Closing date stated as `9 April 2026`.
+- Interview date stated as `22 April 2026`.
+- Interviews held in person at the `Student Services Centre`.
+- Application must include a `CV` and covering letter explicitly addressing the advertisement and person-spec criteria with relevant examples.
+- Shortlisting is stated to be based on that evidence.
+
+### Hiring Signal Summary
+
+This posting is a strong hybrid `research + data analysis + evaluation` role centred on:
+- accurate reporting and dashboard delivery
+- mixed-method research and intervention evaluation
+- benchmarking using national higher-education datasets
+- committee and strategy support
+- data literacy, training, and community-of-practice development
+- careful institutional data governance, including `GDPR` and `FOI`
+
+It is a useful evidence point because it shows a role that is not just operational analytics and not just BI delivery. The employer is looking for someone who can combine quantitative and qualitative research, large-dataset analysis, benchmarking, evaluation, stakeholder translation, and capability-building in a high-accountability university setting.
