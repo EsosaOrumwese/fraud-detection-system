@@ -1,17 +1,17 @@
 **Esosa Orumwese**
-Data Scientist | Predictive Modelling, Data Quality & Decision Support
+Data Scientist | Predictive Modelling, AWS ML & Decision Support
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 **PERSONAL SUMMARY**
-Data Scientist with experience developing predictive and statistical models, building reusable analytical datasets and workflows, and turning complex multi-source data into stakeholder-facing decision-support outputs. Strong in SQL, Python, and analytical data shaping, with a track record of improving risk identification, embedding data quality controls, and delivering governed, explainable machine learning and reporting outputs for operational decision-making.
+Data Scientist with experience developing predictive and statistical models, building reusable analytical datasets and workflows, and turning complex multi-source data into stakeholder-facing decision-support outputs. Strong in SQL, Python, R, Excel, AWS, and SageMaker, with a track record of improving risk identification, embedding data quality controls, and delivering governed, explainable machine learning and Power BI/Tableau-ready reporting outputs for operational decision-making.
 
 **CORE SKILLS**
 Predictive & Statistical Modelling: Predictive modelling, statistical modelling, risk stratification, segmentation, forecasting, model evaluation
-Programming & Querying: SQL, Python, R, feature engineering, analytical data shaping, reproducible analytical workflows
+Programming & Querying: SQL, Python, R, Excel, feature engineering, analytical data shaping, reproducible analytical workflows
 Analytics Engineering & Data Product: Reusable analytical datasets, analytical pipelines, transformations, reporting-ready and model-ready data products, Git, Jupyter
 Data Quality & Governance: Linked-data analysis, validation, reconciliation, anomaly detection, fit-for-use checks, KPI governance, source-rule controls
-Explainable ML & Decision Support: Explainable machine learning, threshold setting, model documentation, dashboard reporting, KPI definition, stakeholder-facing insight
-Cloud & Platform: AWS, cloud-hosted analytical workflows; familiarity with Azure ML, Databricks, Fabric, and Power BI environments
+Explainable ML & Decision Support: Explainable machine learning, threshold setting, model documentation, dashboard reporting, KPI definition, stakeholder-facing insight, DAX, Power BI, Tableau
+Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows, Azure ML, Databricks, Fabric
 
 **RELEVANT EXPERIENCE**
 
