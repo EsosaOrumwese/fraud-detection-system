@@ -3,26 +3,29 @@ Data Scientist | Advanced Analytics, Model Governance & Decision Support
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 **PERSONAL SUMMARY**
-Data Scientist with experience building governed predictive analytics, reusable analytical datasets, and stakeholder-facing decision-support outputs over complex multi-source data. Strong in SQL and Python, with a track record of improving risk identification, strengthening data quality, and delivering explainable models and reporting products that support operational and service decisions.
+Data Scientist with experience developing predictive and statistical models, building reusable analytical datasets and workflows, and turning complex multi-source data into stakeholder-facing decision-support outputs. Strong in SQL, Python, and analytical data shaping, with a track record of improving risk identification, embedding data quality controls, and delivering governed, explainable machine learning and reporting products for operational decision-making.
 
 **CORE SKILLS**
-Programming & Querying: SQL, Python, R, statistical analysis, predictive modelling
-Cloud & Platform: AWS, Git, Jupyter, cloud-hosted analytical workflows; familiarity with Azure, Fabric, Databricks, and Azure ML environments
-Data Engineering & Quality: Multi-source linked-data analysis, reporting-ready data shaping, reconciliation, fit-for-use checks, KPI governance
-BI & Decision Support: Power BI-style reporting, dashboard delivery, KPI definition, stakeholder-facing insight, decision-support outputs
-Model Governance: Explainable scoring, threshold setting, caveats, reviewable outputs, documentation
+Predictive & Statistical Modelling: Predictive modelling, statistical modelling, risk stratification, segmentation, forecasting, model evaluation
+Programming & Querying: SQL, Python, R, feature engineering, analytical data shaping, reproducible analytical workflows
+Analytics Engineering & Data Product: Reusable analytical datasets, analytical pipelines, transformations, reporting-ready and model-ready data products, Git, Jupyter
+Data Quality & Governance: Linked-data analysis, validation, reconciliation, anomaly detection, fit-for-use checks, KPI governance, source-rule controls
+Explainable ML & Decision Support: Explainable machine learning, threshold setting, model documentation, dashboard reporting, KPI definition, stakeholder-facing insight
+Cloud & Platform: AWS, cloud-hosted analytical workflows; familiarity with Azure ML, Databricks, Fabric, and Power BI environments
 
 **RELEVANT EXPERIENCE**
 
 **Data Scientist & Analytics Engineer**
 **AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
 
-- Improved operational risk identification and short-range case planning, as measured by 2.29x High-cohort and 1.98x Medium-cohort fraud-truth yield, by building a bounded predictive workflow over governed multi-source fraud data with reusable scoring and cohort outputs.
-- Applied robust linked-data analysis to population, cohort, and pathway questions, as measured by clean join coverage, zero duplicate flow rows, and one canonical KPI definition set, by building a governed fraud population slice with source rules, reconciliation controls, and reporting-ready summaries.
-- Detected and resolved a material data-quality defect in fraud reporting, as measured by corrected yield interpretation and repeatable mismatch checks, by reconciling authoritative-truth and bank-view outcome semantics and preventing comparison fields from being used as trusted yield logic.
-- Designed a reusable analytical data product for modelling and reporting, as measured by validated joins and full target and outcome coverage across 361,504 bounded cases, by shaping governed fraud data into stable case-grain views and reporting-ready analytical tables.
-- Delivered a governed fraud-risk scoring workflow, as measured by stable high-band lift, explicit model-selection and threshold decisions, and a completed caveat pack, by comparing bounded logistic scoring approaches and turning the selected score into a reviewable stakeholder decision surface.
-- Turned governed analytical outputs into dashboard and decision-support products, as measured by consistent KPI reuse across multiple views and completion of executive, operational, and drill-through surfaces, by packaging model and cohort results into reporting-ready views and annotated summaries for non-technical users.
+- Developed predictive and statistical models in SQL and Python over 3.46M governed flow records, concentrating fraud truth into a High risk band at 6.32% versus a 2.73% overall baseline.
+- Built risk stratification, segmentation, and bounded forecasting models for prioritisation and planning, capturing 41.3% of positives in the top 20.1% of scored flows and delivering daily case-demand forecasts with 7.31% test MAPE.
+- Designed reusable analytical datasets, pipelines, and transformations that made analysis production-usable, engineering a case-centric product across 361,504 cases for both model-ready and reporting-ready use with zero duplicate rows and zero null critical keys.
+- Extracted, cleaned, transformed, and linked event, flow, case, and outcome data into canonical analytical bases, enabling stable population, pathway, and KPI analysis across 3,455,613 flows and 361,504 linked cases.
+- Embedded validation, reconciliation, anomaly detection, and source-rule controls into analytical workflows, correcting a 35.44 percentage-point yield distortion caused by misuse of a comparison-only outcome surface.
+- Delivered governed and explainable machine learning by separating authoritative truth from comparison fields, selecting a reviewable logistic challenger over a weaker baseline (ROC AUC 0.624 vs 0.515), and setting explicit human-review thresholds.
+- Operationalised advanced analytics into dashboard and decision-support products, translating model and pathway outputs into three audience-shaped reporting views over 1.38M scored rows with executive, workflow, and drill-through summaries for non-technical users.
+- Used linked population-level data to identify pathway patterns and service-planning priorities, showing that 80.4% of case-selected workload sat in low-yield cohorts and isolating a high-burden segment driving operational drag.
 
 **EDUCATION**
 
@@ -34,13 +37,13 @@ Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2
 **Crew Member**
 **Five Guys** — Exeter, UK | Sep 2024 - Present
 
-- Work in a fast-paced customer operations team, maintaining accuracy, speed, and service quality during high-volume shifts.
-- Follow strict hygiene, food-safety, cash-handling, and operational procedures to support reliable day-to-day service.
-- Contribute to smooth shift execution through dependable teamwork, clear communication, punctuality, and consistent handovers.
+- Work in a high-volume customer operations team, maintaining accuracy, speed, and service quality under shifting demand and tight turnaround expectations.
+- Follow strict hygiene, food-safety, cash-handling, and operational controls to support reliable day-to-day service and consistent handovers.
+- Support smooth shift execution through dependable teamwork, clear communication, and calm delivery in a busy customer-facing environment.
 
 **Field Engineer (Trainee)**
 **South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
 
-- Worked in field teams on completion operations with service partners, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
+- Worked with field teams and service partners on completions operations, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
 - Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
-- Documented operational readings, issues, and handovers clearly, helping keep cross-team work coordinated under field constraints and time pressure.
+- Documented operational readings, issues, and handovers clearly across crews and supervisors, helping keep cross-team work coordinated under field constraints and time pressure.
