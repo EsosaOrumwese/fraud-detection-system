@@ -1,13 +1,13 @@
 **Esosa Orumwese**
-Data & Insight Analyst | Reporting, BI & Data Quality
+Data & Insight Analyst | Reporting, Insight & Data Quality
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 **PERSONAL SUMMARY**
-Data & Insight Analyst with experience collecting, analysing, and interpreting multi-source organisational data to produce trusted reporting, dashboards, and decision-support outputs. Strong in Excel, SQL, Power BI, Tableau, Python, Power Query M, and DAX, with experience building scheduled and ad hoc reporting, supporting senior and external-facing reporting, improving data quality and reporting controls, and making analytical workflows more repeatable, usable, and efficient.
+Data & Insight Analyst with experience collecting, analysing, and interpreting multi-source organisational data to produce trusted reporting, dashboards, and decision-support outputs. Strong in Excel, SQL, Power BI, Tableau, Python, Power Query M, and DAX, with experience building scheduled and ad hoc reporting, supporting senior and external-style oversight reporting, improving data quality and reporting controls, and making analytical workflows more repeatable, usable, and efficient.
 
 **CORE SKILLS**
 Reporting, Dashboards & Insight: Scheduled reporting, ad hoc reporting, dashboards, visualisations, KPI tracking, decision-support reporting, audience-ready reporting
-Leadership & External Reporting: Senior leadership reporting, board-pack style reporting, funder-style reporting, bid and compliance-style reporting, concise decision-support outputs
+Leadership & External Reporting: Senior leadership reporting, board-pack style reporting, funder and compliance-style reporting, concise decision-support outputs
 Data Structures & BI Delivery: SQL, Excel, Power BI, Tableau, Python, Power Query M, DAX, queries, transformation logic, reusable reporting layers, reporting-ready data structures
 Data Quality, Governance & Stewardship: Data quality monitoring, audit checks, reporting controls, confidentiality-aware handling, governance support, caveat notes, release checks
 Workflow Improvement & Automation: Process improvement, workflow automation, repeatable reporting workflows, regeneration paths, documentation, rerun guidance
@@ -18,16 +18,15 @@ Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflow
 **Data Analyst & Analytics Engineer**
 **AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
 
-- Collected, organised, analysed, and interpreted data from multiple internal sources to produce trusted organisational insight, using SQL, Excel, Power BI, Python, and Power Query M to shape controlled reporting outputs from validated source contributions and clear field ownership rules.
+- Collected, organised, analysed, and interpreted data from multiple internal sources to produce trusted organisational insight, using SQL, Excel, Power BI, Python, and Power Query M to shape controlled reporting outputs from validated source data and clear field definitions.
 - Built scheduled and ad hoc reports, dashboards, and visualisations from a shared KPI framework, producing consistent summary and follow-up views from the same validated reporting base with 5/5 release checks.
-- Produced senior leadership and external-facing reporting packs from the same trusted reporting base, turning validated KPI outputs into concise decision-support views for higher-accountability audiences with 6/6 release checks before issue.
-- Worked across reporting and the underlying data layer by maintaining reusable reporting structures, shared calculations, and transformation logic that supported summary reporting, follow-up analysis, leadership packs, and external-style reporting outputs.
-- Maintained and improved reporting infrastructure by centralising shared calculations into one reusable reporting layer, reducing duplication across downstream outputs and improving rerun efficiency to 0.13 seconds for the maintained layer.
-- Monitored, audited, and improved data quality by running 19 quality checks across 3 control areas, consolidating findings into one repeatable review pack, and producing 3 practical recommendations to strengthen reporting integrity and governance support.
+- Produced senior leadership and external-style oversight reporting from the same trusted reporting base, turning validated KPI outputs into concise decision-support views for higher-accountability audiences with 6/6 release checks before issue.
+- Worked across reporting and the underlying data layer by maintaining reusable reporting structures, shared calculations, and transformation logic that supported summary reporting, follow-up analysis, leadership packs, and external-style oversight outputs while reducing duplication through one reusable reporting layer.
+- Monitored, audited, and improved data quality by running 19 quality checks across 3 control areas, consolidating findings into one repeatable review pack, and producing 3 practical recommendations to strengthen reporting integrity and support bounded governance review.
 - Identified opportunities to improve efficiency and automation by replacing repeated report assembly with one reusable regeneration path that reproduced 4 reporting and audience-ready outputs with 6/6 repeatability checks.
 - Gathered and translated stakeholder requirements into usable outputs for different audiences, shaping concise operational, leadership, and external-style reporting from the same underlying data with clear audience notes, caveats, and release controls.
-- Supported governance and confidentiality-aware handling of organisational data by keeping reporting outputs tied to controlled inputs, documented checks, and explicit trust, caveat, and release notes.
-- Worked across a systems-facing handoff by defining and checking the boundary between reporting-ready data and downstream output generation, helping keep dependent reporting outputs aligned, stable, and reliable through 7/7 integration-control checks.
+- Supported confidentiality-aware handling and bounded governance review by keeping reporting outputs tied to controlled inputs, documented checks, and explicit caveat and release notes.
+- Worked across a systems-facing handoff by checking the boundary between reporting-ready data and downstream output generation, helping keep dependent reporting outputs aligned and reliable through 7/7 integration-control checks.
 
 **EDUCATION**
 
