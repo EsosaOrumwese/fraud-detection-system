@@ -9,7 +9,7 @@ Data Analyst with experience validating detailed operational data, resolving mat
 Validation, Reconciliation & Control: Data validation, discrepancy resolution, reconciliation reporting, recurring control cycles, balancing outputs, high-accuracy operational support
 Compliance & Audit Support: Audit-readiness, rule traceability, defensible outputs, review-ready reporting, control-sensitive analysis
 Trend Analysis & Optimisation Support: Repeated-pattern analysis, process optimisation support, operational inefficiency review, targeted recommendation development
-Forward Impact & Readiness: Forward-impact review, readiness support, next-cycle action planning, bounded forecasting support
+Forward Impact & Readiness: Forward-impact review, readiness support, next-cycle action planning, forward-looking analysis support
 Data Analysis & Working Tools: Excel, SQL, Power BI, Tableau, Python, DAX, analytical interpretation, structured reporting outputs
 Stakeholder Support & Communication: Clear explanation of findings, action-focused reporting, operational support, cross-functional collaboration, high-consequence issue handling
 
@@ -19,10 +19,10 @@ Stakeholder Support & Communication: Clear explanation of findings, action-focus
 **AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
 
 - Worked with large, detailed operational data to identify discrepancies, validate outputs, and improve recurring accuracy, fixing a clear control rule and surfacing one material discrepancy class across two retained cycles.
-- Supported cyclical reconciliation reporting by turning a repeated discrepancy into a reconciliation-ready balancing output that kept the authoritative view inside the trusted control range before recurring release.
-- Worked in a compliance- and audit-sensitive control environment, producing review-ready outputs with clear rule traceability, defensible release logic, and bounded audit-support evidence.
+- Supported cyclical reconciliation reporting by turning a repeated discrepancy into a reconciliation-ready output that kept the validated view inside the trusted control range before recurring release.
+- Worked in a compliance- and audit-sensitive control environment, producing review-ready outputs with clear rule traceability, defensible release logic, and practical audit-support evidence.
 - Conducted trend analysis on recurring operational data to identify repeated issues, showing that the same discrepancy pattern persisted across cycles and supporting one targeted optimisation review rather than broad escalation.
-- Identified inefficiencies in recurring control processes and proposed focused improvement action, translating repeated balancing effort into a clear recommendation to review denominator-alignment and control handoff rules.
+- Identified inefficiencies in recurring control processes and proposed focused improvement action, translating repeated reconciliation effort into a clear recommendation to review denominator consistency and control handoff rules.
 - Used recurring operational evidence to support forward-impact and next-cycle readiness review, showing what should be checked before the next cycle if the same discrepancy condition remained unresolved.
 - Explained outputs clearly in a high-accuracy control environment, turning discrepancy, reconciliation, audit-readiness, and readiness-support findings into practical guidance for review and operational decision-making.
 

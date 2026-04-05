@@ -302,15 +302,15 @@ The slice now supports the following claim surfaces.
 
 ### 10.1 Flagship claim surface
 
-> Produced strategic analysis and benchmark-aware planning support, as measured by producing `1` internal position output, `1` comparator-context output using `2` bounded reference rows, and `1` strategic comparison reading over a shared `50_plus` focus band confirmed by `3` streams, while passing `7/7` release checks in `0.20` seconds, by turning compact inherited evaluation, comparator, and repeated-pattern outputs into a bounded planning-support pack that kept attention on the concentrated pathway without overstating live sector-dataset ownership or institutional-planning control.
+> Produced critical analysis to support planning, strategy, and wider decision-making, and benchmarked current position against bounded comparator context, as measured by producing `1` internal position output, `1` comparator-context output using `2` bounded reference rows, and `1` strategic comparison reading over a shared `50_plus` focus band confirmed by `3` streams, while passing `7/7` release checks in `0.20` seconds, by turning compact inherited evaluation, comparator, and repeated-pattern outputs into a bounded planning-support pack that kept attention on the concentrated pathway without overstating live sector-dataset ownership or institutional-planning control.
 
 ### 10.2 Shorter recruiter-facing claim surface
 
-> Used internal and comparator evidence together to support strategy and planning, as measured by one bounded strategic-comparison pack and one planning-support interpretation, by positioning the current focus against explicit reference context.
+> Used internal and comparator evidence together to support planning, strategy, and benchmarking, as measured by one bounded strategic-comparison pack and one planning-support interpretation, by positioning the current focus against explicit reference context.
 
 ### 10.3 Direct-response claim surface
 
-> Analysed internal and comparator data to support benchmarking and planning, as measured by `1` internal output and `1` comparator-context output on the same bounded question, by producing a strategic comparison reading and planning-support note without overstating named sector-dataset ownership or institutional-planning authority.
+> Analysed internal and comparator data to support benchmarking and wider planning decisions, as measured by `1` internal output and `1` comparator-context output on the same bounded question, by producing a strategic comparison reading and planning-support note without overstating named sector-dataset ownership or institutional-planning authority.
 
 ## 11. Overall Verdict
 
