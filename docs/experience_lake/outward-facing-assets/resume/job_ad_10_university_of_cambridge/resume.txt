@@ -1,0 +1,48 @@
+**Esosa Orumwese**
+Research and Data Analyst | Evaluation, Benchmarking & Strategic Insight
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Research and Data Analyst with experience combining quantitative analysis and qualitative evidence to produce defensible insight for evaluation, planning, and decision-making. Strong in Excel, SQL, Power BI, Tableau, Python, Power Query M, and DAX, with experience preparing large analytical inputs for reporting, producing benchmark-aware strategic analysis, writing clear briefings and recommendations for non-specialists, and supporting accountability and benefits-focused decisions through careful evidence interpretation.
+
+**CORE SKILLS**
+Research, Evaluation & Insight: Mixed-method evaluation, quantitative analysis, qualitative evidence synthesis, intervention evaluation, effectiveness assessment, accountability support
+Reporting, Dashboards & Data Preparation: Large-dataset preparation, data validation, reporting-ready outputs, routine reporting, ad hoc reporting, dashboard support
+Strategic Analysis & Benchmarking: Strategic analysis, comparator analysis, planning support, benchmark-aware interpretation, option-support analysis
+Committee & Stakeholder Communication: Committee-ready briefings, recommendations writing, non-specialist translation, decision-ready reporting, working-group communication
+Data Analysis & Working Tools: Excel, SQL, Power BI, Tableau, Python, Power Query M, DAX, data manipulation, reporting structures, analytical interpretation
+Governance & Data Handling: Careful institutional data handling, confidentiality-aware analysis, controlled reporting outputs, evidence discipline, GDPR/FOI awareness
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Combined quantitative analysis and qualitative evidence to produce defensible evaluation findings, using directional KPI tracking and structured support evidence to assess whether an intervention appeared effective.
+- Prepared, combined, validated, and organised large analytical inputs into reporting-ready outputs, building a reusable reporting base that supported routine reporting without rebuilding the interpretation chain each time.
+- Produced accurate routine and ad hoc reporting that remained understandable to non-specialists, translating complex analytical outputs into clear summaries and repeatable reporting-ready structures.
+- Used internal and comparator evidence together to support strategic analysis, benchmarking, and planning, positioning current performance against clear reference context to inform future review and option development.
+- Evaluated an intervention or support pathway to support accountability and benefits-focused decision-making, producing a cautious effectiveness reading without overstating causal proof or quantified impact.
+- Wrote clear reports, briefings, and recommendations for non-specialists, committees, and working groups, turning complex analysis into decision-ready material with explicit next-step recommendations.
+- Presented complex findings in accessible language for wider use, keeping the analytical meaning intact while improving readability and practical use for different stakeholder groups.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy, speed, and service quality in a high-volume customer operations team under shifting demand and tight turnaround expectations.
+- Follow strict hygiene, food-safety, cash-handling, and operational controls to support reliable day-to-day service and consistent handovers.
+- Support smooth shift execution through dependable teamwork, clear communication, and calm delivery in a busy customer-facing environment.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked with field teams and service partners on completions operations, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
+- Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
+- Documented operational readings, issues, and handovers clearly across crews and supervisors, helping keep cross-team work coordinated under field constraints and time pressure.
