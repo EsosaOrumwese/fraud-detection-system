@@ -1094,3 +1094,203 @@ This posting is not a data-analysis role in the narrow sense. It is a `Business 
 - collaboration with data analysts and multidisciplinary product teams
 
 It is a useful evidence point because it shows that some roles adjacent to analytics and data engineering expect the candidate to bridge business change, data-platform delivery, stakeholder challenge, and digital product execution rather than only produce reports or code.
+
+---
+
+## Associate Data Analyst - Connected Care - NHS Frimley Integrated Care Board
+
+Source:
+- `NHS Jobs` - <https://www.jobs.nhs.uk/candidate/jobadvert/D9495-26-0021?searchFormType=main&keyword=data&language=en&page=3>
+
+Role family:
+- `Data Analytics`
+- population health / connected care / user enablement analytics
+- NHS-facing insight, visualisation, training, and user-support role with strong communication and product-usability emphasis
+
+### Job Purpose Evidence
+
+The employer frames this role as an `Associate Data Analyst` position within the `User Support and Empowerment` function, focused on bringing population-health insight to life in ways that directly support better care and improved wellbeing. The role is explicitly hands-on and user-facing: it is not positioned as a back-room analyst role, but as one concerned with creating clear, engaging, and accessible analytical products that help colleagues understand data and act on it confidently.
+
+The surrounding organisational context is also significant. The job sits within the transition toward `Thames Valley ICB`, where the employer states there will be greater focus on long-term population-health planning, outcomes-focused commissioning, system-wide leadership, data-driven decision making, and population health management. That means this role is being positioned as part of a wider strategic capability build around intelligence-led decision support rather than just local dashboard maintenance.
+
+### Responsibilities Evidence
+
+#### 1. Dashboard, infographic, and multimedia product delivery
+
+- Support the development of dashboards.
+- Support the development of infographics.
+- Support the development of multimedia content.
+- Design dashboards, infographics, and multimedia content.
+- Build dashboards, infographics, and multimedia content.
+- Maintain dashboards, infographics, and multimedia content.
+- Include video and interactive materials as part of insight products.
+- Make analytical insight accessible and meaningful for non-technical audiences.
+- Make population-health trends easier to interpret.
+
+#### 2. Data preparation, querying, and visual presentation
+
+- Use `SQL` and data-visualisation tools to prepare datasets.
+- Query datasets using `SQL` and visualisation tooling.
+- Manipulate datasets using `SQL` and visualisation tooling.
+- Present datasets in accessible, actionable formats.
+- Use tools such as `Power BI`, `Tableau`, `Excel`, or similar.
+- Collate, organise, and summarise complex information for reporting, presentations, and decision-support use.
+
+#### 3. User-focused translation of insight
+
+- Translate analytical outputs into user-friendly narratives.
+- Translate analytical outputs into guidance materials.
+- Translate analytical outputs into visual stories.
+- Prepare analytical products that are clear, engaging, and actionable.
+- Ensure analytical products are intuitive, accurate, and usable.
+- Analyse and present information in accessible formats using visualisations, infographics, and multimedia content.
+
+#### 4. Training, demonstrations, workshops, and user enablement
+
+- Support demonstrations of analytical tools and insight products.
+- Support workshops that help colleagues use analytics effectively in everyday practice.
+- Support training that builds confidence in analytics tools and population-health insight.
+- Plan training sessions, workshops, and demonstrations.
+- Deliver training sessions, workshops, and demonstrations.
+- Provide operational support for workshops, demonstrations, and training sessions.
+- Assist in planning, designing, and delivering workshops, presentations, and training sessions for technical and non-technical colleagues.
+- Improve colleagues' confidence and capability in using analytics tools.
+- Support training, induction, and ongoing development of new team members.
+
+#### 5. Stakeholder engagement, support, and usability improvement
+
+- Work closely with stakeholders to understand user needs.
+- Provide practical support to internal stakeholders.
+- Troubleshoot issues affecting analytical products or user experience.
+- Improve usability of analytical products.
+- Ensure analytical products are accurate and actionable.
+- Provide clear and practical advice on the use of dashboards, visualisations, and analytical tools.
+- Explain technical concepts patiently.
+- Provide hands-on guidance.
+- Enable colleagues to confidently use analytics tools.
+- Maintain constructive relationships with internal and external stakeholders including analytics, planning, public health, and operational teams.
+
+#### 6. Continuous improvement, research, and service development
+
+- Contribute creative ideas to improve how insight is communicated.
+- Contribute to continuous improvement of analytical tools.
+- Contribute to continuous improvement of processes.
+- Contribute to continuous improvement of user-support materials.
+- Support maintenance, troubleshooting, and improvement of analytical tools, dashboards, and datasets.
+- Contribute to testing and reviewing new tools, techniques, and approaches to improve insight delivery and user engagement.
+- Support the development of best practices for producing user-friendly dashboards, visualisations, and multimedia materials.
+- Share learning and feedback to improve technical and creative approaches across the function.
+- Contribute practical advice and technical expertise to improve processes, tools, and training within the function.
+- Support review and development of analytical systems, dashboards, and user-support materials, ensuring outputs are integrated, accessible, and aligned with organisational priorities.
+
+#### 7. Planning, organisation, and project support
+
+- Deliver work against organisational objectives.
+- Prioritise tasks and manage time effectively to meet deadlines.
+- Support project delivery.
+- Support resource planning for projects and initiatives.
+- Ensure technical and analytical requirements are appropriately scoped and resourced.
+- Track and monitor project performance.
+- Highlight technical or data issues.
+- Escalate risks and issues where appropriate.
+- Support planning and organisation of user-support, training, and insight activities.
+- Contribute to forward planning for system enhancements, training, and resource requirements.
+- Use project and task management tools such as `Jira`, `Monday`, `Asana`, or similar where available.
+
+#### 8. Information management and reporting enhancement
+
+- Operate within current management-information and reporting arrangements.
+- Provide enhancements to management information and reporting.
+- Enhance decision-making processes through improved reporting.
+- Develop databases.
+- Maintain databases.
+- Enhance databases, dashboards, and analytical tools to support accurate, timely reporting and insight.
+- Lead on implementing and improving data collection, storage, and reporting processes to meet user needs.
+
+#### 9. Management, trust, and support posture
+
+- Provide specialist advice, guidance, and practical support on technical and creative aspects of the role.
+- Support line managers in planning workload and technical tasks across the function.
+- Engender trust and confidence in the provision of advice and support.
+- Demonstrate integrity in the provision of advice and support.
+
+### Person Specification Evidence
+
+Note:
+- the assessment legend stated in the detailed person specification is:
+- `A = Application form`
+- `I = Interview`
+- `T = Test`
+- `C = Certificate`
+
+#### 1. Knowledge, training, and experience
+
+- Educated to `masters` level or equivalent level of experience working at a senior level in a specialist area. Essential. Assessment: `A/C`
+- Experience producing dashboards, infographics, and other visual or multimedia content. Essential. Assessment: `A/I`
+- Technical experience using tools such as `Power BI`, `Tableau`, `Excel`, `SQL`. Desirable. Assessment: `A/I`
+- Experience in stakeholder engagement, training, or user support. Essential. Assessment: `A/I`
+- Experience in the `NHS` or public sector. Desirable. Assessment: `A/I`
+
+#### 2. Communication skills
+
+- Clear writing, report preparation, and presentation skills. Essential. Assessment: `A/I`
+- Ability to explain technical content to non-technical users. Essential. Assessment: `A/I`
+- Skills for delivering workshops, demonstrations, and training sessions. Essential. Assessment: `A/I`
+
+#### 3. Analytical capability
+
+- Ability to organise, analyse, and present data visually. Essential. Assessment: `A/I`
+- Problem-solving skills for operational and technical issues. Essential. Assessment: `A/I`
+
+#### 4. Planning, management, and autonomy
+
+- Ability to manage workload, support project delivery, and prioritise tasks. Essential. Assessment: `A/I`
+- Ability to engender trust and confidence and demonstrate integrity in the provision of advice and support. Essential. Assessment: `A/I`
+- Ability to support training and induction of new colleagues. Essential. Assessment: `A/I`
+- Ability to work on own initiative and organise own workload without supervision while working to tight and often changing timescales. Essential. Assessment: `A/I`
+
+#### 5. Other personal and organisational expectations
+
+- Intermediate `IT` and keyboard skills; ability to manipulate data and media. Essential. Assessment: `A/I`
+- Understanding of and commitment to equality of opportunity and good working relationships. Essential. Assessment: `A/I`
+- Ability to maintain confidentiality and trust. Essential. Assessment: `A/I`
+- Used to working in a busy environment. Essential. Assessment: `A/I`
+- Adaptability, flexibility, and ability to cope with uncertainty and change. Essential. Assessment: `A/I`
+- Commitment to continuing professional development. Essential. Assessment: `A/I`
+- Professional calm and efficient manner. Essential. Assessment: `A/I`
+- Effective organiser. Essential. Assessment: `A/I`
+- Strong desire to improve performance and make a difference by focusing on goals. Essential. Assessment: `A/I`
+
+### Additional Process and Governance Evidence
+
+- Post is subject to `DBS` checking.
+- Role sits inside an NHS environment with explicit references to:
+- information governance
+- data quality policy
+- confidentiality and trust
+- partnership working
+- clinical governance
+- risk management
+- appraisal and continuing professional development
+- policies and procedures
+- equality and diversity commitments
+- safe recruitment expectations
+
+### Hiring Signal Summary
+
+This posting is not a conventional back-office analyst role. It is a strongly user-facing `Associate Data Analyst` role centred on:
+- building dashboards, infographics, and multimedia analytical products
+- translating population-health insight into accessible and actionable formats
+- using `SQL` and visualisation tooling to prepare and present data
+- enabling adoption through workshops, demonstrations, training, and user support
+- troubleshooting and improving usability of analytical products
+- contributing to continuous improvement of analytical tools, communication methods, and support materials
+
+It is a useful evidence point because it shows a role where the employer is explicitly hiring for a blend of:
+- analytics and visual communication
+- stakeholder support and user enablement
+- population-health insight translation
+- dashboard and multimedia product delivery
+- training, workshop, and capability-building work
+
+This makes it a strong fit for the existing lens areas around `BI / Insight / Reporting`, `Stakeholder Translation, Communication, and Decision Influence`, and user-facing analytical enablement.

@@ -1251,3 +1251,143 @@ The strongest-fit candidate would likely go beyond generic `BA` claims and show 
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a digitally credible business analyst who can structure complex change, define and test requirements, assess impacts and options, and help multidisciplinary teams deliver services that meet real business and user needs. They are strong with stakeholders, comfortable around data-platform and technical delivery contexts, and useful because they turn transformation intent into clear, actionable, and outcome-focused delivery design.
+
+---
+
+## Ideal Candidate Profile - Associate Data Analyst - Connected Care - NHS Frimley Integrated Care Board
+
+Source role:
+- `Associate Data Analyst - Connected Care`
+- `NHS Frimley Integrated Care Board`
+- <https://www.jobs.nhs.uk/candidate/jobadvert/D9495-26-0021?searchFormType=main&keyword=data&language=en&page=3>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a narrow dashboard builder and not a pure analyst who stays behind the scenes. The employer is looking for a user-facing, population-health-oriented analyst who can turn complex analytical outputs into clear, engaging, and accessible products that help colleagues use data confidently in everyday practice.
+
+This person would likely present as someone who combines practical technical ability with strong communication and enablement capability. They would sound like someone who is comfortable preparing and querying data, building dashboards and visual products, and then actively helping users interpret and apply what the data is saying through workshops, demonstrations, training, and hands-on support.
+
+The role is therefore less about isolated analysis and more about making insight usable across the organisation.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked at the intersection of analytics, communication, and user support in a health, public-sector, or service-improvement environment. Their story would show that they can build analytical products, shape data visually, explain technical content to non-technical users, and improve adoption by making tools and outputs intuitive rather than intimidating.
+
+They would likely have experience that sounds like this:
+- building dashboards, visualisations, infographics, or other analytical communication products
+- using `SQL` and visual tools to prepare and present data clearly
+- translating complex analytical outputs into accessible narratives and guidance materials
+- running or supporting training, demonstrations, and workshops
+- working closely with stakeholders to understand needs, improve usability, and troubleshoot issues
+- contributing to continuous improvement in how analytical products are designed, delivered, and supported
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants dashboard, infographic, and multimedia product capability
+
+The ideal candidate would sound like someone who has built more than static reports. They would likely show experience creating dashboard and visual products that are designed for usability, clarity, and audience engagement, including more creative formats where necessary.
+
+The candidate's evidence would likely include:
+- producing dashboards and visual analytical products
+- creating infographics or visually led communication outputs
+- designing products for non-technical audiences rather than technical peers only
+- thinking about layout, usability, clarity, and accessibility as part of the analytical job
+
+#### B. If the employer wants `SQL` plus visualisation tooling
+
+The ideal candidate would not present as visual-only. They would also show practical comfort with preparing, querying, and manipulating data using `SQL` and visualisation tooling so that the final output is both accurate and usable.
+
+The candidate's evidence would likely include:
+- querying and shaping datasets using `SQL`
+- working with tools such as `Power BI`, `Tableau`, or `Excel`
+- moving from raw or complex data into accessible visual outputs
+- understanding both the data-preparation side and the communication side of analytics
+
+#### C. If the employer wants translation of analytics into accessible insight
+
+The ideal candidate would sound like someone who knows that technical analysis is not enough unless users can understand and apply it. They would likely show that they can turn analytical outputs into narratives, guidance, visual stories, and clear decision-support products.
+
+The candidate's evidence would likely include:
+- translating analytical findings into user-friendly language
+- creating guidance or explanatory materials
+- using narrative and visual structure to make insight easier to interpret
+- helping users understand what the data means and what they should do with it
+
+#### D. If the employer wants training, workshops, and demonstrations
+
+The ideal candidate would not stop at product delivery. They would also show that they can build confidence and capability in others by supporting or delivering workshops, demonstrations, and training.
+
+The candidate's evidence would likely include:
+- planning or supporting training sessions
+- delivering demonstrations of analytical tools or dashboards
+- facilitating workshops for technical or non-technical audiences
+- helping colleagues become more confident in using data and analytical products
+
+#### E. If the employer wants stakeholder engagement and user support
+
+The ideal candidate would sound like someone who works closely with users rather than building in isolation. They would likely show that they can understand stakeholder needs, provide practical support, and improve products by responding to usability and troubleshooting issues.
+
+The candidate's evidence would likely include:
+- engaging with stakeholders to understand information or usability needs
+- troubleshooting issues with dashboards, tools, or data products
+- giving practical advice and hands-on support
+- iterating products based on user experience and feedback
+
+#### F. If the employer wants continuous improvement and best-practice contribution
+
+The ideal candidate would sound like someone who improves how the function works, not just how one report looks. They would likely show that they can test new approaches, contribute ideas, and help improve technical and creative standards across the team.
+
+The candidate's evidence would likely include:
+- contributing to continuous improvement of tools and materials
+- testing or reviewing new approaches to insight delivery
+- sharing learning and feedback
+- helping define or spread better practice in analytical communication and user support
+
+#### G. If the employer wants planning, organisation, and dependable delivery
+
+The ideal candidate would sound like someone who can manage workload, support project delivery, and work independently in a busy environment without losing quality.
+
+The candidate's evidence would likely include:
+- prioritising work against deadlines
+- contributing to project delivery and planning
+- tracking progress and escalating risks appropriately
+- working reliably under changing timescales and competing demands
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can build dashboards, infographics, and other analytical products that make complex population-health or service data understandable and useful for non-technical audiences.
+- I am comfortable working across `SQL`, visualisation tooling, and user-facing communication formats to move from raw data to actionable insight.
+- I can translate analytical outputs into narratives, guidance, and visual stories that help colleagues understand what the data is saying and act on it confidently.
+- I have experience supporting stakeholder adoption of analytics through workshops, demonstrations, training, and practical user support.
+- I work closely with users to improve usability, troubleshoot issues, and make analytical products more intuitive, accurate, and actionable.
+- I contribute to continuous improvement in analytical tools, communication methods, and support materials rather than treating delivery as a one-off task.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the role title is relatively junior, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- strong visual and communication-oriented analytical capability
+- ability to explain technical content clearly to non-technical users
+- confidence with dashboards, infographics, or comparable analytical products
+- practical `SQL` and visual-tooling comfort
+- willingness to work in a hands-on support and enablement role
+- comfort delivering workshops, demonstrations, and training
+- stakeholder patience, usability focus, and user-support mindset
+- enough organisation and self-management to deliver reliably in a busy environment
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- population-health, connected-care, or public-service analytics experience
+- strong `Power BI`, `Tableau`, `Excel`, and `SQL` fluency
+- experience producing infographics, multimedia, or visually engaging analytical products
+- direct workshop, training, or user-enablement experience
+- strong stakeholder-support and troubleshooting capability
+- NHS or wider public-sector context
+- a credible mix of technical, communication, and adoption-focused strengths
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a user-focused analytics communicator who can prepare and visualise data, build accessible insight products, and help colleagues across the organisation use analytics confidently in practice. They are technically capable, visually strong, patient with users, and useful because they turn complex population-health insight into products, guidance, and support that drive everyday understanding and action.
