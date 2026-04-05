@@ -1,0 +1,48 @@
+**Esosa Orumwese**
+Payroll Data Analyst | Validation, Reconciliation & Operational Control
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience validating detailed operational data, resolving material discrepancies, and supporting recurring control cycles in high-accuracy environments. Strong in Excel, SQL, Power BI, Tableau, Python, and DAX, with experience producing reconciliation-ready outputs, supporting audit-sensitive review, analysing recurring control issues, and using operational evidence to support process optimisation and next-cycle readiness.
+
+**CORE SKILLS**
+Validation, Reconciliation & Control: Data validation, discrepancy resolution, reconciliation reporting, recurring control cycles, balancing outputs, high-accuracy operational support
+Compliance & Audit Support: Audit-readiness, rule traceability, defensible outputs, review-ready reporting, control-sensitive analysis
+Trend Analysis & Optimisation Support: Repeated-pattern analysis, process optimisation support, operational inefficiency review, targeted recommendation development
+Forward Impact & Readiness: Forward-impact review, readiness support, next-cycle action planning, bounded forecasting support
+Data Analysis & Working Tools: Excel, SQL, Power BI, Tableau, Python, DAX, analytical interpretation, structured reporting outputs
+Stakeholder Support & Communication: Clear explanation of findings, action-focused reporting, operational support, cross-functional collaboration, high-consequence issue handling
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Worked with large, detailed operational data to identify discrepancies, validate outputs, and improve recurring accuracy, fixing a clear control rule and surfacing one material discrepancy class across two retained cycles.
+- Supported cyclical reconciliation reporting by turning a repeated discrepancy into a reconciliation-ready balancing output that kept the authoritative view inside the trusted control range before recurring release.
+- Worked in a compliance- and audit-sensitive control environment, producing review-ready outputs with clear rule traceability, defensible release logic, and bounded audit-support evidence.
+- Conducted trend analysis on recurring operational data to identify repeated issues, showing that the same discrepancy pattern persisted across cycles and supporting one targeted optimisation review rather than broad escalation.
+- Identified inefficiencies in recurring control processes and proposed focused improvement action, translating repeated balancing effort into a clear recommendation to review denominator-alignment and control handoff rules.
+- Used recurring operational evidence to support forward-impact and next-cycle readiness review, showing what should be checked before the next cycle if the same discrepancy condition remained unresolved.
+- Explained outputs clearly in a high-accuracy control environment, turning discrepancy, reconciliation, audit-readiness, and readiness-support findings into practical guidance for review and operational decision-making.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy, speed, and service quality in a high-volume customer operations team under shifting demand and tight turnaround expectations.
+- Follow strict hygiene, food-safety, cash-handling, and operational controls to support reliable day-to-day service and consistent handovers.
+- Support smooth shift execution through dependable teamwork, clear communication, and calm delivery in a busy customer-facing environment.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked with field teams and service partners on completions operations, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
+- Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
+- Documented operational readings, issues, and handovers clearly across crews and supervisors, helping keep cross-team work coordinated under field constraints and time pressure.
