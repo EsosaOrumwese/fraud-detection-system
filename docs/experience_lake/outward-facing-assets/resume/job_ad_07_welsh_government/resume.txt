@@ -36,13 +36,13 @@ Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2
 **Crew Member**
 **Five Guys** — Exeter, UK | Sep 2024 - Present
 
-- Maintain accuracy, speed, and service quality in a high-volume customer operations team under shifting demand and tight turnaround expectations.
-- Follow strict hygiene, food-safety, cash-handling, and operational controls to support reliable day-to-day service and consistent handovers.
-- Support smooth shift execution through dependable teamwork, clear communication, and calm delivery in a busy customer-facing environment.
+- Maintain accuracy, pace, and service quality in a control-heavy operational environment where small mistakes affect cash handling, stock, and customer experience.
+- Follow strict hygiene, till, and shift procedures to support timely, reliable, and repeatable daily operations.
+- Support colleagues through clear handovers and practical problem-solving, helping issues get resolved quickly during busy operating cycles.
 
 **Field Engineer (Trainee)**
 **South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
 
-- Worked with field teams and service partners on completions operations, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
-- Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
-- Documented operational readings, issues, and handovers clearly across crews and supervisors, helping keep cross-team work coordinated under field constraints and time pressure.
+- Worked in a high-consequence operational environment where accurate readings, disciplined procedures, and timely escalation mattered to safe and reliable delivery.
+- Monitored telemetry to identify discrepancies or abnormal conditions early and support corrective action.
+- Documented operational readings and handovers clearly to support review, traceability, and coordinated execution across teams.

@@ -36,13 +36,13 @@ Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2
 **Crew Member**
 **Five Guys** — Exeter, UK | Sep 2024 - Present
 
-- Maintain accuracy, speed, and service quality in a high-volume customer operations team under shifting demand and tight turnaround expectations.
-- Follow strict hygiene, food-safety, cash-handling, and operational controls to support reliable day-to-day service and consistent handovers.
-- Support smooth shift execution through dependable teamwork, clear communication, and calm delivery in a busy customer-facing environment.
+- Work directly with customers in a fast-moving environment, using clear communication and practical problem-solving to keep service understandable and responsive.
+- Follow strict operational and cash-handling controls, supporting reliable outputs in a quality- and compliance-sensitive setting.
+- Support teammates through clear handovers and calm issue resolution, reinforcing a user-focused service experience.
 
 **Field Engineer (Trainee)**
 **South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
 
-- Worked with field teams and service partners on completions operations, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
-- Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
-- Documented operational readings, issues, and handovers clearly across crews and supervisors, helping keep cross-team work coordinated under field constraints and time pressure.
+- Worked across field teams and service partners, combining telemetry readings, site conditions, and operational updates into clear guidance for safe execution.
+- Monitored technical signals to identify risks early and support informed intervention when conditions changed.
+- Documented issues and handovers clearly so different stakeholders could work from the same evidence under pressure.
