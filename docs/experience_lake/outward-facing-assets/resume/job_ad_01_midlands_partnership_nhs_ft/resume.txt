@@ -3,7 +3,7 @@ Data Scientist | Predictive Modelling, AWS ML & Decision Support
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 **PERSONAL SUMMARY**
-Data Scientist with experience developing predictive and statistical models, building reusable analytical datasets and workflows, and turning complex multi-source data into stakeholder-facing decision-support outputs. Strong in SQL, Python, R, Excel, AWS, and SageMaker, with a track record of improving risk identification, embedding data quality controls, and delivering governed, explainable machine learning and Power BI/Tableau-ready reporting outputs for operational decision-making.
+Data Scientist with experience developing predictive and statistical models, building reusable analytical datasets and workflows, and turning complex multi-source data into stakeholder-facing decision-support outputs. Strong in SQL, Python, R, Excel, AWS, and SageMaker, with a track record of improving risk identification, embedding data quality controls, and delivering controlled, explainable machine learning and Power BI/Tableau-ready reporting outputs for operational decision-making.
 
 **CORE SKILLS**
 Predictive & Statistical Modelling: Predictive modelling, statistical modelling, risk stratification, segmentation, forecasting, model evaluation
@@ -18,11 +18,11 @@ Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflow
 **Data Scientist & Analytics Engineer**
 **AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
 
-- Developed predictive and statistical models in SQL and Python over 3.46M governed flow records, concentrating fraud truth into a high-risk band at 6.32% versus a 2.73% overall baseline.
-- Built risk stratification, segmentation, and bounded forecasting models for prioritisation and planning, capturing 41.3% of positives in the top 20.1% of scored flows and delivering daily case-demand forecasts with 7.31% test MAPE.
+- Developed predictive and statistical models in SQL and Python over 3.46M validated operational records, concentrating confirmed fraud outcomes into a high-risk band at 6.32% versus a 2.73% overall baseline.
+- Built risk stratification, segmentation, and short-range forecasting models for prioritisation and planning, capturing 41.3% of positives in the top 20.1% of scored flows and delivering daily case-demand forecasts with 7.31% test MAPE.
 - Designed reusable analytical datasets, pipelines, and transformations that made analysis production-usable, linking event, flow, case, and outcome data into a stable case-centric product across 361,504 cases with zero duplicate rows and zero null critical keys.
 - Embedded validation, reconciliation, anomaly detection, and source-rule controls into analytical workflows, correcting a 35.44 percentage-point yield distortion caused by misuse of a comparison-only outcome surface.
-- Delivered governed and explainable machine learning by separating authoritative truth from comparison fields, selecting a reviewable logistic challenger over a weaker baseline (ROC AUC 0.624 vs 0.515), and setting explicit human-review thresholds.
+- Delivered controlled and explainable machine learning by separating confirmed outcome measures from comparison fields, selecting a reviewable logistic challenger over a weaker baseline (ROC AUC 0.624 vs 0.515), and setting explicit human-review thresholds.
 - Operationalised advanced analytics into dashboard and decision-support products, translating model and pathway outputs into three audience-shaped reporting views over 1.38M scored rows with executive, workflow, and drill-through summaries for non-technical users.
 - Used linked population-level data to identify pathway patterns and service-planning priorities, showing that 80.4% of case-selected workload sat in low-yield cohorts and isolating a high-burden segment driving operational drag.
 

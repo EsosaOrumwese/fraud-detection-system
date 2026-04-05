@@ -18,12 +18,12 @@ Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflow
 **Data Analyst & Analytics Engineer**
 **AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
 
-- Analysed multi-source service data for performance reporting, integrating event, flow, case, and outcome data into a trusted weekly service-line view across 36.9M rows using SQL and BI-ready reporting logic.
+- Analysed multi-source service data for performance reporting, integrating event, workflow, case, and outcome data into a trusted weekly service performance view across 36.9M rows using SQL and BI-ready reporting logic.
 - Owned a recurring service-line reporting cycle, maintaining stable KPI definitions across three reporting views for operations and leadership and regenerating the full weekly pack from controlled inputs in 2.14 seconds.
 - Completed recurring performance reporting using a stable KPI framework for flow pressure, case-open conversion, long-lifecycle burden, and outcome quality, delivering consistent Excel-first, Power BI-ready, and Tableau-ready outputs for service review.
 - Detected and resolved a material reporting discrepancy by tracing a 4.80 percentage-point suspicious-to-case conversion gap to denominator drift and embedding repeatable release checks into the workflow.
 - Tracked performance trends and highlighted service pressure points, showing that topline conversion and burden were broadly stable week to week while the 50_plus segment remained the clearest structural burden issue.
-- Used reporting and analysis to support operational decision-making, identifying that the 50_plus segment had the highest case-open rate at 10.78% but the weakest authoritative quality at 18.23%, supporting targeted queue review rather than broad lane-wide intervention.
+- Used reporting and analysis to support operational decision-making, identifying that the 50_plus segment had the highest case-open rate at 10.78% but the weakest confirmed outcome quality at 18.23%, supporting targeted queue review rather than broader service-wide intervention.
 - Built and tailored decision-support reporting for operations and leadership, translating KPI movement into plain-language briefing packs, stakeholder-ready summaries, and clear follow-up actions.
 - Created and maintained reporting documentation to improve clarity and repeatability, including KPI definition sheets, process maps, stakeholder view matrices, caveat notes, changelogs, and rerun checklists.
 
