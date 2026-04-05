@@ -19,7 +19,7 @@ Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflow
 **AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
 
 - Analysed multi-source service data for performance reporting, integrating event, workflow, case, and outcome data into a trusted weekly service performance view across 36.9M rows using SQL and BI-ready reporting logic.
-- Owned a recurring service-line reporting cycle, maintaining stable KPI definitions across three reporting views for operations and leadership and regenerating the full weekly pack from controlled inputs in 2.14 seconds.
+- Owned a recurring service reporting cycle, maintaining stable KPI definitions across three reporting views for operations and leadership and regenerating the full weekly pack from controlled inputs in 2.14 seconds.
 - Completed recurring performance reporting using a stable KPI framework for service demand, conversion into case work, long-lifecycle burden, and outcome quality, delivering consistent Excel-first, Power BI-ready, and Tableau-ready outputs for service review.
 - Detected and resolved a material reporting discrepancy by tracing a 4.80 percentage-point suspicious-to-case conversion gap to denominator drift and embedding repeatable release checks into the workflow.
 - Tracked performance trends and highlighted service pressure points, showing that topline conversion and burden were broadly stable week to week while the £50+ amount band remained the clearest structural burden issue.

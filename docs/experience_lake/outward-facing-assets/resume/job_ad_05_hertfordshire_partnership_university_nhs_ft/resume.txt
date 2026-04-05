@@ -8,7 +8,7 @@ Data Analyst with experience monitoring, interpreting, and reporting target-styl
 **CORE SKILLS**
 Performance Reporting & Targets: Target monitoring, KPI reporting, performance reporting, shortfall analysis, trend analysis, direction-of-travel reporting, senior performance packs
 Service Improvement Support: Remedial action support, improvement-priority analysis, staged action pathways, performance-led decision support, operational improvement support
-Data Quality & Reporting Validity: Data quality review, reporting validity, target-reference controls, comparator checks, release checks, controlled interpretation of performance information
+Data Quality & Reporting Validity: Data quality review, reporting validity, target controls, comparator checks, release checks, controlled interpretation of performance information
 Data Analysis & Working Tools: Excel, SQL, Power BI, Tableau, Python, DAX, numeracy, analytical interpretation, reporting-ready outputs
 Stakeholder Communication: Senior manager reporting, clear explanation of performance issues, constructive communication of adverse findings, action-focused reporting
 Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows

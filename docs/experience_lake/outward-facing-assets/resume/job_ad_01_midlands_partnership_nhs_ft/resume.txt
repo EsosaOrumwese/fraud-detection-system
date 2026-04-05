@@ -21,10 +21,10 @@ Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflow
 - Developed predictive and statistical models in SQL and Python over 3.46M validated operational records, concentrating confirmed fraud outcomes into a high-risk band at 6.32% versus a 2.73% overall baseline.
 - Built risk stratification, segmentation, and short-range forecasting models for prioritisation and planning, capturing 41.3% of positives in the top 20.1% of scored flows and delivering daily case-demand forecasts with 7.31% test MAPE.
 - Designed reusable analytical datasets, pipelines, and transformations that made analysis production-usable, linking event, flow, case, and outcome data into a stable case-centric product across 361,504 cases with zero duplicate rows and zero null critical keys.
-- Embedded validation, reconciliation, anomaly detection, and source-rule controls into analytical workflows, correcting a 35.44 percentage-point yield distortion caused by misuse of a comparison-only outcome surface.
+- Embedded validation, reconciliation, anomaly detection, and source-rule controls into analytical workflows, correcting a 35.44 percentage-point yield distortion caused by misuse of a non-reporting comparison field.
 - Delivered controlled and explainable machine learning by separating confirmed outcome measures from comparison fields, selecting a reviewable logistic challenger over a weaker baseline (ROC AUC 0.624 vs 0.515), and setting explicit human-review thresholds.
 - Operationalised advanced analytics into dashboard and decision-support products, translating model and pathway outputs into three audience-shaped reporting views over 1.38M scored rows with executive, workflow, and drill-through summaries for non-technical users.
-- Used linked population-level data to identify pathway patterns and service-planning priorities, showing that 80.4% of case-selected workload sat in low-yield cohorts and isolating a high-burden segment driving operational drag.
+- Used linked population-level data to identify pathway patterns and service-planning priorities, showing that 80.4% of reviewed workload sat in low-yield cohorts and isolating a high-burden segment driving operational drag.
 
 **EDUCATION**
 
