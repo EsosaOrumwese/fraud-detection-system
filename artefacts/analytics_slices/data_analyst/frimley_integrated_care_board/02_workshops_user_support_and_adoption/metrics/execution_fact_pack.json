@@ -1,0 +1,17 @@
+{
+  "slice": "frimley_integrated_care_board/02_workshops_user_support_and_adoption",
+  "aligned_reporting_window": "2026-03-01",
+  "reused_product_surfaces": 3,
+  "walkthrough_outputs": 1,
+  "walkthrough_steps": 3,
+  "user_support_outputs": 1,
+  "likely_user_friction_prompts": 3,
+  "adoption_improvement_outputs": 1,
+  "shared_focus_band": "50_plus",
+  "shared_focus_confirming_streams": 3,
+  "shared_focus_case_open_rate_avg": 0.10810377959626553,
+  "shared_focus_truth_quality_avg": 0.18146004572547914,
+  "release_checks_passed": 6,
+  "release_check_count": 6,
+  "regeneration_seconds": 0.12748950000968762
+}
