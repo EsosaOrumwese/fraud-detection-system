@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Data Analyst | Healthcare Reporting, Data Quality & Decision Support
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience producing dependable monthly and ad hoc reporting, maintaining detailed reporting datasets, and turning service data into practical operational insight. Strong in Excel, SQL, Power BI, Tableau, and DAX, with a track record of improving reporting accuracy, validating and reconciling sensitive datasets, identifying trends and risk pockets, and supporting operational teams with clear, usable decision-support outputs.
+
+**CORE SKILLS**
+Healthcare Reporting & Analysis: Monthly reporting, ad hoc reporting, service performance reporting, KPI tracking, operational insight, decision-support analysis
+BI & Working Tools: Excel, SQL, Power BI, Tableau, DAX, dashboard reporting, reporting packs, stakeholder-ready reporting
+Dataset Stewardship & Data Quality: Patient-level dataset maintenance, validation, reconciliation, dataset integrity checks, controlled reporting outputs, data quality assurance
+Trend, Risk & Improvement Support: Trend analysis, risk identification, opportunity scanning, process improvement support, efficiency review support, operational recommendations
+Reporting Controls & Documentation: KPI definitions, reporting notes, rerun checklists, caveat notes, changelogs, repeatable reporting workflows
+Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Produced dependable monthly and ad hoc reports using Excel and SQL for operational and regional teams, delivering one recurring monthly pack and one follow-up output from the same KPI framework with 4/4 release checks.
+- Maintained, validated, and reconciled detailed reporting datasets to keep reporting accurate and trustworthy, controlling a 7,835,199-row dataset at one row per record, passing 5/5 validation checks, and reproducing downstream reporting exactly across 4/4 amount bands.
+- Worked carefully with sensitive, detailed operational data where reporting accuracy affected service delivery, replacing unsafe raw event-level joins with a reporting-safe maintained dataset that preserved protected monthly conversion and confirmed outcome readings.
+- Identified trends, risks, and opportunities in service data by building a three-month comparison across four stable KPI families, confirming the £50+ amount band as the persistent attention area in all three months while ruling out a false whole-service deterioration story.
+- Used reporting and analysis to support process and efficiency improvement, showing that the £50+ amount band carried a burden-minus-yield gap of 1.01 percentage points and supporting targeted review of queue case-opening or escalation rules before broader intervention.
+- Supported operational teams through timely, usable reporting outputs rather than raw extracts, translating monthly movement and focused follow-up findings into clear reporting packs, usage notes, and next-step recommendations.
+- Communicated insights clearly and practically so stakeholders could understand what mattered, distinguishing stable topline performance from concentrated service risk and turning that into operational and regional decision-support briefings.
+- Brought strong attention to detail and problem-solving to a healthcare-style reporting environment, identifying grain mismatch as the main dataset risk and resolving it before it could distort downstream reporting.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy, speed, and service quality in a high-volume customer operations team under shifting demand and tight turnaround expectations.
+- Follow strict hygiene, food-safety, cash-handling, and operational controls to support reliable day-to-day service and consistent handovers.
+- Support smooth shift execution through dependable teamwork, clear communication, and calm delivery in a busy customer-facing environment.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked with field teams and service partners on completions operations, following strict safety and operating procedures to support reliable execution in a safety-critical environment.
+- Monitored downhole pressure and temperature telemetry, using trend analysis to flag anomalies early and support timely escalation and corrective action.
+- Documented operational readings, issues, and handovers clearly across crews and supervisors, helping keep cross-team work coordinated under field constraints and time pressure.
