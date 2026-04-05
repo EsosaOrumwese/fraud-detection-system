@@ -1,9 +1,9 @@
 **Esosa Orumwese**
-Data Scientist | Advanced Analytics, Model Governance & Decision Support
+Data Scientist | Predictive Modelling, Data Quality & Decision Support
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 **PERSONAL SUMMARY**
-Data Scientist with experience developing predictive and statistical models, building reusable analytical datasets and workflows, and turning complex multi-source data into stakeholder-facing decision-support outputs. Strong in SQL, Python, and analytical data shaping, with a track record of improving risk identification, embedding data quality controls, and delivering governed, explainable machine learning and reporting products for operational decision-making.
+Data Scientist with experience developing predictive and statistical models, building reusable analytical datasets and workflows, and turning complex multi-source data into stakeholder-facing decision-support outputs. Strong in SQL, Python, and analytical data shaping, with a track record of improving risk identification, embedding data quality controls, and delivering governed, explainable machine learning and reporting outputs for operational decision-making.
 
 **CORE SKILLS**
 Predictive & Statistical Modelling: Predictive modelling, statistical modelling, risk stratification, segmentation, forecasting, model evaluation
@@ -18,10 +18,9 @@ Cloud & Platform: AWS, cloud-hosted analytical workflows; familiarity with Azure
 **Data Scientist & Analytics Engineer**
 **AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
 
-- Developed predictive and statistical models in SQL and Python over 3.46M governed flow records, concentrating fraud truth into a High risk band at 6.32% versus a 2.73% overall baseline.
+- Developed predictive and statistical models in SQL and Python over 3.46M governed flow records, concentrating fraud truth into a high-risk band at 6.32% versus a 2.73% overall baseline.
 - Built risk stratification, segmentation, and bounded forecasting models for prioritisation and planning, capturing 41.3% of positives in the top 20.1% of scored flows and delivering daily case-demand forecasts with 7.31% test MAPE.
-- Designed reusable analytical datasets, pipelines, and transformations that made analysis production-usable, engineering a case-centric product across 361,504 cases for both model-ready and reporting-ready use with zero duplicate rows and zero null critical keys.
-- Extracted, cleaned, transformed, and linked event, flow, case, and outcome data into canonical analytical bases, enabling stable population, pathway, and KPI analysis across 3,455,613 flows and 361,504 linked cases.
+- Designed reusable analytical datasets, pipelines, and transformations that made analysis production-usable, linking event, flow, case, and outcome data into a stable case-centric product across 361,504 cases with zero duplicate rows and zero null critical keys.
 - Embedded validation, reconciliation, anomaly detection, and source-rule controls into analytical workflows, correcting a 35.44 percentage-point yield distortion caused by misuse of a comparison-only outcome surface.
 - Delivered governed and explainable machine learning by separating authoritative truth from comparison fields, selecting a reviewable logistic challenger over a weaker baseline (ROC AUC 0.624 vs 0.515), and setting explicit human-review thresholds.
 - Operationalised advanced analytics into dashboard and decision-support products, translating model and pathway outputs into three audience-shaped reporting views over 1.38M scored rows with executive, workflow, and drill-through summaries for non-technical users.
@@ -37,7 +36,7 @@ Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2
 **Crew Member**
 **Five Guys** — Exeter, UK | Sep 2024 - Present
 
-- Work in a high-volume customer operations team, maintaining accuracy, speed, and service quality under shifting demand and tight turnaround expectations.
+- Maintain accuracy, speed, and service quality in a high-volume customer operations team under shifting demand and tight turnaround expectations.
 - Follow strict hygiene, food-safety, cash-handling, and operational controls to support reliable day-to-day service and consistent handovers.
 - Support smooth shift execution through dependable teamwork, clear communication, and calm delivery in a busy customer-facing environment.
 
