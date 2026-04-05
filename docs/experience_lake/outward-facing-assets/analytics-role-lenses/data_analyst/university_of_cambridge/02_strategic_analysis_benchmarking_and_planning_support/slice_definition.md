@@ -195,6 +195,7 @@ The default execution stack for this slice is:
 - materialise one internal position output first
 - materialise one comparator-context output second
 - write the strategic comparison and planning-support notes only after those two surfaces are explicit
+- keep the benchmark language explicitly on bounded comparator context and reference positioning rather than named-sector-dataset ownership
 - keep the option language explicitly on review, positioning, and planning support rather than broad institutional decision authority
 - use Python only after inherited compact outputs and compact comparison-ready summaries are already reduced
 
