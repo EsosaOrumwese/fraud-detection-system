@@ -20,12 +20,12 @@ Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflow
 
 - Monitored and reported target-style performance information across a three-month service window, tracking 4 KPI measures against clear baseline and peer references and identifying one persistent shortfall area for focused follow-up.
 - Supported KPI and target management by showing that overall performance remained broadly stable while the £50+ amount band continued to underperform peers, helping direct remedial attention more precisely.
-- Produced high-standard performance reports, trend analysis, and senior-facing summaries, turning current position, recent movement, and required management attention into a concise reporting pack with 6/6 release checks.
+- Produced high-standard performance reports, trend analysis, and senior-facing summaries, turning current position, recent movement, and required management attention into a concise reporting pack with all release checks passed.
 - Worked with complex multi-source operational data to support performance reporting and decision-making, reusing validated monthly outputs to produce consistent target, trend, and action-oriented views.
 - Improved data quality where it affected whether performance information could be trusted, identifying an explicit validity dependency in the shortfall reading and translating it into 3 practical control actions.
 - Connected performance reporting to service improvement by turning a persistent shortfall into one bounded improvement priority and a staged next-step pathway rather than passive reporting.
 - Communicated difficult performance messages constructively, distinguishing stable whole-service performance from concentrated underperformance and supporting targeted review before broader escalation.
-- Helped teams act on performance information by linking shortfall visibility, validity controls, and management actions into one clear performance-support pack with 7/7 release checks.
+- Helped teams act on performance information by linking shortfall visibility, validity controls, and management actions into one clear performance-support pack with all release checks passed.
 
 **EDUCATION**
 

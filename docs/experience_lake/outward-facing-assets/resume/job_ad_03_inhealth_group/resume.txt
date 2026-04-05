@@ -18,8 +18,8 @@ Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflow
 **Data Analyst & Analytics Engineer**
 **AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
 
-- Produced dependable monthly and ad hoc reports using Excel and SQL for operational and regional teams, delivering one recurring monthly pack and one follow-up output from the same KPI framework with 4/4 release checks.
-- Maintained, validated, and reconciled detailed reporting datasets to keep reporting accurate and trustworthy, controlling a 7,835,199-row dataset at one row per record, passing 5/5 validation checks, and reproducing downstream reporting exactly across 4/4 amount bands.
+- Produced dependable monthly and ad hoc reports using Excel and SQL for operational and regional teams, delivering one recurring monthly pack and one follow-up output from the same KPI framework with all release checks passed.
+- Maintained, validated, and reconciled detailed reporting datasets to keep reporting accurate and trustworthy, controlling a 7,835,199-row dataset at one row per record, passing all validation checks, and reproducing downstream reporting exactly across all reporting bands.
 - Worked carefully with sensitive, detailed operational data where reporting accuracy affected service delivery, replacing unsafe raw event-level joins with a reporting-safe maintained dataset that preserved protected monthly conversion and confirmed outcome readings.
 - Identified trends, risks, and opportunities in service data by building a three-month comparison across four stable KPI families, confirming the £50+ amount band as the persistent attention area in all three months while ruling out a false whole-service deterioration story.
 - Used reporting and analysis to support process and efficiency improvement, showing that the £50+ amount band carried a 1.01 percentage-point gap between service burden and confirmed outcomes and supporting targeted review of queue case-opening or escalation rules before broader intervention.
