@@ -8,5 +8,6 @@ Structure:
 
 Working rule:
 - keep resume drafts and tailored resume assets inside the relevant job-ad folder
+- keep recruiter-call capture files inside the relevant job-ad folder as `recruiter_calls.md`
 - keep personal details masked in repo-stored copies
 - use these folders for recruiter-facing resume material, not for the deeper slice evidence docs
