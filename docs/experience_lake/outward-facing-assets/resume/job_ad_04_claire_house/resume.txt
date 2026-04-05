@@ -18,15 +18,13 @@ Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflow
 **Data Analyst & Analytics Engineer**
 **AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
 
-- Collected, organised, analysed, and interpreted data from multiple internal sources to produce trusted organisational insight, using SQL, Excel, Power BI, Python, and Power Query M to shape controlled reporting outputs from validated source data and clear field definitions.
-- Built scheduled and ad hoc reports, dashboards, and visualisations from a shared KPI framework, producing consistent summary and follow-up views from the same validated reporting base with all release checks passed.
-- Produced senior leadership and external-style oversight reporting from the same trusted reporting base, turning validated KPI outputs into concise decision-support views for higher-accountability audiences with all release checks passed before issue.
-- Worked across reporting and the underlying data layer by maintaining reusable reporting structures, shared calculations, and transformation logic that supported summary reporting, follow-up analysis, leadership packs, and external-style oversight outputs while reducing duplication through one reusable reporting layer.
+- Collected, organised, analysed, and interpreted data from multiple internal sources to produce trusted organisational insight, using SQL, Excel, Power BI, Python, and Power Query M to shape reusable reporting structures, shared calculations, and controlled outputs from validated source data.
+- Built scheduled and ad hoc reports, dashboards, and visualisations from a shared KPI framework, producing consistent summary and follow-up views for different organisational users.
+- Produced concise senior leadership and external-style oversight reporting from the same validated reporting base, turning organisational data into decision-support outputs for internal and external use.
 - Monitored, audited, and improved data quality by running 19 quality checks across 3 control areas, consolidating findings into one repeatable review pack, and producing 3 practical recommendations to strengthen reporting integrity and support bounded governance review.
 - Identified opportunities to improve efficiency and automation by replacing repeated report assembly with one reusable reporting workflow that reproduced 4 reporting and audience-ready outputs with all repeatability checks passed.
-- Gathered and translated stakeholder requirements into usable outputs for different audiences, shaping concise operational, leadership, and external-style reporting from the same underlying data with clear audience notes, caveats, and release controls.
-- Supported confidentiality-aware handling and bounded governance review by keeping reporting outputs tied to controlled inputs, documented checks, and explicit caveat and release notes.
-- Worked across a systems-facing handoff by checking the boundary between reporting-ready data and downstream output generation, helping keep dependent reporting outputs aligned and reliable with all interface checks passed.
+- Gathered and translated stakeholder requirements into usable outputs for different audiences, shaping concise operational, leadership, and external-style reporting with clear audience notes, caveats, and release controls.
+- Worked across a systems-facing handoff while supporting confidentiality-aware handling and bounded governance review, keeping reporting outputs tied to controlled inputs, documented checks, and reliable downstream use.
 
 **EDUCATION**
 
@@ -39,12 +37,10 @@ Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2
 **Five Guys** — Exeter, UK | Sep 2024 - Present
 
 - Maintain reliable front-line service in a busy customer environment, adapting quickly to different user needs while keeping standards and communication clear.
-- Follow strict operational controls and record-sensitive routines, reinforcing disciplined handling of high-volume day-to-day work.
-- Support teammates through practical guidance, clear communication, and smooth handovers in a fast-moving setting.
+- Support teammates through practical guidance, clear communication, and smooth handovers in a fast-moving setting while following strict operational controls.
 
 **Field Engineer (Trainee)**
 **South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
 
 - Worked with field teams and service partners where clear documentation, compliance with operating procedures, and cross-team coordination were essential.
-- Monitored operational telemetry and flagged issues early, supporting timely troubleshooting and safe execution.
-- Prepared clear readings and handovers for different stakeholders, helping keep multi-team work aligned under pressure.
+- Monitored operational telemetry and prepared clear readings and handovers for different stakeholders, supporting timely troubleshooting and aligned execution under pressure.
