@@ -1636,3 +1636,191 @@ This posting is a strong workforce-intelligence and `EDI` analytics role centred
 - strategy contribution around workforce systems and information
 
 It is a useful evidence point because it shows a senior analyst role where the employer is looking for more than reporting production. They want someone who can combine workforce analytics, statutory and intersectional reporting, governance discipline, project delivery, system-aware reporting development, and stakeholder-facing interpretation in a high-accountability NHS setting.
+
+---
+
+## Data Analyst - South Tyneside and Sunderland NHS Foundation Trust
+
+Source:
+- `NHS Jobs Beta` - <https://beta.jobs.nhs.uk/candidate/jobadvert/C9155-CRAC-0426-16>
+
+Role family:
+- `Data Analytics`
+- NHS business intelligence / operational reporting / reporting-platform adoption
+- service-facing BI role with data-warehouse, dashboard, anomaly-resolution, and decision-support responsibilities
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Data Analyst` position within the `Business Intelligence` team in the Directorate of `Performance and Information Management`. The role is described as helping transform how the Trust uses data by developing high-quality reports, dashboards, and analytical products that support patient care and operational improvement.
+
+The employer also places explicit emphasis on the strategic reporting platform and the Trust data warehouse. The postholder is expected to support the development and adoption of the reporting platform as the primary and reliable source of management information, while also contributing to the design, processing, and maintenance of requirements relevant to defined reporting areas.
+
+This is therefore not just a dashboard-production role. It is a business-intelligence role tied to platform adoption, management-information trust, data-quality resolution, and operational decision support across a wide range of clinical and corporate services.
+
+### Responsibilities Evidence
+
+#### 1. Reporting, dashboards, datasets, and analytical-product delivery
+
+- Provide an efficient, effective, and timely reporting service.
+- Provide an efficient, effective, and timely data-processing service.
+- Provide an efficient, effective, and timely visualisation service.
+- Provide information in the form of reports, dashboards, and datasets as appropriate.
+- Ensure outputs meet the requirements of service users internally and externally.
+- Support Trust services by developing high-quality reporting solutions.
+- Design information systems, reports, dashboards, and datasets.
+- Develop information systems, reports, dashboards, and datasets.
+- Maintain information systems, reports, dashboards, and datasets.
+- Produce reports, presentation materials, and graphical data-analysis materials.
+
+#### 2. Strategic reporting platform and data-warehouse support
+
+- Support the development of the Trust data warehouse.
+- Support the promotion of the Trust data warehouse.
+- Support the development of strategic reporting mechanisms.
+- Support the development and promotion of the strategic reporting platform.
+- Promote use of the strategic reporting platform as the main information source throughout the Trust.
+- Ensure best use of management information.
+- Support operational data flows and dashboard data flows.
+- Carry out effective design, documentation, communication, development, implementation, processing, and maintenance of requirements relevant to specific reporting areas.
+
+#### 3. Data extraction, analysis, anomaly investigation, and analytical judgement
+
+- Handle complex statistical and analytical queries.
+- Investigate whether analyses are robust.
+- Investigate data anomalies identified during analysis.
+- Instigate corrective action as required.
+- Manipulate and analyse data using spreadsheets and other analytical tools.
+- Apply a range of techniques to transform data into valid and purposeful information.
+- Reverse-engineer existing analyses and replicate the method and results.
+- Understand business context and how analytical results will be perceived.
+- Participate in discussions determining which performance measures are appropriate.
+- Turn business needs and goals into performance measures.
+
+#### 4. Data quality, governance, and information-resource discipline
+
+- Validate data quality.
+- Resolve anomalies.
+- Review and update analysis-production methods and documentation following changes to data, processing, or requirements.
+- Employ quality-assurance techniques to ensure the validity of results.
+- Follow and contribute to practices and procedures describing the production of regular analyses and reports.
+- Understand stringent data-governance requirements in healthcare environments.
+- Follow all data-security procedures as directed locally and nationally.
+- Extract data from multiple sources and identify whether it is accurate and fit for purpose.
+- Identify a broad range of data-quality issues.
+- Perform data cleansing and consistency checks.
+- Understand limitations of the human and digital systems from which data arises.
+- Identify problems arising from databases and processes and seek remedies and preventative measures.
+- Plan ahead for further iterations of analysis.
+- Apply data-governance requirements and anonymisation protocols.
+- Comply with the procedure for handling `Freedom of Information` requests in a timely, specific, and confidential manner.
+
+#### 5. Stakeholder engagement, communication, and service improvement
+
+- Collaborate with services across the organisation.
+- Promote effective use of information across departments.
+- Work with staff at all levels including directors, managers, administrators, and clinicians.
+- Liaise with internal and external stakeholders.
+- Deal with a range of queries relating to the BI service, including detailed requirements and delivery for defined areas.
+- Ensure effective communications and relationships within `Performance & Information Management` and across the Trust.
+- Attend team, directorate, and departmental meetings where required.
+- Communicate complex analysis to non-analytical professionals.
+- Communicate ideas and gather user information requirements.
+- Advise, encourage, and develop awareness of `IM&T` issues within relevant services, divisions, and departments.
+- Spend time with the customer to understand what will add value to their requirement.
+- Offer alternative suggestions that would benefit the customer.
+- Provide general non-clinical advice, guidance, or information to divisions and directorates relating to optimising patient care.
+
+#### 6. Planning, organisation, and delivery posture
+
+- Work on own initiative.
+- Respond to and manage competing pressures and deadlines.
+- Maintain a methodical and process-orientated approach.
+- Maintain a high standard of work.
+- Initiate work with others in the team to bring about a generally agreed outcome.
+- Influence the direction of activity by shaping consensus of opinion.
+- Structure reasoned arguments to influence decisions of others.
+- Negotiate simple exchanges to achieve specific results.
+- Optimise the use of technology within service provision.
+
+#### 7. Training, mentorship, research awareness, and professional development
+
+- Facilitate the development of new and less experienced staff as part of directorate induction where required.
+- Provide support such as mentorship, buddying, peer review, technical demonstration, and training to other staff where required.
+- Promote research awareness by disseminating relevant evidence-based findings.
+- Identify and complete tasks within field of expertise while documenting competence and learning in a professional body of work.
+- Seek development opportunities individually and as a team.
+- Share knowledge with peers.
+- Build people skills into daily work.
+- Maintain personal professional competency and development.
+
+### Person Specification Evidence
+
+Note:
+- the assessment legend stated in the person specification is:
+- `A = Application Form`
+- `I = Interview`
+- `HS = Health Screening`
+- `P = Portfolio`
+- `C = Certificate/Other Documents`
+- `R = References`
+
+#### 1. Qualifications
+
+- Experience of working in a data role and/or Degree or Health Information Qualification. Essential. Assessment: `A/I/C`
+- Evidence of ongoing personal development. Essential. Assessment: `A/I/C`
+- Project management qualification. Desirable. Assessment: `A/I/C`
+
+#### 2. Experience
+
+- Experience of working in a data or information-management setting. Essential. Assessment: `A/I/P/R`
+- Proven experience in the extraction, analysis, and presentation of data using industry-standard products. Essential. Assessment: `A/I/P/R`
+- Experience of developing information systems. Essential. Assessment: `A/I/P/R`
+- Experience of communicating ideas and gathering user information requirements. Essential. Assessment: `A/I/P/R`
+- Experience of producing reports, graphs, and presentation materials for management. Essential. Assessment: `A/I/P/R`
+- Experience of Microsoft Office applications. Essential. Assessment: `A/I/P/R`
+- Experience of working in an NHS organisation. Desirable. Assessment: `A/I/P/R`
+- Line-management, supervisory, or mentoring experience. Desirable. Assessment: `A/I/P/R`
+- Experience of clinical patient administration systems. Desirable. Assessment: `A/I/P/R`
+- Experience of developing reports using `SQL` and `SSRS`. Desirable. Assessment: `A/I/P/R`
+- Experience of developing reports and analysing data using `Power BI`. Desirable. Assessment: `A/I/P/R`
+
+#### 3. Skills and knowledge
+
+- Data-analysis skills and knowledge of statistical principles. Essential. Assessment: `A/I/P`
+- Understanding of `IM&T Security` and `Data Protection`. Essential. Assessment: `A/I/P`
+- Understanding of data-administration best practice. Essential. Assessment: `A/I/P`
+- Strong communication and interpersonal skills and ability to communicate complex analysis to non-analytical professionals. Essential. Assessment: `A/I/P`
+- Proven ability to communicate effectively at all levels. Essential. Assessment: `A/I/P`
+- Ability to work collaboratively and foster positive relationships as part of a team. Essential. Assessment: `A/I/P`
+- Organised and structured approach, with the ability to maintain documentation to ensure timely delivery of objectives. Essential. Assessment: `A/I/P`
+- Ability to maintain a high standard of work. Essential. Assessment: `A/I/P`
+- Ability to work on own initiative and respond to and manage competing pressures and deadlines. Essential. Assessment: `A/I/P`
+- Problem-solving abilities. Essential. Assessment: `A/I/P`
+- Flexible and proactive approach. Essential. Assessment: `A/I/P`
+- `Power BI` and `SSRS` report development. Desirable. Assessment: `A/I/P`
+
+#### 4. Physical skills
+
+- Ability to sit at workstation and use PC, laptop, and `VDU` equipment for extended periods of time. Essential. Assessment: `A/I/P`
+- Moving and handling best practice relating to sitting at a workstation. Essential. Assessment: `A/I/P`
+- Requirement to concentrate for long periods on specific tasks in order to meet deadlines. Essential. Assessment: `A/I/P`
+
+### Additional Process and Environment Evidence
+
+- Two posts are available: one permanent and one fixed term.
+- Hybrid / agile working model between `Sunderland Royal Hospital` and home.
+- Recruitment pack emphasises the Trust's high digital maturity and digital transformation achievements, including `HIMSS Level 7` and plans around `MEDITECH Expanse`.
+- Trust context includes a strong digital and data strategy, research and innovation emphasis, and a culture built around `Compassion`, `Teamwork`, `Honesty`, and `Respect`.
+
+### Hiring Signal Summary
+
+This posting is a strong NHS business-intelligence role centred on:
+- reporting and dashboard delivery across defined service areas
+- support for the Trust data warehouse and strategic reporting platform
+- complex-query handling, anomaly investigation, and corrective action
+- governance-aware data extraction, validation, and cleansing
+- translation of analysis into management information and decision support
+- user-requirement gathering, service-facing communication, and adoption of trusted information products
+- mentoring and support for less experienced staff
+
+It is a useful evidence point because it shows a `Data Analyst` role that sits between operational reporting, BI platform adoption, data-quality assurance, and service-facing analytical support. The employer is looking for someone who can help make the reporting platform the trusted organisational source while also answering complex analytical questions and improving how information is used across the Trust.

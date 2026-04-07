@@ -1699,3 +1699,154 @@ The strongest-fit candidate would likely go beyond generic analyst claims and sh
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a senior workforce-intelligence analyst who can deliver accurate and governed `EDI` and workforce reporting, manage statutory and dashboard outputs, improve data quality, coordinate projects, and turn sensitive workforce information into useful intelligence for senior and operational stakeholders. They are systems-aware, governance-conscious, methodical, and useful because they help the Trust turn workforce data into reliable compliance, insight, and strategic action.
+
+---
+
+## Ideal Candidate Profile - Data Analyst - South Tyneside and Sunderland NHS Foundation Trust
+
+Source role:
+- `Data Analyst`
+- `South Tyneside and Sunderland NHS Foundation Trust`
+- <https://beta.jobs.nhs.uk/candidate/jobadvert/C9155-CRAC-0426-16>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a narrow report runner and not a purely technical data developer detached from service users. The employer is looking for a business-intelligence analyst who can build and support high-quality reporting products, help drive adoption of the Trust's strategic reporting platform, investigate complex data issues, and work closely with services to ensure information is both trusted and useful.
+
+This person would likely present as someone who is comfortable moving between:
+- report and dashboard development
+- data extraction and manipulation
+- anomaly investigation and corrective action
+- reporting-platform and data-warehouse support
+- stakeholder requirement gathering
+- governance-aware information delivery
+- management-information interpretation for operational and strategic use
+
+They would sound like someone who can make business-intelligence outputs accurate, service-relevant, and dependable enough to support decision-making across a digitally mature NHS environment.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in a BI, information-management, or reporting role where complex data, operational deadlines, and stakeholder trust all matter. Their story would show that they can develop reporting solutions, design and maintain datasets and dashboards, investigate anomalies, gather user requirements, and support the use of a strategic reporting platform as the reliable organisational source of management information.
+
+They would likely have experience that sounds like this:
+- producing reports, graphs, dashboards, and presentation materials for management
+- extracting, analysing, and presenting data using standard analytical tools
+- developing or supporting information systems
+- handling complex queries and investigating data issues
+- gathering user requirements and tailoring outputs to service needs
+- supporting data quality, governance, and documentation in a healthcare or similarly controlled environment
+- mentoring or supporting less experienced colleagues where needed
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants reporting and dashboard development capability
+
+The ideal candidate would sound like someone who can build and maintain reporting solutions that services genuinely use. They would likely show that they can design reports, dashboards, and datasets that meet internal and external requirements while remaining clear and decision-relevant.
+
+The candidate's evidence would likely include:
+- designing and developing reports and dashboards
+- maintaining existing reporting outputs and datasets
+- producing graphs, presentation materials, and management-information products
+- tailoring outputs to service-user needs
+
+#### B. If the employer wants strategic reporting-platform and data-warehouse support
+
+The ideal candidate would not only build isolated outputs. They would also show that they can support a wider reporting ecosystem by helping promote and develop the strategic reporting platform and the Trust data warehouse.
+
+The candidate's evidence would likely include:
+- supporting data-warehouse or reporting-platform development
+- promoting use of a trusted reporting environment as the main information source
+- contributing to operational and dashboard data flows
+- documenting and maintaining reporting requirements and processes
+
+#### C. If the employer wants strong analytical judgement and anomaly resolution
+
+The ideal candidate would sound like someone who can deal with more than straightforward reporting requests. They would likely show they can assess the robustness of analysis, investigate anomalies, and take corrective action where required.
+
+The candidate's evidence would likely include:
+- handling complex analytical or statistical queries
+- investigating anomalies in datasets or outputs
+- validating whether analyses are robust
+- applying corrective action and preventative thinking
+- turning raw data into valid and purposeful information
+
+#### D. If the employer wants strong data quality and governance discipline
+
+The ideal candidate would sound like someone who treats data governance and data quality as part of the reporting job. They would likely show that they can extract data from multiple sources, assess whether it is fit for purpose, and maintain secure, valid outputs in a healthcare setting.
+
+The candidate's evidence would likely include:
+- identifying data-quality issues
+- carrying out cleansing and consistency checks
+- understanding limitations of source systems and processes
+- applying data-protection, anonymisation, and security requirements
+- updating methods and documentation when requirements or data change
+
+#### E. If the employer wants service-facing requirement gathering and communication
+
+The ideal candidate would sound like someone who does not work in isolation from the business. They would likely show that they can communicate ideas clearly, gather user requirements, and explain complex analysis to non-analytical professionals.
+
+The candidate's evidence would likely include:
+- gathering user information requirements
+- communicating with directors, managers, clinicians, and administrators
+- explaining complex analytical outputs clearly
+- understanding what will add value to a customer's requirement
+- offering alternative, more useful reporting or analysis options
+
+#### F. If the employer wants information-systems development and technology optimisation
+
+The ideal candidate would sound like someone who can improve the way reporting and analytical services are delivered, not just operate within current arrangements. They would likely show that they can support initiatives, improve methods, and make better use of tools such as `SQL`, `Power BI`, `SSRS`, spreadsheets, and related systems.
+
+The candidate's evidence would likely include:
+- developing or facilitating development of information systems
+- optimising use of technology within service provision
+- choosing the most appropriate tool for the task
+- keeping up with new tools and techniques
+- improving production methods and documentation
+
+#### G. If the employer wants teamwork, support, and development contribution
+
+The ideal candidate would not need to be a formal manager, but would likely show that they can support less experienced staff, contribute positively to the team, and share knowledge where needed.
+
+The candidate's evidence would likely include:
+- peer review, mentoring, buddying, or technical demonstration
+- supporting directorate induction
+- collaborating across analytical and operational teams
+- sharing knowledge and promoting development opportunities
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can design, develop, and maintain reports, dashboards, and analytical datasets that support operational and strategic decision-making in a complex healthcare environment.
+- I am comfortable handling complex analytical queries, investigating anomalies, and taking corrective action to ensure outputs are robust, accurate, and fit for use.
+- I can work across `SQL`, `Power BI`, `SSRS`, spreadsheets, and related reporting tools to turn raw data into trusted management information products.
+- I understand how to support and promote a strategic reporting platform and data-warehouse environment so that services use a consistent and reliable source of information.
+- I treat data quality, governance, documentation, and security as part of the analytical job rather than afterthoughts.
+- I can work closely with stakeholders to gather requirements, explain complex analysis clearly, and help services get more value from information and technology.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is broad, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- strong reporting, dashboard, and management-information capability
+- solid analytical judgement and anomaly-resolution skill
+- comfort with data quality, documentation, and governance in a healthcare setting
+- ability to gather requirements and communicate with non-analytical professionals
+- confidence working with reporting systems, structured data, and platform-style information environments
+- independence, organisation, and ability to manage competing deadlines
+- willingness to support wider team capability and collaborate across functions
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- direct NHS business-intelligence or information-management experience
+- experience supporting a data warehouse or strategic reporting platform
+- strong `SQL`, `SSRS`, `Power BI`, and Excel capability
+- proven anomaly investigation and corrective-action work
+- user-requirement gathering and service-facing analytical support
+- mentoring, peer-support, or induction involvement
+- appreciation of how BI outputs support patient care, operational improvement, and organisational planning
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a service-facing business-intelligence analyst who can build trusted reports and dashboards, support the data-warehouse and reporting-platform environment, investigate complex data issues, and help teams across the Trust use information more effectively. They are analytical, methodical, governance-aware, and useful because they turn complex operational data into dependable management information and practical service insight.
