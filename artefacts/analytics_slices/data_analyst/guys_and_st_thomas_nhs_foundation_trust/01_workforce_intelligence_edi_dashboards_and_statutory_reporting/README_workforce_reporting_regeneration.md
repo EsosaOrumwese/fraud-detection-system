@@ -1,0 +1,8 @@
+
+# Workforce Reporting Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_analyst/guys_and_st_thomas_nhs_foundation_trust/01_workforce_intelligence_edi_dashboards_and_statutory_reporting/models/build_workforce_intelligence_edi_dashboards_and_statutory_reporting.py
+```
