@@ -1551,3 +1551,151 @@ The strongest-fit candidate would likely go beyond generic analyst claims and sh
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a research-capable analyst who can handle complex institutional data, conduct mixed-method analysis, benchmark externally, evaluate interventions, and translate findings into strategic and service-improvement insight. They are methodologically robust, clear in communication, governance-aware, and useful because they help the University make better evidence-based decisions while strengthening data capability across teams.
+
+---
+
+## Ideal Candidate Profile - Senior Data Analyst - Guy's and St Thomas' NHS Foundation Trust
+
+Source role:
+- `Senior Data Analyst`
+- `Guy's and St Thomas' NHS Foundation Trust`
+- <https://beta.jobs.nhs.uk/candidate/jobadvert/C9196-26-0418>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a general-purpose BI analyst and not a narrow HR systems specialist who only runs routine reports. The employer is looking for a senior workforce-intelligence analyst who can operate across `EDI`, workforce systems, statutory reporting, project delivery, data quality, and governance in order to build a credible people-intelligence picture for the Trust.
+
+This person would likely present as someone who is comfortable moving between:
+- workforce reporting and management information
+- `EDI` dashboard delivery
+- statutory returns and compliance reporting
+- project co-ordination and impact measurement
+- governance-aware handling of sensitive workforce data
+- benchmarking and external context analysis
+- system-aware reporting development across `ESR`, `Oracle HRMS`, and related interfaces
+
+They would sound like someone who can make workforce analytics operationally dependable, strategically useful, and safe to use in a high-accountability NHS environment.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in workforce intelligence, HR systems reporting, or high-accountability organisational analytics where data accuracy, timeliness, governance, and stakeholder trust matter every day. Their story would show that they can produce and interpret workforce information, manage statutory and board-facing outputs, coordinate projects, improve data quality, and work across systems and stakeholders to strengthen reporting and decision-making.
+
+They would likely have experience that sounds like this:
+- producing and quality-checking regular and ad hoc workforce reports
+- building and maintaining dashboards and management-information products for end users
+- handling statutory reporting sets or similarly regulated reporting obligations
+- using systems such as `ESR`, `Oracle HRMS`, or equivalent workforce-information platforms
+- improving workforce data quality, compliance monitoring, and reporting processes
+- planning and coordinating projects tied to workforce intelligence, data quality, or system improvement
+- benchmarking internal data against external organisations or sector standards
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants workforce-intelligence reporting leadership
+
+The ideal candidate would sound like someone who has owned the delivery of accurate and timely workforce information rather than simply contributing pieces of analysis on request. They would likely show accountability for quality, timetable management, and stakeholder usability.
+
+The candidate's evidence would likely include:
+- managing regular and ad hoc workforce reporting
+- preparing board-facing or senior-forum information
+- assessing stakeholder requirements and choosing suitable output formats
+- identifying trends and issues in workforce data for further investigation
+
+#### B. If the employer wants EDI dashboard and statutory reporting capability
+
+The ideal candidate would sound like someone who can combine dashboard design with regulated reporting discipline. They would likely show that they can maintain `EDI` dashboards while also managing statutory return cycles and ensuring reporting is accurate, timely, and contextually useful.
+
+The candidate's evidence would likely include:
+- creating and maintaining `EDI` dashboards
+- supporting communication of hard and soft `EDI` targets
+- delivering statutory returns such as `WRES`, `WDES`, and `Gender Pay Gap`
+- supporting intersectional and accessible people-intelligence outputs
+
+#### C. If the employer wants strong workforce-systems and report-development capability
+
+The ideal candidate would not sound visual-only. They would also show strong systems and reporting-tool competence, especially in workforce-information environments.
+
+The candidate's evidence would likely include:
+- using `ESR`, `Oracle HRMS`, or equivalent systems confidently
+- designing, developing, and running `Discoverer` reports
+- understanding interfaces between workforce systems
+- maintaining knowledge of current and emerging reporting technologies
+
+#### D. If the employer wants project management and impact measurement
+
+The ideal candidate would sound like someone who can manage projects as well as reports. Their evidence would likely show planning, coordination, risk tracking, and impact measurement rather than only analytical production.
+
+The candidate's evidence would likely include:
+- coordinating or managing workforce-information projects
+- using project tools and methods such as initiation documents, risk registers, and highlight reports
+- measuring impact of programmes of work
+- managing major reporting cycles as distinct projects
+
+#### E. If the employer wants data quality ownership and governance discipline
+
+The ideal candidate would sound like someone who treats data quality and information governance as part of the analytical job. They would show that they can identify quality issues, investigate causes, propose solutions, and control the release of sensitive workforce information appropriately.
+
+The candidate's evidence would likely include:
+- identifying data quality issues and underlying reasons
+- proposing and implementing improvements
+- quality-checking information before release
+- handling sensitive information in line with governance rules
+- developing compliance and KPI monitoring outputs
+
+#### F. If the employer wants benchmarking and wider contextual analysis
+
+The ideal candidate would sound like someone who can put Trust data into context rather than reporting it in isolation. They would likely show that they can benchmark against other Trusts or sectors and use external research to strengthen interpretation.
+
+The candidate's evidence would likely include:
+- carrying out benchmarking exercises
+- using external research and analysis to contextualise findings
+- interpreting internal data against wider sector expectations
+- using comparative evidence to support recommendations
+
+#### G. If the employer wants strategy contribution and systems improvement
+
+The ideal candidate would sound like someone who helps shape how workforce information is delivered over time, not just how this month's reports are produced. They would likely show that they can investigate improvements, support systems teams, and contribute to wider strategy around workforce systems and information.
+
+The candidate's evidence would likely include:
+- contributing to strategy around workforce systems and information
+- investigating more efficient or innovative delivery approaches
+- supporting automation, new platforms, or improved forms and workflows
+- contributing to super-user or cross-functional improvement groups
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can lead the delivery of accurate, timely, and user-friendly workforce intelligence in a high-accountability NHS environment.
+- I have experience building and maintaining `EDI` and workforce dashboards, statutory reports, and management-information products that support decision-making and compliance.
+- I can work confidently across workforce systems such as `ESR` or `Oracle HRMS`, reporting tools such as `Discoverer`, and large reporting datasets to produce reliable end-user outputs.
+- I treat data quality and governance as part of the analytical job, and I can identify issues, improve controls, and ensure sensitive workforce information is released appropriately.
+- I can plan and coordinate workforce-intelligence projects, manage reporting cycles as projects, and measure the impact of programmes of work.
+- I can benchmark, contextualise, and present workforce information in ways that help senior stakeholders understand issues, priorities, and action choices.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the role title is broad, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- strong workforce-reporting and management-information capability
+- confidence with `ESR`, `Oracle HRMS`, `Discoverer`, or equivalent workforce-information systems
+- ability to deliver statutory and board-facing outputs accurately and on time
+- high comfort with sensitive-data governance and data-quality control
+- project-planning and coordination ability
+- strong communication and customer-facing interpretation skill
+- enough NHS or similar organisational maturity to operate in a complex, policy- and governance-heavy environment
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- direct workforce-intelligence or HR analytics experience
+- hands-on `EDI` reporting and dashboard work
+- statutory reporting experience such as `WRES`, `WDES`, or `Gender Pay Gap`
+- advanced `ESR` / `Oracle HRMS` / `Discoverer` capability
+- compliance monitoring and governance-reporting design
+- benchmarking work across organisations or sectors
+- project ownership in workforce planning, data quality, or systems-improvement contexts
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a senior workforce-intelligence analyst who can deliver accurate and governed `EDI` and workforce reporting, manage statutory and dashboard outputs, improve data quality, coordinate projects, and turn sensitive workforce information into useful intelligence for senior and operational stakeholders. They are systems-aware, governance-conscious, methodical, and useful because they help the Trust turn workforce data into reliable compliance, insight, and strategic action.

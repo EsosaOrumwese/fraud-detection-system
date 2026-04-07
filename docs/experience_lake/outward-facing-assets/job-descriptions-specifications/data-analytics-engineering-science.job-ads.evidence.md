@@ -1461,3 +1461,178 @@ This posting is a strong hybrid `research + data analysis + evaluation` role cen
 - careful institutional data governance, including `GDPR` and `FOI`
 
 It is a useful evidence point because it shows a role that is not just operational analytics and not just BI delivery. The employer is looking for someone who can combine quantitative and qualitative research, large-dataset analysis, benchmarking, evaluation, stakeholder translation, and capability-building in a high-accountability university setting.
+
+---
+
+## Senior Data Analyst - Guy's and St Thomas' NHS Foundation Trust
+
+Source:
+- `NHS Jobs Beta` - <https://beta.jobs.nhs.uk/candidate/jobadvert/C9196-26-0418>
+
+Role family:
+- `Senior Data Analytics`
+- workforce intelligence / EDI / NHS reporting and governance
+- project-linked workforce analytics role with statutory reporting, dashboard ownership, benchmarking, and data-quality improvement responsibilities
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Senior Data Analyst` position sitting across the `Equality, Diversity and Inclusion` team and the `Workforce Systems & Intelligence Team`. The stated purpose is to help deliver the Trust's `EDI` ambitions by building a workforce data and intelligence picture and supporting the overall strategy.
+
+The role is explicitly split into two major strands. The first is the co-ordination, collation, management, and analytical interpretation of timely and accurate workforce intelligence relating to equality, diversity, and inclusion for internal and external customers. The second is the co-ordination and management of projects related to `EDI`, wider workforce intelligence, and data quality, including the development of compliance monitoring systems aligned to equality and diversity metrics.
+
+This is therefore not a generic reporting analyst role. It is a workforce-intelligence role tied to `EDI` strategy, statutory reporting, project delivery, governance, and system improvement.
+
+### Responsibilities Evidence
+
+#### 1. Workforce reporting, intelligence delivery, and board support
+
+- Lead the accurate, timely, and intuitive provision of equality, diversity, and inclusion workforce data and information across the Trust.
+- Manage the accurate and timely delivery of regular reports.
+- Manage the accurate and timely delivery of ad hoc reports.
+- Manage `FOI`-related reporting requests.
+- Actively manage the preparation and delivery of regular internal reports such as `Data Matrix`.
+- Actively manage the preparation and delivery of regular external reports such as `WRES` and `WDES`.
+- Ensure a high level of accuracy across internal and external reporting.
+- Assess customer requirements through discussion.
+- Suggest the most appropriate data and presentation formats to meet customer needs.
+- Prepare and provide data and analysis for forums including Boards.
+- Cover workforce topics including recruitment, disciplinary, progression, turnover, and staff-in-post information by protected characteristics.
+- Interrogate and analyse data and present it qualitatively and quantitatively.
+- Identify trends, issues, and areas of interest in workforce data for further investigation.
+- Progress findings in line with departmental and Trust requirements.
+- Present information in user-friendly and easy-to-understand formats that support decision-making.
+- Support the development of reports and data for workforce planning and other strategic initiatives.
+- Maintain knowledge of current and potential information sources inside and outside the Trust, including systems such as `Bank system` and external sources such as `NHS iView`.
+
+#### 2. EDI dashboards, statutory returns, and people-intelligence products
+
+- Lead on the creation of `EDI` dashboards.
+- Lead on the maintenance of `EDI` dashboards.
+- Support the measuring and effective communication of hard and soft `EDI` targets.
+- Ensure timely and accurate statutory returns such as `WRES`, `WDES`, and `Gender Pay Gap` reporting.
+- Support the vision for accessible intersectional data and people intelligence.
+- Develop `Discoverer` reports for the team and other Trust users.
+- Collate and document feedback, issues, and comments from users and managers.
+- Use feedback to investigate and develop suggestions for future workforce-information reporting.
+- Keep abreast of new technology and developments around workforce information and reporting.
+- Maintain knowledge of systems interfacing with `ESR`, such as the `Bank system`.
+
+#### 3. Projects, planning, and impact measurement
+
+- Support the Associate Director of `EDI` in co-ordinating projects relating to workforce information and `ESR`.
+- Establish and measure the impact of programmes of work.
+- Plan defined projects from initiation through to completion.
+- Manage defined projects from initiation through to completion.
+- Implement defined projects, especially projects related to workforce intelligence such as workforce planning and data-quality improvement.
+- Carry out resource analysis for projects and major work within the team.
+- Use `Prince 2` tools and methods where appropriate.
+- Use project initiation documents, risk registers, and highlight reports where appropriate.
+- Provide project expertise, support, and co-ordination to analysts in the team.
+- Manage major external information returns or internal reports such as `WRES`, `WDES`, and `Gender Pay report` as distinct projects.
+- Ensure accurate and timely delivery of those projects and produce progress updates for senior stakeholders.
+
+#### 4. Data quality, information governance, and compliance monitoring
+
+- Ensure workforce information is processed and distributed in accordance with Trust and departmental policies.
+- Keep records of requests.
+- Escalate issues as appropriate.
+- Ensure data governance protocols are followed when releasing data to customers.
+- Use passwords and exclude sensitive data where appropriate.
+- Ensure information is prepared and quality checked before release to boards and customers.
+- Identify data quality issues.
+- Identify reasons for data quality issues.
+- Propose solutions to overcome data quality issues.
+- Undertake ongoing monitoring, audit, and evaluation of processes, documentation, and systems.
+- Provide suggestions for improvements.
+- Support the development of policies and procedures in relation to system use and security.
+- Liaise with Audit, Information Governance, and other areas as appropriate.
+- Ensure access to information remains consistent and appropriate for roles.
+- Develop regular `KPI` and compliance monitoring reports.
+- Deliver regular `KPI` and compliance monitoring reports.
+- Use those reports to identify data quality issues and governance breaches.
+
+#### 5. Benchmarking, external awareness, and networking
+
+- Carry out benchmarking and external research and analysis of data.
+- Put Trust information into context in relation to other Trusts and sectors.
+- Work closely with relevant stakeholders to keep them informed of developments to workforce information.
+- Build effective relationships across `HR`, clinical groups, delivery group, and corporate functions.
+- Build effective relationships with `NHSE WRES/WDES` teams and other external organisations.
+- Attend `ESR Special Interest Groups` and conferences, including `EDI`-related events.
+- Seek ideas for improvements to reporting strategies and systems.
+
+#### 6. Strategy, systems improvement, and wider contribution
+
+- Contribute to the formulation of overall strategies around workforce systems and information.
+- Attend and contribute to the `Super Users Group`.
+- Investigate innovative approaches to delivering the service provided by the team.
+- Explore examples such as electronic forms, a new reporting platform, and automating regular reports.
+- Support the systems team where necessary.
+
+### Person Specification Evidence
+
+Note:
+- the assessment legend stated in the person specification is:
+- `A = application`
+- `I = interview`
+- `T = test / assessment centre`
+
+#### 1. Qualifications / education
+
+- Graduate level qualification or equivalent experience in a system-management or information role. Essential. Assessment: `A`
+
+#### 2. Previous experience
+
+- Advanced knowledge and experience of using `ESR` or `Oracle HRMS` database. Essential. Assessment: `A/I`
+- Experience of designing, developing, and running `Discoverer` reports. Essential. Assessment: `A/I`
+- Extensive experience of producing reports and management information for end users. Essential. Assessment: `A/I/T`
+- Experience of providing excellent customer service. Essential. Assessment: `A/I/T`
+- Experience of working in a large `NHS` organisation or similar environment. Essential. Assessment: `A/I/T`
+- Experience of managing, planning, and co-ordinating projects. Essential. Assessment: `A/I/T`
+- Experience of effective prioritisation and co-ordination of a varied workload to tight deadlines. Essential. Assessment: `A/I`
+- Basic knowledge of `HR` practice and procedures. Essential. Assessment: `A`
+
+#### 3. Skills / knowledge / ability
+
+- Excellent knowledge of `Microsoft Office`, especially `Word`, `Access`, and `Excel`, including pivot tables, charts, and `Access` tables, forms, queries, reports, and macros. Essential. Assessment: `A/I/T`
+- Detailed working knowledge of database structures and relational databases. Essential. Assessment: `A`
+- Knowledge of equality and diversity statutory reporting sets including `WRES`, `WDES`, and `Gender Pay Gap`. Essential. Assessment: `A`
+- Numerate, with ability to present and interpret data in a user-friendly manner. Essential. Assessment: `A/I/T`
+- Excellent presentation and communication skills, oral and written. Essential. Assessment: `A/I/T`
+- Highly methodical and organised approach to work, demonstrating attention to detail. Essential. Assessment: `A/I/T`
+- Excellent problem-solving skills. Essential. Assessment: `A/I/T`
+- Ability to identify gaps and issues and apply technical expertise to resolve these. Essential. Assessment: `A/I`
+- Ability to collate, input, and analyse data systematically and accurately. Essential. Assessment: `A/I`
+- Ability to work collaboratively with others and positively contribute to project or working groups. Essential. Assessment: `A/I`
+- Ability to motivate others to deliver set objectives on time and within target. Essential. Assessment: `A/I`
+- Flexible and logical approach to work. Essential.
+
+### Additional Process and Governance Evidence
+
+- Post is subject to `DBS` checking.
+- Skilled Worker sponsorship may be considered.
+- Job description includes standard Trust expectations around:
+- `Data Protection Act 2018`
+- `Freedom of Information Act 2000`
+- information governance
+- equality and equal opportunities
+- health and safety
+- infection control
+- risk management
+- safeguarding
+- sustainability
+- flexible working
+- smoking policy
+
+### Hiring Signal Summary
+
+This posting is a strong workforce-intelligence and `EDI` analytics role centred on:
+- accurate and timely workforce reporting
+- `EDI` dashboard ownership and statutory return delivery
+- `ESR` / `Oracle HRMS` / `Discoverer`-based workforce information capability
+- project management around workforce intelligence, data quality, and compliance monitoring
+- governance-aware release of sensitive workforce information
+- benchmarking and external context-setting
+- strategy contribution around workforce systems and information
+
+It is a useful evidence point because it shows a senior analyst role where the employer is looking for more than reporting production. They want someone who can combine workforce analytics, statutory and intersectional reporting, governance discipline, project delivery, system-aware reporting development, and stakeholder-facing interpretation in a high-accountability NHS setting.
