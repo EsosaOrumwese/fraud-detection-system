@@ -1,0 +1,8 @@
+
+# Benchmarking Improvement Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_analyst/guys_and_st_thomas_nhs_foundation_trust/04_benchmarking_and_workforce_information_improvement_support/models/build_benchmarking_and_workforce_information_improvement_support.py
+```

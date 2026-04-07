@@ -1,0 +1,17 @@
+{
+  "slice": "guys_and_st_thomas_nhs_foundation_trust/04_benchmarking_and_workforce_information_improvement_support",
+  "aligned_reporting_window": "Mar 2026",
+  "benchmarking_summary_output_count": 1,
+  "comparator_context_output_count": 1,
+  "feedback_improvement_output_count": 1,
+  "workforce_information_improvement_output_count": 1,
+  "protected_group_dimension": "age_band_style",
+  "protected_group_focus": "50_plus",
+  "comparator_rows_used": 2,
+  "retained_feedback_signal_count": 3,
+  "current_focus_case_gap_pp": 1.32999264145527,
+  "current_focus_truth_gap_pp": -1.985315845179922,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.18134289999943576
+}
