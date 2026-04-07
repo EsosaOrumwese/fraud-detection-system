@@ -335,15 +335,15 @@ The claim therefore needs to answer back in evidence form:
 
 ### 10.1 Flagship claim surface
 
-> Carried out benchmarking and external-context analysis, used feedback to improve future workforce-information reporting, and supported workforce-information and reporting-system improvement, as measured by producing `1` benchmarking summary, `1` comparator-context output using `2` bounded rows, and `1` feedback-improvement output using `3` retained signals over a protected-group-style `50_plus` focus while passing `8/8` release checks in `0.18` seconds, by extending the governed workforce-reporting, quality, and project lanes into one bounded comparator-and-improvement pack without overstating live workforce-systems ownership or whole-Trust strategy authority.
+> Carried out benchmarking and external analysis of workforce information, put the current Trust-style workforce reading into bounded wider context, and used retained feedback to develop suggestions for future workforce-information reporting and reporting-system improvement, as measured by producing `1` benchmarking summary, `1` comparator-context output using `2` bounded rows, and `1` feedback-improvement output using `3` retained signals over a protected-group-style `50_plus` focus while passing `8/8` release checks in `0.18` seconds, by extending the governed workforce-reporting, quality, and project lanes into one bounded comparator-and-improvement pack without overstating live workforce-systems ownership or whole-Trust strategy authority.
 
 ### 10.2 Shorter recruiter-facing claim surface
 
-> Used benchmarking and retained feedback to improve workforce-information reporting, as measured by one bounded comparator pack and one future-improvement direction note, by putting the current workforce lane into context and turning retained issues into clearer reporting-development suggestions.
+> Used benchmarking and retained feedback to put workforce information into clearer context and develop suggestions for future workforce-information reporting, as measured by one bounded comparator pack and one future-improvement direction note, by turning retained issues into clearer reporting-development suggestions on the same governed lane.
 
 ### 10.3 Direct-response claim surface
 
-> Benchmarked workforce information, contextualised findings against wider reference context, and developed suggestions for future workforce-information reporting, as measured by one comparator-context output and one improvement surface on the same governed lane, by using bounded peer-style context and retained feedback rather than generic strategy rhetoric.
+> Benchmarked workforce information, put findings into bounded wider reference context, and developed suggestions for future workforce-information reporting and reporting-system improvement, as measured by one comparator-context output and one improvement surface on the same governed lane, by using bounded peer-style context and retained feedback rather than generic strategy rhetoric.
 
 ## 11. Overall Verdict
 
