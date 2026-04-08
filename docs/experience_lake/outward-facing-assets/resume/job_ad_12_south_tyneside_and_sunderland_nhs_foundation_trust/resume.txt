@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Data Analyst | BI Reporting, Platform Support & Trusted Management Information
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience designing and delivering reports, dashboards, datasets, and decision-support outputs in high-accountability environments. Strong in Excel, SQL, Power BI, Tableau, Python, DAX, and SSRS, with experience supporting trusted reporting environments, handling complex queries and anomaly resolution, validating multi-source data, maintaining governance-aware documentation, gathering service requirements, and translating analytical outputs into usable management information for non-technical stakeholders.
+
+**CORE SKILLS**
+Reporting & Dashboard Delivery: Reports, dashboards, datasets, visualisation, management information, decision-support products, service-facing reporting
+BI Platform & Information Systems Support: SQL, Power BI, SSRS, Excel, Tableau, Python, DAX, reporting-platform support, data-warehouse support, information-system development
+Complex Queries & Anomaly Resolution: Complex analytical queries, robustness checks, anomaly investigation, corrective action, preventative thinking, trusted-output control
+Data Quality, Governance & Documentation: Multi-source extraction, data validation, cleansing, consistency checks, anonymisation, FOI-aware handling, documentation updates
+Stakeholder Requirements & Communication: Requirement gathering, service-user support, non-technical explanation, alternative option shaping, value-focused reporting design
+Operational Delivery & Work Management: Timely reporting service, structured delivery, competing deadlines, independent working, dependable output quality
+Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Designed, developed, and maintained reports, dashboards, datasets, and decision-support outputs that supported operational use and clearer management-information reading from a trusted reporting base.
+- Supported reporting-platform and data-warehouse adoption by shaping reusable BI outputs in SQL, Power BI, SSRS, Excel, and Python, helping position one validated source as the preferred basis for recurring management information.
+- Handled complex analytical queries by testing whether outputs remained robust, investigating anomalies, and applying corrective action to keep reporting trusted and fit for use.
+- Extracted and validated multi-source data for reporting use, performing consistency checks, controlled interpretation, and governance-aware handling so outputs remained accurate, secure, and suitable for wider circulation.
+- Reviewed and updated reporting methods, output logic, and supporting documentation when requirements or analytical conditions changed, improving repeatability and keeping BI delivery aligned to current service needs.
+- Gathered user requirements and translated complex analytical outputs for non-technical stakeholders, shaping clearer reports, dashboards, and better reporting options that added more value than broad initial requests.
+- Improved the delivery method for reporting and analytical services by refining the output chain, choosing more appropriate product patterns for the task, and contributing to a clearer, more repeatable BI workflow.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Deliver reliable front-line service and clear communication in a busy environment, balancing speed, accuracy, and changing user needs across competing demands.
+- Follow structured procedures, checks, and handovers to keep outputs dependable and consistent for teammates and customers.
+- Support colleagues through practical guidance, steady communication, and day-to-day teamwork in a fast-moving service setting.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked with technical and operational teams where structured documentation, careful issue handling, and clear escalation were essential to dependable delivery.
+- Monitored technical outputs, investigated irregular readings, and supported corrective action to keep work accurate and usable under operational pressure.
+- Helped less experienced or adjacent team members through practical explanation, shared checks, and clear handovers during live field activity.

@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Senior Data Analyst | Workforce Intelligence, EDI Reporting & Governance
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience delivering accurate, timely, and governance-aware reporting in high-accountability environments. Strong in Excel, SQL, Power BI, Tableau, Python, and DAX, with experience producing workforce-intelligence and equality reporting, building dashboard and statutory-reporting outputs, handling sensitive information safely, improving data quality and compliance monitoring, coordinating project delivery, and using benchmarking and stakeholder feedback to strengthen interpretation and future reporting direction.
+
+**CORE SKILLS**
+Workforce Intelligence & EDI Reporting: Workforce reporting, EDI reporting, people-intelligence outputs, protected-group analysis, board-ready reporting, senior reporting, ad hoc reporting
+Dashboards, Statutory Reporting & Compliance: EDI dashboards, statutory reporting, compliance monitoring, KPI reporting, quality-checked reporting packs, decision-support outputs
+Data Quality & Governance: Data quality review, governance-safe release, sensitive-data handling, pre-release quality checks, issue identification, corrective controls, release checks
+Project Delivery & Impact Tracking: Project coordination, reporting-cycle delivery, progress reporting, risk tracking, impact measurement, stakeholder updates
+Benchmarking & Improvement Support: Benchmarking, comparator analysis, feedback-led reporting improvement, strategy-aware reporting support, future reporting direction
+Data Analysis & Working Tools: Excel, SQL, Power BI, Tableau, Python, DAX, relational data analysis, reporting-ready outputs
+Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Led accurate, timely, and user-friendly workforce-intelligence reporting in a high-accountability environment, producing a quality-checked workforce reporting pack with board-ready interpretation and all release checks passed.
+- Built and maintained EDI dashboards and statutory-reporting outputs from the same controlled reporting base, keeping protected-group analysis visible for decision-making and compliance review.
+- Produced regular, ad hoc, and senior-facing reporting that translated sensitive analytical outputs into clear, usable intelligence rather than raw reporting alone.
+- Identified data-quality issues, controlled the release of sensitive information, and developed KPI and compliance-monitoring outputs that surfaced review conditions before wider circulation.
+- Analysed protected-group variation and concentrated workforce-style differences to highlight areas requiring further investigation, turning peer-relative gaps into actionable intelligence rather than broad unsupported conclusions.
+- Planned and coordinated reporting delivery as a defined project, using explicit initiation, risk, progress, and close controls and producing impact-focused updates for senior stakeholders.
+- Benchmarked reporting outputs against peer and comparator context and used user and stakeholder feedback to shape future reporting improvement, strengthening interpretation and supporting workforce-information development.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain reliable service, accuracy, and clear communication in a busy front-line environment where output quality and timing both matter.
+- Follow strict controls, checks, and handover routines to keep work dependable and safe for wider team use.
+- Support teammates with practical guidance and steady communication, helping sustain service under pressure and changing demand.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a controlled operational environment where clear documentation, procedure compliance, and careful handling of sensitive readings were essential.
+- Monitored technical outputs, flagged issues early, and supported timely corrective action through accurate status reporting and escalation.
+- Coordinated with field teams and supervisors to keep decisions aligned to the same evidence, priorities, and operating constraints.
