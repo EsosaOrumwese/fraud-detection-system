@@ -1,0 +1,39 @@
+{
+  "name": "excel-mcp",
+  "version": "0.1.0",
+  "description": "Excel workbook MCP server for local reporting packs and Microsoft Graph workbook access.",
+  "author": {
+    "name": "Esosa Orumwese",
+    "email": "masked-in-repo@example.com",
+    "url": "https://github.com/example/fraud-detection-system"
+  },
+  "homepage": "https://github.com/example/fraud-detection-system",
+  "repository": "https://github.com/example/fraud-detection-system",
+  "license": "MIT",
+  "keywords": [
+    "excel",
+    "mcp",
+    "reporting"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Excel MCP",
+    "shortDescription": "Inspect, shape, and package Excel reporting surfaces.",
+    "longDescription": "Local Excel and Microsoft 365 workbook tooling aimed at KPI packs, validation, and interview-defensible reporting surfaces.",
+    "developerName": "Esosa Orumwese",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/example/fraud-detection-system",
+    "privacyPolicyURL": "https://github.com/example/fraud-detection-system",
+    "termsOfServiceURL": "https://github.com/example/fraud-detection-system",
+    "defaultPrompt": [
+      "Inspect this workbook and profile the KPI sheets.",
+      "Build an Excel reporting pack from this governed dataset.",
+      "Read a Microsoft 365 workbook range via Graph."
+    ],
+    "brandColor": "#217346"
+  }
+}

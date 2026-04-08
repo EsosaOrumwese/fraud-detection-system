@@ -1,0 +1,32 @@
+{
+  "name": "fraud-detection-local",
+  "interface": {
+    "displayName": "Fraud Detection Local Plugins"
+  },
+  "plugins": [
+    {
+      "name": "excel-mcp",
+      "source": {
+        "source": "local",
+        "path": "./plugins/excel-mcp"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "powerbi-mcp",
+      "source": {
+        "source": "local",
+        "path": "./plugins/powerbi-mcp"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
