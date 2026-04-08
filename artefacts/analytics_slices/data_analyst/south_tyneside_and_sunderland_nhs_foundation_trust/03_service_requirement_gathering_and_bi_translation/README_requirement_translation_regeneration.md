@@ -1,0 +1,8 @@
+
+# Requirement Translation Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_analyst/south_tyneside_and_sunderland_nhs_foundation_trust/03_service_requirement_gathering_and_bi_translation/models/build_service_requirement_gathering_and_bi_translation.py
+```
