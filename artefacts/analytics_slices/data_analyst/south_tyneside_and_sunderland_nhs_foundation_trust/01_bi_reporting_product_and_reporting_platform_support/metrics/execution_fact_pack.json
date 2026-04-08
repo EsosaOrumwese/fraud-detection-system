@@ -1,0 +1,18 @@
+{
+  "slice": "south_tyneside_and_sunderland_nhs_foundation_trust/01_bi_reporting_product_and_reporting_platform_support",
+  "aligned_reporting_window": "Mar 2026",
+  "prepared_reporting_base_output_count": 1,
+  "management_information_output_count": 1,
+  "reporting_platform_support_output_count": 1,
+  "trusted_source_output_count": 1,
+  "shared_focus_band": "50_plus",
+  "confirming_stream_count": 3,
+  "retained_product_views_count": 3,
+  "current_case_pressure_gap_pp": 1.32999264145527,
+  "current_truth_quality_gap_pp": -1.985315845179922,
+  "primary_focus_case_open_rate_avg": 0.10810377959626553,
+  "primary_focus_truth_quality_avg": 0.18146004572547914,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.14519030000155908
+}

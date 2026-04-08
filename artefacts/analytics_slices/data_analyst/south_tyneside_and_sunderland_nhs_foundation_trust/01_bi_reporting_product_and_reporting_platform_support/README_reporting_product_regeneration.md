@@ -1,0 +1,8 @@
+
+# Reporting Product Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_analyst/south_tyneside_and_sunderland_nhs_foundation_trust/01_bi_reporting_product_and_reporting_platform_support/models/build_bi_reporting_product_and_reporting_platform_support.py
+```
