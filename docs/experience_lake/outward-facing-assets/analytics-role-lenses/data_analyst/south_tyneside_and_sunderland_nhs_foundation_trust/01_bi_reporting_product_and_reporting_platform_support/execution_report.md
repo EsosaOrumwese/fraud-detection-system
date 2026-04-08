@@ -307,15 +307,15 @@ The slice now supports the following claim surfaces.
 
 ### 10.1 Flagship claim surface
 
-> Developed BI reports, dashboards, and datasets and supported their use through a trusted reporting environment, as measured by producing `1` prepared reporting base, `1` management-information output, `1` reporting-platform-support output, and `1` trusted-source reading over a shared `50_plus` focus confirmed by `3` streams, while passing `8/8` release checks in `0.15` seconds, by turning compact inherited reporting-preparation, product, and governed reporting outputs into a bounded BI product pack without overstating live warehouse or strategic-platform ownership.
+> Developed BI reports, dashboards, and datasets and supported their use through a trusted reporting environment, including bounded support for strategic reporting-platform use as a main management-information source, as measured by producing `1` prepared reporting base, `1` management-information output, `1` reporting-platform-support output, and `1` trusted-source reading over a shared `50_plus` focus confirmed by `3` streams, while passing `8/8` release checks in `0.15` seconds, by turning compact inherited reporting-preparation, product, and governed reporting outputs into a bounded BI product pack without overstating live warehouse or strategic-platform ownership.
 
 ### 10.2 Shorter recruiter-facing claim surface
 
-> Built BI reports and trusted management-information outputs from a prepared reporting base, as measured by one management-information surface and one reporting-platform-support layer, by turning governed reporting logic into reusable service-facing products.
+> Built BI reports, dashboards, and trusted management-information outputs from a prepared reporting base, as measured by one management-information surface and one reporting-platform-support layer, by turning governed reporting logic into reusable service-facing products that support trusted reporting-platform use.
 
 ### 10.3 Direct-response claim surface
 
-> Supported reporting-product delivery and strategic reporting-platform use, as measured by one prepared-base pack with management-information and trusted-source surfaces on the same governed logic, by producing reusable BI outputs rather than isolated reports.
+> Supported reporting-product delivery and strategic reporting-platform use, as measured by one prepared-base pack with management-information and trusted-source surfaces on the same governed logic, by producing reusable BI outputs that are stronger than isolated reports as a main information source.
 
 ## 11. Overall Verdict
 
