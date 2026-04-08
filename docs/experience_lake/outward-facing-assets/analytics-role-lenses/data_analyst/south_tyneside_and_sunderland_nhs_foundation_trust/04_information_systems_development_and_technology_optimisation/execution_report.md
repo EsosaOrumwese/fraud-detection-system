@@ -289,15 +289,15 @@ The slice now supports the following claim surfaces.
 
 ### 10.1 Flagship claim surface
 
-> Improved the way BI reporting services were delivered by choosing a clearer delivery pattern and making better use of technology, as measured by producing `1` revised delivery-pattern output with `4` stages, `1` technology-choice comparison output across `4` dimensions, and `1` method-and-documentation improvement reading over a shared `50_plus` focus confirmed by `3` streams, while carrying forward `2` review triggers, reusing `3` prior South Tyneside slices, passing `8/8` release checks in `0.26` seconds, and keeping the current case-pressure and truth-quality gaps at `+1.33 pp` and `-1.99 pp`, by turning the inherited South Tyneside BI, anomaly, and requirement packs into a more repeatable and better-supported reporting method without overstating systems or technology ownership.
+> Developed and improved information systems by choosing the most appropriate tool for the task, optimising technology use within reporting service provision, and improving production methods and documentation, as measured by producing `1` revised delivery-pattern output with `4` stages, `1` technology-choice comparison output across `4` dimensions, and `1` method-and-documentation improvement reading over a shared `50_plus` focus confirmed by `3` streams, while carrying forward `2` review triggers, reusing `3` prior South Tyneside slices, passing `8/8` release checks in `0.26` seconds, and keeping the current case-pressure and truth-quality gaps at `+1.33 pp` and `-1.99 pp`, by turning the inherited South Tyneside BI, anomaly, and requirement packs into a more repeatable and better-supported reporting method without overstating live systems or technology ownership.
 
 ### 10.2 Shorter recruiter-facing claim surface
 
-> Improved reporting methods and technology use, as measured by one revised delivery pattern and one bounded tool-choice comparison, by making the South Tyneside BI lane more repeatable and better matched to the task.
+> Improved information-system delivery methods and technology use, as measured by one revised delivery pattern and one bounded tool-choice comparison, by making the South Tyneside BI lane more repeatable and better matched to the task.
 
 ### 10.3 Direct-response claim surface
 
-> Supported development of information systems and optimised technology use within reporting service provision, as measured by one revised delivery-pattern output and one bounded optimisation surface on the same governed South Tyneside BI lane, by improving the production method and documentation rather than only operating the existing outputs.
+> Developed and supported information systems and optimised technology use within reporting service provision, as measured by one revised delivery-pattern output and one bounded optimisation surface on the same governed South Tyneside BI lane, by improving the production method and documentation rather than only operating the existing outputs.
 
 ## 11. Overall Verdict
 
