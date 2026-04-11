@@ -10,7 +10,10 @@ AGENT is mandated read this doc ENTIRELY before touching any code in repo.
 - The `dev_full` fraud platform is sealed, green and production ready.
 - The platform already exists on the `dev_full` track. Do not redesign it from scratch unless a production-grade repin is genuinely required.
 - While our current work in this repo is around MLOps and ML Platform Engineering, our current focus would be on exposing the Data Analytical (and Data Scientist/Advanced Data Analytical) aspect of this platform.
-- CURRENT PHASE: Investigative Analysis of the governed data world the ML System depends on
+- CURRENT PHASE: Investigative Analysis of the governed data world the ML System depends on. 
+
+NOTE:
+- This is just the start. The completion of this doesn't mean the end of our work. As the name implies, upon investigation, we would then uncover leads that show us the next steps or path to take. Do not mistake our work here as solely investigative analysis and as such is just merely EDA.
 
 ---
 
