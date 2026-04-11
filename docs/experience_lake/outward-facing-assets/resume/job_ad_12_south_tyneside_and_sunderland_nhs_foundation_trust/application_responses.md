@@ -50,3 +50,29 @@ Q: If you have any experience or skills that meet the desirable criteria, includ
 
 
 > I also have experience relevant to the desirable criterion of Power BI and SSRS report development. In the same reporting work, I used SQL together with Power BI and SSRS-style reporting outputs to shape multi-source data into clearer management-information products for stakeholder use. Rather than stopping at a technically complete output, I refined the reporting requirement, developed a more focused dashboard/report view, and made sure the result was easier for non-technical users to interpret and use. I also supported the reporting process by checking data quality, documenting report logic, and improving repeatability so outputs could be reviewed, reused, and updated when requirements changed. The result was a more reliable and better-structured reporting output, rather than a generic report that risked being misread or used without enough control.
+
+# Criteria 3 of 4 is Experience
+Do not include personal information that could be used to identify you such as your name or contact details.
+
+Essential criteria:
+- Experience of working in a data/information management setting.
+- Proven experience in the extraction, analysis and presentation of data using industry standard products.
+- Experience of developing information systems.
+- Experience of communicating ideas and gathering user information requirements.
+- Experience of producing reports, graphs and presentation materials for management.
+- Experience of Microsoft Office applications.
+
+Qa: Tell us how you meet each of these criteria. If possible, give an example of how you put each into practice.
+> 
+> 
+
+Desirable criteria:
+Experience of working in an NHS organisation.
+- Line management, supervisory or mentoring experience
+- Experience of clinical patient administration systems.
+- Experience of developing reports using SQL and SSRS.
+- Experience of developing reports and analysing data using Power BI
+
+Qb: If you have any experience or skills that meet the desirable criteria, include them here. Any examples should explain what you did and what the result was.
+> 
+> 
