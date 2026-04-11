@@ -30,6 +30,9 @@ And very much related, is the experience we are trying to acquire in this projec
 * `docs\experience_lake\outward-facing-assets\job-descriptions-specifications\data-analytics-engineering-science.ideal-candidate-profiles.md` (less focus on the 8th job ad though)
 * For more distilled "recruiter calls", you can check out the `recruiter_calls.md` in job folders in `docs\experience_lake\outward-facing-assets\resume`
 
+### 2A) Data Source
+We are to use data sources in `runs\local_full_run-7\a3bd8cac9a4284cd36072c6b9624a0c1`
+
 
 Note:
 - It's important to note that we aren't working from a posture that looks at these calls or experiences to be attained and then draws out our our analytics path would be. Rather we are taking the analytical aspect of the platform, working on it whilst keeping in mind the experience claims we want to achieve.
