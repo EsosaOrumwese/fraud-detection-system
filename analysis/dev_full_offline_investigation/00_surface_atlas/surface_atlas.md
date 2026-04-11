@@ -1,0 +1,53 @@
+# dev_full Surface Atlas v0
+
+This atlas maps the core governed surfaces we will use during the offline investigation.
+
+## Surface classes
+
+- `traffic`: canonical behavioural traffic eligible for platform ingestion
+- `context`: join or enrichment surface used to understand traffic
+- `truth`: offline outcome or supervisory surface
+- `telemetry`: audit or operational evidence, not business traffic
+
+## Time-safety classes
+
+- `rtdl_safe`: eligible as decision-time context if used correctly
+- `offline_only`: batch, truth, or closure-dependent surface; never live-decision input
+- `not_traffic`: should not be treated as business traffic even if event-like
+
+## Core surfaces
+
+| surface_id | class | engine_owner | grain | primary_meaning | main_join_keys | time_safety | primary_plane | analytical_use |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `arrival_events_5B` | context | `5B.S4` | arrival | Arrival skeleton with routing and micro-time context before behavioural expansion | `seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq` | `rtdl_safe`, `not_traffic` | Control + Ingress, RTDL | Arrival volume, routing posture, timezone and site-edge context |
+| `s1_arrival_entities_6B` | context | `6B.S1` | arrival | Entity attachments for each arrival plus session linkage | `seed, manifest_fingerprint, scenario_id, merchant_id, arrival_seq` | `rtdl_safe`, `not_traffic` | RTDL | Which parties, accounts, devices, IPs, and merchants are attached to each arrival |
+| `s1_session_index_6B` | context | `6B.S1` | session | Session summary and closure view across grouped arrivals | `seed, manifest_fingerprint, parameter_hash, scenario_id, session_id` | `offline_only` | RTDL support, Learning | Session closure analysis, attachment richness, dwell and session completeness |
+| `s2_flow_anchor_baseline_6B` | context | `6B.S2` | flow | Baseline flow-level context for non-overlay behaviour | `seed, manifest_fingerprint, scenario_id, flow_id` | `rtdl_safe`, `not_traffic` | RTDL | Flow structure, baseline path analysis, feature-ready context |
+| `s2_event_stream_baseline_6B` | traffic | `6B.S2` | event | Canonical baseline behavioural event stream | `seed, manifest_fingerprint, scenario_id, flow_id, event_seq` | `rtdl_safe` | Control + Ingress, RTDL, Learning | Baseline traffic profiling, event-time analysis, pre-fraud comparison |
+| `s3_campaign_catalogue_6B` | context | `6B.S3` | campaign | Realised fraud and abuse campaigns for a world and scenario | `seed, manifest_fingerprint, parameter_hash, scenario_id, campaign_id` | `offline_only` | Learning, Ops/Gov | Campaign prevalence, targeting depth, rare-regime analysis |
+| `s3_flow_anchor_with_fraud_6B` | context | `6B.S3` | flow | Flow-level context after overlay application | `seed, manifest_fingerprint, scenario_id, flow_id` | `rtdl_safe`, `not_traffic` | RTDL, Learning | Which flows were modified by overlay and how that changed flow semantics |
+| `s3_event_stream_with_fraud_6B` | traffic | `6B.S3` | event | Canonical post-overlay behavioural event stream | `seed, manifest_fingerprint, scenario_id, flow_id, event_seq` | `rtdl_safe` | Control + Ingress, RTDL, Learning | Main fraud traffic analysis, decision-basis traffic, evaluation basis |
+| `s4_event_labels_6B` | truth | `6B.S4` | event | Event-level truth and bank-view-aligned labels | `seed, manifest_fingerprint, scenario_id, flow_id, event_seq` | `offline_only` | Case + Label, Learning | Supervised event targets, error analysis, event-level label timing |
+| `s4_flow_truth_labels_6B` | truth | `6B.S4` | flow | Flow-level truth about what actually happened | `seed, manifest_fingerprint, scenario_id, flow_id` | `offline_only` | Case + Label, Learning | Fraud rate, flow-level supervision, cohort truth analysis |
+| `s4_flow_bank_view_6B` | truth | `6B.S4` | flow | Flow-level bank-view outcome, distinct from pure truth | `seed, manifest_fingerprint, scenario_id, flow_id` | `offline_only` | Case + Label, Learning | Operational outcome analysis, false positive / false negative posture, bank-view drift |
+| `s4_case_timeline_6B` | truth | `6B.S4` | case event | Time-aware case progression for human-operational review | `seed, manifest_fingerprint, parameter_hash, scenario_id, case_id` | `offline_only` | Case + Label, Learning, Ops/Gov | Case ageing, case duration, queue burden, adjudication path analysis |
+| `s1_party_base_6A` | context | `6A.S1` | party | Base party population and demographic / role posture | `seed, manifest_fingerprint, parameter_hash, party_id` | `offline_only` | RTDL support, Learning | Customer and party segmentation, relationship to labels and decisions |
+| `s2_account_base_6A` | context | `6A.S2` | account | Account base and product-holding world | `seed, manifest_fingerprint, parameter_hash, account_id` | `offline_only` | RTDL support, Learning | Account mix, product posture, account-to-party behavioural framing |
+| `s3_instrument_base_6A` | context | `6A.S3` | instrument | Payment credential / instrument world | `seed, manifest_fingerprint, parameter_hash, instrument_id` | `offline_only` | RTDL support, Learning | Instrument prevalence, fraud exposure by instrument type |
+| `s4_device_base_6A` | context | `6A.S4` | device | Device universe and device attributes | `seed, manifest_fingerprint, parameter_hash, device_id` | `offline_only` | RTDL support, Learning | Device richness, device sharing, device-risk linkage |
+| `s4_ip_base_6A` | context | `6A.S4` | IP | IP / endpoint universe and attributes | `seed, manifest_fingerprint, parameter_hash, ip_id` | `offline_only` | RTDL support, Learning | IP reuse, endpoint concentration, IP-risk posture |
+| `s4_entity_neighbourhoods_6A` | context | `6A.S4` | entity neighbourhood | Local graph neighbourhoods across entities | `seed, manifest_fingerprint, parameter_hash, entity_id` | `offline_only` | RTDL support, Learning | Network and ring analysis, neighbour risk propagation |
+| `s5_party_fraud_roles_6A` | context | `6A.S5` | party | Static fraud posture for parties | `seed, manifest_fingerprint, parameter_hash, party_id` | `offline_only` | RTDL support, Learning | Fraud-role enrichment, prior-risk analysis |
+| `rng_audit_log_6B` | telemetry | `6B` RNG stream | RNG event | Audit log for stochastic decisions inside 6B | `seed, parameter_hash, run_id` | `offline_only`, `not_traffic` | Ops/Gov | Forensics, reproducibility, stochastic audit only |
+| `segment_state_runs_5B` | telemetry | `5B` | segment-state run | Operational state-run journal for Segment 5B | engine run metadata | `offline_only`, `not_traffic` | Ops/Gov | Run diagnostics, execution history, validation trail |
+
+## Immediate analytical stance
+
+The first investigation wave should center on:
+
+1. `s3_event_stream_with_fraud_6B` as the main business traffic surface
+2. `s3_flow_anchor_with_fraud_6B` and `s1_arrival_entities_6B` as the main context surfaces
+3. `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B`, and `s4_case_timeline_6B` as the main offline truth surfaces
+4. selected `6A` surfaces as static governed context for entity-level analysis
+
+That gives us one coherent offline basis for RTDL, Case + Label, and Learning analysis without confusing truth with traffic.
