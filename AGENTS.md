@@ -1,48 +1,55 @@
 # AGENTS.md - dev_full platform hardening router
 _As of 2026-03-10_
 
-Read this before touching platform code.
+AGENT is mandated read this doc ENTIRELY before touching any code in repo.
 
 ---
 
 ## 1) Scope
 - The Data Engine is sealed and green. Treat it as a black box for platform work.
-- The active focus is `dev_full` platform hardening toward real production readiness.
+- The `dev_full` fraud platform is sealed, green and production ready.
 - The platform already exists on the `dev_full` track. Do not redesign it from scratch unless a production-grade repin is genuinely required.
-- Build for the full platform, not only the spine. That includes:
-  - control and ingress,
-  - RTDL,
-  - case and label management,
-  - learning and evolution,
-  - MLOps surfaces,
-  - ops/governance/meta layers.
-- Our focus is discussed in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\`
+- While our current work in this repo is around MLOps and ML Platform Engineering, our current focus would be on exposing the Data Analytical (and Data Scientist/Advanced Data Analytical) aspect of this platform.
+- CURRENT PHASE: Investigative Analysis of the governed data world the ML System depends on
 
 ---
 
 ## 2) Primary docs for contextual understanding of direction we are heading 
 For platform work on `dev_full`, read in this order:
-1. `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\platform.production_readiness.md`
-2. The relevant phase plans under `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\`
-3. The active `dev_full` implementation maps under `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\`
+1. `docs\model_spec\data-engine\interface_pack\data_engine_interface.md`
+2. Engine segment relevant build and implementation plans in: `docs\model_spec\data-engine\implementation_maps`
+3. State Expanded docs (and contracts) for each segment (for a deeper understanding of what each data is, as we have no data dictionary at the moment): `docs\model_spec\data-engine\layer-1|2|3\specs\state-flow`
+4. `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\platform.production_readiness.md`
+5. The relevant phase plans under `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\`
+6. The active `dev_full` implementation maps under `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\`
 
 And very much related, is the experience we are trying to acquire in this project
-* `docs\experience_lake\recruiter-expectation_MLOps.md`
-* `docs\experience_lake\recruiter-expectation_MLPlatformEngr.md`
-* `docs\experience_lake\platform-production-standard.md`
+* `docs\experience_lake\outward-facing-assets\job-descriptions-specifications\data-analytics-engineering-science.ideal-candidate-profiles.md` (less focus on the 8th job ad though)
+* For more distilled "recruiter calls", you can check out the `recruiter_calls.md` in job folders in `docs\experience_lake\outward-facing-assets\resume`
 
-It's important to note that as you go through the repo, `local-parity`, `dev_min` are all profiles or substrates we have moved from and are now in making `dev_full` production hardened (this is different from `prod_target` as that doesn't mean our production target but rather an endgame substrate that we could hit if we want to push things much further. ). Surely you can find and infer the meaning of what these mean from this repo
+
+Note:
+- It's important to note that we aren't working from a posture that looks at these calls or experiences to be attained and then draws out our our analytics path would be. Rather we are taking the analytical aspect of the platform, working on it whilst keeping in mind the experience claims we want to achieve.
+- That said, we will be assuming a posture wherein this platform isn't just a project we are building or have built but rather a live system in which we can assume whatever data roles neccesary to interact with the system. From MLOps Engineer, ML Platform Engineer, to Data Scientist, Data Analyst, Data Administrator to Business Analyst, Cyber Security and so on. 
+   - Almost as saying we'll be taking this fraud enterprise system as a startup we're working in and have the opportunity to wear many hats. Where the world that interacts with the data is the governed data world and has been constructed by me.
+   - Our current role we would be assuming are the ones defined in `docs\experience_lake\outward-facing-assets\job-descriptions-specifications\data-analytics-engineering-science.ideal-candidate-profiles.md`
+- It's important to note that as you go through the repo, `local-parity`, `dev_min` are all profiles or substrates we have moved from and are now in making `dev_full` production hardened (this is different from `prod_target` as that doesn't mean our production target but rather an endgame substrate that we could hit if we want to push things much further. ). Surely you can find and infer the meaning of what these mean from this repo
+
 ---
 
 ## 3) Working posture
+- Whilst also approaching this work as a role we embody, another angle that will shape our approach would be one of investigative analysis. We would take the posture of detectives, me being Sherlock Holmes and you being Dr Watson, investigating a case. 
+   - We're adopting this approach because even though we want to provide results/findings to the stakeholders, we would not be solving from what they want as that is defined by what lies in the data world and its interaction within the system.
+   - All that is available to us is the "crime scene", the data and we are to uncover its interactions, not just concluding at an investigative analysis but then adding on other aspects of this data analytics (advanced also) workflow as it relates to this project. Before then summarizing our findings for presentation to stakeholders. 
+   - This means all our steps matter in relation to the system we're working in and aren't just done for fun.
+- Keeping in mind that there are some tools neccesary in our role we're embodying i.e. Python, SQL, PowerBI, etc. (as seen in the candidate profile). We'll be running our rough work in various Jupyter Notebooks (using DuckDB for handling SQL, and matplotlib, seaborn or plotly for visualizations) before finally setting on what queries to save and then finalizing our results in dashboards.
+- We would not be running the platform at all. Nor will we be adopting a posture that incurs costs in any way. That would mean we would be working locally on a HUGE amount of data, so our workflow should never be one that attempts to load a huge chunk of data into memory at all. We need to adopt real world data management workflows: streaming, querying our database, etc.
 - Work autonomously for long stretches. Do not stop for routine blockers you can analyze and resolve yourself. Most problems are solvable, you just have to give it the time to assess it.
 - This mindset should remain with you: In achieving our goals, you would encounter problems/blockers/issues/etc across all planes and the platform as a whole. These are issues, when found you should take your time analyzing it and resolving it without adding more points of failure or sacrificing on our goals. Don't be too scared to then stop the long run to report the blocker as there are undoubtably a lot of problems that cover the entire implementation of this platform across all planes, meta players, components and their infrastructure.
-- The current platform might use resources or decisions that are not the very best or would hinder our production standard, you have the autonomy to decide how to approach that, ensure to note it though in your own road-to-production notes.
+- Chances are we might use resources or decisions that are not the very best or would hinder our production standard, you have the autonomy to decide how to approach that, ensure to note it though in your own road-to-production notes.
 - Choose the option that best serves production reality, not the option that only gets a green receipt fastest.
 - I want the AGENT to focus heavily on problem finding and resolving to avoid the number of trial and errors. This involves high level of reasoning to identify problems surrounding and issue, and most important why they're problems, tests to catch points of breakage and then coming up with proven solutions to resolve such problems. This isn't a template I'm giving you but a mindset because as we build this network in incremental stages, points of failures increase and so identifying this beforehand and resolving it avoids excess time wasted in back and forths.
 - Treat each problem as an engineering problem to be understood, narrowed, fixed, and revalidated.
-- Prefer bounded AWS-first runs with fail-fast behavior and precise diagnostics over long expensive blind runs.
-- Make the platform work plane by plane before escalating duration and volume.
 - Most importantly, you have to be dynamic in your approach and your planning. WHen you initially start out with a plan to achieve a goal, at some point in time, after battling errors, you need to pause and ask yourself, what's the error we're facing? is there anything hindering me from solving it? Address it, change your prosture and move. Don't be to rigid with the plan. This doesn't mean changing standards or not acheiveing the goal of that state or phase, but rather adapting a more dynamic approach the helps saves time and cost.
 - The right discipline is not rigid plan-following. It is goal-fixed, method-adaptive execution. This should be the operating posture:
    - keep the phase goal and standard fixed,
@@ -55,27 +62,6 @@ It's important to note that as you go through the repo, `local-parity`, `dev_min
 - While the platform only receives from the oracle store (effectively treating the data engine as a blackbox), the AGENT as the builder has access to the docs that built the data engine and define the data for a better understanding of the data when dealing with planes and components that need a proper understanding of the content of the data e.g. components in the RTDL plane, learning and evolution plane and case management. 
 - That said, while the platform only relies on the interface pack `docs\model_spec\data-engine\interface_pack\data_engine_interface.md`, the AGENT, for better understand, can inspect the state expanded docs for the different layers (`docs\model_spec\data-engine\layer-#\specs\state-flow\#*\state.#*.s#.expanded.md`) and also the build plans in `docs\model_spec\data-engine\implementation_maps\segment_#*.build_plan.md` to see what was actually implemented. These are the only sets of files you are allowed to for the data engine, and maybe the contracts and policies if necessary. You are not allowed to edit it.
 - Keep the workspace neat:
-  - durable run evidence in `runs/`
-  - no scattered temp directories or dumped artifacts in repo root
-
-
-### 3A) Approach to Hardening + Confirmation of Platform Readiness
-- I noticed that our former approach to production readiness suffered from two ends: i. ensuring platform readiness/hardening before running expensive certification and ii. blind debugging and guesswork to identify problems.
-- The first is solved with our approach in `docs\model_spec\platform\implementation_maps\dev_substrate\dev_full\proving_plane\platform.production_readiness.md` as we're not running expensive stress and soak tests until we can confirm the full platform is production ready.
-- The second is one where we need to anticipate and ensure it doesn't happen. For the production readiness, we will move to CLI-first, AWS-first executions with rich live telemetry, minimal artificats and fast iterations. Focus is on the "rich live telemetry".
-- For now, stop using GitHub workflows as the default execution surface unless structly needed. Use CLI-driven execution for active hardening:
-   - local command starts the bounded run but the runtime remains on AWS / managed surfaces
-   - local machine is only control console, log/metric viewer and command orchestrator.
-   - this avoids local compute dependence while still giving us real operator visibility
-- This means that when working on every phase, indepth reasoning has to be given into the provision of a hardened live debugging posture so we have complete visibility, with no blindspots, of what we're hardening. Before every plane begins and as we harden and work in that plane, we need to develop our rich telemetry set. This should keep on evolving and we shouldn't just stick with what we think is enough as we need complete visibility for better problem analysis:
-   - Live logs only for the active plane and immediate dependencies. Example (in no way limited to these) ingress service, RTDL workers under work, case/label workers under work, managed job logs when on learning
-   - Live progress counters e.g. admitted rate, downstream participation, lag/checkpoint age, fail-closed/quarantine deltas, append/write deltas, case/label deltas, learning job state, etc. It shouldn't be limited to this
-   - Live boundary health: "are the correct run ids present?", "are the right topics moving?", "are the right stores being written?", "is the plane materially participating?"
-   - Fail-fast triggers: "if the active signals go red early, stop the run early and inspect immediately"
-- Minimize artifacts during hardening: I do think we produced too many artifacts for the hardening phase. During hardening, artifacts should be reduced, instead focus on the telemetry
-- Ensure all these are kept in an organized folder and not all over the place. runs/ is sufficient. Prune dead runs or fault ones so we don't accumulate excessive runs
-- Ensure that every phase, sub-phase, task you embark on starts with identifying the neccesary telemtry to aid your understanding of the task. With live telemetry in place you can proceed with your hardening, problem identifying and resolution due to the complete sight you have.
----
 
 ## 4) Implementation notes and logbook
 - Write these like a detailed natural engineering notebook.
@@ -137,7 +123,6 @@ Note: This only applies when we are production hardening the platform and not el
 ## 7) Testing posture
 - Own the test plan.
 - Test according to the real design and production intent, not random runner convenience.
-- Prefer live AWS validation for platform runtime truth.
 - Keep tests and runs targeted so failures are easy to localize.
 
 ---
