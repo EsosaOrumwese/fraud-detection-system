@@ -26,7 +26,7 @@ ARTIFACT_COLOR = "#E45756"
 NEUTRAL = "#7F7F7F"
 
 
-def draw_mcc_mix_plot() -> Path:
+def draw_mcc_breadth_concentration_plot() -> Path:
     df = pd.read_csv(MIX_PATH).sort_values("merchant_count", ascending=False).copy()
     global_top10_share_pct = 4.91
 
@@ -35,9 +35,9 @@ def draw_mcc_mix_plot() -> Path:
         "artifact-amplified": ARTIFACT_COLOR,
     }
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6), gridspec_kw={"width_ratios": [1.2, 1]})
+    fig, ax = plt.subplots(figsize=(9, 6))
 
-    scatter = ax1.scatter(
+    ax.scatter(
         df["top10_mcc_share_pct"],
         df["distinct_mcc"],
         s=df["merchant_count"] * 0.9,
@@ -46,42 +46,63 @@ def draw_mcc_mix_plot() -> Path:
         edgecolors="white",
         linewidths=0.9,
     )
-    ax1.axvline(global_top10_share_pct, color=NEUTRAL, linestyle="--", linewidth=1.5, label="Global top-10 MCC share")
-    ax1.set_title("Top-Country MCC Mix Breadth vs Concentration")
-    ax1.set_xlabel("Top 10 MCC Share (%)")
-    ax1.set_ylabel("Distinct MCCs")
-    ax1.grid(axis="both", color="#D9D9D9", linewidth=0.8)
-    ax1.spines["top"].set_visible(False)
-    ax1.spines["right"].set_visible(False)
+    ax.axvline(global_top10_share_pct, color=NEUTRAL, linestyle="--", linewidth=1.5, label="Global top-10 MCC share")
+    ax.set_title("Top-Country MCC Breadth vs Concentration")
+    ax.set_xlabel("Top 10 MCC Share (%)")
+    ax.set_ylabel("Distinct MCCs")
+    ax.grid(axis="both", color="#D9D9D9", linewidth=0.8)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
 
     for row in df.itertuples(index=False):
-        ax1.text(row.top10_mcc_share_pct + 0.08, row.distinct_mcc + 1.5, row.country_iso, fontsize=9)
-
-    df_jsd = df.sort_values("mcc_jsd_vs_global_bits", ascending=True)
-    ax2.barh(
-        df_jsd["country_iso"],
-        df_jsd["mcc_jsd_vs_global_bits"],
-        color=df_jsd["shape_classification"].map(palette),
-    )
-    ax2.set_title("Distance from Global MCC Mix")
-    ax2.set_xlabel("JSD vs Global MCC Mix (bits)")
-    ax2.set_ylabel("")
-    ax2.grid(axis="x", color="#D9D9D9", linewidth=0.8)
-    ax2.spines["top"].set_visible(False)
-    ax2.spines["right"].set_visible(False)
-
-    for y, row in enumerate(df_jsd.itertuples(index=False)):
-        ax2.text(row.mcc_jsd_vs_global_bits + 0.004, y, f"{row.mcc_jsd_vs_global_bits:.3f}", va="center", fontsize=9)
+        ax.text(row.top10_mcc_share_pct + 0.08, row.distinct_mcc + 1.5, row.country_iso, fontsize=9)
 
     handles = [
         plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=POLICY_COLOR, markersize=9, label="Policy-shaped"),
         plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=ARTIFACT_COLOR, markersize=9, label="Artifact-amplified"),
         plt.Line2D([0], [0], color=NEUTRAL, linestyle="--", linewidth=1.5, label="Global top-10 MCC share"),
     ]
-    fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, bbox_to_anchor=(0.5, -0.02))
-    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    ax.legend(handles=handles, loc="lower right", frameon=False)
 
-    out_path = EXPORTS / "transaction_schema_top_country_mcc_mix.png"
+    fig.tight_layout()
+    out_path = EXPORTS / "transaction_schema_top_country_mcc_breadth_concentration.png"
+    fig.savefig(out_path, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
+def draw_mcc_distance_plot() -> Path:
+    df = pd.read_csv(MIX_PATH).sort_values("mcc_jsd_vs_global_bits", ascending=True).copy()
+    palette = {
+        "policy-shaped": POLICY_COLOR,
+        "artifact-amplified": ARTIFACT_COLOR,
+    }
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+    df_jsd = df.sort_values("mcc_jsd_vs_global_bits", ascending=True)
+    ax.barh(
+        df_jsd["country_iso"],
+        df_jsd["mcc_jsd_vs_global_bits"],
+        color=df_jsd["shape_classification"].map(palette),
+    )
+    ax.set_title("Top-Country Distance from Global MCC Mix")
+    ax.set_xlabel("JSD vs Global MCC Mix (bits)")
+    ax.set_ylabel("")
+    ax.grid(axis="x", color="#D9D9D9", linewidth=0.8)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    for y, row in enumerate(df_jsd.itertuples(index=False)):
+        ax.text(row.mcc_jsd_vs_global_bits + 0.004, y, f"{row.mcc_jsd_vs_global_bits:.3f}", va="center", fontsize=9)
+
+    handles = [
+        plt.Rectangle((0, 0), 1, 1, color=POLICY_COLOR, label="Policy-shaped"),
+        plt.Rectangle((0, 0), 1, 1, color=ARTIFACT_COLOR, label="Artifact-amplified"),
+    ]
+    ax.legend(handles=handles, loc="lower right", frameon=False)
+
+    fig.tight_layout()
+    out_path = EXPORTS / "transaction_schema_top_country_mcc_distance.png"
     fig.savefig(out_path, dpi=180, bbox_inches="tight")
     plt.close(fig)
     return out_path
@@ -174,7 +195,8 @@ def draw_policy_artifact_plot() -> Path:
 def main() -> None:
     sns.set_theme(style="whitegrid")
     outputs = [
-        draw_mcc_mix_plot(),
+        draw_mcc_breadth_concentration_plot(),
+        draw_mcc_distance_plot(),
         draw_channel_mix_plot(),
         draw_policy_artifact_plot(),
     ]
