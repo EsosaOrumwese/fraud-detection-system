@@ -54,17 +54,24 @@ def draw_mcc_breadth_concentration_plot() -> Path:
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
+    label_offsets = {
+        "US": (0.10, 1.8),
+        "AU": (0.10, -2.2),
+        "SG": (0.10, 1.2),
+        "CH": (0.10, 1.2),
+    }
     for row in df.itertuples(index=False):
-        ax.text(row.top10_mcc_share_pct + 0.08, row.distinct_mcc + 1.5, row.country_iso, fontsize=9)
+        dx, dy = label_offsets.get(row.country_iso, (0.08, 1.5))
+        ax.text(row.top10_mcc_share_pct + dx, row.distinct_mcc + dy, row.country_iso, fontsize=9)
 
     handles = [
         plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=POLICY_COLOR, markersize=9, label="Policy-shaped"),
         plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=ARTIFACT_COLOR, markersize=9, label="Artifact-amplified"),
         plt.Line2D([0], [0], color=NEUTRAL, linestyle="--", linewidth=1.5, label="Global top-10 MCC share"),
     ]
-    ax.legend(handles=handles, loc="lower right", frameon=False)
+    ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3, frameon=False)
 
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     out_path = EXPORTS / "transaction_schema_top_country_mcc_breadth_concentration.png"
     fig.savefig(out_path, dpi=180, bbox_inches="tight")
     plt.close(fig)
@@ -93,7 +100,15 @@ def draw_mcc_distance_plot() -> Path:
     ax.spines["right"].set_visible(False)
 
     for y, row in enumerate(df_jsd.itertuples(index=False)):
-        ax.text(row.mcc_jsd_vs_global_bits + 0.004, y, f"{row.mcc_jsd_vs_global_bits:.3f}", va="center", fontsize=9)
+        ax.annotate(
+            f"{row.mcc_jsd_vs_global_bits:.3f}",
+            xy=(row.mcc_jsd_vs_global_bits, y),
+            xytext=(8, 8),
+            textcoords="offset points",
+            ha="left",
+            va="bottom",
+            fontsize=9,
+        )
 
     handles = [
         plt.Rectangle((0, 0), 1, 1, color=POLICY_COLOR, label="Policy-shaped"),
