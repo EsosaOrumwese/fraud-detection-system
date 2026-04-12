@@ -1,29 +1,36 @@
-flowchart LR
-  I1["s0_gate_receipt_2B + sealed_inputs_2B"]
-  I2["s2_alias_index + blob"]
-  I3["s3_day_effects"]
-  I4["s4_group_weights"]
-  I5["alias and routing policies"]
-  I6["S5/S6 logs<br/>if present"]
-  I7["rng_audit_log + rng_trace_log<br/>if present"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S2 alias index/blob"]
+    I2["S3 day effects"]
+    I3["S4 group weights"]
+    I4["S5 routing events"]
+    I5["optional S6 edge events"]
+  end
 
-  S7["S7 Audit authority<br/>Check alias integrity<br/>check S3/S4 coherence<br/>optionally reconcile router evidence"]
+  subgraph core["Actual S7 design"]
+    C1["Audit coherence across encoded alias law,<br/>temporal shaping, group realism and runtime routing evidence"]
+    C2["Verify replayability, conservation and route-world consistency<br/>across the major 2B authority surfaces"]
+    C3["Emit bounded audit verdict and certification evidence"]
+  end
 
-  O1["s7_audit_report<br/>PASS or FAIL per seed"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S7 is not reporting-only; it is the segment's coherence gate before final PASS legitimacy"]
+    S2["Later scorer and source-path fixes kept S7 aligned to canonical outputs<br/>so certification reads the actual authority surfaces rather than stale by-products"]
+  end
 
-  I1 --> S7
-  I2 --> S7
-  I3 --> S7
-  I4 --> S7
-  I5 --> S7
-  I6 --> S7
-  I7 --> S7
-  S7 --> O1
+  subgraph outputs["Owned authority"]
+    O1["s7_audit_report"]
+    O2["cross-state routing coherence verdict<br/>for S8 publish legitimacy"]
+  end
 
-  R1["Actual design recovery<br/>S7 is not a generic QA appendix;<br/>it is the legitimacy checkpoint before S8 can publish"]
-  R2["It also separates artefact coherence from runtime evidence:<br/>S2-S4 must pass even when S5/S6 logs are absent"]
-  R3["That makes S7 the segment's truth-closure audit surface"]
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  I4 --> C2
+  I5 --> C2
+  C1 --> C2 --> C3
+  C3 --> O1
+  C3 --> O2
 
-  R1 -.-> S7
-  R2 -.-> S7
-  R3 -.-> S7
+  S1 -.-> C2
+  S2 -.-> C3

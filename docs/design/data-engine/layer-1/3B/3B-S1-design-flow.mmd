@@ -1,18 +1,39 @@
-flowchart LR
-  I1["Reads<br/>s0_gate_receipt_3B<br/>sealed_inputs_3B<br/>merchant reference world"]
-  I2["Policies and refs<br/>mcc_channel_rules<br/>virtual_settlement_coords<br/>pelias bundle and supporting refs"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 gate receipt and sealed_inputs_3B"]
+    I2["transaction_schema_merchant_ids"]
+    I3["mcc_channel_rules"]
+    I4["virtual_settlement_coords"]
+  end
 
-  S1["S1<br/>Virtual classification and settlement-node construction"]
+  subgraph core["Actual S1 design"]
+    C1["Resolve the merchant universe inherited from Layer-1 authority"]
+    C2["Classify each merchant deterministically<br/>as virtual or non-virtual under rule doctrine"]
+    C3["Attach settlement-anchor truth only to virtual merchants<br/>under fixed coordinate and tz law"]
+    C4["Emit the sole authority for virtual membership and settlement anchors"]
+  end
 
-  O1["Outputs<br/>virtual_classification_3B<br/>virtual_settlement_3B"]
-  O2["Authority<br/>S1 alone decides who is virtual<br/>and what the legal settlement anchor is"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S1 is the sole membership and settlement-anchor authority; later states do not reinterpret merchant virtuality"]
+    S2["Lineage enrichment later made rule_id and rule_version first-class realism outputs,<br/>so explainability lives in S1 rather than being inferred downstream"]
+    S3["Decision posture stayed stable while lineage was repaired; that clarified S1 owns explainability and anchor truth, not topology realism"]
+  end
 
-  R1["Implemented shift<br/>S1 remained RNG-free and authoritative,<br/>but later remediation made lineage realism explicit:<br/>rule_id, rule_version, and active-rule diversity became real design burdens"]
-  R2["Implemented shift<br/>A later bounded reopen also changed S1 from a simple<br/>binary classifier into the owner surface for hybrid-share shape<br/>when downstream proving exposed that missing path"]
+  subgraph outputs["Owned authority"]
+    O1["virtual_classification_3B"]
+    O2["virtual_settlement_3B"]
+    O3["virtual membership and settlement-anchor law<br/>for S2 and later certification"]
+  end
 
-  I1 --> S1
-  I2 --> S1
-  S1 --> O1
-  S1 --> O2
-  R1 -.-> S1
-  R2 -.-> S1
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C3
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1
+  C4 --> O2
+  C3 --> O3
+
+  S1 -.-> C2
+  S2 -.-> C4
+  S3 -.-> C2

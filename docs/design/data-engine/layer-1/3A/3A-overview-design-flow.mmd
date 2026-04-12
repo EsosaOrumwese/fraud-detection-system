@@ -1,28 +1,45 @@
-flowchart LR
-  subgraph intent["Recovered Segment 3A design"]
-    A0["S0 Gate and seal<br/>Verifies 1A and 2A legitimacy<br/>and freezes 3A policy authority"]
-    A1["S1 Escalation authority<br/>Decides which merchant-country pairs<br/>need zone-mixture treatment"]
-    A2["S2 Country-zone priors<br/>Builds deterministic prior geometry<br/>for escalated pairs"]
-    A3["S3 Zone-share sampler<br/>Emits Dirichlet zone shares with<br/>RNG provenance for escalated pairs"]
-    A4["S4 Integerisation<br/>Converts shares into conserved<br/>integer zone counts"]
-    A5["S5 Zone-allocation egress<br/>Publishes zone_alloc plus<br/>universe-hash closure"]
-    A6["S6 Validation verdict<br/>Judges realism and coherence<br/>for the full 3A chain"]
-    A7["S7 Final publish gate<br/>Seals validation_bundle_3A<br/>and consumer legitimacy"]
+flowchart TD
+  U1["Upstream certified outlet world<br/>1A outlet_catalogue + 1A/1B/2A PASS"]
+  U2["Sealed zone doctrine<br/>zone_mixture, country-zone alphas,<br/>zone-floor, day-effect policy"]
+
+  subgraph s0["S0 Gate and world seal"]
+    A0["Freeze one outlet-zone authority world"]
   end
 
+  subgraph s1["S1 Escalation authority"]
+    A1["Classify merchant-country pairs<br/>into monolithic vs escalated domain"]
+  end
+
+  subgraph s2["S2 Prior geometry authority"]
+    A2["Construct deterministic country-zone prior law<br/>independent of merchant outcomes"]
+  end
+
+  subgraph s3["S3 Stochastic share authority"]
+    A3["Realize seeded merchant-country zone shares<br/>inside S1 and S2 law"]
+  end
+
+  subgraph s4["S4 Integer realization authority"]
+    A4["Turn shares into conserved integer zone counts"]
+  end
+
+  subgraph s5["S5 Bounded egress authority"]
+    A5["Publish zone_alloc and routing-universe closure"]
+  end
+
+  subgraph s6["S6 Segment verdict authority"]
+    A6["Judge execution coherence, identity and conservation"]
+  end
+
+  subgraph s7["S7 Final publish legitimacy"]
+    A7["Publish final validation bundle and PASS"]
+  end
+
+  U1 --> A0
+  U2 --> A0
   A0 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7
 
-  B0["Actual design shifts that matter"] --> B1["S0 became a real multi-upstream gate:<br/>3A reads 1A outlet authority plus 2A time authority<br/>through sealed manifest-scoped inputs"]
-  B0 --> B2["S1 remained sole escalation authority,<br/>but later gained bounded deterministic smoothing<br/>on the below-min-sites branch"]
-  B0 --> B3["S2 through S4 became the main realism-shaping chain:<br/>priors, sampled dispersion, then conserved integer outcomes"]
-  B0 --> B4["S5 stayed intentionally narrow:<br/>in v1 it publishes escalated pairs only and binds<br/>the downstream universe hash"]
-  B0 --> B5["S6 and S7 are veto rails, not optimization surfaces:<br/>realism tuning belongs upstream,<br/>validation and publish legitimacy stay separate"]
+  N1["Design reading<br/>3A is not generic outlet zoning"]
+  N2["It is an authority chain:<br/>escalation law -> prior law -> seeded share law -> integer realization -> bounded egress -> verdict -> PASS"]
 
-  B1 -.-> A0
-  B2 -.-> A1
-  B3 -.-> A2
-  B3 -.-> A3
-  B3 -.-> A4
-  B4 -.-> A5
-  B5 -.-> A6
-  B5 -.-> A7
+  N1 -.-> A1
+  N2 -.-> A5

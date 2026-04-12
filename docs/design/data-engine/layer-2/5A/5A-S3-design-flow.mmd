@@ -1,18 +1,36 @@
-flowchart LR
-  I1["Reads<br/>merchant_zone_profile_5A<br/>shape_grid_definition_5A<br/>class_zone_shape_5A"]
-  I2["Policy<br/>baseline_intensity_policy_5A"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 merchant_zone_profile_5A"]
+    I2["S2 shape_grid_definition_5A and class_zone_shape_5A"]
+    I3["baseline_intensity_policy_5A"]
+  end
 
-  S3["S3<br/>Baseline merchant-zone weekly intensities"]
+  subgraph core["Actual S3 design"]
+    C1["Compose merchant-zone baseline intensity<br/>over the deterministic weekly grid"]
+    C2["Convert demand identity and weekly shape law<br/>into baseline local intensity surfaces"]
+    C3["Emit class-level and merchant-level baseline authority<br/>for later calendar projection"]
+  end
 
-  O1["Outputs<br/>merchant_zone_baseline_local_5A<br/>optional aggregates and UTC projections"]
-  O2["Authority<br/>S3 alone composes scale and shape into<br/>baseline weekly intensity truth"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S3 is the true baseline-intensity and tail-zone activation owner surface"]
+    S2["P3 made tail rescue an explicit S3-owned design feature instead of a vague downstream adjustment"]
+    S3["Tail gates were realigned to S3-causal metrics so closure depends on the actual baseline-intensity surface rather than proxy counts elsewhere"]
+  end
 
-  R1["Implemented shift<br/>S3 became the main compute-heavy baseline surface;<br/>output and join laws were tightened so class-zone coverage<br/>and merchant-zone weekly sums could not silently drift"]
-  R2["Implemented shift<br/>Later remediation made S3 the owner surface for tail-zone richness,<br/>so baseline policy rather than overlay policy became the accepted<br/>place to recover dormant TZ breadth"]
+  subgraph outputs["Owned authority"]
+    O1["merchant_zone_baseline_local_5A"]
+    O2["class_zone_baseline_local_5A"]
+    O3["baseline intensity and tail-richness authority<br/>for S4 and S5"]
+  end
 
-  I1 --> S3
-  I2 --> S3
-  S3 --> O1
-  S3 --> O2
-  R1 -.-> S3
-  R2 -.-> S3
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  C1 --> C2 --> C3
+  C3 --> O1
+  C3 --> O2
+  C3 --> O3
+
+  S1 -.-> C2
+  S2 -.-> C2
+  S3 -.-> C3

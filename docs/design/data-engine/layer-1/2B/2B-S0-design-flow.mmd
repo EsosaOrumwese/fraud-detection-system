@@ -1,33 +1,46 @@
-flowchart LR
-  I1["1B validation bundle<br/>and _passed.flag"]
-  I2["1B site_locations"]
-  I3["2A site_timezones<br/>required pin"]
-  I4["2A tz_timetable_cache<br/>optional coherence pin"]
-  I5["route_rng_policy_v1"]
-  I6["alias_layout_policy_v1"]
-  I7["day_effect_policy_v1"]
-  I8["virtual_edge_policy_v1"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["1B validation bundle<br/>and PASS flag"]
+    I2["1B site_locations realism surface"]
+    I3["2A site_timezones authority"]
+    I4["optional 2A tz_timetable_cache"]
+    I5["routing policy packs:<br/>route_rng, alias_layout, day_effect,<br/>group_mix_regularizer, virtual_edge"]
+    I6["optional run-scoped s5_arrival_roster"]
+  end
 
-  S0["S0 Gate and environment authority<br/>Verify upstream PASS<br/>Seal the exact routing inputs and policy packs<br/>Bind the run to one manifest_fingerprint"]
+  subgraph core["Actual S0 design"]
+    C1["Verify upstream 1B validation authority<br/>before any downstream routing read"]
+    C2["Resolve exact dictionary-bound inputs<br/>and policy artefacts for this manifest"]
+    C3["Seal the routing environment as one governed world:<br/>site layout, timezone truth, policy digests,<br/>and optional roster witness"]
+    C4["Bind all later 2B runtime evidence to one<br/>manifest_fingerprint and created_utc root"]
+    C5["Publish gate receipt and sealed inventory"]
+  end
 
-  O1["s0_gate_receipt_2B"]
-  O2["sealed_inputs_2B"]
+  subgraph shifts["Implemented design shifts"]
+    S1["Bundle/flag parsing and schema lookup were hardened so S0 fails closed<br/>on real upstream identity defects rather than fragile reader behavior"]
+    S2["policy_version resolution replaced loose version_tag handling;<br/>policy digests became explicit design artefacts, not incidental metadata"]
+    S3["optional s5_arrival_roster sealing was added later so standalone S5 reads<br/>can remain catalogued and governed when the roster already exists"]
+    S4["S0 stayed a trust boundary only; validation publication and downstream realism<br/>ownership were deliberately left to later states"]
+  end
 
-  I1 --> S0
-  I2 --> S0
-  I3 --> S0
-  I4 --> S0
-  I5 --> S0
-  I6 --> S0
-  I7 --> S0
-  I8 --> S0
-  S0 --> O1
-  S0 --> O2
+  subgraph outputs["Owned authority"]
+    O1["sealed_inputs_2B"]
+    O2["s0_gate_receipt_2B"]
+    O3["manifest-scoped routing world<br/>that S1-S8 are allowed to trust"]
+  end
 
-  R1["Actual design recovery<br/>S0 makes 2B a governed routing segment,<br/>not an isolated sampler"]
-  R2["It pins both upstream worlds:<br/>1B site layout and 2A timezone truth"]
-  R3["It also seals the routing policy packs,<br/>which means later runtime evidence is judged<br/>against a fixed operating doctrine"]
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  I4 --> C2
+  I5 --> C2
+  I6 --> C2
+  C1 --> C2 --> C3 --> C4 --> C5
+  C5 --> O1
+  C5 --> O2
+  C4 --> O3
 
-  R1 -.-> S0
-  R2 -.-> S0
-  R3 -.-> S0
+  S1 -.-> C1
+  S2 -.-> C2
+  S3 -.-> C3
+  S4 -.-> C5

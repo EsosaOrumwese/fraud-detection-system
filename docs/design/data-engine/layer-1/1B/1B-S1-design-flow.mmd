@@ -1,5 +1,42 @@
-flowchart LR
-  A["Authority inputs<br/>iso3166_canonical_2024<br/>world_countries<br/>population_raster_2025<br/>parameter_hash identity"] --> B["Owned transformation<br/>Enumerate eligible raster cells per country<br/>construct tile_index and tile_bounds<br/>preserve deterministic tile_id law<br/>keep geometry and inclusion authority parameter-scoped"]
-  B --> C["Authority outputs<br/>tile_index<br/>tile_bounds<br/>eligible cell universe for all downstream topology work"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 sealed world<br/>world_countries, population_raster, iso3166, manifest identity"]
+    I2["Inclusion predicate and tile geometry rules<br/>center vs overlap, WGS84 raster frame, tile_id law"]
+    I3["Country coverage contract<br/>eligible civil countries must map to a lawful raster tile universe"]
+  end
 
-  D["Implemented design shifts<br/>world_countries coverage was rebuilt<br/>PROJ runtime override was pinned<br/>invalid geometry became fail-closed<br/>antimeridian handling became explicit<br/>PAT and open-files observability became part of the actual design"] -.-> B
+  subgraph core["Actual S1 design"]
+    C1["Read population raster and world-country geometry<br/>under one sealed geographic frame"]
+    C2["Enumerate eligible raster cells per country<br/>with deterministic tile_id, bounds, centroid, and area"]
+    C3["Handle dateline and antimeridian cases explicitly<br/>so country coverage is spatially lawful, not approximate"]
+    C4["Emit tile_index and tile_bounds as the only lawful tile universe<br/>for downstream weighting, allocation, and jitter"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S1 was materially repinned around geometry truth<br/>invalid shapes now fail explicitly instead of being silently tolerated"]
+    S2["Projection/runtime issues became part of design reality<br/>PROJ override and raster dtype handling were required to make the state lawful"]
+    S3["Antimeridian handling became a first-class design surface<br/>after shifted geometries and AQ/EG failures exposed naive spatial assumptions"]
+    S4["Observability and PAT counters were promoted into the state<br/>so huge tile universes could be measured rather than blindly trusted"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["tile_index"]
+    O2["tile_bounds"]
+    O3["One deterministic eligible tile universe per country"]
+    O4["Downstream contract:<br/>S2, S4, S5, and S6 may only speak about tiles that S1 certified"]
+  end
+
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  C1 --> C2 --> C3 --> C4
+
+  C4 --> O1
+  C4 --> O2
+  O1 --> O3
+  O2 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C1
+  S3 -.-> C3
+  S4 -.-> C4

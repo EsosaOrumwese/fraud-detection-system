@@ -1,16 +1,38 @@
-flowchart LR
-  I1["Reads<br/>S1 through S5 artefacts<br/>seedpack and audit surfaces"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 sealed inputs and upstream gates"]
+    I2["S1-S5 accepted outputs"]
+    I3["zone_alloc_universe_hash"]
+    I4["state run-reports and issue surfaces"]
+  end
 
-  S6["S6<br/>Validation verdict"]
+  subgraph core["Actual S6 design"]
+    C1["Re-validate the full outlet-zone authority chain<br/>against identity, conservation, digest and status laws"]
+    C2["Check that zone_alloc and universe closure remain self-consistent<br/>with all upstream state evidence"]
+    C3["Emit execution verdict, issues and receipt<br/>for the whole segment body"]
+  end
 
-  O1["Outputs<br/>s6_validation_report_3A<br/>s6_issue_table_3A<br/>s6_receipt_3A"]
-  O2["Authority<br/>S6 alone decides PASS or FAIL<br/>for the 3A segment"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S6 is a real verdict surface, not a courtesy report; later scorers rely on its PASS as a veto rail"]
+    S2["Digest recomputation was aligned to S5's masked universe-hash rule so S6 judges the actual contract rather than a contradictory one"]
+    S3["S6 can remain PASS while realism verdict later fails; that separation is deliberate and important"]
+  end
 
-  R1["Implemented shift<br/>S6 is a veto rail, not a tuning surface;<br/>realism optimization stays in S2 through S4<br/>with S1 as bounded support"]
-  R2["Implemented shift<br/>Final posture froze 3A as best-effort below B,<br/>so S6 became the authoritative closure witness<br/>for that bounded reality"]
+  subgraph outputs["Owned authority"]
+    O1["s6_receipt_3A"]
+    O2["s6_issue_table_3A"]
+    O3["segment execution verdict<br/>for S7 publish legitimacy"]
+  end
 
-  I1 --> S6
-  S6 --> O1
-  S6 --> O2
-  R1 -.-> S6
-  R2 -.-> S6
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C2
+  C1 --> C2 --> C3
+  C3 --> O1
+  C3 --> O2
+  C3 --> O3
+
+  S1 -.-> C3
+  S2 -.-> C2
+  S3 -.-> C3

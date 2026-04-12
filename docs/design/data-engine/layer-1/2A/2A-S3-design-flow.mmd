@@ -1,21 +1,39 @@
-flowchart LR
-  I1["s0_gate_receipt_2A"]
-  I2["sealed tzdb_release"]
-  I3["sealed tz_world tzid domain"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S2 site_timezones<br/>the final tzids actually used by this run"]
+    I2["S0-sealed tzdb_release<br/>release_tag, archive_sha256, and source archive law"]
+    I3["Timetable cache contract<br/>coverage, manifest alignment, and compiled-transition legality"]
+  end
 
-  S3["S3 Transition-cache authority<br/>Compile deterministic per-tzid transition index<br/>for the manifest_fingerprint"]
+  subgraph core["Actual S3 design"]
+    C1["Compile the sealed tzdb release into machine-readable timezone transition data<br/>only for the tzids this run actually needs"]
+    C2["Encode one manifest-scoped timetable cache<br/>with deterministic transition ordering and offset law"]
+    C3["Publish tz_timetable_cache as the transition authority<br/>that later legality and traffic-time states consume"]
+  end
 
-  O1["tz_timetable_cache<br/>Manifest-scoped cache and digest<br/>created_utc = S0 verified_at_utc"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S3 is not just a cache writer<br/>it became the authoritative transition-horizon state for the whole downstream timing story"]
+    S2["A shared archive-keyed cache was added for iteration speed<br/>but coverage and contract checks remain fail-closed on every run"]
+    S3["The segment was later reopened here to synthesize bounded future transitions<br/>because release-year-only coverage was insufficient for 2026 DST legality downstream"]
+  end
 
-  I1 --> S3
-  I2 --> S3
-  I3 --> S3
-  S3 --> O1
+  subgraph outputs["Owned authority"]
+    O1["tz_timetable_cache"]
+    O2["s3_run_report with cache coverage, digest, and horizon evidence"]
+    O3["Manifest-scoped transition authority for all tzids used in this run"]
+    O4["Downstream contract:<br/>S4 judges legality against this compiled horizon, not against live tzdb files"]
+  end
 
-  R1["Actual design recovery<br/>S3 became more than a cache builder;<br/>it became the segment's transition-horizon authority"]
-  R2["Warm-cache performance work changed<br/>how the state is executed,<br/>without changing its semantic burden"]
-  R3["Later bounded reopen extended future transitions<br/>through deterministic ZoneInfo synthesis,<br/>so downstream DST legality stayed causal in 2026+ horizons"]
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  C1 --> C2 --> C3
 
-  R1 -.-> S3
-  R2 -.-> S3
-  R3 -.-> S3
+  C3 --> O1
+  C3 --> O2
+  O1 --> O3
+  O1 --> O4
+
+  S1 -.-> C2
+  S2 -.-> C1
+  S3 -.-> C1

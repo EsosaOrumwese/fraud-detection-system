@@ -1,18 +1,41 @@
-flowchart LR
-  I1["Reads<br/>s0_gate_receipt_5A<br/>sealed_inputs_5A<br/>merchant and zone world from Layer-1"]
-  I2["Policies and refs<br/>merchant_class_policy_5A<br/>demand_scale_policy_5A<br/>sealed merchant snapshot"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 gate receipt and sealed_inputs_5A"]
+    I2["zone_alloc and Layer-1 demand world"]
+    I3["transaction_schema_merchant_ids"]
+    I4["merchant_class_policy_5A and demand_scale_policy_5A"]
+    I5["optional virtual membership signals"]
+  end
 
-  S1["S1<br/>Merchant-zone demand classification"]
+  subgraph core["Actual S1 design"]
+    C1["Construct merchant-zone demand identity<br/>from sealed zone_alloc domain and merchant attributes"]
+    C2["Assign demand_class and supporting profile semantics<br/>under deterministic policy law"]
+    C3["Apply base demand scale per merchant-zone<br/>without any stochastic realization"]
+    C4["Emit merchant-zone and merchant-level demand identity surfaces<br/>for all later Layer-2 states"]
+  end
 
-  O1["Outputs<br/>merchant_zone_profile_5A<br/>optional merchant_class_profile_5A"]
-  O2["Authority<br/>S1 alone decides demand_class<br/>and base scale per merchant-zone"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S1 had to seal and consume the ingress merchant snapshot because MCC and channel truth were not available from Layer-1 egress alone"]
+    S2["S1 later became the owner lane for concentration closure; classing and scale policy were the accepted place to correct class and country concentration"]
+    S3["Channel realism is jointly visible with S2 later, but S1 alone owns merchant demand identity and class-scale posture"]
+  end
 
-  R1["Implemented shift<br/>S1 had to seal and consume the ingress merchant snapshot<br/>because MCC and channel truth were not available from Layer-1 egress alone"]
-  R2["Implemented shift<br/>S1 later became the owner lane for concentration closure:<br/>classing and scale policy were the accepted place to correct<br/>country and class concentration without reopening S3 or S4"]
+  subgraph outputs["Owned authority"]
+    O1["merchant_zone_profile_5A"]
+    O2["merchant_class_profile_5A"]
+    O3["merchant-zone demand identity and scale law<br/>for S2-S5"]
+  end
 
-  I1 --> S1
-  I2 --> S1
-  S1 --> O1
-  S1 --> O2
-  R1 -.-> S1
-  R2 -.-> S1
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  I4 --> C2
+  I5 --> C2
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1
+  C4 --> O2
+  C3 --> O3
+
+  S1 -.-> C1
+  S2 -.-> C3
+  S3 -.-> C2

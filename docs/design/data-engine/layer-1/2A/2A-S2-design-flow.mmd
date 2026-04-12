@@ -1,25 +1,40 @@
-flowchart LR
-  I1["s0_gate_receipt_2A"]
-  I2["s1_tz_lookup"]
-  I3["tz_overrides"]
-  I4["merchant_mcc_map<br/>if MCC scope is live"]
-  I5["tz_world tzid domain"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 provisional timezone rows<br/>including source, override_applied, and override_scope evidence"]
+    I2["S0-sealed tz_overrides and optional merchant_mcc_map<br/>with expiry and provenance law"]
+    I3["tz_world tzid set and cutoff date<br/>for membership and active-policy validation"]
+  end
 
-  S2["S2 Final timezone assignment authority<br/>Apply active override at most once<br/>site > mcc > country<br/>otherwise preserve geometry result"]
+  subgraph core["Actual S2 design"]
+    C1["Evaluate canonical override precedence<br/>site over mcc over country under the sealed cutoff date"]
+    C2["Finalize exactly one tzid per site<br/>either preserving polygon truth or applying the lawful override"]
+    C3["Enforce provenance completeness, tzid membership, rate caps, and coverage parity<br/>so finalization is governed rather than permissive"]
+    C4["Publish site_timezones as the final timezone authority surface<br/>for timetable and legality states"]
+  end
 
-  O1["site_timezones<br/>Final per-site tz authority<br/>created_utc = S0 verified_at_utc"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S2 became the canonical override-governance state<br/>because provisional rescue in S1 was not strong enough to support downstream legality alone"]
+    S2["Global and country-level override budgets were promoted into fail-closed design law<br/>so governance is judged here, not later in reporting"]
+    S3["An experimental topology-rebalance lane was tried for downstream support<br/>but it was deliberately reverted from mainline, leaving actual S2 as finalization authority rather than redistribution logic"]
+  end
 
-  I1 --> S2
-  I2 --> S2
-  I3 --> S2
-  I4 --> S2
-  I5 --> S2
-  S2 --> O1
+  subgraph outputs["Owned authority"]
+    O1["site_timezones"]
+    O2["s2_run_report with override governance and provenance counters"]
+    O3["Exactly one final tzid per site under canonical precedence law"]
+    O4["Downstream contract:<br/>S3 and S4 must treat site_timezones as final timezone truth, not reopen override choice"]
+  end
 
-  R1["Actual design recovery<br/>S2 became the main final-governance surface:<br/>provenance completeness, override caps,<br/>and deterministic precedence"]
-  R2["It carries S1 nudge and provenance forward<br/>instead of hiding how the tz was earned"]
-  R3["An experimental topology-rebalance lane existed later<br/>for downstream support, but it was rejected from mainline;<br/>it is evidence, not canonical 2A design"]
+  I1 --> C1
+  I2 --> C1
+  I3 --> C3
+  C1 --> C2 --> C3 --> C4
 
-  R1 -.-> S2
-  R2 -.-> S2
-  R3 -.-> S2
+  C4 --> O1
+  C4 --> O2
+  O1 --> O3
+  O1 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C3
+  S3 -.-> C2

@@ -1,18 +1,41 @@
-flowchart LR
-  I1["Reads<br/>edge_catalogue_3B<br/>edge_catalogue_index_3B<br/>optional S1 surfaces for checks"]
-  I2["Policies<br/>alias_layout_policy_v1<br/>cdn digest surfaces"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 virtual classification and settlement truth"]
+    I2["S2 edge catalogue and index"]
+    I3["alias_layout_policy_v1"]
+    I4["cdn key digests and virtual rules digests"]
+  end
 
-  S3["S3<br/>Alias packaging and edge-universe hash"]
+  subgraph core["Actual S3 design"]
+    C1["Build deterministic alias tables over the realized edge universe<br/>without any new RNG behavior"]
+    C2["Encode byte-stable alias blob and index<br/>compatible with downstream decode law"]
+    C3["Assemble edge-universe integrity closure<br/>from the sealed component digests"]
+    C4["Publish alias fidelity and universe-hash authority"]
+  end
 
-  O1["Outputs<br/>edge_alias_blob_3B<br/>edge_alias_index_3B<br/>edge_universe_hash_3B<br/>empty gamma_draw_log_3B guardrail"]
-  O2["Authority<br/>S3 is the sole representation and<br/>integrity closure for the edge universe"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S3 is an alias and integrity surface, not a realism-tuning lane"]
+    S2["Replay/idempotence hardening on edge_universe_hash clarified that S3 owns deterministic packaging of the edge world, not its shape"]
+    S3["Weight authority stays with S2; S3 uses realized edge_weight as truth and refuses to invent a new weighting doctrine"]
+  end
 
-  R1["Implemented shift<br/>S3 was deliberately kept RNG-free and narrow:<br/>it follows S2 weights, packages them for decode,<br/>and does not invent new realism"]
-  R2["Implemented shift<br/>The actual design hardened digest law,<br/>layout compatibility, and guardrails against forbidden RNG use,<br/>which made S3 an integrity rail rather than a tuning surface"]
+  subgraph outputs["Owned authority"]
+    O1["edge_alias_blob_3B"]
+    O2["edge_alias_index_3B"]
+    O3["edge_universe_hash_3B"]
+    O4["alias fidelity and universe integrity<br/>for S4 and S5"]
+  end
 
-  I1 --> S3
-  I2 --> S3
-  S3 --> O1
-  S3 --> O2
-  R1 -.-> S3
-  R2 -.-> S3
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C3
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1
+  C4 --> O2
+  C4 --> O3
+  C4 --> O4
+
+  S1 -.-> C2
+  S2 -.-> C3
+  S3 -.-> C1

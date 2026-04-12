@@ -1,25 +1,37 @@
-flowchart LR
-  subgraph intent["Recovered Segment 3B design"]
-    A0["S0 Gate and seal<br/>Verifies 1A, 1B, 2A, 3A and freezes<br/>virtual/CDN policy authority"]
-    A1["S1 Virtual classification and settlement<br/>Defines the virtual merchant universe<br/>and one legal settlement node per merchant"]
-    A2["S2 Edge catalogue construction<br/>Builds the static CDN edge world<br/>with controlled RNG for placement and jitter"]
-    A3["S3 Alias packaging and universe hash<br/>Turns edges into decode-ready alias tables<br/>and integrity closure"]
-    A4["S4 Routing semantics and validation contract<br/>Freezes how virtual routing must behave<br/>and how it will be judged"]
-    A5["S5 Validation bundle and PASS gate<br/>Audits the full 3B world and seals<br/>consumer legitimacy"]
+flowchart TD
+  U1["Upstream certified worlds<br/>1A, 1B, 2A, 3A"]
+  U2["Sealed virtual-edge doctrine<br/>membership, settlement, topology,<br/>alias and validation policies"]
+
+  subgraph s0["S0 Gate and world seal"]
+    A0["Freeze one closed virtual-edge environment"]
   end
 
+  subgraph s1["S1 Membership and settlement authority"]
+    A1["Classify virtual merchants and attach settlement anchors"]
+  end
+
+  subgraph s2["S2 Edge-world realism authority"]
+    A2["Construct merchant-conditioned edge topology<br/>and settlement-coupled geography"]
+  end
+
+  subgraph s3["S3 Alias and universe integrity authority"]
+    A3["Package the realized edge world into alias and universe-hash law"]
+  end
+
+  subgraph s4["S4 Realism governance authority"]
+    A4["Judge the virtual-edge world against explicit realism contract rows"]
+  end
+
+  subgraph s5["S5 Final publish legitimacy"]
+    A5["Publish final bundle and PASS only if the full virtual-edge world holds"]
+  end
+
+  U1 --> A0
+  U2 --> A0
   A0 --> A1 --> A2 --> A3 --> A4 --> A5
 
-  B0["Actual design shifts that matter"] --> B1["S0 became a real cross-segment environment seal:<br/>3B reads only from a closed world and verified upstream PASS gates"]
-  B0 --> B2["S1 became both virtual-membership authority<br/>and settlement-anchor authority;<br/>later lineage realism remediation changed what it actually publishes"]
-  B0 --> B3["S2 became the dominant realism and performance surface:<br/>merchant-conditioned topology and settlement-coupled weighting<br/>are where 3B really became credible"]
-  B0 --> B4["S3 stayed intentionally narrow:<br/>representation fidelity and universe-hash integrity,<br/>not another realism-tuning lane"]
-  B0 --> B5["S4 became realism governance authority:<br/>routing semantics plus enforceable validation families,<br/>not just descriptive metadata"]
-  B0 --> B6["S5 remained the final integrity rail:<br/>no 3B PASS means no read of the virtual world"]
+  N1["Design reading<br/>3B is not a synthetic edge generator"]
+  N2["It is a certification chain:<br/>virtual membership + settlement anchors -> edge-world realism -> alias integrity -> realism governance -> PASS"]
 
-  B1 -.-> A0
-  B2 -.-> A1
-  B3 -.-> A2
-  B4 -.-> A3
-  B5 -.-> A4
-  B6 -.-> A5
+  N1 -.-> A2
+  N2 -.-> A4

@@ -1,5 +1,44 @@
-flowchart LR
-  A["Authority inputs<br/>s3_requirements counts<br/>tile_weights fixed-dp mass<br/>tile_index eligible universe<br/>iso3166_canonical_2024"] --> B["Owned transformation<br/>Integerise country requirements over tiles<br/>preserve exact sum-to-n<br/>use deterministic largest-remainder logic<br/>emit only positive per-tile quotas"]
-  B --> C["Authority outputs<br/>s4_alloc_plan<br/>quota-exact tile allocation plan<br/>for assignment and downstream site synthesis"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S3 exact n_sites requirements per merchant-country pair"]
+    I2["S2 tile_weights<br/>the frozen macro spatial mass surface"]
+    I3["S1 tile_index support universe and dp law"]
+    I4["Governed anti-collapse policy<br/>soft guard, reroute, residual redistribution, diversification"]
+  end
 
-  D["Implemented design shifts<br/>S4 became the main runtime hotspot<br/>anti-collapse logic and floor-aware scoring<br/>changed how the state is judged<br/>then fast-compute-safe caching and allocation rewrites<br/>made performance part of the actual implemented design"] -.-> B
+  subgraph core["Actual S4 design"]
+    C1["Integerize country tile mass into exact per-pair quotas<br/>that sum to n_sites and preserve country support legality"]
+    C2["Apply anti-collapse controls deterministically<br/>soft-guard reroute, residual redistribution, bounded diversification"]
+    C3["Build sparse exact alloc plans for each (country,n_sites) class<br/>and reuse them across merchants where lawful"]
+    C4["Publish s4_alloc_plan as the integer topology authority<br/>ready for per-site RNG assignment in S5"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S4 became the dominant remediation state<br/>because integerization, not raw weights alone, was driving reconcentration"]
+    S2["The state was repinned around anti-collapse semantics<br/>soft caps, reroute, residual, and diversify all became explicit policy surfaces"]
+    S3["Runtime hardening became part of actual design posture<br/>country caches, rank caches, alloc-plan caches, and disk-cache reuse closed multi-hour runtime"]
+    S4["Fast-lane optimization preserved semantics rather than lowering burden<br/>the state still owns exact integer topology, only with reusable plan kernels"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["s4_alloc_plan"]
+    O2["s4_run_report with anti-collapse and cache diagnostics"]
+    O3["Exact per-pair tile quotas that sum to requirements"]
+    O4["Downstream contract:<br/>S5 must assign one site per quota unit, not renegotiate topology"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  I4 --> C2
+  C1 --> C2 --> C3 --> C4
+
+  C4 --> O1
+  C4 --> O2
+  O1 --> O3
+  O1 --> O4
+
+  S1 -.-> C2
+  S2 -.-> C2
+  S3 -.-> C3
+  S4 -.-> C4

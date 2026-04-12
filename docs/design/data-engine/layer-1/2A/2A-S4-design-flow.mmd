@@ -1,21 +1,40 @@
-flowchart LR
-  I1["s0_gate_receipt_2A"]
-  I2["site_timezones"]
-  I3["tz_timetable_cache"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S2 site_timezones<br/>the final tzids to be judged"]
+    I2["S3 tz_timetable_cache<br/>compiled transition authority and manifest metadata"]
+    I3["Legality judgment law<br/>coverage, cache integrity, monotone transitions, gap/fold counts"]
+  end
 
-  S4["S4 Legality authority<br/>Check that every used tzid is covered<br/>and derive gap/fold legality from cache truth"]
+  subgraph core["Actual S4 design"]
+    C1["Scan the final site_timezones surface to discover which tzids this run actually uses"]
+    C2["Decode and validate the timetable cache for exactly those tzids<br/>ensuring cache payload integrity and transition ordering"]
+    C3["Judge legality and coverage<br/>missing tzids, gaps, folds, and cache mismatches are surfaced here"]
+    C4["Publish one narrow legality report<br/>without changing any timezone assignments"]
+  end
 
-  O1["s4_legality_report<br/>Per-seed PASS or FAIL evidence<br/>generated_utc = S0 verified_at_utc"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S4 stayed intentionally narrow<br/>it is a judgment state, not a repair or rebalance state"]
+    S2["Cache payload validation became part of actual design<br/>bad cache bytes, manifest mismatches, and missing tzids all fail closed here"]
+    S3["The downstream importance of S4 grew once S3 horizon extension landed<br/>because legality now depends on the compiled future-transition surface, not just historical cache content"]
+  end
 
-  I1 --> S4
-  I2 --> S4
-  I3 --> S4
-  S4 --> O1
+  subgraph outputs["Owned authority"]
+    O1["s4_legality_report"]
+    O2["s4_run_report with coverage and legality counters"]
+    O3["Legality verdict over final site_timezones against compiled timetable truth"]
+    O4["Downstream contract:<br/>S5 may publish only if legality and coverage are acceptable"]
+  end
 
-  R1["Actual design recovery<br/>S4 is intentionally narrow:<br/>it does not repair assignments or rebuild cache"]
-  R2["Its job is to judge whether final tz authority<br/>is actually legal against manifest-scoped transition truth"]
-  R3["That makes S4 the segment's civil-time proof surface,<br/>not another assignment state"]
+  I1 --> C1
+  I2 --> C2
+  I3 --> C3
+  C1 --> C2 --> C3 --> C4
 
-  R1 -.-> S4
-  R2 -.-> S4
-  R3 -.-> S4
+  C4 --> O1
+  C4 --> O2
+  O1 --> O3
+  O1 --> O4
+
+  S1 -.-> C3
+  S2 -.-> C2
+  S3 -.-> C3

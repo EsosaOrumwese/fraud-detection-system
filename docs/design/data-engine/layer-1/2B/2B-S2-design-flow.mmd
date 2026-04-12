@@ -1,23 +1,37 @@
-flowchart LR
-  I1["s0_gate_receipt_2B"]
-  I2["s1_site_weights"]
-  I3["alias_layout_policy_v1"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 gate receipt and sealed_inputs_2B"]
+    I2["S1 site weights"]
+    I3["alias_layout_policy_v1"]
+  end
 
-  S2["S2 Alias authority<br/>Turn deterministic site masses into<br/>byte-stable O(1) decode artefacts"]
+  subgraph core["Actual S2 design"]
+    C1["Validate sealed alias-layout contract<br/>and constant quantisation law"]
+    C2["Encode deterministic Walker-Vose alias tables<br/>per merchant with strict ordering law"]
+    C3["Persist byte-stable alias index and blob surfaces<br/>with checksum and decode guarantees"]
+    C4["Prove decode parity and replay-safe layout semantics<br/>for later runtime routing"]
+  end
 
-  O1["s2_alias_index"]
-  O2["s2_alias_blob"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S2 stayed RNG-free and realism-light by design;<br/>its real job is byte-stable O(1) decode authority"]
+    S2["Layout policy was tightened around decode law, endianness,<br/>alignment and q-bits so S5/S6 can trust table semantics exactly"]
+    S3["Performance hardening changed load/write posture, not owned meaning;<br/>S2 still refuses implicit reorder or silent contract repair"]
+  end
 
-  I1 --> S2
-  I2 --> S2
-  I3 --> S2
-  S2 --> O1
-  S2 --> O2
+  subgraph outputs["Owned authority"]
+    O1["s2_alias_index"]
+    O2["s2_alias_blob"]
+    O3["merchant-scoped alias decode authority<br/>for S5 and S6"]
+  end
 
-  R1["Actual design recovery<br/>S2 is a mechanical authority surface,<br/>not a primary realism-tuning surface"]
-  R2["Its burden is layout truth, digest parity,<br/>and replayable decode law"]
-  R3["That is why remediation treated S2 mostly as<br/>non-regression support while realism work happened elsewhere"]
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  C1 --> C2 --> C3 --> C4
+  C3 --> O1
+  C3 --> O2
+  C4 --> O3
 
-  R1 -.-> S2
-  R2 -.-> S2
-  R3 -.-> S2
+  S1 -.-> C2
+  S2 -.-> C1
+  S3 -.-> C3

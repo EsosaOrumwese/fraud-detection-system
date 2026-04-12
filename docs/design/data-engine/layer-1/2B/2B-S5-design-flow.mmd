@@ -1,40 +1,41 @@
-flowchart LR
-  I1["s0_gate_receipt_2B"]
-  I2["s4_group_weights"]
-  I3["s1_site_weights"]
-  I4["site_timezones"]
-  I5["s2_alias_index + blob"]
-  I6["alias_layout_policy_v1"]
-  I7["route_rng_policy_v1"]
-  I8["arrival roster or caller arrivals"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 sealed routing environment"]
+    I2["S2 alias decode authority"]
+    I3["S4 group-weight authority"]
+    I4["route_rng_policy_v1"]
+    I5["realism-grade s5_arrival_roster"]
+    I6["seeded runtime RNG stream"]
+  end
 
-  S5["S5 Router core authority<br/>Stage A: pick tz_group<br/>Stage B: pick site within group<br/>Exactly two Philox draws per arrival"]
+  subgraph core["Actual S5 design"]
+    C1["Read arrival roster as the runtime demand witness<br/>for actual routing picks"]
+    C2["Sample group first, then site alias,<br/>under sealed policy and RNG law"]
+    C3["Emit replayable routing picks plus RNG event and trace evidence"]
+    C4["Bind runtime routing semantics to the same sealed world<br/>used by upstream realism states"]
+  end
 
-  O1["rng_event_alias_pick_group"]
-  O2["rng_event_alias_pick_site"]
-  O3["rng_audit_log"]
-  O4["rng_trace_log"]
-  O5["s5_selection_log<br/>optional"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S5 is the real runtime routing authority, not just a consumer of S4 outputs"]
+    S2["Realism-grade roster posture became mandatory for certification validity;<br/>S5 therefore owns a live routing witness, not synthetic bookkeeping"]
+    S3["Performance work cut hotspot cost and later replay hardening added deterministic timestamps,<br/>but both changes preserved S5 as the primary routing-truth boundary"]
+  end
 
-  I1 --> S5
-  I2 --> S5
-  I3 --> S5
-  I4 --> S5
-  I5 --> S5
-  I6 --> S5
-  I7 --> S5
-  I8 --> S5
+  subgraph outputs["Owned authority"]
+    O1["s5_site_route events and traces"]
+    O2["arrival-roster-conditioned routing truth<br/>for S6 and S7"]
+  end
 
-  S5 --> O1
-  S5 --> O2
-  S5 --> O3
-  S5 --> O4
-  S5 --> O5
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  I4 --> C2
+  I5 --> C1
+  I6 --> C2
+  C1 --> C2 --> C3 --> C4
+  C3 --> O1
+  C4 --> O2
 
-  R1["Actual design recovery<br/>S5 is the segment's live routing truth surface"]
-  R2["Its real burden is not just O(1) choice;<br/>it is ordered, replayable, fully budgeted routing evidence"]
-  R3["Performance work later concentrated here,<br/>but without relaxing the two-draw law or trace reconciliation burden"]
-
-  R1 -.-> S5
-  R2 -.-> S5
-  R3 -.-> S5
+  S1 -.-> C2
+  S2 -.-> C1
+  S3 -.-> C3

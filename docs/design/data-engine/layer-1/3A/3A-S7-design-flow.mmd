@@ -1,16 +1,38 @@
-flowchart LR
-  I1["Reads<br/>s6_receipt_3A and validation artefacts"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 sealed world and upstream gates"]
+    I2["S1-S5 published artefacts"]
+    I3["S6 receipt and issue surface"]
+    I4["validation bundle schemas and dictionary contracts"]
+  end
 
-  S7["S7<br/>Final publish legitimacy"]
+  subgraph core["Actual S7 design"]
+    C1["Require S6 PASS and consistent sealed world<br/>before final bundle assembly"]
+    C2["Assemble final validation bundle over the entire 3A authority chain"]
+    C3["Publish PASS legitimacy only if segment evidence, verdict and artefacts cohere"]
+  end
 
-  O1["Outputs<br/>validation_bundle_3A<br/>index.json<br/>_passed.flag"]
-  O2["Authority<br/>S7 seals whether downstream may read<br/>3A outputs at all"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S7 is the final publish-legitimacy rail, not another realism tuner"]
+    S2["Bundle assembly was heavily optimized later, but contract semantics stayed fail-closed and downstream-facing"]
+    S3["Integrated certification later used S7 PASS as a structural rail while realism remained a separate notebook verdict"]
+  end
 
-  R1["Implemented shift<br/>S7 requires S6 PASS and publishes the<br/>manifest-scoped bundle of legitimacy"]
-  R2["Implemented shift<br/>Digest-of-digests closure plus JSON _passed.flag<br/>make the read contract explicit for consumers"]
+  subgraph outputs["Owned authority"]
+    O1["validation_bundle_3A"]
+    O2["validation_passed_flag_3A"]
+    O3["downstream legitimacy for later layers"]
+  end
 
-  I1 --> S7
-  S7 --> O1
-  S7 --> O2
-  R1 -.-> S7
-  R2 -.-> S7
+  I1 --> C1
+  I2 --> C2
+  I3 --> C1
+  I4 --> C2
+  C1 --> C2 --> C3
+  C2 --> O1
+  C2 --> O2
+  C3 --> O3
+
+  S1 -.-> C3
+  S2 -.-> C2
+  S3 -.-> C3

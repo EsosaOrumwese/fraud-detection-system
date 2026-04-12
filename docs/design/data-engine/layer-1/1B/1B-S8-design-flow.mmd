@@ -1,5 +1,39 @@
-flowchart LR
-  A["Authority inputs<br/>s7_site_synthesis only"] --> B["Owned transformation<br/>Project synthesized rows into egress shape<br/>drop parameter_hash from partition identity<br/>publish site_locations under seed plus fingerprint<br/>remain order-free across countries"]
-  B --> C["Authority outputs<br/>site_locations<br/>final data surface of segment 1B"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S7 site synthesis rows<br/>already parity-checked and tile-lawful"]
+    I2["1B and layer-wide schema law<br/>partition keys, sort keys, schema_ref, final_in_layer requirement"]
+    I3["Run identity<br/>seed plus manifest_fingerprint define egress identity"]
+  end
 
-  D["Implemented design shifts<br/>S8 was clarified into a narrow egress state<br/>not a semantic redesign state<br/>it preserves the final-in-layer boundary<br/>while refusing to encode forbidden order meaning"] -.-> B
+  subgraph core["Actual S8 design"]
+    C1["Validate every synthesized row against the final site_locations contract<br/>before any publish occurs"]
+    C2["Publish site_locations on the fingerprint-scoped egress path<br/>without parameter_hash in final consumer identity"]
+    C3["Write run summary and determinism evidence<br/>for the final 1B data surface"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S8 was narrowed into a strict contract egress<br/>it no longer tries to carry extra design meaning beyond final row legitimacy"]
+    S2["The egress identity was kept order-free and fingerprint-scoped<br/>so 1B does not create a new inter-country order claim"]
+    S3["Schema alignment checks were made explicit<br/>partitioning, sorting, and final_in_layer posture are enforced rather than assumed"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["site_locations"]
+    O2["s8_run_summary"]
+    O3["Final 1B consumer-facing location surface"]
+    O4["Downstream contract:<br/>S9 judges the published surface; later consumers do not read pre-S8 synthesis rows"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  C1 --> C2 --> C3
+
+  C2 --> O1
+  C3 --> O2
+  O1 --> O3
+  O1 --> O4
+
+  S1 -.-> C2
+  S2 -.-> C2
+  S3 -.-> C1

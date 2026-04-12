@@ -1,18 +1,37 @@
-flowchart LR
-  I1["Reads<br/>sealed_inputs_3A<br/>1A outlet counts and country coverage"]
-  I2["Policy<br/>zone_mixture_policy"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 gate receipt and sealed_inputs_3A"]
+    I2["outlet_catalogue"]
+    I3["zone_mixture_policy_v1"]
+    I4["world_countries plus tz_world"]
+  end
 
-  S1["S1<br/>Deterministic escalation queue"]
+  subgraph core["Actual S1 design"]
+    C1["Derive lawful zone universe per country<br/>from explicit world geometry"]
+    C2["Aggregate merchant-country outlet counts<br/>from outlet_catalogue"]
+    C3["Apply deterministic escalation law<br/>to classify each merchant-country pair<br/>as monolithic or escalated"]
+    C4["Emit the sole escalation queue authority<br/>for downstream stochastic states"]
+  end
 
-  O1["Outputs<br/>s1_escalation_queue"]
-  O2["Authority<br/>S1 alone decides which<br/>merchant-country pairs enter the<br/>zone-mixture realism corridor"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S1 is the sole escalation authority; later states are not allowed to invent new escalated domains"]
+    S2["Explicit world_countries sealing was added so zone-count truth comes from geometry law,<br/>not implicit timezone by-products"]
+    S3["Later smoothing work confirmed S1 owns escalation-shape coherence,<br/>not S2/S3/S4"]
+  end
 
-  R1["Implemented shift<br/>S1 stayed the sole escalation authority;<br/>downstream states must not re-evaluate mixture policy"]
-  R2["Implemented shift<br/>Later bounded smoothing was added on the<br/>below-min-sites branch to improve shape without<br/>turning S1 into a stochastic optimization surface"]
+  subgraph outputs["Owned authority"]
+    O1["s1_escalation_queue"]
+    O2["merchant-country escalation law<br/>for S3, S4 and S5"]
+  end
 
-  I1 --> S1
-  I2 --> S1
-  S1 --> O1
-  S1 --> O2
-  R1 -.-> S1
-  R2 -.-> S1
+  I1 --> C1
+  I2 --> C2
+  I3 --> C3
+  I4 --> C1
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1
+  C3 --> O2
+
+  S1 -.-> C3
+  S2 -.-> C1
+  S3 -.-> C3

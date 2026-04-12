@@ -1,18 +1,38 @@
-flowchart LR
-  I1["Reads<br/>merchant_zone_profile_5A<br/>shape-related policies from S0 sealed world"]
-  I2["Policies<br/>shape_library_5A<br/>shape_time_grid_policy_5A<br/>optional zone modifiers"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 merchant-zone demand identity"]
+    I2["shape_library_5A and zone_shape_modifiers_5A"]
+    I3["sealed shape-grid and temporal policy doctrine"]
+  end
 
-  S2["S2<br/>Weekly shape library"]
+  subgraph core["Actual S2 design"]
+    C1["Realize deterministic weekly-shape library<br/>for demand classes, zones and channel posture"]
+    C2["Select and parameterize shape templates<br/>under policy-governed class-zone rules"]
+    C3["Emit canonical weekly shape surfaces and grid definition<br/>for later baseline intensity composition"]
+  end
 
-  O1["Outputs<br/>shape_grid_definition_5A<br/>class_zone_shape_5A<br/>optional class_shape_catalogue_5A"]
-  O2["Authority<br/>S2 is the sole unit-mass weekly-shape<br/>authority for class-zone templates"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S2 is the deterministic weekly-shape owner surface; it does not own demand identity or baseline magnitude"]
+    S2["Channel realism required S2 to actually realize channel-conditioned shape behavior rather than leaving channel_group effectively mixed and inert"]
+    S3["S2 supports concentration and channel realism, but it still remains a deterministic shape law rather than a stochastic intensity state"]
+  end
 
-  R1["Implemented shift<br/>S2 did not become a merchant-specific lane;<br/>it stayed template-level and deterministic,<br/>with bucket ordering as the binding authority"]
-  R2["Implemented shift<br/>The actual output posture locked to a mixed-channel representation,<br/>so S2 became the place where channel diversity was deliberately compressed<br/>into one template family for the segment"]
+  subgraph outputs["Owned authority"]
+    O1["shape_grid_definition_5A"]
+    O2["class_zone_shape_5A"]
+    O3["class_shape_catalogue_5A"]
+    O4["deterministic weekly shape authority<br/>for S3 and S4"]
+  end
 
-  I1 --> S2
-  I2 --> S2
-  S2 --> O1
-  S2 --> O2
-  R1 -.-> S2
-  R2 -.-> S2
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  C1 --> C2 --> C3
+  C3 --> O1
+  C3 --> O2
+  C3 --> O3
+  C3 --> O4
+
+  S1 -.-> C2
+  S2 -.-> C2
+  S3 -.-> C3

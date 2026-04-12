@@ -1,18 +1,37 @@
-flowchart LR
-  I1["Reads<br/>s1_escalation_queue<br/>sealed_inputs_3A"]
-  I2["Policy authority<br/>country_zone_alphas<br/>zone_floor_policy"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 gate receipt and sealed_inputs_3A"]
+    I2["country_zone_alphas"]
+    I3["zone_floor_policy"]
+    I4["world_countries plus tz_world"]
+  end
 
-  S2["S2<br/>Deterministic country-zone priors"]
+  subgraph core["Actual S2 design"]
+    C1["Recompute country zone universe Z(c)<br/>independently of merchant data"]
+    C2["Construct parameter-scoped prior geometry<br/>for each country-zone pair"]
+    C3["Apply floor and bump doctrine to produce effective alphas<br/>without any RNG or merchant-specific reads"]
+    C4["Emit the deterministic prior law<br/>that later stochastic shares must respect"]
+  end
 
-  O1["Outputs<br/>s2_country_zone_priors<br/>parameter_hash-scoped"]
-  O2["Authority<br/>S2 is the sole priors geometry<br/>surface for escalated pairs"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S2 stayed independent of S1 by design; it owns prior geometry, not escalation membership"]
+    S2["P1 confirmed S2 is a true realism-control surface:<br/>alpha geometry and floor policy materially shape downstream collapse risk"]
+    S3["parameter_hash-only publication is intentional;<br/>S2 defines a reusable law, not a seed-scoped outcome"]
+  end
 
-  R1["Implemented shift<br/>P1 remediation made S2 the first major<br/>realism-shaping surface"]
-  R2["Implemented shift<br/>Final posture treats S2 priors as frozen upstream<br/>authority for later sampled dispersion"]
+  subgraph outputs["Owned authority"]
+    O1["s2_country_zone_priors"]
+    O2["parameter-scoped country-zone prior law<br/>for S3 and S4"]
+  end
 
-  I1 --> S2
-  I2 --> S2
-  S2 --> O1
-  S2 --> O2
-  R1 -.-> S2
-  R2 -.-> S2
+  I1 --> C1
+  I2 --> C2
+  I3 --> C3
+  I4 --> C1
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1
+  C3 --> O2
+
+  S1 -.-> C1
+  S2 -.-> C2
+  S3 -.-> C4

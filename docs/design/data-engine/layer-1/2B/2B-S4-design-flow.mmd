@@ -1,23 +1,39 @@
-flowchart LR
-  I1["s0_gate_receipt_2B"]
-  I2["s1_site_weights"]
-  I3["site_timezones"]
-  I4["s3_day_effects"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 site weights"]
+    I2["S3 day effects"]
+    I3["group_mix_regularizer_v1"]
+    I4["frozen merchant topology<br/>from 1B and 2A upstream worlds"]
+  end
 
-  S4["S4 Group-mix authority<br/>Aggregate base shares by tzid<br/>combine with gamma<br/>renormalise to per-day group truth"]
+  subgraph core["Actual S4 design"]
+    C1["Construct tz-group base_share topology<br/>from merchant-site-timezone world"]
+    C2["Combine base_share with gamma factors<br/>to derive routing group probabilities"]
+    C3["Apply deterministic anti-dominance regularization<br/>while preserving mass conservation and rank law"]
+    C4["Emit bounded group-weight authority<br/>and realism evidence for routing"]
+  end
 
-  O1["s4_group_weights"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S4 became the true anti-collapse owner surface;<br/>upstream S1 and S3 activation alone could not clear dominance failures"]
+    S2["group_mix_regularizer_v1 was introduced as an explicit policy-governed<br/>owner surface instead of hidden tuning logic"]
+    S3["P3 and reopen work proved an important design fact:<br/>S4 cannot override topology floors that are fixed upstream in 1B or 2A"]
+    S4["Performance hardening changed write validation cost, not the meaning of S4;<br/>it still owns routing realism rather than reporting"]
+  end
 
-  I1 --> S4
-  I2 --> S4
-  I3 --> S4
-  I4 --> S4
-  S4 --> O1
+  subgraph outputs["Owned authority"]
+    O1["s4_group_weights"]
+    O2["routing-group realism authority<br/>for S5 and downstream certification"]
+  end
 
-  R1["Actual design recovery<br/>S4 became the main anti-collapse realism surface"]
-  R2["This is where multi-group routing either survives<br/>or collapses toward single-group dominance"]
-  R3["Later blocker analysis proved that many final realism failures<br/>showed up here even when the true causal floor lived upstream"]
+  I1 --> C1
+  I2 --> C2
+  I3 --> C3
+  I4 --> C1
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1
+  C3 --> O2
 
-  R1 -.-> S4
-  R2 -.-> S4
-  R3 -.-> S4
+  S1 -.-> C3
+  S2 -.-> C3
+  S3 -.-> C1
+  S4 -.-> C4
