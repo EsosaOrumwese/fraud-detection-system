@@ -1,27 +1,16 @@
-flowchart LR
-  U1["Required upstream authority<br/>Layer-1: 1A through 3B<br/>Layer-2: 5A and 5B<br/>Layer-3: 6A<br/>All must already hold PASS"]
-  U2["Pinned upstream behavioural surfaces<br/>arrivals from 5B<br/>entity, account, credential, graph,<br/>and static fraud world from 6A"]
-  U3["Pinned Layer-3 behavioural contracts<br/>attachment, session, flow, amount,<br/>timing, fraud, label, case, RNG,<br/>and validation policies"]
+flowchart TD
+  A0["6B.S0<br/>Seal the behavioural universe<br/>arrivals, entities, configs, and validation law"]
+  A1["6B.S1<br/>Attach arrivals to entities and sessions"]
+  A2["6B.S2<br/>Lift sessions into baseline legitimate business flows"]
+  A3["6B.S3<br/>Overlay explicit fraud and abuse campaigns"]
+  A4["6B.S4<br/>Interpret that world into truth labels, bank-view labels, and cases"]
+  A5["6B.S5<br/>Audit and publish the behavioural HashGate"]
 
-  S0["S0<br/>Gate and seal the behavioural world"]
-  S1["S1<br/>Attach arrivals to entities and sessionise"]
-  S2["S2<br/>Synthesize baseline legitimate flows and events"]
-  S3["S3<br/>Overlay fraud campaigns and abuse behaviour"]
-  S4["S4<br/>Assign truth labels, bank-view labels,<br/>event labels, and case timelines"]
-  S5["S5<br/>Validate the whole behavioural world<br/>and seal PASS legitimacy"]
+  B1["Authority gained<br/>closed behavioural read universe"]
+  B2["Authority gained<br/>arrival-to-entity and session ownership"]
+  B3["Authority gained<br/>baseline business behaviour"]
+  B4["Authority gained<br/>campaign provenance and with_fraud behaviour"]
+  B5["Authority gained<br/>truth, bank-view, and case interpretation"]
+  B6["Authority gained<br/>6B PASS legitimacy"]
 
-  O1["Authoritative outputs<br/>sealed_inputs_6B<br/>attachment and session truth<br/>baseline flow/event truth<br/>overlay truth<br/>labels and case truth<br/>validation bundle and final PASS gate"]
-
-  R1["Actual design shift<br/>S1 became a lean deterministic attachment and sessionisation rail,<br/>not a heavy per-row probabilistic scorer"]
-  R2["Actual design shift<br/>S2 to S4 became the real behavioural realism corridor:<br/>legitimate baseline, fraud overlay, then truth and case authority"]
-  R3["Actual design shift<br/>S5 stayed fail-closed and is the only lawful consumer gate for 6B"]
-
-  U1 --> S0
-  U2 --> S0
-  U3 --> S0
-  S0 --> S1 --> S2 --> S3 --> S4 --> S5 --> O1
-  R1 -.-> S1
-  R2 -.-> S2
-  R2 -.-> S3
-  R2 -.-> S4
-  R3 -.-> S5
+  A0 --> B1 --> A1 --> B2 --> A2 --> B3 --> A3 --> B4 --> A4 --> B5 --> A5 --> B6

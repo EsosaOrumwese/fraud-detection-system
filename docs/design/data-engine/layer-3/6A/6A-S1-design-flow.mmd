@@ -1,18 +1,39 @@
-flowchart LR
-  I1["Reads<br/>s0_gate_receipt_6A<br/>sealed_inputs_6A<br/>population and segmentation priors"]
-  I2["Taxonomies and contextual hints<br/>taxonomy_party_6A<br/>coarse upstream regional context when sealed"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 sealed world<br/>s0_gate_receipt_6A and sealed_inputs_6A"]
+    I2["Population and segmentation priors<br/>prior_population_6A, prior_segmentation_6A, taxonomy_party_6A"]
+    I3["Coarse upstream context only where allowed<br/>merchant and geography surfaces used as population context, not behaviour authority"]
+  end
 
-  S1["S1<br/>Customer and party base population"]
+  subgraph core["Actual S1 design"]
+    C1["Realise the closed party universe for the world<br/>how many parties exist and in which broad types"]
+    C2["Assign stable party identifiers and static segmentation<br/>party_type, segment, region/country context, and other non-behavioural attributes"]
+    C3["Emit the bank's read-only party base<br/>the identity surface every later Layer-3 state must consume"]
+  end
 
-  O1["Outputs<br/>s1_party_base_6A<br/>optional s1_party_summary_6A<br/>party RNG events plus audit and trace"]
-  O2["Authority<br/>S1 alone decides who exists<br/>and how parties are statically segmented"]
+  subgraph shifts["Implemented design shifts"]
+    S1["Because Layer-3 lacked a contracted run-report surface<br/>S1 hardened around S0 gate receipt plus sealed digest as the real precondition"]
+    S2["Where no sealed region taxonomy existed, region assignment became a deterministic derived law<br/>not an ad-hoc missing-data patch"]
+    S3["Digest and path-template fixes mattered here<br/>S1 had to align itself to the actual S0 sealing law before population authority was trustworthy"]
+  end
 
-  R1["Implemented shift<br/>S1 adopted a lean but deterministic posture:<br/>aggregated RNG evidence and streaming summaries<br/>replaced unrealistic per-party trace expectations"]
-  R2["Implemented shift<br/>The actual design also introduced deterministic region mapping<br/>when no sealed country-to-region taxonomy existed,<br/>which became part of the real population contract"]
+  subgraph outputs["Owned authority"]
+    O1["s1_party_base_6A"]
+    O2["optional s1_party_summary_6A"]
+    O3["rng events, audit, and trace for population realisation"]
+    O4["The sole party-universe authority<br/>later states may classify parties differently only by reading S1, never by recreating them"]
+  end
 
-  I1 --> S1
-  I2 --> S1
-  S1 --> O1
-  S1 --> O2
-  R1 -.-> S1
-  R2 -.-> S1
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  C1 --> C2 --> C3
+
+  C3 --> O1
+  C3 --> O2
+  C1 --> O3
+  O1 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C2
+  S3 -.-> C1

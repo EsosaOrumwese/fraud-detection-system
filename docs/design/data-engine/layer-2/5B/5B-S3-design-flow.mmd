@@ -1,0 +1,39 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 bucket structure and durations<br/>s1_time_grid_5B"]
+    I2["S2 realised intensity authority<br/>s2_realised_intensity_5B"]
+    I3["Arrival-count law and RNG policies<br/>arrival_count_config_5B and arrival_rng_policy_5B"]
+  end
+
+  subgraph core["Actual S3 design"]
+    C1["Convert realised intensities into per-bucket draw parameters<br/>using bucket duration and configured arrival law"]
+    C2["Sample non-negative integer counts N(entity,bucket)<br/>under Philox count-draw substreams"]
+    C3["Emit a complete bucket-count surface<br/>with mean parameters and references back to realised intensity"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["Internal outputs were separated from S0 sealing<br/>S3 learned not to misread run-local state as external sealed input"]
+    S2["Actual count generation became a mixed vectorised path<br/>zero-lambda fast paths plus bounded non-zero RNG loops"]
+    S3["Performance reopen work was allowed only if count-law semantics stayed frozen<br/>S3 remained count authority, not a tuning sink"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["s3_bucket_counts_5B"]
+    O2["count-law parameters and structural summaries"]
+    O3["rng events, audit, and trace for count draws"]
+    O4["The sole integer-count authority<br/>S4 may expand counts but may not rewrite them"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  C1 --> C2 --> C3
+
+  C3 --> O1
+  C1 --> O2
+  C2 --> O3
+  O1 --> O4
+
+  S1 -.-> C3
+  S2 -.-> C2
+  S3 -.-> C2

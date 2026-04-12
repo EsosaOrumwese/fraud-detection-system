@@ -1,0 +1,43 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 sealed world<br/>s0_gate_receipt_5B and sealed_inputs_5B"]
+    I2["5A scenario authority<br/>scenario_manifest_5A plus scenario-local intensity surfaces"]
+    I3["2A civil-time authority<br/>site_timezones and tz_timetable_cache"]
+    I4["Grouping and grid policies<br/>grouping_policy_5B and time_grid_policy_5B"]
+    I5["3B virtual classification and 5A channel context<br/>domain-discovery surfaces for merchant-zone-channel planning"]
+  end
+
+  subgraph core["Actual S1 design"]
+    C1["Construct the canonical scenario bucket grid in UTC<br/>covering each authorised horizon exactly once"]
+    C2["Attach local-time metadata without redefining 2A<br/>day-of-week, local clock position, DST gap/fold semantics"]
+    C3["Discover the grouping domain<br/>merchant x zone_representation x channel_group where applicable"]
+    C4["Assign deterministic group_id membership<br/>for shared latent-field draws in S2"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["The actual design had to recover channel_group as a real contract surface<br/>after upstream 5A memory-safe changes temporarily dropped it"]
+    S2["S1 became downstream-sensitive to 2A horizon truth<br/>the later 2A.S3 reopen mattered because DST coverage had to be valid for the 5B time canvas"]
+    S3["Read-scope law was tightened here<br/>S1 needed row-level legality on the exact metadata it used, not just sealed presence"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["s1_time_grid_5B"]
+    O2["s1_grouping_5B"]
+    O3["Canonical bucket and group canvas<br/>the only lawful domain for S2, S3, and S4"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C3
+  I5 --> C3
+  C1 --> C2 --> C3 --> C4
+
+  C2 --> O1
+  C4 --> O2
+  O1 --> O3
+  O2 --> O3
+
+  S1 -.-> C3
+  S2 -.-> C2
+  S3 -.-> C3

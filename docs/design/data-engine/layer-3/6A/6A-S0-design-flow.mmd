@@ -1,20 +1,41 @@
-flowchart LR
-  U1["Required upstream authority<br/>1A through 3B and 5A through 5B<br/>validation bundles and PASS flags"]
-  U2["Pinned upstream data surfaces<br/>merchant, zone, virtual, intensity,<br/>and arrival world references"]
-  U3["Pinned Layer-3 priors and contracts<br/>population, segmentation, product,<br/>instrument, graph, fraud-role, and validation packs"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["Upstream HashGates<br/>1A-3B and 5A-5B PASS for the same manifest_fingerprint"]
+    I2["Upstream Layer-1 and Layer-2 egress surfaces<br/>merchant, zone, routing, and arrival artefacts discoverable via contracts"]
+    I3["6A contracts, priors, taxonomies, and linkage rules<br/>population, products, instruments, devices, IPs, fraud posture"]
+    I4["World identity<br/>manifest_fingerprint and parameter_hash"]
+  end
 
-  S0["S0<br/>Gate and sealed inputs for the entity world"]
+  subgraph core["Actual S0 design"]
+    C1["Verify that the whole lower engine is sealed and trusted<br/>before Layer-3 entity work may begin"]
+    C2["Validate 6A contracts and resolve the full entity-world dependency set"]
+    C3["Build sealed_inputs_6A as the only legal read universe<br/>covering upstream egress plus 6A priors/configs"]
+    C4["Emit the 6A gate receipt and sealed digest<br/>that every later 6A and 6B state must inherit"]
+  end
 
-  O1["Outputs<br/>s0_gate_receipt_6A<br/>sealed_inputs_6A"]
-  O2["Authority<br/>S0 alone defines the closed world<br/>that all later 6A states may read"]
+  subgraph shifts["Implemented design shifts"]
+    S1["Large upstream row-level surfaces moved to structural digesting<br/>so S0 stayed control-plane instead of bulk-data hashing"]
+    S2["Layer-3 run-report surfaces did not exist as originally implied<br/>so the gate receipt itself became the practical authority boundary"]
+    S3["Later S4 role mismatches forced S0 role precision to tighten<br/>sealed-input roles became part of the actual design, not cosmetic metadata"]
+  end
 
-  R1["Implemented shift<br/>S0 became a strict multi-law gate:<br/>it validates all upstream PASS forms and fails on unresolved schema anchors"]
-  R2["Implemented shift<br/>The actual design kept S0 metadata-oriented:<br/>large upstream row-level surfaces are structurally sealed,<br/>while small contracts and priors are content-validated and hashed"]
+  subgraph outputs["Owned authority"]
+    O1["sealed_inputs_6A"]
+    O2["s0_gate_receipt_6A"]
+    O3["Closed entity-world contract for 6A and 6B<br/>what Layer-3 may read, under which roles and scopes"]
+  end
 
-  U1 --> S0
-  U2 --> S0
-  U3 --> S0
-  S0 --> O1
-  S0 --> O2
-  R1 -.-> S0
-  R2 -.-> S0
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  I4 --> C4
+  C1 --> C2 --> C3 --> C4
+
+  C3 --> O1
+  C4 --> O2
+  O1 --> O3
+  O2 --> O3
+
+  S1 -.-> C3
+  S2 -.-> C4
+  S3 -.-> C3

@@ -1,0 +1,40 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 planning surfaces<br/>s1_time_grid_5B and s1_grouping_5B"]
+    I2["5A deterministic lambda target authority<br/>scenario-local intensity surfaces on the S1 grid"]
+    I3["Arrival LGCP and RNG policies<br/>arrival_lgcp_config_5B and arrival_rng_policy_5B"]
+  end
+
+  subgraph core["Actual S2 design"]
+    C1["Join deterministic lambda_target to the planned bucket-group domain"]
+    C2["Sample per-group latent vectors under Philox law<br/>one correlated stochastic field per scenario x group"]
+    C3["Transform latent vectors into multiplicative factors xi(group,bucket)"]
+    C4["Emit lambda_realised as deterministic lambda_target<br/>modulated by the group-owned stochastic field"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["Actual design moved away from list-heavy latent handling<br/>chunked and vectorised generation became part of the real state posture"]
+    S2["Uniform conversion and Box-Muller discipline were pinned explicitly<br/>so performance work did not mutate RNG law"]
+    S3["Diagnostics became optional evidence, not mandatory data-plane weight<br/>S2 stayed focused on realised-intensity authority"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["s2_realised_intensity_5B"]
+    O2["optional s2_latent_field_5B"]
+    O3["rng events, audit, and trace for latent-field draws"]
+    O4["The sole correlated-noise authority<br/>S3 cannot invent its own stochastic field"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  C1 --> C2 --> C3 --> C4
+
+  C4 --> O1
+  C3 --> O2
+  C2 --> O3
+  O1 --> O4
+
+  S1 -.-> C2
+  S2 -.-> C2
+  S3 -.-> C4

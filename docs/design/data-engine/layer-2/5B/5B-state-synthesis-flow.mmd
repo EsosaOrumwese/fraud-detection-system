@@ -1,0 +1,27 @@
+flowchart TD
+  subgraph gate["S0 - closed arrival world"]
+    G0["Upstream PASS and scenario authority are sealed"]
+    G1["5B may only read the inventory S0 legalises"]
+  end
+
+  subgraph planning["S1 - lawful arrival canvas"]
+    P1["Time buckets are fixed in UTC and annotated in local civil time"]
+    P2["Merchant-zone-channel domain is grouped deterministically for shared latent dynamics"]
+  end
+
+  subgraph stochastic["S2 + S3 - realised arrival pressure"]
+    R1["S2 adds correlated stochastic variation<br/>without changing deterministic lambda ownership"]
+    R2["S3 turns realised intensity into integer count law<br/>without creating timestamps or routes"]
+  end
+
+  subgraph realisation["S4 - arrival event world"]
+    E1["Counts become concrete arrivals inside lawful bucket horizons"]
+    E2["Every arrival gets a routed physical or virtual endpoint under Layer-1 authority"]
+  end
+
+  subgraph closure["S5 - publish legitimacy"]
+    C1["Validation replays conservation, civil-time, routing, and RNG law"]
+    C2["Only the 5B HashGate makes Layer-2 arrivals safe to read downstream"]
+  end
+
+  G0 --> G1 --> P1 --> P2 --> R1 --> R2 --> E1 --> E2 --> C1 --> C2

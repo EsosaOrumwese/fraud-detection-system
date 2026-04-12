@@ -1,22 +1,42 @@
-flowchart LR
-  U1["Inputs<br/>s2_flow_anchor_baseline_6B<br/>s2_event_stream_baseline_6B"]
-  U2["Fraud authority from 6A<br/>static posture and entity context"]
-  U3["Policies<br/>campaign, targeting, abuse,<br/>overlay, and fraud RNG laws"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S2 baseline behaviour<br/>flow anchors and event stream in the all-legit world"]
+    I2["6A static posture and entity context<br/>the closed graph of risky and clean entities"]
+    I3["Campaign, targeting, overlay, and fraud RNG policies"]
+  end
 
-  S3["S3<br/>Overlay fraud campaigns and abuse behaviour"]
+  subgraph core["Actual S3 design"]
+    C1["Realise concrete fraud and abuse campaign instances<br/>campaign_id, campaign_type, timing, and target populations"]
+    C2["Select which entities and baseline flows each campaign touches<br/>without inventing new entities"]
+    C3["Overlay fraud behaviour onto the baseline world<br/>modifying or augmenting flows/events while preserving provenance"]
+    C4["Emit campaign-aware with_fraud surfaces<br/>plus the catalogue that explains why they look the way they do"]
+  end
 
-  O1["Outputs<br/>s3_campaign_catalogue_6B<br/>s3_flow_anchor_with_fraud_6B<br/>s3_event_stream_with_fraud_6B"]
-  O2["Evidence<br/>rng_event_fraud_campaign_pick<br/>rng_event_fraud_overlay_apply<br/>audit and trace"]
-  O3["Authority<br/>S3 alone defines campaign provenance<br/>and the fraud-bearing behavioural world"]
+  subgraph shifts["Implemented design shifts"]
+    S1["The actual design treated campaign multiplicity as real authority<br/>S3 is not a thin fraud-tag decorator"]
+    S2["Baseline legitimacy stayed readable because S3 writes separate with_fraud outputs<br/>overlay never mutates S2 in place"]
+    S3["Later performance work was forced to preserve campaign provenance and output split<br/>so runtime optimisations could not hollow out fraud semantics"]
+  end
 
-  R1["Implemented shift<br/>S3 became a real campaign multiplicity and targeting surface,<br/>not a thin fraud-tag decoration step"]
-  R2["Implemented shift<br/>The overlay is expressed through separate S3 outputs,<br/>so S2 baseline legitimacy remains readable and auditable"]
+  subgraph outputs["Owned authority"]
+    O1["s3_campaign_catalogue_6B"]
+    O2["s3_flow_anchor_with_fraud_6B"]
+    O3["s3_event_stream_with_fraud_6B"]
+    O4["fraud-overlay RNG evidence"]
+    O5["The sole fraud/abuse overlay authority<br/>S4 must label this world, not reinvent it"]
+  end
 
-  U1 --> S3
-  U2 --> S3
-  U3 --> S3
-  S3 --> O1
-  S3 --> O2
-  S3 --> O3
-  R1 -.-> S3
-  R2 -.-> S3
+  I1 --> C1
+  I2 --> C2
+  I3 --> C1
+  C1 --> C2 --> C3 --> C4
+
+  C4 --> O1
+  C4 --> O2
+  C4 --> O3
+  C3 --> O4
+  O2 --> O5
+
+  S1 -.-> C1
+  S2 -.-> C3
+  S3 -.-> C4
