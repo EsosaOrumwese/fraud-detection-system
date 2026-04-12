@@ -100,13 +100,11 @@ def draw_mcc_distance_plot() -> Path:
     ax.spines["right"].set_visible(False)
 
     for y, row in enumerate(df_jsd.itertuples(index=False)):
-        ax.annotate(
+        ax.text(
+            row.mcc_jsd_vs_global_bits + 0.004,
+            y - 0.22,
             f"{row.mcc_jsd_vs_global_bits:.3f}",
-            xy=(row.mcc_jsd_vs_global_bits, y),
-            xytext=(8, 8),
-            textcoords="offset points",
-            ha="left",
-            va="bottom",
+            va="center",
             fontsize=9,
         )
 
@@ -114,7 +112,14 @@ def draw_mcc_distance_plot() -> Path:
         plt.Rectangle((0, 0), 1, 1, color=POLICY_COLOR, label="Policy-shaped"),
         plt.Rectangle((0, 0), 1, 1, color=ARTIFACT_COLOR, label="Artifact-amplified"),
     ]
-    ax.legend(handles=handles, loc="lower right", frameon=False)
+    ax.legend(
+        handles=handles,
+        loc="lower right",
+        frameon=True,
+        facecolor="white",
+        edgecolor="#D9D9D9",
+        framealpha=0.95,
+    )
 
     fig.tight_layout()
     out_path = EXPORTS / "transaction_schema_top_country_mcc_distance.png"
