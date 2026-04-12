@@ -92,8 +92,8 @@ def draw_mcc_distance_plot() -> Path:
         df_jsd["mcc_jsd_vs_global_bits"],
         color=df_jsd["shape_classification"].map(palette),
     )
-    ax.set_title("Top-Country Distance from Global MCC Mix")
-    ax.set_xlabel("JSD vs Global MCC Mix (bits)")
+    ax.set_title("Top-Country Jensen-Shannon Divergence from Global MCC Mix")
+    ax.set_xlabel("Jensen-Shannon Divergence (bits, lower = closer to global MCC mix)")
     ax.set_ylabel("")
     ax.grid(axis="x", color="#D9D9D9", linewidth=0.8)
     ax.spines["top"].set_visible(False)
