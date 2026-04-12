@@ -1,0 +1,11 @@
+country_iso,merchant_count,merchant_share_pct,distinct_mcc,top10_mcc_share_pct,global_top10_mcc_overlap,mcc_jsd_vs_global_bits,cp_share_pct,cnp_share_pct,builder_vs_standard_delta,shape_classification
+MC,800,8.0,267,8.63,1,0.0823,75.0,25.0,0,policy-shaped
+BM,436,4.36,227,10.55,1,0.1508,75.0,25.0,-1,policy-shaped
+LU,379,3.79,208,11.35,1,0.1932,74.93,25.07,-1,policy-shaped
+IE,337,3.37,196,11.28,1,0.2046,75.07,24.93,-1,policy-shaped
+GH,315,3.15,196,13.33,0,0.2188,74.92,25.08,309,artifact-amplified
+CH,304,3.04,188,12.5,0,0.2323,75.0,25.0,-1,policy-shaped
+NO,262,2.62,186,11.83,1,0.223,74.81,25.19,-1,policy-shaped
+SG,238,2.38,165,12.61,1,0.2708,74.79,25.21,-1,policy-shaped
+AU,212,2.12,148,14.62,1,0.3209,75.0,25.0,-1,policy-shaped
+US,211,2.11,153,14.69,1,0.3015,67.3,32.7,-1,policy-shaped

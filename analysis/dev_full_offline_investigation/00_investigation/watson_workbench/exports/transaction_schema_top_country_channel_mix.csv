@@ -1,0 +1,11 @@
+country_iso,merchant_count,card_present_pct,card_not_present_pct,global_cnp_pct,channel_comment
+MC,800,75.0,25.0,25.27,Country sits effectively on the global 75/25 channel target.
+BM,436,75.0,25.0,25.27,Country sits effectively on the global 75/25 channel target.
+LU,379,74.93,25.07,25.27,Country sits effectively on the global 75/25 channel target.
+IE,337,75.07,24.93,25.27,Country sits effectively on the global 75/25 channel target.
+GH,315,74.92,25.08,25.27,Country sits effectively on the global 75/25 channel target.
+CH,304,75.0,25.0,25.27,Country sits effectively on the global 75/25 channel target.
+NO,262,74.81,25.19,25.27,Country sits effectively on the global 75/25 channel target.
+SG,238,74.79,25.21,25.27,Country sits effectively on the global 75/25 channel target.
+AU,212,75.0,25.0,25.27,Country sits effectively on the global 75/25 channel target.
+US,211,67.3,32.7,25.27,US-specific CNP override active.

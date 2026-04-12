@@ -1,0 +1,11 @@
+country_iso,merchant_count,shape_classification,builder_vs_standard_delta,policy_weight_driver,reason
+MC,800,policy-shaped,0,GDP-heavy + heavy-tail + regional boosts,Count follows the governed GDP-heavy allocation policy; residual effect is immaterial.
+BM,436,policy-shaped,-1,GDP-heavy + heavy-tail + regional boosts,Count follows the governed GDP-heavy allocation policy; residual effect is immaterial.
+LU,379,policy-shaped,-1,GDP-heavy + heavy-tail + regional boosts,Count follows the governed GDP-heavy allocation policy; residual effect is immaterial.
+IE,337,policy-shaped,-1,GDP-heavy + heavy-tail + regional boosts,Count follows the governed GDP-heavy allocation policy; residual effect is immaterial.
+GH,315,artifact-amplified,309,Residual block dominates over policy weight,Residual reconciliation grants the entire 310-row leftover block to GH.
+CH,304,policy-shaped,-1,GDP-heavy + heavy-tail + regional boosts,Count follows the governed GDP-heavy allocation policy; residual effect is immaterial.
+NO,262,policy-shaped,-1,GDP-heavy + heavy-tail + regional boosts,Count follows the governed GDP-heavy allocation policy; residual effect is immaterial.
+SG,238,policy-shaped,-1,GDP-heavy + heavy-tail + regional boosts,Count follows the governed GDP-heavy allocation policy; residual effect is immaterial.
+AU,212,policy-shaped,-1,GDP-heavy + heavy-tail + regional boosts,Count follows the governed GDP-heavy allocation policy; residual effect is immaterial.
+US,211,policy-shaped,-1,GDP-heavy + heavy-tail + regional boosts,Count follows the governed GDP-heavy allocation policy; residual effect is immaterial.
