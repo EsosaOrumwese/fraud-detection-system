@@ -31,6 +31,8 @@ The country Pareto chart tells us where merchant weight sits, but not whether th
   - `GH`: `196` distinct MCCs
 - The top-10-MCC share inside the heavy countries ranges from about `8.63%` (`MC`) to `14.69%` (`US`). That is more concentrated than the global `4.91%`, but still far from a narrow-category universe.
 - Jensen-Shannon divergence against the global MCC distribution stays modest rather than explosive. `MC` is closest to the global MCC shape (`0.0823` bits), while `AU` (`0.3209`) and `US` (`0.3015`) drift furthest among the top countries we checked.
+- Here Jensen-Shannon divergence is just a distance measure between two category mixes: the country's MCC distribution and the full global MCC distribution. `0` would mean the two shapes are effectively the same; larger values mean the country's merchant-category profile is further away from the global pattern. In this note, the metric is being used to test whether a heavy country is merely large or whether it is also structurally unusual on merchant-category composition.
+- A lower or higher divergence is not automatically `good` or `bad`. Lower divergence means the country looks more like a scaled version of the whole merchant world; higher divergence means the country is more compositionally distinctive. The real analytical risk is not difference itself, but failing to explain or account for that difference when interpreting downstream traffic, fraud, case, or label behaviour.
 - So the main interpretation is that the heavy countries are not tiny specialised merchant pockets. They are broad merchant populations with varying but still recognisable distance from the global MCC mix.
 
 ## 2) Country-level channel mix comparison
