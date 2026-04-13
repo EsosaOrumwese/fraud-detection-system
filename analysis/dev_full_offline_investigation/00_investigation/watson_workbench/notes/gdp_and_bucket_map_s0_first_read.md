@@ -229,3 +229,11 @@ Reason:
   - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket_distribution.csv`
 - bucket GDP-range summary:
   - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket_ranges.csv`
+- relationship scatter:
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_relationship_scatter.png`
+- top-country bucket-membership view:
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_top20_bucket_membership.png`
+- bucket-compression view:
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket_compression.png`
+- low-bucket exception view:
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket1_exception.png`
