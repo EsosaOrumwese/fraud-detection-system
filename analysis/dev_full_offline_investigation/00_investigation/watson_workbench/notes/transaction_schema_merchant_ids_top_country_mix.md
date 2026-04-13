@@ -54,6 +54,7 @@ The country Pareto chart tells us where merchant weight sits, but not whether th
 - The top-country table should not be read as if every heavy country means the same thing.
 - `MC`, `BM`, `LU`, `IE`, `CH`, `NO`, `SG`, `AU`, and `US` are best treated as `policy-shaped` countries: their counts follow the governed GDP-heavy, heavy-tail allocation policy, and their residual effect relative to a standard largest-remainder allocation is immaterial (`0` or `-1`).
 - `GH` is best treated as `artifact-amplified`: it picks up `309` extra merchants versus the standard largest-remainder counterfactual because the builder grants the full leftover block to the first-ranked fractional remainder country.
+- That amplification is not something I found documented as an intentional realism remediation. The design/implementation surfaces describe the integerisation law as deterministic largest-remainder with stable tie-breaks and `+1` bumps to the top `d` residuals. So the `GH` jump is best read as current builder behaviour drifting away from the documented law, not as a separately-authorised policy choice.
 - That matters because a heavy country can therefore mean two different things in this merchant universe:
   - real policy-shaped weight (`MC`, `BM`, `LU`, `IE`, ...)
   - builder-side residual artifact (`GH`)

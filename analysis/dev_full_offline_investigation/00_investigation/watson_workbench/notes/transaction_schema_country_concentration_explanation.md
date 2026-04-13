@@ -37,6 +37,14 @@ The concentration is mostly explained by the governed merchant-allocation policy
 - `GH` had the highest fractional remainder (`0.9899`), so the builder granted the full residual block to `GH`.
 - That pushes `GH` to `315` merchants in the published universe, whereas a standard one-by-one largest-remainder allocation would have left it at `6` merchants. The builder therefore adds `309` merchants to `GH` relative to the standard counterfactual.
 
+## What the documented law says versus what the builder does
+
+- The design and implementation notes consistently describe the integerisation law as deterministic largest-remainder with stable tie-breaks, not block-grant redistribution.
+- In the Segment 1A implementation notes, the documented rule is to use residual ordering by residual descending, then `ISO A-Z`, then `candidate_rank`, and to **apply `+1` to the top `d` residuals**.
+- The state/spec surfaces are aligned with that same reading: `residual_rank` is meant to reconstruct the bump set `{ i | residual_rank_i <= d }`, which is one-by-one Hamilton-style allocation.
+- I did not find a later build-plan or implementation-note remediation that explicitly re-authorises a different residual-sharing law for realism reasons.
+- So the observed `GH +309` effect is best read as an implementation drift against the documented integerisation law, not as a documented realism adjustment to the policy.
+
 ## What this means analytically
 
 - The heavy rich-country cluster should be explained as a governed property of the merchant-allocation policy.
