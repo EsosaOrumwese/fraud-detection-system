@@ -1,0 +1,19 @@
+{
+  "slice": "guys_and_st_thomas_nhs_foundation_trust_rd_data_analyst/02_research_data_quality_audit_and_governance_support",
+  "aligned_reporting_window": "Mar 2026",
+  "research_data_quality_output_count": 1,
+  "issue_class_count": 1,
+  "audit_consistency_output_count": 1,
+  "corrective_reading_output_count": 1,
+  "shared_reporting_cohort": "50_plus",
+  "retained_source_stream_count": 3,
+  "audit_metric_count": 3,
+  "review_trigger_metric_count": 3,
+  "current_reporting_pressure_gap_pp": 1.32999264145527,
+  "current_quality_consistency_gap_pp": -1.985315845179922,
+  "current_control_gap_pp": 4.796649323937525,
+  "traceability_stage_count": 4,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.30167770000002747
+}
