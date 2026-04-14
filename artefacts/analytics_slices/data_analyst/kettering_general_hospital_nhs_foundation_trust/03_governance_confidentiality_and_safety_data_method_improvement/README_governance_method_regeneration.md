@@ -1,0 +1,8 @@
+
+# Governance Method Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_analyst/kettering_general_hospital_nhs_foundation_trust/03_governance_confidentiality_and_safety_data_method_improvement/models/build_governance_confidentiality_and_safety_data_method_improvement.py
+```
