@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Data Scientist | Fraud Strategy, Decisioning & Production Analytics
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Scientist with experience developing fraud strategies, optimising decision logic, and turning analytical findings into operationally usable control improvements. Strong in SQL, Python, R, Excel, AWS, SageMaker, Power BI, Tableau, and DAX, with experience improving fraud-detection performance, balancing review burden against fraud capture, supporting first-line control effectiveness, and packaging analytical work into implementation-ready outputs for production-minded decisioning and stakeholder review.
+
+**CORE SKILLS**
+Fraud Strategy & Decisioning: Fraud strategy, rule optimisation, transaction-monitoring logic, control tuning, decisioning policy design, fraud-risk reduction
+Fraud Analytics & Operational Impact: Fraud analytics, operational impact analysis, decision-quality analysis, workload prioritisation, customer and bank protection, product-support analytics
+Programming, Querying & Modelling: SQL, Python, R, Excel, feature engineering, statistical modelling, analytical experimentation, reproducible analysis
+Control Effectiveness & Governance: First-line fraud control, second-line alignment, compliance-aware delivery, audit-ready evidence, release checks, governed analytical outputs
+Production Analytics & Implementation: End-to-end analytics delivery, implementation-ready handoff, cloud-native solution support, SDLC-aware delivery, architecture participation
+Stakeholder Communication: Fraud-strategy trade-off communication, management reporting, partner communication, commercially aware decision support, cross-functional collaboration
+Cloud & Platform: AWS, SageMaker, Power BI, Tableau, DAX, Git, Jupyter, cloud-hosted analytical workflows
+
+**RELEVANT EXPERIENCE**
+
+**Data Scientist & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Developed and optimised fraud strategy and rule logic by tightening a broad transaction-monitoring posture with an amount-based gate, improving fraud-truth yield from 12.06% to 12.37% while reducing selected-flow workload by 511,500.
+- Balanced fraud-risk reduction with operational impact by improving fraud-truth yield by 0.313 percentage points while retaining 89.53% of positives selected by the broader strategy and reducing downstream case events by 1,185,849.
+- Conducted fraud analytics that directly supported fraud operations and product decisioning, showing that the tighter posture produced a smaller, cleaner workload while slightly improving dispute concentration from 11.60% to 11.89% and chargeback concentration from 9.79% to 10.04%.
+- Worked in a first-line control context by packaging fraud-strategy evidence into a defendable control-effectiveness reading, keeping burden reduction, capture trade-offs, and adherence evidence explicit for second-line and compliance review.
+- Used data to support control, audit, and regulatory-aware delivery by keeping confirmed fraud outcomes fixed, baseline and preferred strategies stable, and release checks green across fraud-strategy and operations-impact packs.
+- Delivered implementation-ready decisioning outputs by turning the preferred fraud posture into a policy handoff with one configurable gate, explicit monitoring expectations, and carried-forward control requirements suitable for solution-design and SDLC discussion.
+- Communicated fraud-strategy trade-offs clearly to management and partner audiences, translating detection, burden, capture, and downstream workload changes into decision-ready notes that support commercially aware fraud-control choices.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy, pace, and service quality in a live operational environment where customer experience and fast decision-making both matter.
+- Follow strict operating controls and escalation routines, reinforcing consistent execution in a setting where small mistakes quickly affect downstream outcomes.
+- Work closely with teammates under pressure, communicating clearly and adapting quickly as demand shifts across the service workflow.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a control-heavy technical environment where careful judgement, procedure adherence, and accurate interpretation of live operational signals were essential.
+- Monitored technical telemetry, identified irregular conditions early, and supported corrective decisions before issues widened downstream.
+- Coordinated clearly with engineers, field teams, and supervisors so technical evidence could be translated into safe and timely operational action.
