@@ -2073,3 +2073,156 @@ This posting is a strong research-performance and `R&D` data-management role cen
 - line management and contribution to data-collection and management policy
 
 It is a useful evidence point because it shows an NHS data-analyst role where the employer wants more than routine reporting. They want someone who can operate a research-management data environment, maintain data quality across interconnected research systems, deliver national and board-level performance metrics, train users, and support research-governance and performance management at scale.
+
+---
+
+## UHN Patient Safety Data Analyst - Kettering General Hospital NHS Foundation Trust
+
+Source:
+- `NHS Jobs Beta` - <https://beta.jobs.nhs.uk/candidate/jobadvert/C9264-26-0213>
+
+Role family:
+- `Data Analytics`
+- patient safety analytics
+- clinical governance / quality improvement / incident-response analytics
+- NHS compliance and learning-improvement reporting
+
+### Job Purpose Evidence
+
+The employer frames this role as a `UHN Patient Safety Data Analyst` within `Clinical Governance`, responsible for strengthening patient safety across the `University Hospitals of Northamptonshire` by providing high-quality data insight, intelligence, and analytical support.
+
+The role is explicitly tied to measurable improvement in patient safety through advanced analytics, strategic decision support, incident-response support, and evaluation of safety interventions. It is also closely linked to implementation, monitoring, and continual enhancement of the `Patient Safety Incident Response Framework (PSIRF)`, with named emphasis on monitoring and evidencing compliance targets around `sepsis`, `AKI`, and `VTE`.
+
+This is therefore not just a reporting post. It is a patient-safety, investigation-support, and quality-improvement analytics role operating across incident data, compliance monitoring, trend analysis, intervention evaluation, governance, and organisational learning.
+
+### Responsibilities Evidence
+
+#### 1. Patient safety data collection, validation, and management
+
+- Systematically collect data on patient safety incidents, near misses, adverse events, compliance with `sepsis`, `AKI`, and `VTE` targets, and other key safety indicators.
+- Clean data from multiple internal and external sources.
+- Validate data from multiple internal and external sources.
+- Manage patient safety data from multiple internal and external sources.
+- Identify data requirements.
+- Define analysis requirements.
+- Design data gathering approaches.
+- Design desired outputs.
+
+#### 2. Advanced analysis, modelling, and risk identification
+
+- Perform advanced statistical analyses.
+- Perform data modelling.
+- Uncover trends.
+- Identify emerging risks.
+- Proactively identify patterns and risks.
+- Support timely and targeted interventions through early identification of patterns and risks.
+- Assess the robustness of data.
+- Ensure data analysis for projects and programmes is sufficient, robust, and reliable.
+- Perform complex analyses on project and programme data.
+- Present complex analyses in formats including bar charts and `SPC` charts.
+- Synthesise multiple sources to communicate on highly complex issues.
+
+#### 3. PSIRF, incident response, and learning-cycle support
+
+- Play a central part in the implementation of `PSIRF`.
+- Play a central part in monitoring `PSIRF`.
+- Play a central part in continual enhancement of `PSIRF`.
+- Work in partnership with the `Patient Safety Team`, clinical leads, and incident investigators throughout the `PSIRF` response cycle.
+- Provide timely and robust data support for identification of patient safety incidents.
+- Provide timely and robust data support for investigation of patient safety incidents.
+- Provide timely and robust data support for learning from patient safety incidents.
+- Support effective incident response through accurate and relevant data.
+- Support in-depth investigations and learning cycles throughout the `PSIRF` process.
+- Support thematic reviews and deep-dives into patient safety issues.
+- Contribute to development of local patient safety learning responses.
+- Facilitate organisation-wide understanding of data insights within the `PSIRF` framework.
+
+#### 4. Compliance-target monitoring and improvement evaluation
+
+- Monitor progress in meeting essential clinical compliance targets.
+- Analyse progress in meeting essential clinical compliance targets.
+- Clearly evidence progress on `sepsis`, `AKI`, and `VTE` compliance.
+- Highlight progress on `sepsis`, `AKI`, and `VTE` compliance in dashboards, visualisations, and reports.
+- Enable continuous monitoring of implemented safety actions.
+- Enable evaluation of implemented safety actions.
+- Measure the impact of safety interventions.
+- Measure the impact of compliance initiatives.
+- Inform ongoing quality-improvement efforts, especially around `sepsis`, `AKI`, and `VTE`.
+- Provide evidence for prioritising safety initiatives and resource allocation based on actual patient-safety data.
+
+#### 5. Dashboards, reporting, and stakeholder-facing communication
+
+- Produce insightful dashboards.
+- Produce visualisations.
+- Produce regular reports.
+- Clearly communicate findings, recommendations, and learning opportunities to multidisciplinary stakeholders.
+- Provide actionable insights to multidisciplinary stakeholders.
+- Translate complex information into clear messages that support organisational learning and safer care.
+- Contribute to `Quality Dashboards` and performance reports across `UHN`.
+- Present data in a variety of formats including maps, charts, tables, and graphs.
+- Facilitate transparent communication and shared learning across the organisation.
+
+#### 6. Governance, confidentiality, and systems improvement
+
+- Champion best practices for data governance.
+- Champion best practices for data protection.
+- Champion best practices for confidentiality.
+- Ensure all data analysis activities comply with relevant laws, regulations, and organisational standards.
+- Work within Trust guidelines regarding record keeping, data collection, safeguarding, confidentiality, and health and safety.
+- Drive development of data collection tools, methodologies, and systems.
+- Refine data collection tools, methodologies, and systems.
+- Increase the reliability, timeliness, and relevance of patient safety data.
+- Carry out targeted audits and compliance reviews for `sepsis`, `AKI`, and `VTE`.
+- Track data, risks, and issues continuously to resolve failures to meet project requirements and inform team members accordingly.
+
+### Person Specification Evidence
+
+#### 1. Education, training, and qualifications
+
+- Data analyst qualification or equivalent experience. Essential.
+- Information Technology qualification. Essential.
+- Evidence of continuing professional development relevant to the post to postgraduate level or equivalent. Essential.
+- Involvement in project management. Essential.
+- Quality-improvement method identified / qualification. Desirable.
+- Attained or working towards a project-management qualification such as `PRINCE2`. Desirable.
+
+#### 2. Knowledge and experience
+
+- Strong understanding of patient safety concepts, quality-improvement methodologies, and `PSIRF` or similar frameworks. Essential.
+- Technical expertise in data extraction and analysis using tools such as `Access`, `Excel`, `Power BI`, `Business Objects`, `SQL`, and `Qlikview`. Essential.
+- Detailed analysis and validation of various types of data to inform assessment of performance and identify opportunities for improvement. Essential.
+- Experience of understanding data to support the writing of reports or briefing papers. Essential.
+- Ability to manage a diverse workload and meet set deadlines. Essential.
+- Experience in `NHS` information and data-analysis environment. Desirable.
+- Experience supporting investigations, root cause analysis, thematic reviews, and compliance audits in a healthcare setting. Desirable.
+- Knowledge of `NHS` targets and performance indicators. Desirable.
+- Demonstrated ability to develop workforce `KPI` dashboards from electronic staffing systems. Desirable.
+
+#### 3. Skills
+
+- Ability to analyse data, draw conclusions, and provide recommendations. Essential.
+- Good analytical report-writing and presentation skills, able to manipulate data from a variety of sources and present in the most appropriate format. Essential.
+- Ability to work co-operatively with clinical and non-clinical staff and develop effective working relationships within clinical management groups. Essential.
+- Strong negotiation and influencing skills with the ability to motivate and engage individuals and teams. Essential.
+- Proactive, creative, and flexible approach, able to work on own initiative and take responsibility for delegated areas. Essential.
+- Knowledge and experience working with `SPC` and other statistical-analysis tools. Desirable.
+
+### Additional Process and Environment Evidence
+
+- Role sits across the `University Hospitals of Northamptonshire` group and requires travel between `Northampton` and `Kettering` hospital sites.
+- Job is subject to `DBS` checking and standard safeguarding, confidentiality, `Data Protection`, and mandatory-training expectations.
+- The role sits within `Clinical Governance` and works with the `Patient Safety Team`, `Datix` team, `QI`, `Clinical Audit`, and `Mortality Team`.
+- Trust framing places the role inside a broader patient-safety, quality, systems-and-partnerships, and continuous-improvement agenda.
+
+### Hiring Signal Summary
+
+This posting is a strong patient-safety and quality-improvement analytics role centred on:
+- multi-source patient-safety data collection, cleaning, validation, and management
+- advanced statistical analysis, modelling, and risk identification
+- `PSIRF` implementation, incident-response support, and organisational learning
+- monitoring and evidencing compliance targets around `sepsis`, `AKI`, and `VTE`
+- intervention evaluation and prioritisation support
+- dashboarding, `SPC`, and stakeholder-facing patient-safety reporting
+- governance, confidentiality, and improvement of safety-data tools and methods
+
+It is a useful evidence point because it shows a Band 6 NHS analyst role where the employer wants more than operational reporting. They want someone who can use data to support patient-safety investigations, monitor compliance and intervention effectiveness, strengthen `PSIRF` learning cycles, and provide evidence that directly informs quality-improvement and safer care.

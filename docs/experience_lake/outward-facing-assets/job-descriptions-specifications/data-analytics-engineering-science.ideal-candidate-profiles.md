@@ -2142,3 +2142,148 @@ The strongest-fit candidate would likely go beyond generic analyst claims and sh
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a research-performance data analyst who can operate and improve a specialist research-management data environment, deliver accurate national and internal reporting, maintain strong data quality and governance, and support the wider research workforce through training and advisory help. They are useful because they turn complex research activity data into reliable operational and governance intelligence across a high-volume NHS research organisation.
+
+---
+
+## Ideal Candidate Profile - UHN Patient Safety Data Analyst - Kettering General Hospital NHS Foundation Trust
+
+Source role:
+- `UHN Patient Safety Data Analyst`
+- `Kettering General Hospital NHS Foundation Trust`
+- <https://beta.jobs.nhs.uk/candidate/jobadvert/C9264-26-0213>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a generic performance analyst and not a purely technical dashboard builder. The employer is looking for a patient-safety analyst who can use robust data analysis to support incident response, organisational learning, compliance monitoring, and quality improvement across a complex acute-care environment.
+
+This person would likely present as someone who is comfortable moving between:
+- patient-safety data collection, cleaning, and validation
+- advanced analysis, trend identification, and risk detection
+- `PSIRF` implementation and incident-response support
+- compliance monitoring for `sepsis`, `AKI`, and `VTE`
+- intervention evaluation and improvement tracking
+- dashboarding, reporting, and stakeholder communication
+- governance, confidentiality, and safety-data-method improvement
+
+They would sound like someone who can turn patient-safety data into reliable evidence for action, learning, and safer care rather than simply producing retrospective reports.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in patient safety, clinical governance, quality improvement, healthcare performance analytics, or a similar NHS analytical role where incident data, compliance targets, and organisational learning all matter. Their story would show that they can work with complex safety datasets, support investigations and thematic reviews, monitor performance against named clinical targets, and present findings clearly enough for clinicians, governance leads, and operational stakeholders to act on them.
+
+They would likely have experience that sounds like this:
+- collecting, validating, and managing complex clinical or safety-related datasets
+- analysing trends, risks, and patterns in safety or quality data
+- supporting investigation, audit, or incident-response processes with data
+- producing dashboards, `SPC` charts, and performance reports for multidisciplinary audiences
+- evaluating improvement actions and measuring intervention impact
+- operating within strong governance, confidentiality, and healthcare-data standards
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants patient-safety and PSIRF analytical capability
+
+The ideal candidate would sound like someone who understands that patient-safety analytics is part of the response and learning process, not just the reporting process. They would likely show that they can support `PSIRF` implementation, incident review, and organisational learning with timely and relevant data.
+
+The candidate's evidence would likely include:
+- working with patient-safety incidents, near misses, or adverse-event data
+- supporting investigations, thematic reviews, or deep dives
+- contributing analytical input to `PSIRF` or similar frameworks
+- using data to support learning responses and safer-care decisions
+
+#### B. If the employer wants strong compliance-target monitoring and improvement analysis
+
+The ideal candidate would sound like someone who can do more than state current performance. They would likely show that they can monitor, analyse, and evidence progress on key safety targets while using the findings to support improvement priorities.
+
+The candidate's evidence would likely include:
+- monitoring compliance against named clinical targets
+- analysing performance trends and shortfalls
+- evidencing progress over time
+- using data to prioritise improvement work and resource focus
+
+#### C. If the employer wants advanced analytical judgement and risk identification
+
+The ideal candidate would sound like someone who can identify what matters within complex safety data rather than only describing it. They would likely show that they can perform advanced analyses, assess robustness, and surface risks or patterns early enough to influence action.
+
+The candidate's evidence would likely include:
+- advanced statistical analysis or modelling
+- identifying emerging risks and important patterns
+- assessing robustness and sufficiency of analytical work
+- synthesising multiple sources into defensible conclusions
+
+#### D. If the employer wants intervention evaluation and continuous-improvement support
+
+The ideal candidate would sound like someone who can help the organisation learn whether safety actions are working. They would likely show that they can measure intervention impact and keep improvement work evidence-based over time.
+
+The candidate's evidence would likely include:
+- monitoring implemented actions
+- evaluating intervention effectiveness
+- measuring the impact of compliance initiatives
+- supporting ongoing quality-improvement cycles with data
+
+#### E. If the employer wants dashboarding, reporting, and multidisciplinary communication
+
+The ideal candidate would sound like someone who can turn complex safety analysis into usable reporting and clear messages for mixed audiences. They would likely show that they can communicate findings, recommendations, and learning opportunities in forms that clinicians, managers, and governance teams can use.
+
+The candidate's evidence would likely include:
+- producing dashboards, visualisations, and regular reports
+- using formats such as tables, graphs, charts, maps, and `SPC`
+- writing analytical reports or briefing papers
+- explaining complex issues clearly to multidisciplinary stakeholders
+
+#### F. If the employer wants governance and data-quality ownership
+
+The ideal candidate would sound like someone who treats governance, confidentiality, and data quality as part of the analytical role. They would likely show that they can validate data, improve collection methods, and ensure safety analysis complies with healthcare standards.
+
+The candidate's evidence would likely include:
+- cleaning and validating complex healthcare data
+- improving data-collection tools and methods
+- carrying out audits or compliance reviews
+- working within `Data Protection`, confidentiality, and safeguarding expectations
+
+#### G. If the employer wants project, influencing, and collaborative maturity
+
+The ideal candidate would not only analyse data well. They would also show that they can work across teams, handle multiple workstreams, and influence improvement activity in a complex hospital environment.
+
+The candidate's evidence would likely include:
+- project or programme support
+- managing multiple concurrent requests and deadlines
+- working with clinical and non-clinical teams
+- negotiation, influencing, and motivating others around improvement priorities
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can use patient-safety data to support incident response, organisational learning, and evidence-based improvement in a complex healthcare setting.
+- I am comfortable working within `PSIRF` or similar patient-safety frameworks, providing analytical support for investigations, thematic reviews, and learning responses.
+- I can monitor and evidence progress against key clinical compliance targets such as `sepsis`, `AKI`, and `VTE`, and use the findings to support prioritisation and action.
+- I can perform robust analysis across multiple data sources, identify risks and trends early, and present findings clearly through dashboards, reports, and statistical visualisations such as `SPC`.
+- I treat governance, confidentiality, and data quality as core parts of the role, and I can improve the reliability and usefulness of patient-safety data over time.
+- I can work effectively with clinicians, governance teams, and operational stakeholders to turn analytical findings into safer-care decisions and ongoing quality-improvement work.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is broad, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- genuine patient-safety or healthcare-quality analytical capability
+- confidence working with incident, compliance, and performance data
+- comfort with `PSIRF`, quality-improvement methods, or similar learning frameworks
+- strong data-validation, governance, and robustness discipline
+- ability to communicate clearly with multidisciplinary clinical and governance audiences
+- enough judgement to identify risks, interpret trends, and support recommendations
+- ability to manage varied work and operate reliably in a pressured NHS environment
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic NHS analyst claims and show evidence of:
+- direct patient-safety, clinical-governance, or quality-improvement analytics experience
+- experience supporting investigations, root cause analysis, thematic reviews, or compliance audits
+- strong capability with `Power BI`, `SQL`, `Business Objects`, `Qlikview`, or similar healthcare reporting tools
+- use of `SPC` or similar statistical-improvement methods
+- named experience with `sepsis`, `AKI`, `VTE`, or comparable clinical-compliance monitoring
+- ability to translate safety data into practical organisational learning and intervention evaluation
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a patient-safety analyst who can collect and validate complex safety data, support `PSIRF` learning and incident-response work, monitor compliance and intervention effectiveness, and communicate findings clearly enough to drive real quality improvement. They are useful because they turn clinical-safety data into reliable evidence for action, learning, and safer care across the organisation.
