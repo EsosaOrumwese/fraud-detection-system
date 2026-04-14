@@ -1850,3 +1850,148 @@ The strongest-fit candidate would likely go beyond generic analyst claims and sh
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a service-facing business-intelligence analyst who can build trusted reports and dashboards, support the data-warehouse and reporting-platform environment, investigate complex data issues, and help teams across the Trust use information more effectively. They are analytical, methodical, governance-aware, and useful because they turn complex operational data into dependable management information and practical service insight.
+
+---
+
+## Ideal Candidate Profile - Data Scientist - Fraud Strategic Analytics Associate - JPMorganChase
+
+Source role:
+- `Data Scientist - Fraud Strategic Analytics Associate`
+- `JPMorganChase`
+- <https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/210709799>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a research-only data scientist and not a generic fraud analyst who sits far from production delivery. The employer is looking for a fraud-focused data scientist who can help run first-line fraud strategy in a digital-bank environment by developing rules, conducting analytics, improving operational decision quality, and supporting governed control effectiveness.
+
+This person would likely present as someone who is comfortable moving between:
+- fraud strategy and rule optimisation
+- analytics for fraud product and fraud operations
+- operational impact analysis
+- control, audit, and compliance-aware delivery
+- cloud-native and production-minded technical implementation
+- collaboration with risk, product, and partner teams
+- communication with management and control stakeholders
+
+They would sound like someone who can turn fraud analytics into working decision logic that protects customers and the bank while preserving customer experience and fitting into a regulated operating model.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in fraud analytics, fraud strategy, risk analytics, or advanced decisioning work where the output of analysis affects real controls, operational actions, and customer outcomes. Their story would show that they can build or tune strategies and rules, analyse fraud patterns and impacts, work alongside operations and risk teams, and deliver solutions in a way that is disciplined enough for production and governance-heavy environments.
+
+They would likely have experience that sounds like this:
+- developing or optimising fraud rules, strategies, or monitoring logic
+- conducting analytics to improve fraud detection, operational efficiency, and decision accuracy
+- translating analytical findings into operational or control impact
+- working with first-line and second-line stakeholders on effectiveness, controls, and assurance
+- contributing to production delivery in cloud-native, application-oriented environments
+- communicating clearly with management, partners, and technical collaborators
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants fraud strategy and rule-development capability
+
+The ideal candidate would sound like someone who can do more than investigate fraud after the fact. They would likely show that they can design, improve, and implement fraud strategies or rules that directly affect detection quality across products and channels.
+
+The candidate's evidence would likely include:
+- developing fraud strategies or rule logic
+- implementing detection rules or decision controls
+- tuning fraud controls across product or channel contexts
+- balancing fraud detection effectiveness with customer experience
+
+#### B. If the employer wants analytics that directly supports fraud operations and fraud product
+
+The ideal candidate would sound like someone whose analytics changes how fraud teams work, not just how fraud is described. They would likely show that they can support operations, product, and financial-crime activity through analysis that improves prioritisation, efficiency, and decision accuracy.
+
+The candidate's evidence would likely include:
+- analysing fraud patterns to support operations or product teams
+- translating strategy changes into operational impact
+- improving decision quality through analytical insight
+- using data to protect customer and bank financial interests
+
+#### C. If the employer wants someone at the intersection of data science and production engineering
+
+The ideal candidate would not speak only about notebooks and experimentation. They would also describe involvement in solution design, implementation, and production delivery, especially in cloud-native or application-oriented environments.
+
+The candidate's evidence would likely include:
+- end-to-end analytical or model-driven solution delivery
+- contributing to design and architecture decisions
+- working with cloud-native or microservices-based systems
+- understanding or participating across the full `SDLC`
+
+#### D. If the employer wants strong first-line control and second-line risk alignment
+
+The ideal candidate would sound like someone who understands that fraud analytics in banking sits inside a control framework, not outside it. They would likely show that they can work with risk partners to ensure strategies, models, and rules remain effective and appropriately governed.
+
+The candidate's evidence would likely include:
+- working in a first-line fraud or risk environment
+- collaborating with second-line fraud-risk teams
+- assessing effectiveness of rules, models, or strategies
+- using data to support control confirmation and regulated adherence
+
+#### E. If the employer wants compliance, audit, and governance-aware delivery
+
+The ideal candidate would sound like someone who is enthusiastic about advanced analytics but not careless about control obligations. They would likely show that they can work within compliance, audit, and regulatory expectations and use data to demonstrate adherence.
+
+The candidate's evidence would likely include:
+- supporting compliance or audit frameworks through analysis
+- documenting or evidencing control adherence
+- understanding regulated decision environments
+- treating governance as part of delivery rather than an afterthought
+
+#### F. If the employer wants strong communication and commercial maturity
+
+The ideal candidate would sound like someone who can explain fraud analytics clearly to different audiences and understands the commercial realities of digital banking and fintech.
+
+The candidate's evidence would likely include:
+- presenting findings to management and partners
+- communicating concisely in written and oral form
+- showing commercially aware judgement
+- working effectively in collaborative squads or cross-functional teams
+
+#### G. If the employer wants team development and wider organisational contribution
+
+The ideal candidate would not only deliver individual outputs. They would also show that they can help raise standards across the organisation and contribute to broader fraud-analytics practice.
+
+The candidate's evidence would likely include:
+- team development or line-management contribution
+- sharing best practice across teams or business units
+- supporting collective standards in analytics, controls, or delivery
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can develop and implement fraud strategies and rules that improve fraud detection while balancing customer experience and control effectiveness.
+- I use analytics to support fraud product, fraud operations, and financial-crime activity, translating analytical findings into operational impact, efficiency gains, and stronger decision accuracy.
+- I am comfortable working in a first-line fraud-risk environment and partnering with second-line teams to ensure rules, models, and strategies remain effective and appropriately governed.
+- I can deliver end-to-end analytical solutions in production-minded environments, including cloud-native and application-oriented settings where design, implementation, and `SDLC` discipline matter.
+- I understand that fraud analytics in banking sits inside audit, compliance, and regulatory frameworks, and I can use data to support adherence and control confirmation.
+- I can communicate clearly with management, partners, and cross-functional teams, and I bring enough commercial and domain judgement to operate effectively in a digital-bank and fintech setting.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the advert uses modern data-science language, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- real fraud-domain understanding rather than generic analytics ability
+- ability to improve rules, strategies, or monitoring controls
+- comfort supporting fraud operations and control decisions with analysis
+- enough production and engineering maturity to operate in cloud-native delivery environments
+- confidence working inside first-line control ownership and alongside second-line risk
+- comfort with compliance, audit, and regulated delivery expectations
+- strong communication skill and collaborative maturity
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic fraud-analytics claims and show evidence of:
+- direct fraud-strategy, fraud-decisioning, or transaction-monitoring experience
+- hands-on rule optimisation and operational-impact analysis
+- digital-banking, payments, or fintech fraud exposure
+- production deployment or application delivery experience in cloud-native environments
+- strong familiarity with first-line / second-line fraud-control models
+- evidence of balancing fraud-risk reduction with customer experience
+- line-management, team-development, or best-practice-sharing contribution
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a production-minded fraud data scientist who can build and tune fraud strategies, support operations and product decisions with analytics, work effectively within first-line and second-line control structures, and help deliver modern fraud solutions in a cloud-native digital-bank environment. They are useful because they combine fraud-domain judgement, advanced analytics, regulated-control awareness, and engineering maturity in a way that directly improves fraud effectiveness without losing sight of customer experience.

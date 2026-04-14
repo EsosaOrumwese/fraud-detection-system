@@ -1824,3 +1824,115 @@ This posting is a strong NHS business-intelligence role centred on:
 - mentoring and support for less experienced staff
 
 It is a useful evidence point because it shows a `Data Analyst` role that sits between operational reporting, BI platform adoption, data-quality assurance, and service-facing analytical support. The employer is looking for someone who can help make the reporting platform the trusted organisational source while also answering complex analytical questions and improving how information is used across the Trust.
+
+---
+
+## Data Scientist - Fraud Strategic Analytics Associate - JPMorganChase
+
+Source:
+- `JPMorganChase Careers` - <https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/210709799>
+
+Role family:
+- `Data Science`
+- fraud strategy and analytics
+- fintech / digital-banking fraud risk
+- first-line fraud control / strategic analytics / production analytics delivery
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Data Scientist - Fraud Strategic Analytics Associate` inside the `Fraud Strategy and Analytics` function for `Chase UK` within the `International Consumer Bank`. The role sits inside the first line of defence business for fraud risk and is described as supporting product, fraud operations, and financial-crime activity from an analytics perspective.
+
+The posting combines two strong themes. First, it wants someone who can develop and implement fraud strategies and rules that reduce fraud and financial-crime risk while preserving customer experience. Second, it wants someone who can deliver end-to-end, cloud-native, microservices-oriented solutions, with involvement in solution design, architecture, and the full `SDLC`.
+
+This is therefore not just a modelling role and not just a reporting role. It is a fraud analytics role operating at the intersection of fraud strategy, operational decision support, production-minded analytics delivery, control effectiveness, and regulated first-line risk ownership.
+
+### Responsibilities Evidence
+
+#### 1. Fraud strategy, rules, and detection effectiveness
+
+- Develop fraud strategies and rules.
+- Implement fraud strategies and rules.
+- Ensure fraud strategies and rules effectively detect fraudulent activities.
+- Optimise transaction monitoring and controls.
+- Reduce fraud risk across products and channels.
+- Reduce financial-crime risk across products and channels.
+- Support the fraud strategy and control framework across all products and channels.
+
+#### 2. Fraud analytics for product, fraud operations, and financial-crime support
+
+- Conduct analytics to support the fraud product.
+- Conduct analytics to support fraud operations.
+- Conduct analytics to support financial crime work.
+- Protect the financial interests of customers and the bank through analytics.
+- Support the product from an analytics perspective.
+- Translate fraud strategy into operational impact.
+- Support fraud operations to improve efficiency.
+- Support fraud operations to improve decision accuracy.
+
+#### 3. Model, ruleset, and strategy effectiveness across control lines
+
+- Work with second-line fraud risk teams.
+- Ensure models are effective.
+- Ensure rulesets are effective.
+- Ensure strategies are effective.
+- Support the confirmation that compliance, audit, and control frameworks are followed.
+- Use data to confirm adherence to regulatory standards.
+
+#### 4. Cloud-native, end-to-end, and production-delivery expectations
+
+- Deliver end-to-end solutions.
+- Deliver cutting-edge solutions in the form of cloud-native microservices architecture applications.
+- Leverage the latest technologies.
+- Leverage industry best practices.
+- Be involved in the design of solutions.
+- Be involved in the architecture of solutions.
+- Focus on the entire `SDLC` lifecycle stages.
+
+#### 5. Collaboration, communication, and organisational contribution
+
+- Work in collaborative squads, tribes, and a flat-structure organisation.
+- Share best practice across `JP Morgan Chase & Co`.
+- Communicate concisely and effectively with all levels of management and partners.
+- Present analytical work clearly through written, oral, and presentation communication.
+- Contribute commercially aware, solution-oriented, and technology-aware thinking within a fintech environment.
+
+### Required Qualifications, Capabilities, and Skills Evidence
+
+#### 1. Education and technical grounding
+
+- Master's degree in numeric fields or `STEM`-related fields such as statistics, computer science, or data science. Required.
+
+#### 2. Domain and role capability
+
+- Knowledge of fraud processes and products. Required.
+- Team development and management experience. Required.
+
+#### 3. Implied operating posture from the advert text
+
+- Ability to work inside a specialist fraud team.
+- Ability to support a first-line fraud-risk function.
+- Ability to balance fraud-risk reduction with first-class client experience.
+- Ability to work across product and project-aligned squads.
+- Curiosity, collaborative mindset, and comfort with new technology.
+- Solution-oriented and commercially aware approach.
+
+### Additional Environment and Delivery Evidence
+
+- Role sits within `Chase UK`, the digital bank of `JPMorganChase`.
+- Employer describes the environment as building the bank of the future from scratch with a startup mentality.
+- Organisation is described as flat-structured and squad-based.
+- Role sits in the `Corporate Sector`, under `Predictive Science`.
+- Location listed as `1 Cabot Square, London`.
+
+### Hiring Signal Summary
+
+This posting is a strong fraud-strategy and advanced-analytics role centred on:
+- fraud-strategy and rule development
+- analytics for fraud product, fraud operations, and financial-crime support
+- translation of fraud strategy into operational impact
+- first-line fraud-risk ownership with second-line effectiveness alignment
+- governance, audit, and control-framework adherence
+- cloud-native, end-to-end, and `SDLC`-aware solution delivery
+- strong communication within a commercially aware fintech environment
+
+It is a useful evidence point because it shows a fraud data-science role that is not limited to model development. The employer wants someone who can combine fraud-domain judgement, analytics for operational decision quality, rule and strategy optimisation, production-minded technical delivery, and regulated control effectiveness inside a digital-bank setting.
