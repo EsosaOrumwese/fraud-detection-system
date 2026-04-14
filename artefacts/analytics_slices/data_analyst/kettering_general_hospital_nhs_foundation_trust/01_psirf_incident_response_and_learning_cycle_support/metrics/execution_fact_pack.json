@@ -1,0 +1,18 @@
+{
+  "slice": "kettering_general_hospital_nhs_foundation_trust/01_psirf_incident_response_and_learning_cycle_support",
+  "aligned_reporting_window": "Mar 2026",
+  "incident_support_summary_output_count": 1,
+  "incident_support_evidence_summary_output_count": 1,
+  "thematic_review_output_count": 1,
+  "learning_response_output_count": 1,
+  "shared_incident_focus": "50_plus",
+  "confirming_stream_count": 3,
+  "qualitative_stage_count": 3,
+  "review_trigger_metric_count": 3,
+  "case_pressure_gap_current_pp": 1.32999264145527,
+  "truth_quality_gap_current_pp": -1.985315845179922,
+  "control_gap_pp": 4.796649323937525,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.18150059999970836
+}
