@@ -1936,3 +1936,140 @@ This posting is a strong fraud-strategy and advanced-analytics role centred on:
 - strong communication within a commercially aware fintech environment
 
 It is a useful evidence point because it shows a fraud data-science role that is not limited to model development. The employer wants someone who can combine fraud-domain judgement, analytics for operational decision quality, rule and strategy optimisation, production-minded technical delivery, and regulated control effectiveness inside a digital-bank setting.
+
+---
+
+## R&D Data Analyst - Guy's and St Thomas' NHS Foundation Trust
+
+Source:
+- `HealthJobsUK` - <https://www.healthjobsuk.com/job/UK/London/London/Guys_St_Thomas_NHS_Foundation_Trust/Research_Development/Research_Development-v7892167?_ts=665>
+
+Role family:
+- `Data Analytics`
+- research and development performance analytics
+- research management systems / research data management
+- NHS research reporting / governance / performance metrics
+
+### Job Purpose Evidence
+
+The employer frames this role as an `R&D Data Analyst` within the `R&D Department`, working alongside the `R&D Performance Metrics Manager`, `R&D Directors Team`, and senior R&D managers to plan, design, deliver, and manage performance data required for R&D programme management and external reporting.
+
+The role is centred on using and maintaining databases, dashboards, and reporting structures that capture research performance across the Trust. It also carries responsibility for integrating content from multiple data sources, maintaining data quality, analysing complex trends, forecasting implications, and submitting national research performance metrics to the `Department of Health` and other national bodies.
+
+This is therefore not just a local reporting role. It is a research-performance, research-systems, and governance-aware analytics role with national reporting obligations, cross-source integration work, data-quality ownership, training duties, and direct line-management responsibility.
+
+### Responsibilities Evidence
+
+#### 1. Research management systems ownership and system support
+
+- Be responsible for the implementation of the `EDGE` research management system within the Trust.
+- Act as the key local contact for resolving issues in the research management system.
+- Act as the key contact across the `South London Research Delivery Network` for research-management-system issues.
+- Work with the `R&D Performance Metrics Manager`, `R&D Governance Team`, and external IT agencies to ensure efficient operation of the research management system across the Trust.
+- Use and maintain databases to support research-metric reporting and presentation.
+- Explore opportunities to streamline data capture across the `R&D` department.
+- Capture raw data from multiple data repositories across the organisations.
+
+#### 2. Performance reporting, mandatory returns, and dashboard delivery
+
+- Support the reporting and presentation of all research metrics that capture performance across `R&D`.
+- Ensure queries, reports, and data retrieval can be performed efficiently.
+- Submit Trust mandatory performance metrics to the `Department of Health` and other national bodies.
+- Submit reports including:
+- `Performance in Initiating and Delivering Clinical Research`
+- `NIHR Infrastructure Data reports`
+- Submit quarterly performance reports to the Trust `R&D Board`.
+- Submit reports to Directorate `R&D Leads` monthly meetings.
+- Submit reports to the Trust `Management Executive`.
+- Produce performance metrics for annual reports to the `Department of Health` and `NIHR Central Commissioning Facility`.
+- Produce ad hoc reports for `King's Health Partners`, the `London (South) Research Delivery Network`, the `Department of Health`, `MHRA`, Trust research themes, and others.
+- Use the `R&D Performance` dashboard template as required.
+
+#### 3. Data integration, trend analysis, forecasting, and analytical judgement
+
+- Integrate content from multiple data sources.
+- Analyse content from multiple data sources to provide timely information for internal decision-making.
+- Analyse complex trends involving multiple streams of data.
+- Forecast implications in the short term.
+- Forecast implications in the long term.
+- Use own judgement to decide when data is fit for purpose for analysis.
+- Work within clear, accurate, and timely criteria for data use.
+
+#### 4. Data quality, quality control, audit, and governance
+
+- Maintain data quality in the `EDGE` research management system.
+- Ensure required recruitment data can flow between `CPMS` and `EDGE`.
+- Perform quality control to ensure consistency and accuracy.
+- Perform data analysis and auditing to ensure consistency and accuracy.
+- Work with relevant staff to resolve data-quality issues affecting reports.
+- Make recommendations for the improvement of data quality.
+- Ensure compliance with the `Data Protection Act 1998`, `Caldicott`, and other relevant security and confidentiality procedures.
+
+#### 5. Stakeholder support, advisory work, and communication
+
+- Create and submit internal and external reports responding to the needs of clinical directorates and `R&D` directors.
+- Act as a frontline advisory service for users of the research management system.
+- Communicate professionally with all users of the research management system.
+- Liaise with the `R&D` governance team, study delivery teams, and the `South London Research Delivery Network` team to ensure performance data is captured and available for reporting purposes.
+- Facilitate effective communication within the clinical team around data analysis.
+- Be a source of support for research staff when dealing with issues around data.
+
+#### 6. Training, documentation, and capability building
+
+- Be responsible for Trust-wide training for users of the research management system.
+- Be responsible for providing training to the `R&D Governance Team` for extensive use of the research management system.
+- Review, maintain, and keep up to date training material.
+- Review, maintain, and keep up to date procedural documentation.
+- Assist staff to collect and understand data consistency and analysis, providing training where necessary.
+- Induct new members of staff in the use of the research management system.
+
+#### 7. Management, policy contribution, and professional development
+
+- Be directly responsible for managing the `Assistant Data Analyst`.
+- Carry out individual performance management, appraisal, and staff development.
+- Optimise individual and organisational performance through staff management.
+- Input into Trust policy development around data collection, storage, and management.
+- Develop and sustain own knowledge, skills, and professional awareness.
+- Keep up to date with departmental, Trust, `NHS`, academic, and `EU` developments for the management of clinical research.
+- Ensure timely and effective implementation of relevant changes.
+- Attend relevant courses, meetings, and conferences.
+
+### Person Specification Evidence
+
+#### 1. Qualifications
+
+- Educated to degree level or relevant experience. Essential.
+
+#### 2. Experience
+
+- Previous involvement in database management, migration, and development. Essential.
+- In-depth knowledge and understanding of mandatory reporting requirements, `NHS` data standards, and definitions. Essential.
+- Significant experience of handling complex information. Essential.
+- Knowledge of national `NIHR` research reporting. Desirable.
+- Significant experience of line management of staff. Desirable.
+- Experience of `EDGE` research management system. Desirable.
+
+#### 3. Skills
+
+- Ability to manage workload to meet new deadlines and data requests. Essential.
+- Ability to troubleshoot problems and logically work through solutions. Essential.
+
+### Additional Process and Environment Evidence
+
+- Role is primarily office-based at `Guy's Hospital`, with some home working considered after a three-month training period.
+- Department context includes major `NIHR`, `DHSC`, `HRA`, and `King's Health Partners` research activity and high-volume research performance reporting.
+- Job advert summary refers to the role as a `Research Data Manager` in the non-commercial `R&D Performance` team, while the formal job description title is `Data Analyst`.
+- Standard Trust-wide duties include confidentiality, `Data Protection`, `Freedom of Information`, equal opportunities, health and safety, infection control, risk management, and safeguarding.
+
+### Hiring Signal Summary
+
+This posting is a strong research-performance and `R&D` data-management role centred on:
+- `EDGE` research-management-system ownership and support
+- multi-source data integration and research-metric reporting
+- national and contractual `R&D` performance returns
+- quality control, audit, and fitness-for-analysis judgement
+- dashboard and database maintenance for research performance visibility
+- training, advisory support, and procedural documentation
+- line management and contribution to data-collection and management policy
+
+It is a useful evidence point because it shows an NHS data-analyst role where the employer wants more than routine reporting. They want someone who can operate a research-management data environment, maintain data quality across interconnected research systems, deliver national and board-level performance metrics, train users, and support research-governance and performance management at scale.

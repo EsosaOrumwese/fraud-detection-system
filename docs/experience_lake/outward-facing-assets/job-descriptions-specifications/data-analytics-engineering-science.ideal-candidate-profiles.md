@@ -1995,3 +1995,150 @@ The strongest-fit candidate would likely go beyond generic fraud-analytics claim
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a production-minded fraud data scientist who can build and tune fraud strategies, support operations and product decisions with analytics, work effectively within first-line and second-line control structures, and help deliver modern fraud solutions in a cloud-native digital-bank environment. They are useful because they combine fraud-domain judgement, advanced analytics, regulated-control awareness, and engineering maturity in a way that directly improves fraud effectiveness without losing sight of customer experience.
+
+---
+
+## Ideal Candidate Profile - R&D Data Analyst - Guy's and St Thomas' NHS Foundation Trust
+
+Source role:
+- `R&D Data Analyst`
+- `Guy's and St Thomas' NHS Foundation Trust`
+- <https://www.healthjobsuk.com/job/UK/London/London/Guys_St_Thomas_NHS_Foundation_Trust/Research_Development/Research_Development-v7892167?_ts=665>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a generic research assistant and not a narrow BI analyst who only builds local dashboards. The employer is looking for a research-performance data analyst who can run and improve a research-management data environment, integrate multiple sources of research activity data, maintain system and data quality, and deliver trusted internal and national reporting across a major NHS research organisation.
+
+This person would likely present as someone who is comfortable moving between:
+- research-management-system support and implementation
+- database maintenance and reporting delivery
+- multi-source data integration and analytical interpretation
+- national and contractual performance reporting
+- data-quality control, audit, and governance
+- user training, advisory support, and documentation
+- line management and policy contribution
+
+They would sound like someone who can make the research-performance data environment function reliably enough for programme management, governance, and external accountability.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in research data management, NHS performance analytics, research operations reporting, or a similar information-management role where system integrity, reporting accuracy, and governance matter as much as the analysis itself. Their story would show that they can maintain research databases and dashboards, integrate complex data from multiple repositories, manage mandatory returns, resolve data-quality issues, and support staff in using research-management systems correctly.
+
+They would likely have experience that sounds like this:
+- maintaining or improving database-backed reporting environments
+- supporting a research-management or specialist operational system
+- handling mandatory returns and high-accountability reporting cycles
+- integrating and validating data from multiple operational sources
+- analysing trends and producing performance insight for senior stakeholders
+- training users and maintaining procedural documentation
+- supporting policy, process, and team capability in a controlled environment
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants research-management-system ownership
+
+The ideal candidate would sound like someone who can do more than use a research system passively. They would likely show that they can help implement, maintain, troubleshoot, and improve a specialist research-management system while acting as a local expert for users.
+
+The candidate's evidence would likely include:
+- supporting or implementing a research-management system such as `EDGE`
+- acting as a key contact for local system issues
+- working with governance teams, delivery teams, and IT partners
+- improving data capture and system-supported reporting processes
+
+#### B. If the employer wants strong research-performance reporting capability
+
+The ideal candidate would sound like someone who can deliver high-accountability research metrics for both internal management and external bodies. They would likely show that they can manage recurring returns, ad hoc requests, and dashboard-based performance visibility across a large research portfolio.
+
+The candidate's evidence would likely include:
+- producing internal and external performance reports
+- delivering board-facing or executive reporting
+- supporting mandatory returns to national bodies
+- maintaining dashboards and databases for research metrics
+
+#### C. If the employer wants multi-source data integration and analytical judgement
+
+The ideal candidate would sound like someone who can combine data from several sources and decide whether it is strong enough to support analysis and reporting. They would likely show that they can interpret complex trend patterns and make defensible judgements about fitness for use.
+
+The candidate's evidence would likely include:
+- integrating data from multiple repositories or systems
+- analysing multiple streams of performance data
+- identifying trend patterns and forecasting implications
+- deciding when data is fit for purpose for reporting or analysis
+
+#### D. If the employer wants data quality, audit, and governance ownership
+
+The ideal candidate would sound like someone who treats data quality and governance as core parts of the role. They would likely show that they can perform quality control, audit consistency, resolve issues affecting reports, and work within strict confidentiality and data-protection requirements.
+
+The candidate's evidence would likely include:
+- performing quality control and audit checks
+- resolving data-quality issues with relevant staff
+- improving data quality and recommending controls
+- operating within `Data Protection`, `Caldicott`, and confidentiality procedures
+
+#### E. If the employer wants advisory support, training, and user enablement
+
+The ideal candidate would sound like someone who can help the wider research workforce use systems and data correctly. They would likely show that they can provide frontline support, train users, maintain training materials, and explain data issues clearly.
+
+The candidate's evidence would likely include:
+- acting as a frontline advisory contact
+- delivering Trust-wide or team-level training
+- maintaining training materials and procedural documentation
+- supporting staff to understand data consistency and analysis
+
+#### F. If the employer wants management and team contribution
+
+The ideal candidate would not only deliver their own work. They would also show that they can supervise or develop others and contribute to wider policy and process improvement.
+
+The candidate's evidence would likely include:
+- line management or development of junior staff
+- performance management and appraisal contribution
+- induction of new team members
+- input into data-collection, storage, and management policy
+
+#### G. If the employer wants strong operating discipline in a complex research environment
+
+The ideal candidate would sound like someone who can work methodically under recurring reporting pressure while staying up to date with changing national metrics and research-governance expectations.
+
+The candidate's evidence would likely include:
+- managing workload against deadlines and new data requests
+- troubleshooting problems logically
+- adapting reporting fields or outputs to changing national metrics
+- keeping pace with `NHS`, academic, and research-governance developments
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can run and improve a research-performance data environment, including specialist research-management systems, databases, dashboards, and reporting workflows.
+- I am comfortable integrating complex data from multiple sources and turning it into reliable internal and external research-performance reporting.
+- I treat data quality, audit, and governance as part of the analytical job, and I can judge when research data is fit for purpose for analysis and reporting.
+- I can deliver mandatory national research metrics and senior internal reporting accurately and on time in a high-accountability NHS research setting.
+- I can train and support users of research-management systems, maintain procedural documentation, and help teams understand how to work with data consistently.
+- I can manage priorities independently, troubleshoot system and data issues logically, and contribute to team capability and policy development.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the advert title is straightforward, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- database-backed reporting and research-system support capability
+- comfort with mandatory reporting requirements, `NHS` data standards, and definitions
+- ability to manage complex information accurately
+- strong data-quality and governance discipline
+- ability to work across multiple stakeholders in a large research environment
+- training and support capability for users of specialist systems
+- enough independence, organisation, and judgement to manage recurring reporting obligations without close supervision
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- direct `R&D`, research-operations, or clinical-research reporting experience
+- hands-on use of `EDGE` or a similar research-management platform
+- experience with national `NIHR` or related research reporting
+- high-confidence data integration and quality-control work across multiple research systems
+- line-management or team-development experience
+- board, executive, or external-body reporting exposure
+- understanding of how research metrics support governance, funding, and delivery performance
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a research-performance data analyst who can operate and improve a specialist research-management data environment, deliver accurate national and internal reporting, maintain strong data quality and governance, and support the wider research workforce through training and advisory help. They are useful because they turn complex research activity data into reliable operational and governance intelligence across a high-volume NHS research organisation.
