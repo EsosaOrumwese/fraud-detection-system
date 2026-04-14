@@ -2287,3 +2287,152 @@ The strongest-fit candidate would likely go beyond generic NHS analyst claims an
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a patient-safety analyst who can collect and validate complex safety data, support `PSIRF` learning and incident-response work, monitor compliance and intervention effectiveness, and communicate findings clearly enough to drive real quality improvement. They are useful because they turn clinical-safety data into reliable evidence for action, learning, and safer care across the organisation.
+
+---
+
+## Ideal Candidate Profile - Research Assistant in Health Data - Imperial College London
+
+Source role:
+- `Research Assistant in Health Data`
+- `Imperial College London`
+- <https://www.jobs.ac.uk/job/DRB875/research-assistant-in-health-data>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a purely administrative research assistant and not a narrow software engineer detached from health research. The employer is looking for a technically strong health-data research assistant who can work across cloud-based data pipelines, multimodal health-data integration, quantitative and longitudinal analysis, and collaborative `AI` model development in a translational research programme.
+
+This person would likely present as someone who is comfortable moving between:
+- health-data pipeline support and maintenance
+- linkage of wearable, app, biological, clinical, and environmental data
+- cloud-resource management and data-platform work
+- descriptive, quantitative, and longitudinal analysis
+- research reporting, records, and publication support
+- interdisciplinary collaboration across computational, clinical, and biological teams
+- guided but proactive contribution to new model-development work
+
+They would sound like someone who can help turn real-world health data into reliable analytical and modelling inputs for translational digital-health research.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked with large-scale real-world time-series data, clinical or biological data, and research-grade analytical workflows in a cloud or data-platform setting. Their story would show that they can support pipeline development, process and link complex datasets, perform strong quantitative analysis, and work effectively with researchers from different disciplines while maintaining careful records and research outputs.
+
+They would likely have experience that sounds like this:
+- building or supporting research data pipelines
+- working with wearable, app-based, or longitudinal health data
+- processing and linking multimodal datasets across different data types
+- using `Python`, `SQL`, and cloud services in research delivery
+- contributing analytical input to `AI` or advanced-model development
+- writing methods or data sections for reports and publications
+- supporting collaborative translational studies across institutions
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants health-data pipeline and integration capability
+
+The ideal candidate would sound like someone who can do more than analyse already-curated datasets. They would likely show that they can support and improve the pipelines that make multimodal health-data analysis possible in the first place.
+
+The candidate's evidence would likely include:
+- supporting development and maintenance of data pipelines
+- cleaning, processing, and linking data across sources
+- integrating app, wearable, clinical, biological, and environmental data
+- maintaining data validity and reliability in research workflows
+
+#### B. If the employer wants cloud-based technical delivery
+
+The ideal candidate would not only speak about analysis methods. They would also show that they can work within cloud-based data environments and help manage the resources that support research delivery.
+
+The candidate's evidence would likely include:
+- practical use of `Google Cloud` or similar cloud environments
+- management of cloud resources
+- familiarity with data-platform components such as data lakes, `BigQuery`, or `Firestore`
+- comfort working in technically structured research environments
+
+#### C. If the employer wants large-scale real-world longitudinal data capability
+
+The ideal candidate would sound like someone who can work with real-world time-series and longitudinal data rather than only static structured tables. They would likely show that they can handle the complexity of behavioural, clinical, and molecular trajectories over time.
+
+The candidate's evidence would likely include:
+- experience with large-scale time-series data
+- experience with wearable or smartphone-derived data
+- longitudinal analysis across repeated measures
+- integration of multiple trajectories into coherent analysis
+
+#### D. If the employer wants quantitative analysis and AI-model contribution
+
+The ideal candidate would sound like someone who can contribute analytical value beyond data preparation. They would likely show that they can perform strong descriptive and quantitative analysis and support model-development work in a collaborative research setting.
+
+The candidate's evidence would likely include:
+- descriptive and quantitative data analysis
+- support for new `AI` or advanced analytical model development
+- use of statistical procedures and research methods
+- integration of analysis into translational research questions
+
+#### E. If the employer wants strong interdisciplinary and collaborative operating ability
+
+The ideal candidate would sound like someone who can move effectively across disciplinary boundaries and support delivery in an international collaborative network.
+
+The candidate's evidence would likely include:
+- working with clinicians, computational scientists, and biologists
+- communicating with researchers across different disciplines and levels
+- coordinating with academic collaborators, industry partners, and `NHS` sites
+- responding to data queries from diverse research stakeholders
+
+#### F. If the employer wants research communication, writing, and delivery support
+
+The ideal candidate would sound like someone who can contribute to the written and presentational outputs of the research programme, not just the analysis code.
+
+The candidate's evidence would likely include:
+- maintaining accurate and complete records
+- preparing sponsor reports
+- preparing methodological or data writing for publications
+- presenting work at meetings, workshops, or conferences
+- contributing to grant bids
+
+#### G. If the employer wants self-directed but careful working style
+
+The ideal candidate would sound like someone who can work with initiative and independence without sacrificing detail, confidentiality, or collaborative reliability.
+
+The candidate's evidence would likely include:
+- planning work proactively
+- identifying challenges and suggesting solutions
+- meticulous handling of data and records
+- managing changing priorities with minimal supervision
+- handling confidential information with tact and discretion
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can support and improve health-data pipelines that bring together wearable, smartphone, clinical, biological, and environmental data for research use.
+- I am comfortable working with large-scale real-world time-series and longitudinal health data, using `Python`, `SQL`, and cloud services to clean, process, link, and analyse it.
+- I can contribute strong descriptive and quantitative analysis to translational health-data studies, including support for new `AI` model development.
+- I can work effectively across interdisciplinary teams involving clinicians, computational scientists, biologists, academic collaborators, and industry partners.
+- I maintain careful records, support sponsor reporting and publication writing, and work in a way that protects data validity, reliability, and confidentiality.
+- I can work proactively with minimal supervision while adapting to the changing technical and collaborative demands of a complex research programme.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is junior in rank, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- real technical comfort with health-data processing and linkage
+- confidence working with large-scale time-series or longitudinal data
+- strong `Python` and `SQL` capability
+- ability to work with clinical and biological data rather than generic datasets alone
+- ability to operate productively in an interdisciplinary research environment
+- strong written and verbal communication for research delivery
+- enough independence, organisation, and care to maintain reliable research outputs
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic research-assistant claims and show evidence of:
+- direct work with wearable, app-based, or digital health datasets
+- practical cloud experience in `Google Cloud`
+- handling multimodal health data spanning clinical, molecular, and behavioural domains
+- support for longitudinal or trajectory-based modelling
+- contribution to `AI` or advanced analytical model development
+- experience supporting publications, sponsor reporting, or research grants
+- evidence of productive collaboration across academic, clinical, and industry boundaries
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a technically capable health-data research assistant who can support cloud-based pipelines, integrate multimodal longitudinal datasets, contribute quantitative analysis and emerging `AI` work, and operate effectively across a complex translational research network. They are useful because they help convert real-world health data into reliable analytical and modelling inputs for clinically meaningful digital-health research.

@@ -2226,3 +2226,153 @@ This posting is a strong patient-safety and quality-improvement analytics role c
 - governance, confidentiality, and improvement of safety-data tools and methods
 
 It is a useful evidence point because it shows a Band 6 NHS analyst role where the employer wants more than operational reporting. They want someone who can use data to support patient-safety investigations, monitor compliance and intervention effectiveness, strengthen `PSIRF` learning cycles, and provide evidence that directly informs quality-improvement and safer care.
+
+---
+
+## Research Assistant in Health Data - Imperial College London
+
+Source:
+- `jobs.ac.uk` - <https://www.jobs.ac.uk/job/DRB875/research-assistant-in-health-data>
+- inline-converted materials provided by user:
+- `1-Values_Behaviours-Framework.pdf`
+- `2-Values_Values_Link-to-Imperial-Expectations.pdf`
+- `3-Research Assistant in Health Data Job Description.pdf`
+
+Role family:
+- `Research Data Science`
+- translational health-data research
+- digital health / wearable-data analytics
+- health-data pipelines / multimodal longitudinal analysis / AI-model support
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Research Assistant in Health Data` in the `National Heart & Lung Institute`, working within the `My Heart Counts` programme funded by a `British Heart Foundation Programme Grant`. The programme aims to use real-world smartphone and wearable data to support early detection, remote monitoring, and non-pharmacological intervention for pulmonary arterial hypertension.
+
+The postholder will work with a `Senior Data Scientist` and a wide interdisciplinary network spanning clinicians, computational scientists, biologists, academic collaborators, industry partners, and `NHS` sites. The role combines data-pipeline support, cloud-resource management, data cleaning and linkage, quantitative analysis, and contribution to new `AI` models integrating longitudinal molecular, activity, and clinical trajectories.
+
+This is therefore not just a junior research-support role. It is a translational health-data and multimodal analytics role at the intersection of research data engineering, longitudinal analysis, cloud-based data workflows, and collaborative model-development in an international academic and clinical context.
+
+### Responsibilities Evidence
+
+#### 1. Data pipelines, linkage, and multimodal health-data integration
+
+- Support and develop pipelines for `My Heart Counts` smartphone app data.
+- Integrate smartphone app data with biological (`omics`) datasets.
+- Integrate smartphone app data with clinical datasets.
+- Integrate smartphone app data with environmental datasets.
+- Support cleaning of data.
+- Support processing of data.
+- Support linkage of data.
+- Support analysis of data.
+
+#### 2. Cloud resources and data-platform support
+
+- Manage cloud resources.
+- Work in `Google Cloud`.
+- Support development and maintenance of data pipelines with cloud-based components.
+- Work with data environments involving `data lakes`, `Firestore`, or `BigQuery` knowledge where relevant.
+
+#### 3. Quantitative analysis, longitudinal analysis, and AI-model contribution
+
+- Perform descriptive data analyses.
+- Perform quantitative data analyses.
+- Contribute to the development of new artificial intelligence models.
+- Explore longitudinal analysis of molecular trajectories.
+- Explore longitudinal analysis of activity trajectories.
+- Explore longitudinal analysis of clinical trajectories.
+- Contribute to integration of multimodal longitudinal data for translational studies.
+
+#### 4. Research support, reporting, writing, and publication preparation
+
+- Maintain accurate and complete records of all findings.
+- Ensure the validity of data.
+- Ensure the reliability of data.
+- Support the preparation of reports for submission to research sponsors.
+- Prepare data and methodological writing to support submission of publications.
+- Attend and present work to colleagues.
+- Attend and present work at conferences and workshops.
+- Contribute to bids for research grants.
+
+#### 5. Stakeholder, collaborator, and interdisciplinary support
+
+- Coordinate with team members.
+- Coordinate with academic collaborators.
+- Coordinate with industry partners.
+- Support delivery of translational data-driven studies across international academic partners and `NHS` sites.
+- Support other researchers and collaborators within the team and across institutions with data queries.
+- Work closely with computational scientists, clinicians, and biologists across `Imperial`, `Stanford University`, `Cambridge University`, and `The University of Sheffield`.
+
+#### 6. Personal operating posture, training, and broader contribution
+
+- Take initiative in planning work.
+- Organise own work with minimal supervision.
+- Work both independently and as part of a diverse team.
+- Provide guidance to staff and students.
+- Undertake necessary training and development.
+- Undertake appropriate administration tasks.
+- Participate in group research meetings and internal seminars.
+- Promote the reputation of the group, department, and College.
+
+### Person Specification Evidence
+
+#### 1. Education
+
+- Hold an `MSc` in `Computer Science` or a closely related discipline such as statistics, physics, or biomedical engineering, or equivalent research, industrial, or commercial experience. Essential.
+
+#### 2. Experience
+
+- Practical experience within a research environment. Desirable.
+- Experience of communicating with researchers in different disciplines and levels. Essential.
+- Practical experience in cloud computing environments such as `Google Cloud`. Desirable.
+- Practical experience working with large-scale real-world time-series data. Essential.
+- Practical experience working with clinical or biological data. Essential.
+- Practical experience with `Python` and `SQL`. Essential.
+- Practical experience in working with wearable health data. Desirable.
+
+#### 3. Knowledge
+
+- Knowledge of `Google Cloud`, data lakes, `Firestore`, or `BigQuery`. Desirable.
+- Knowledge of wearable, molecular, and health data. Essential.
+- Knowledge of research methods and statistical procedures. Essential.
+- Knowledge of research data governance. Desirable.
+
+#### 4. Skills and abilities
+
+- Ability to organise own work with minimal supervision. Essential.
+- Ability to take initiative to identify challenges and suggest solutions. Essential.
+- Ability to work both independently and as part of a diverse team. Essential.
+- Advanced computer skills including data processing, word processing, spreadsheets, and cloud services. Essential.
+- Good writing skills and ability to produce clear and concise written material. Essential.
+- Strong verbal communication skills and ability to provide positive input into discussions. Essential.
+- Willingness to undertake necessary training for the role. Essential.
+- Flexibility to respond effectively to changing demands and priorities. Essential.
+- Meticulous approach and attention to detail. Essential.
+- Ability to handle confidential information with tact and discretion. Essential.
+- Ability to keep records, including minutes, and manage or collate information for reports. Essential.
+
+### Additional Environment and Values Evidence
+
+- Role is based in the `National Heart & Lung Institute` at the `Hammersmith Campus`.
+- Contract is full-time fixed term for two years.
+- Key external partners include `Google UK`, `Apple`, `NHS` partners, and the `BHF Data Science Centre`.
+- College values explicitly emphasised for the role are:
+- `Respect`
+- `Collaboration`
+- `Excellence`
+- `Integrity`
+- `Innovation`
+- Imperial values material also explicitly links leadership and analytical work to drawing appropriate insights from analytics while understanding context, future potential, and limitations.
+- Post requires a satisfactory `DBS` check.
+
+### Hiring Signal Summary
+
+This posting is a strong translational health-data research role centred on:
+- development and maintenance of smartphone and wearable-data pipelines
+- linkage of app, `omics`, clinical, and environmental datasets
+- cloud-resource and data-platform support in `Google Cloud`
+- descriptive, quantitative, and longitudinal multimodal analysis
+- contribution to new `AI` model development
+- interdisciplinary collaboration across academic, clinical, and industry partners
+- research reporting, publication support, and grant-bid contribution
+
+It is a useful evidence point because it shows a research-assistant role that is much more technical and analytically substantive than generic research support. The employer wants someone who can work across health-data engineering, multimodal longitudinal analysis, cloud tooling, and collaborative translational research in a digital-health setting.
