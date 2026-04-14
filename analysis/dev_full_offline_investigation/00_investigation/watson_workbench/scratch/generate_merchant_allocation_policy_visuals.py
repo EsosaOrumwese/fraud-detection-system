@@ -214,6 +214,118 @@ def plot_ranked_worlds(df: pl.DataFrame) -> None:
     plt.close(fig)
 
 
+def plot_ranked_worlds_top_end(df: pl.DataFrame, top_n: int = 30) -> None:
+    worlds = [
+        ("GDP-only", "gdp_only_count"),
+        ("GDP + region", "gdp_region_count"),
+        ("Corrected final", "corrected_final_count"),
+        ("Implemented final", "implemented_final_count"),
+    ]
+    fig, ax = plt.subplots(figsize=(12.5, 7))
+    for label, col in worlds:
+        ranked = df.select(col).sort(col, descending=True).to_series().to_list()[:top_n]
+        ranks = list(range(1, len(ranked) + 1))
+        ax.plot(ranks, ranked, marker="o", markersize=3.8, linewidth=2.2, color=WORLD_COLORS[label], label=label)
+
+    ax.set_title(f"Top-{top_n} Country Ranks Across the Four Worlds", fontsize=14, pad=14)
+    ax.set_xlabel("Country rank by merchant count", fontsize=10)
+    ax.set_ylabel("Merchant count", fontsize=10)
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    style_axes(ax, grid_y=True)
+    ax.legend(frameon=False, ncol=2)
+    fig.tight_layout()
+    fig.savefig(EXPORTS / "merchant_allocation_policy_ranked_worlds_top30.png", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_world_differences_by_rank(df: pl.DataFrame, top_n: int = 30) -> None:
+    ranked = (
+        df.sort("observed_count", descending=True)
+        .with_row_index("rank", offset=1)
+        .head(top_n)
+        .with_columns(
+            [
+                (pl.col("gdp_region_count") - pl.col("gdp_only_count")).alias("regional_delta"),
+                (pl.col("corrected_final_count") - pl.col("gdp_region_count")).alias("heavytail_delta"),
+                (pl.col("implemented_final_count") - pl.col("corrected_final_count")).alias("artifact_delta"),
+            ]
+        )
+        .to_pandas()
+    )
+
+    fig, ax = plt.subplots(figsize=(13, 7))
+    ax.bar(ranked["rank"], ranked["regional_delta"], color=EFFECT_COLORS["Regional uplift"], label="GDP + region minus GDP-only")
+    ax.bar(
+        ranked["rank"],
+        ranked["heavytail_delta"],
+        bottom=ranked["regional_delta"],
+        color=EFFECT_COLORS["Heavy-tail uplift"],
+        label="Corrected final minus GDP + region",
+    )
+    ax.bar(
+        ranked["rank"],
+        ranked["artifact_delta"],
+        bottom=ranked["regional_delta"] + ranked["heavytail_delta"],
+        color=EFFECT_COLORS["Implementation artifact"],
+        label="Implemented final minus corrected final",
+    )
+
+    gh_rows = ranked.loc[ranked["iso"] == "GH"]
+    if not gh_rows.empty:
+        gh_rank = int(gh_rows.iloc[0]["rank"])
+        ax.axvline(gh_rank, color="#444444", linestyle="--", linewidth=1.1, alpha=0.85)
+        ax.text(gh_rank + 0.4, ax.get_ylim()[1] * 0.92, "GH rank", fontsize=9, color="#333333")
+
+    ax.set_title(f"Top-{top_n} Rank Differences Between the Four Worlds", fontsize=14, pad=14)
+    ax.set_xlabel("Observed country rank", fontsize=10)
+    ax.set_ylabel("Incremental change in merchant count", fontsize=10)
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    style_axes(ax, grid_y=True)
+    ax.legend(frameon=False, loc="upper right")
+    fig.tight_layout()
+    fig.savefig(EXPORTS / "merchant_allocation_policy_rank_differences_top30.png", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_implemented_vs_corrected_artifact(df: pl.DataFrame) -> None:
+    artifact_df = (
+        df.sort("observed_count", descending=True)
+        .select(["iso", "implemented_final_count", "corrected_final_count"])
+        .with_columns((pl.col("implemented_final_count") - pl.col("corrected_final_count")).alias("artifact_delta"))
+        .filter(pl.col("artifact_delta") != 0)
+        .sort("artifact_delta", descending=True)
+        .to_pandas()
+    )
+    display_df = artifact_df.head(12).copy()
+
+    fig, ax = plt.subplots(figsize=(11.5, 7))
+    colors = ["#E45756" if value > 0 else "#4C78A8" for value in display_df["artifact_delta"]]
+    ax.barh(display_df["iso"], display_df["artifact_delta"], color=colors)
+    ax.axvline(0, color="#444444", linewidth=1.0)
+    ax.set_title("Implemented vs Corrected Final: Where the Builder Alters Country Counts", fontsize=14, pad=14)
+    ax.set_xlabel("Implemented final minus corrected final", fontsize=10)
+    ax.set_ylabel("Country ISO", fontsize=10)
+    style_axes(ax, grid_x=True, grid_y=False)
+    ax.invert_yaxis()
+    fig.tight_layout()
+    fig.savefig(EXPORTS / "merchant_allocation_policy_implementation_artifact.png", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+
+    artifact_ex_gh = artifact_df.loc[artifact_df["iso"] != "GH"].head(12).copy()
+    fig, ax = plt.subplots(figsize=(11.5, 7))
+    colors = ["#E45756" if value > 0 else "#4C78A8" for value in artifact_ex_gh["artifact_delta"]]
+    ax.barh(artifact_ex_gh["iso"], artifact_ex_gh["artifact_delta"], color=colors)
+    ax.axvline(0, color="#444444", linewidth=1.0)
+    ax.set_title("Implemented vs Corrected Final: Builder Drift Outside GH", fontsize=14, pad=14)
+    ax.set_xlabel("Implemented final minus corrected final", fontsize=10)
+    ax.set_ylabel("Country ISO", fontsize=10)
+    style_axes(ax, grid_x=True, grid_y=False)
+    ax.invert_yaxis()
+    fig.tight_layout()
+    fig.savefig(EXPORTS / "merchant_allocation_policy_implementation_artifact_ex_gh.png", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+
+
 def plot_top15_worlds(df: pl.DataFrame) -> None:
     top15 = df.sort("observed_count", descending=True).head(15).to_pandas()
     long_df = top15.melt(
@@ -307,6 +419,9 @@ def main() -> None:
     sns.set_theme(style="whitegrid")
     df = build_worlds()
     plot_ranked_worlds(df)
+    plot_ranked_worlds_top_end(df)
+    plot_world_differences_by_rank(df)
+    plot_implemented_vs_corrected_artifact(df)
     plot_top15_worlds(df)
     plot_policy_step_effects(df)
     plot_gh_spotlight(df)
