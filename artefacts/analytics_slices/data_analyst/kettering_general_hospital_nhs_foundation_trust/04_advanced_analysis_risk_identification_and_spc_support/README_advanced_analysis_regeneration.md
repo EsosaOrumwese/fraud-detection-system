@@ -1,0 +1,8 @@
+
+# Advanced Analysis Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_analyst/kettering_general_hospital_nhs_foundation_trust/04_advanced_analysis_risk_identification_and_spc_support/models/build_advanced_analysis_risk_identification_and_spc_support.py
+```
