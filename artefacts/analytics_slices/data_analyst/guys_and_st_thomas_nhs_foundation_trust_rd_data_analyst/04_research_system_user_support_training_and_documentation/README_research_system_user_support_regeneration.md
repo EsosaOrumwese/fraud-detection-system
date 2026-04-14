@@ -1,0 +1,8 @@
+
+# Research System User Support Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_analyst/guys_and_st_thomas_nhs_foundation_trust_rd_data_analyst/04_research_system_user_support_training_and_documentation/models/build_research_system_user_support_training_and_documentation.py
+```
