@@ -1,0 +1,23 @@
+{
+  "slice": "imperial_college_london/02_large_scale_time_series_longitudinal_analysis_and_quantitative_research_support",
+  "aligned_reporting_window": "Mar 2026",
+  "time_aware_analytical_base_output_count": 1,
+  "longitudinal_surface_output_count": 1,
+  "quantitative_research_support_output_count": 1,
+  "fit_for_use_implication_output_count": 1,
+  "shared_source_cohort": "50_plus",
+  "reused_prior_slice_count": 3,
+  "integrated_stream_count": 4,
+  "source_role_count": 4,
+  "longitudinal_stage_count": 4,
+  "confirmation_strength": 3,
+  "review_trigger_metric_count": 3,
+  "current_reporting_pressure_gap_pp": 1.32999264145527,
+  "current_quality_consistency_gap_pp": -1.985315845179922,
+  "current_control_gap_pp": 4.796649323937525,
+  "case_pressure_gap_change_pp": -0.013368060320565034,
+  "truth_quality_gap_change_pp": 0.19820117540010607,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.1353627000007691
+}

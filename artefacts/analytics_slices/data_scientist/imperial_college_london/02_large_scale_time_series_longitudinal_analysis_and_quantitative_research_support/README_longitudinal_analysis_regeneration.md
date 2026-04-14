@@ -1,0 +1,8 @@
+
+# Longitudinal Analysis Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_scientist/imperial_college_london/02_large_scale_time_series_longitudinal_analysis_and_quantitative_research_support/models/build_large_scale_time_series_longitudinal_analysis_and_quantitative_research_support.py
+```
