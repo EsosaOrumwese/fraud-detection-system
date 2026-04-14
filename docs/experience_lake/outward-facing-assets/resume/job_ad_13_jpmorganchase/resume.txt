@@ -19,13 +19,13 @@ Cloud & Platform: AWS, SageMaker, Power BI, Tableau, DAX, Git, Jupyter, cloud-ho
 **Data Scientist & Analytics Engineer**
 **AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
 
-- Developed and optimised fraud strategy and rule logic by tightening a transaction-monitoring rule with an amount-based gate, improving confirmed fraud yield in the reviewed population from 12.06% to 12.37% while reducing review workload by 511,500 transactions.
-- Balanced fraud-risk reduction with operational impact by improving confirmed fraud yield by 0.313 percentage points while retaining 89.53% of positives found by the broader strategy and reducing downstream case-handling activity by 1,185,849 events.
-- Conducted fraud analytics that directly supported fraud operations and product decisioning, showing that the tighter strategy produced a smaller, cleaner review population while slightly increasing the share of disputes from 11.60% to 11.89% and chargebacks from 9.79% to 10.04% within the flagged population.
-- Worked in a first-line control environment, turning fraud-strategy analysis into a defendable view of control effectiveness for second-line and compliance stakeholders by making burden, capture, and adherence trade-offs explicit before implementation discussion.
+- Developed and optimised fraud strategy and rule logic by tightening a transaction-monitoring rule with an amount-based gate, improving confirmed fraud yield from 12.06% to 12.37% while removing 511,500 transactions from review.
+- Balanced fraud-risk reduction with operational impact by lifting confirmed fraud yield by 0.313 percentage points, retaining 89.53% of positives found by the broader strategy, and reducing downstream case-handling activity by 1,185,849 events.
+- Conducted fraud analytics that directly supported fraud operations and product decisioning, creating a smaller, cleaner review population while increasing dispute concentration from 11.60% to 11.89% and chargeback concentration from 9.79% to 10.04%.
+- Supported first-line fraud control by making burden, capture, and adherence trade-offs explicit for second-line and compliance review before implementation decisions were made.
 - Used data to support control, audit, and regulatory review by keeping outcome definitions, strategy comparisons, and release controls stable across fraud-strategy and operations-impact outputs.
-- Delivered implementation-ready decisioning outputs by turning the preferred strategy into a policy handoff with one configurable gate, clear monitoring expectations, and carried-forward control requirements for solution design and SDLC planning.
-- Communicated fraud-strategy trade-offs clearly to management and partner audiences, translating detection, burden, capture, and downstream workload changes into decision-ready notes that support commercially aware fraud-control choices.
+- Delivered implementation-ready decisioning outputs by packaging the preferred strategy into a policy handoff with one configurable gate, clear monitoring expectations, and defined control requirements for solution design and SDLC planning.
+- Communicated fraud-strategy trade-offs clearly to management and partner audiences, turning detection, workload, and capture changes into decision-ready recommendations for fraud-control choices.
 
 **EDUCATION**
 
