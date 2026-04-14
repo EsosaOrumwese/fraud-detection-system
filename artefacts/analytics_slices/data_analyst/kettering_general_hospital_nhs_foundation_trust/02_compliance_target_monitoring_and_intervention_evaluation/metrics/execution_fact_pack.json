@@ -1,0 +1,21 @@
+{
+  "slice": "kettering_general_hospital_nhs_foundation_trust/02_compliance_target_monitoring_and_intervention_evaluation",
+  "aligned_reporting_window": "Mar 2026",
+  "compliance_target_monitoring_output_count": 1,
+  "named_target_evidence_output_count": 1,
+  "intervention_evaluation_output_count": 1,
+  "improvement_direction_output_count": 1,
+  "shared_focus_band": "50_plus",
+  "reused_prior_slice_count": 3,
+  "confirming_stream_count": 3,
+  "named_measure_family_count": 3,
+  "intervention_support_stage_count": 3,
+  "review_trigger_metric_count": 3,
+  "case_pressure_gap_current_pp": 1.32999264145527,
+  "truth_quality_gap_current_pp": -1.985315845179922,
+  "control_gap_pp": 4.796649323937525,
+  "burden_minus_yield_gap_pp": 1.014285477758349,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.2651605000000927
+}

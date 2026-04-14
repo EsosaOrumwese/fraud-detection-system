@@ -1,0 +1,8 @@
+
+# Compliance Intervention Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_analyst/kettering_general_hospital_nhs_foundation_trust/02_compliance_target_monitoring_and_intervention_evaluation/models/build_compliance_target_monitoring_and_intervention_evaluation.py
+```
