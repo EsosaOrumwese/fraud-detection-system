@@ -1,0 +1,19 @@
+{
+  "slice": "guys_and_st_thomas_nhs_foundation_trust_rd_data_analyst/03_multi_source_research_performance_trend_analysis_and_forecasting",
+  "aligned_reporting_window": "Mar 2026",
+  "integrated_trend_summary_output_count": 1,
+  "multi_source_trend_output_count": 1,
+  "implication_output_count": 1,
+  "fit_for_purpose_output_count": 1,
+  "shared_reporting_cohort": "50_plus",
+  "integrated_stream_count": 4,
+  "trend_dimension_count": 4,
+  "review_trigger_metric_count": 3,
+  "current_reporting_pressure_gap_pp": 1.32999264145527,
+  "current_quality_consistency_gap_pp": -1.985315845179922,
+  "current_control_gap_pp": 4.796649323937525,
+  "confirmation_strength": 3.0,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.14462819999971543
+}
