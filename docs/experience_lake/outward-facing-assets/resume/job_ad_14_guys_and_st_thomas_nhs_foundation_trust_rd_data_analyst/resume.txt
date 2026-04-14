@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+R&D Data Analyst | Research Performance, Data Quality & Research-System Support
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience supporting specialist reporting environments, integrating multi-source data, and delivering high-accountability reporting in governance-heavy settings. Strong in Excel, SQL, Power BI, Tableau, Python, Power Query M, and DAX, with experience producing research-performance outputs, supporting mandatory and board-level reporting, maintaining data quality through audit and consistency checks, applying fit-for-purpose judgement, and providing user training, documentation, and advisory support.
+
+**CORE SKILLS**
+Research Performance Reporting: Research metrics, mandatory reporting, board-level reporting, senior reporting, dashboard reporting, ad hoc reporting, reporting-cycle support
+Research-System & Data Environment Support: Specialist-system support, database-backed reporting, multi-source integration, reporting bases, dashboard outputs, controlled reporting workflows
+Trend Analysis & Analytical Judgement: Trend analysis, implication assessment, fit-for-purpose judgement, multi-stream interpretation, bounded forecasting support, decision-support analysis
+Data Quality, Audit & Governance: Data quality review, audit checks, consistency checks, issue resolution, governance-safe release, confidentiality-aware handling, controlled outputs
+Training, Documentation & User Support: Advisory support, user training, procedural documentation, data-consistency guidance, user enablement, support materials
+Data Analysis & Working Tools: Excel, SQL, Power BI, Tableau, Python, Power Query M, DAX, data integration, data manipulation, reporting-ready outputs
+Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Supported a specialist reporting environment by building a prepared research-performance base and producing mandatory-return, dashboard, and reporting-cycle outputs from the same controlled source.
+- Integrated multi-source research data into timely management information, keeping three reporting views and three source streams aligned for internal decision-making and accountable reporting.
+- Delivered high-accountability reporting for internal and external use, producing a mandatory reporting summary, dashboard output, and reporting-cycle interpretation with all release checks passed.
+- Analysed integrated performance trends across four dimensions and four source streams, using fit-for-purpose judgement to decide when the evidence was strong enough for controlled internal decision support.
+- Maintained data quality through audit, consistency checks, issue identification, and governance-safe release, making traceability conditions explicit before wider reporting use.
+- Provided frontline advisory support, user training, and procedural documentation, helping staff interpret reporting, quality, and fit-for-purpose conditions consistently.
+- Supported reliable delivery in a high-accountability reporting environment by keeping reporting, quality, trend, and support outputs repeatable, controlled, and aligned to recurring reporting needs.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Work with a wide range of customers in a busy service environment, adapting explanations and communication style so information is clear and usable to different users.
+- Follow strict procedures and handover routines, supporting reliable day-to-day delivery in a high-accountability setting.
+- Support colleagues through clear guidance, dependable communication, and calm coordination when demand is high.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a controlled technical environment where structured documentation, careful issue handling, and dependable data interpretation were essential.
+- Monitored operational data, identified irregular conditions early, and supported corrective action through clear evidence and escalation.
+- Prepared clear readings and handovers for supervisors and field teams so technical information could be used consistently in practice.
