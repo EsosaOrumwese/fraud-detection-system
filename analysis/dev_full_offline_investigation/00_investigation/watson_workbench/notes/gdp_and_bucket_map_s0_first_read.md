@@ -179,6 +179,22 @@ So the top of the merchant universe sits in a very compressed high-income band:
 
 This helps explain why the top countries feel unusually concentrated without requiring the distribution to be uniform across all `190` countries.
 
+## Compression views now exposed
+
+The compression story is now exposed from three complementary angles:
+
+- ranked continuous GDP surface, coloured by frozen bucket membership
+- within-bucket GDP distributions
+- explicit bucket-range compression with min / median / max GDP per bucket
+
+Those views make three things visually clear:
+
+- the continuous GDP surface is smooth, but the bucket map segments it into discrete ordered macro-economic bands
+- the segmentation is not uniform: the low-income end is long and dense, while the upper-income end is short and highly compressed
+- the bucket map preserves more macro-economic distinction at the rich end than at the poor end
+
+So the bucket map is not just a convenience label surface. It is an asymmetric compression of the continuous GDP world that later policy and allocation logic inherits directly.
+
 ## Top-country composition by bucket
 
 Within the top `20` merchant countries:
@@ -237,3 +253,9 @@ Reason:
   - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket_compression.png`
 - low-bucket exception view:
   - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket1_exception.png`
+- ranked GDP surface view:
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_ranked_surface.png`
+- within-bucket GDP distribution view:
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket_distributions.png`
+- explicit GDP range compression view:
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket_ranges.png`
