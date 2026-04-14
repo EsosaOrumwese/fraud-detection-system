@@ -1,0 +1,8 @@
+
+# Research Reporting Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_analyst/guys_and_st_thomas_nhs_foundation_trust_rd_data_analyst/01_research_management_system_support_and_research_performance_reporting/models/build_research_management_system_support_and_research_performance_reporting.py
+```

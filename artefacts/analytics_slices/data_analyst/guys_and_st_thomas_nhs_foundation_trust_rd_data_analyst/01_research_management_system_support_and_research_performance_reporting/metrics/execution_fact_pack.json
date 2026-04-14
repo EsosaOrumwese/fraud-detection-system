@@ -1,0 +1,19 @@
+{
+  "slice": "guys_and_st_thomas_nhs_foundation_trust_rd_data_analyst/01_research_management_system_support_and_research_performance_reporting",
+  "aligned_reporting_window": "Mar 2026",
+  "prepared_research_performance_base_output_count": 1,
+  "mandatory_research_reporting_output_count": 1,
+  "research_performance_dashboard_output_count": 1,
+  "reporting_cycle_note_output_count": 1,
+  "shared_reporting_cohort": "50_plus",
+  "retained_source_stream_count": 3,
+  "retained_reporting_view_count": 3,
+  "mandatory_measure_family_count": 3,
+  "dashboard_metric_count": 3,
+  "current_case_pressure_gap_pp": 1.32999264145527,
+  "current_truth_quality_gap_pp": -1.985315845179922,
+  "current_control_gap_pp": 4.796649323937525,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.17204529999980878
+}
