@@ -231,6 +231,82 @@ So the most defensible reading is:
 - it remains sealed into `S0` dependency closure
 - but the current merchant parquet has been authored by a newer builder path that no longer consumes it directly
 
+## What the reasoning trail says, and does not say
+
+I checked the repo's local reasoning trail for an explicit explanation of this transition:
+
+- logbook
+- `1A` implementation maps
+- `1A` build plan
+
+### What is explicitly documented
+
+The reasoning trail clearly documents the bootstrap path as real and binding at an earlier stage.
+
+- On `2025-12-25`, the logbook records the bootstrap policy being added as Route B authority and wired into `S0` dependency closure:
+  [`docs/logbook/12-2025/2025-12-25.md`](../../../../../docs/logbook/12-2025/2025-12-25.md)
+- On `2025-12-31`, the logbook explicitly says the `2025-12-31` merchant snapshot was authored from the bootstrap config:
+  [`docs/logbook/12-2025/2025-12-31.md`](../../../../../docs/logbook/12-2025/2025-12-31.md)
+- The older snapshot's provenance sidecar also records the bootstrap config path and hash directly:
+  [`reference/layer1/transaction_schema_merchant_ids/2025-12-31/transaction_schema_merchant_ids.provenance.json`](../../../../../reference/layer1/transaction_schema_merchant_ids/2025-12-31/transaction_schema_merchant_ids.provenance.json)
+
+The trail also clearly documents the newer policy surfaces as active authoring controls.
+
+- On `2026-01-02`, the logbook records `total_merchants = 10000` being set in `merchant_allocation.1A.yaml`:
+  [`docs/logbook/01-2026/2026-01-02.md`](../../../../../docs/logbook/01-2026/2026-01-02.md)
+- The `1A` build plan explicitly names:
+  - `config/layer1/1A/policy/channel_policy.1A.yaml`
+  - `config/layer1/1A/policy/merchant_allocation.1A.yaml`
+  as operative surfaces in the implementation posture:
+  [`docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md`](../../../../../docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md)
+- The current builder script also implements exactly that newer path:
+  [`scripts/build_transaction_schema_merchant_ids.py`](../../../../../scripts/build_transaction_schema_merchant_ids.py)
+
+### What is not explicitly documented
+
+What I did **not** find is a single explicit reasoning note saying:
+
+> the bootstrap file is intentionally being superseded or omitted from the active merchant builder
+
+That exact transition is not narrated cleanly in one place.
+
+So the repo does give us:
+
+- evidence that bootstrap was once the real authoring policy
+- evidence that newer allocation and channel policies later became the active authoring controls
+
+But it does **not** give us an explicit note saying why bootstrap was left out of the current builder path.
+
+### Why this matters
+
+That means we should read the bootstrap artefact carefully:
+
+- not as a meaningless leftover
+- but also not as the best direct explanation of the active parquet
+
+It remains important because:
+
+- `S0` lineage still seals it
+- the acquisition guide still treats it as Route B authority
+- it records the earlier intended closed-world authoring posture
+
+But from the current reasoning trail, the most defensible interpretation is:
+
+- the merchant authoring logic transitioned from bootstrap-led authoring toward allocation-policy + channel-policy authoring
+- that transition was only partially documented
+- and the current governed world still carries both stories at once:
+  - bootstrap in lineage and specification
+  - allocation/channel policy in active authoring implementation
+
+There is also one documentary inconsistency worth calling out explicitly:
+
+- the `2026-01-03` logbook still describes the regenerated `2026-01-03` merchant universe in bootstrap terms:
+  [`docs/logbook/01-2026/2026-01-03.md`](../../../../../docs/logbook/01-2026/2026-01-03.md)
+- but the active `2026-01-03` manifest and current builder code point to the newer allocation/channel policy path instead:
+  [`reference/layer1/transaction_schema_merchant_ids/2026-01-03/transaction_schema_merchant_ids.manifest.json`](../../../../../reference/layer1/transaction_schema_merchant_ids/2026-01-03/transaction_schema_merchant_ids.manifest.json)
+
+So part of this finding is not just policy drift, but documentation drift.
+
 ## Conclusion
 
 For our current `1A.S0` investigation, `transaction_schema_merchant_ids.bootstrap.yaml` is **still important**, but not in the way we first assumed.
