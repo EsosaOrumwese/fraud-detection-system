@@ -3135,3 +3135,165 @@ This posting is a strong enterprise retail data-science role centred on:
 - software-engineering discipline alongside commercial and business value awareness
 
 It is a useful evidence point because it shows a modern enterprise data-science role where the employer wants more than modelling skill. They want someone who can help turn ambiguous retail problems into production-ready machine-learning and optimisation solutions that are embedded into the business and supported by sound engineering and cross-functional delivery practices.
+
+---
+
+## Information Analyst - The Newcastle upon Tyne Hospitals NHS Foundation Trust
+
+Source:
+- `NHS Jobs` - <https://www.jobs.nhs.uk/candidate/jobadvert/C9317-26-0295?searchFormType=main&keyword=data%20analyst&language=en>
+- Job description and person specification provided by user
+
+Role family:
+- `Information Analyst`
+- clinical audit and governed health-data analytics
+- cardiology / cardiothoracic information management
+- data quality, validation, reporting, and national-return support
+
+### Job Purpose Evidence
+
+The employer frames this role as an `Information Analyst` working in the cardiothoracic information data team, in a job-share arrangement, with responsibility for reviewing and validating `MINAP` and `BCIS` cardiology data for national audit returns submitted to `NICOR`.
+
+The role is centred on interpreting clinical care information, extracting and validating data from case notes and clinical systems, coordinating data flows, and ensuring that the resulting information is accurate, complete, timely, and secure. The employer also expects the postholder to provide reports and statistics for clinical meetings, support quality improvement, and act as a knowledgeable point of contact on the relevant clinical system and data requirements.
+
+This is therefore not a generic reporting role. It is a governed clinical-information role operating at the intersection of national cardiac audit submission, clinical data quality, specialist subject-matter interpretation, statistical reporting, and quality-improvement support inside a cardiology service.
+
+### Responsibilities Evidence
+
+#### 1. National audit data review, interpretation, and validation
+
+- Review `MINAP` data for cardiology for national audit returns.
+- Review `BCIS` data for cardiology for national audit returns.
+- Submit national audit returns to `NICOR`.
+- Evaluate clinical care information and extract data required for `MINAP` or other databases within the Cardiothoracic Directorate.
+- Review, interpret, and validate clinical information recorded by clinicians to ensure it is accurate and complete.
+- Interpret diagnostic test results and enter them onto the national database.
+- Analyse information in case notes and relate it to database requirements.
+- Ensure data collected for clinical audit purposes is accurate and complete.
+
+#### 2. Data quality assurance, completeness, and deadline management
+
+- Undertake regular quality assurance of data collected for clinical audit purposes.
+- Focus quality-assurance work on data accuracy and completeness.
+- Ensure data collection and audit submissions are within agreed timescales.
+- Ensure deadlines are met.
+- Coordinate data flows between sources.
+- Develop and maintain information that is effectively sourced from various areas and accurately transferred between sources.
+- Identify processes to improve efficiency of data processing.
+- Maintain the highest possible quality of data to support patient care, data analysis, and clinical research.
+
+#### 3. Clinical stakeholder engagement and challenge
+
+- Work with various staff groups within the organisation, primarily clinical staff.
+- Communicate with and encourage clinicians to provide accurate and complete data.
+- Be confident in challenging clinicians if information and documentation is not accurate.
+- Communicate with a range of professionals both internally and externally to the Trust.
+- Develop and maintain good working relationships with others.
+- Negotiate with medical staff for relevant information regarding procedures such as coronary angiograms.
+- Communicate complex and sensitive analytical and statistical information within the multidisciplinary team.
+- Explain complex and specialist performance targets in an understandable way.
+
+#### 4. Reporting, statistics, and quality-improvement support
+
+- Undertake critical analysis.
+- Provide reports required to support monthly clinical meetings.
+- Provide statistics required to support monthly clinical meetings.
+- Promulgate key findings to senior management and clinical staff across the organisation and wider network.
+- Provide statistical information and reports to clinicians and senior management on a regular basis.
+- Facilitate quality improvement through regular information provision.
+- Support learning, quality improvement, and opportunities for improving patient care through better use of data and information.
+- Produce high-quality reports in tabular, graphical, and other formats.
+
+#### 5. Information governance, confidentiality, and request handling
+
+- Interpret and query clinical-audit data requests received.
+- Provide responses to requesters within agreed timescales.
+- Adhere to `Caldicott` guidelines when responding to requests.
+- Retain a record of all audit requests in the ad hoc requests log.
+- Ensure all requests to the data team are clearly defined, recorded, and managed.
+- Ensure patient records obtained for audit purposes are stored and maintained securely and confidentially.
+- Maintain confidentiality and security of information in line with hospital policy, `GDPR`, and the Data Protection Act 2018.
+- Implement controls to ensure data confidentiality, accuracy, and security.
+
+#### 6. System knowledge, training, and local process support
+
+- Act as a point of contact and source of knowledge on the appropriate clinical system.
+- Provide training to staff on data entry and data field definition when required.
+- Maintain a working knowledge of relevant procedures, practices, and terminology.
+- Ensure clinical systems hold the most accurate clinical data.
+- Be responsible for Trust, departmental, and national information systems used to access and input patient information.
+- Enter clinical information into a variety of databases.
+- Develop skills in use of databases and management of data to provide reports, information, and data for the Information Manager.
+- Contribute to policy development at department level and comment on policy changes for own area.
+
+#### 7. Team contribution and supervision
+
+- Work as a member of the multidisciplinary team.
+- Work effectively as part of the cardiothoracic information data team in a job-share role.
+- Supervise junior staff day to day.
+- Demonstrate own activities to new starters or less experienced employees.
+- Potentially allocate work to Data Entry Clerks and adjust their priorities.
+
+### Person Specification Evidence
+
+#### 1. Qualifications and sector grounding
+
+- Relevant degree qualification or equivalent relevant experience. Essential.
+- Diploma in Nursing or health-related topic. Desirable.
+- Registered General Nurse. Desirable.
+- Experience of working in a healthcare environment. Essential.
+- Previous cardiology experience. Desirable.
+
+#### 2. Data, systems, and analytical capability
+
+- Significant experience of both patient and process data collection. Essential.
+- Experience or knowledge of electronic records. Essential.
+- Experience in analysing large data sets. Essential.
+- Experience in data, database, or information management. Essential.
+- Specialist knowledge of `Microsoft Office` including `PowerPoint`, `Excel`, and `Access`. Essential.
+- `Microsoft SQL Server` and query capability. Desirable.
+- Ability to analyse problems in real time and understand user requirements. Essential.
+- Knowledge of identifying processes to improve efficiency of data processing. Essential.
+
+#### 3. Reporting and communication capability
+
+- Experience in producing high-quality reports. Essential.
+- Experience manipulating data. Essential.
+- Experience performing data analysis. Essential.
+- Experience producing reports in tabular, graphical, and other formats. Essential.
+- Excellent IT, analytical, numerical, and statistical skills. Essential.
+- Excellent communication and interpersonal skills. Essential.
+- Effective report-writing skills. Essential by job description.
+
+#### 4. Governance, confidentiality, and behavioural expectations
+
+- Awareness of current data-protection legislation. Essential.
+- Ability to implement controls to ensure data confidentiality, accuracy, and security. Essential.
+- Maintains confidentiality when accessing or producing sensitive data. Essential.
+- Attention to detail. Essential.
+- Ability to prioritise workload. Essential.
+- Flexible and adaptable. Essential.
+- Able to work effectively as a member of a team and self-motivated. Essential.
+
+### Additional Process and Environment Evidence
+
+- Role sits in `Cardiothoracic Services` at `Freeman Hospital`.
+- Role base is the `Department of Academic Cardiology`.
+- Role is a `Band 5` post.
+- Role is a job-share post of `18 Hours 45 Minutes/Week`.
+- Interview date stated as `Wednesday 29 April 2026`.
+- Role explicitly supports national databases used to inform the `Care Quality Commission`.
+- Core systems and sources include patient case notes, `PAS`, pathology, national databases, and local clinical systems.
+- Role involves frequent prolonged concentration and long periods of data extraction and entry at a `PC`.
+
+### Hiring Signal Summary
+
+This posting is a strong clinical-information and national-audit analytics role centred on:
+- specialist interpretation and validation of cardiology data for `MINAP`, `BCIS`, and `NICOR` returns
+- governed handling of patient-level clinical information under `Caldicott`, `GDPR`, and NHS confidentiality standards
+- active quality assurance for completeness, accuracy, and timeliness of audit data
+- confident challenge and liaison with clinicians to improve source-data quality
+- reporting and statistical support for clinical meetings, senior management, and quality improvement
+- subject-matter ownership of local clinical-system data definitions and workflow improvement
+
+It is a useful evidence point because it shows an NHS analytics role where value comes less from dashboard breadth and more from domain interpretation, audit credibility, clinician challenge, and governed stewardship of specialist clinical data that feeds national performance and quality regimes.

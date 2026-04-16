@@ -3159,3 +3159,138 @@ The strongest-fit candidate would likely go beyond generic data-science claims a
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a hands-on enterprise data scientist who can frame business problems well, build and evaluate machine-learning and optimisation solutions, support production deployment and monitoring, and work effectively with cross-functional teams to deliver measurable retail value. They are useful because they combine strong technical depth, delivery discipline, and business awareness in a way that helps data science become a scalable product capability rather than an isolated analytical function.
+
+---
+
+## Ideal Candidate Profile - Information Analyst - The Newcastle upon Tyne Hospitals NHS Foundation Trust
+
+Source role:
+- `Information Analyst`
+- `The Newcastle upon Tyne Hospitals NHS Foundation Trust`
+- <https://www.jobs.nhs.uk/candidate/jobadvert/C9317-26-0295?searchFormType=main&keyword=data%20analyst&language=en>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a generic reporting analyst and not someone who only knows how to move numbers between spreadsheets. The employer is looking for a governed clinical-information analyst who can interpret cardiology data in context, validate it against case notes and source systems, challenge inaccuracies with clinicians, and maintain the quality of national audit submissions.
+
+This person would likely present as someone who is comfortable moving between:
+- specialist clinical-data interpretation and validation
+- national audit and performance-return requirements
+- data quality assurance and deadline-driven submission work
+- reporting and statistical support for clinical and senior audiences
+- information governance, confidentiality, and `Caldicott` discipline
+- local system knowledge, data-definition support, and practical process improvement
+
+They would sound like someone who treats information quality as part of patient-care quality, not just as an administrative task.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked with patient-level data, electronic records, and specialist clinical information in a healthcare setting. Their story would show that they can extract and interpret information from case notes and systems, validate it carefully, manage audit-quality data flows, and produce clear reports that support clinicians, senior managers, and service-improvement discussions.
+
+They would likely have experience that sounds like this:
+- working with patient and process data in a healthcare environment
+- validating complex clinical information for audit, reporting, or governance purposes
+- maintaining data quality, completeness, and timeliness under submission deadlines
+- communicating confidently with clinicians and other multidisciplinary stakeholders
+- producing statistical reports and graphical outputs for operational or clinical meetings
+- handling sensitive data under strong confidentiality and governance controls
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants national-audit and cardiology-data credibility
+
+The ideal candidate would sound like someone who can work accurately with specialist cardiac information rather than treating all clinical data as interchangeable. They would likely show that they can interpret documentation, test results, and case-note material in a way that supports credible `MINAP`, `BCIS`, or similar audit submissions.
+
+The candidate's evidence would likely include:
+- experience extracting and validating patient-level clinical data
+- familiarity with national audit or registry-style returns
+- confidence handling specialist or complex clinical terminology
+- ability to connect source documentation to formal dataset requirements
+
+#### B. If the employer wants strong data-quality assurance and validation discipline
+
+The ideal candidate would sound like someone who does not accept source data at face value. They would likely show that they can review records critically, identify completeness or accuracy issues, coordinate corrections, and maintain submission quality under time pressure.
+
+The candidate's evidence would likely include:
+- regular quality assurance on clinical or audit data
+- validation for completeness and accuracy
+- management of deadlines and submission timetables
+- identification of process improvements in data capture or handling
+
+#### C. If the employer wants someone who can work effectively with clinicians
+
+The ideal candidate would not be passive around source-data issues. They would also show that they can communicate well with medical and nursing staff, encourage better documentation, and challenge inaccuracies where necessary without losing credibility.
+
+The candidate's evidence would likely include:
+- collaboration with clinicians and multidisciplinary teams
+- confident communication of data issues
+- tactful challenge where documentation is incomplete or incorrect
+- ability to explain complex targets or requirements clearly
+
+#### D. If the employer wants reporting and quality-improvement support
+
+The ideal candidate would sound like someone who can turn validated information into useful outputs for clinical meetings and management discussion. They would likely show that they can provide statistical reports, explain findings, and support learning or service improvement through better use of information.
+
+The candidate's evidence would likely include:
+- report production for clinical or senior stakeholders
+- tabular, graphical, and statistical presentation of findings
+- support for monthly meetings, audits, or improvement work
+- ability to communicate key findings in a usable way
+
+#### E. If the employer wants strong governance and confidentiality behaviour
+
+The ideal candidate would sound like someone who understands that this role sits inside a tightly governed information environment. They would likely show that they can handle requests properly, maintain secure records, and work carefully within `GDPR`, NHS confidentiality requirements, and `Caldicott` expectations.
+
+The candidate's evidence would likely include:
+- work with confidential patient-level data
+- clear information-governance discipline
+- request logging or controlled response handling
+- practical controls for confidentiality, accuracy, and data security
+
+#### F. If the employer wants system knowledge and local subject-matter ownership
+
+The ideal candidate would sound like someone who can become the reliable local source of truth on how the data is captured and what the fields mean. They would likely show that they can support users, explain data definitions, and improve local ways of working around data entry and system use.
+
+The candidate's evidence would likely include:
+- knowledge of electronic records or clinical systems
+- ability to explain data fields and definitions to users
+- support or training for data-entry practice
+- maintenance of local process and system knowledge
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can interpret and validate specialist clinical information from case notes and source systems and make sure audit datasets are accurate, complete, and credible.
+- I am comfortable working with clinicians to improve documentation quality, and I can challenge inaccuracies professionally when the data does not stand up.
+- I can manage deadline-driven audit and reporting work while maintaining strong attention to detail and information-governance discipline.
+- I can produce clear statistical reports and meeting-ready outputs that support quality improvement and informed decision making.
+- I treat confidentiality, `Caldicott`, `GDPR`, and secure handling of patient information as operational non-negotiables.
+- I can become a reliable point of contact on data definitions, system usage, and local data-quality processes within a specialist clinical service.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is broad, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- healthcare information or clinical-data experience
+- strong validation and data-quality discipline
+- confidence working with sensitive patient-level information
+- ability to communicate well with clinicians and senior stakeholders
+- ability to produce clear reports and statistical outputs
+- strong attention to detail under deadline pressure
+- willingness to work as a flexible team player in a specialist clinical setting
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic NHS analyst claims and show evidence of:
+- direct experience with cardiac, cardiology, or cardiothoracic datasets
+- work on national clinical audits, registries, or external returns
+- practical experience challenging and improving source-data quality with clinicians
+- credible handling of case-note interpretation and diagnostic-result extraction
+- strong `Excel` / `Access` capability and some `SQL` familiarity
+- reporting that has supported governance, clinical meetings, or quality-improvement work
+- evidence of improving local data-collection or data-processing workflows
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a clinically credible information analyst who can interpret specialist cardiology data, safeguard the quality of national audit submissions, work confidently with clinicians to resolve data issues, and produce useful governed reporting that supports quality improvement and organisational accountability. They are useful because they combine data-quality rigour, healthcare-context understanding, and trustworthy stewardship of sensitive clinical information.
