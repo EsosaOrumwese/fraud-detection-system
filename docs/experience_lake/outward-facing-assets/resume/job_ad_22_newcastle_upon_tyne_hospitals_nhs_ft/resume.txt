@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Information Analyst | Clinical Audit, Record-Level Data Quality & Governed Reporting
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Information Analyst with experience validating specialist healthcare data, supporting cardiology-audit-style reporting, and turning complex healthcare information into accurate audit and meeting-ready outputs. Strong in Excel, SQL, Power BI, Tableau, Python, and DAX, with experience interpreting detailed record-level information from multiple sources, maintaining data accuracy and timeliness through structured quality assurance, supporting subject-matter stakeholders with clear data guidance, and handling sensitive healthcare information in controlled environments where information quality directly affects service quality.
+
+**CORE SKILLS**
+Clinical Audit & Submission Support: MINAP and BCIS-style validation, NICOR-style submissions, record-level audit review, deadline-led reporting, controlled data flows, specialist data checking
+Clinical Information Interpretation: Specialist record interpretation, diagnostic-result interpretation, specialist-system review, specialist data fields, data definitions, record-level validation
+Data Quality & Deadline Discipline: Accuracy review, completeness checks, timeliness control, regular quality assurance, source coordination, governed delivery
+Clinician Support & System Knowledge: Clinician challenge, source-data improvement, local-system support, data-entry guidance, training support, field-level clarification
+Reporting & Quality Improvement: Meeting-ready reporting, tabular and graphical outputs, statistical summaries, monthly reporting, quality-improvement support, multidisciplinary communication
+Governance & Confidentiality: Caldicott-aware handling, GDPR-aware handling, secure logging, secure storage, controlled response handling, record-level information governance
+Process Improvement & Team Support: Process improvement, efficient audit-data handling, structured day-to-day support, dependable specialist delivery
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Validated specialist audit datasets and record-level reporting outputs against controlled definitions and quality checks, supporting accurate and timely MINAP-, BCIS-, and NICOR-style delivery rather than status-only reporting.
+- Extracted, interpreted, and validated complex record-level information from multiple source views, relating source detail accurately to structured reporting requirements and defined data fields.
+- Maintained data accuracy, completeness, and timeliness through regular quality assurance, controlled source coordination, and deadline-led delivery across recurring reporting cycles.
+- Worked confidently with subject-matter stakeholders to challenge incomplete or inaccurate source information, helping improve source-data quality before it affected downstream reporting and review.
+- Produced reports, statistics, and meeting-ready outputs in tabular, graphical, and statistical formats, supporting specialist stakeholders, senior stakeholders, and wider quality-improvement activity with clear and usable information.
+- Handled sensitive record-level information under governed conditions, keeping secure logging, controlled storage, confidentiality, and response discipline central to analytical delivery.
+- Supported local system understanding, user guidance, and process improvement by clarifying data fields and definitions, improving day-to-day handling efficiency, and contributing dependable specialist support across shared work.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy, pace, and clear communication in a busy service environment where reliable information and timely action matter every day.
+- Follow strict controls, hygiene procedures, and handling routines, supporting dependable delivery in a high-accountability setting.
+- Support colleagues through calm communication, practical guidance, and consistent handovers during busy shifts.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a controlled technical environment where careful documentation, issue escalation, and accurate interpretation of specialist readings were essential.
+- Reviewed detailed operational readings, identified irregular conditions early, and supported corrective action through structured evidence and escalation.
+- Prepared clear updates and handovers so technical information could be used safely and consistently by supervisors and technical teams.

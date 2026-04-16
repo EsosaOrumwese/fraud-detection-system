@@ -8,7 +8,7 @@ Data Analyst with experience producing dependable monthly and ad hoc reporting, 
 **CORE SKILLS**
 Healthcare Reporting & Analysis: Monthly reporting, ad hoc reporting, service performance reporting, KPI tracking, operational insight, decision-support analysis
 BI & Working Tools: Excel, SQL, Power BI, Tableau, DAX, dashboard reporting, reporting packs, stakeholder-ready reporting
-Dataset Stewardship & Data Quality: Patient-level dataset maintenance, validation, reconciliation, dataset integrity checks, controlled reporting outputs, data quality assurance
+Dataset Stewardship & Data Quality: Record-level dataset maintenance, validation, reconciliation, dataset integrity checks, controlled reporting outputs, data quality assurance
 Trend, Risk & Improvement Support: Trend analysis, risk identification, opportunity scanning, process improvement support, efficiency review support, operational recommendations
 Reporting Controls & Documentation: KPI definitions, reporting notes, rerun checklists, caveat notes, changelogs, repeatable reporting workflows
 Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows
