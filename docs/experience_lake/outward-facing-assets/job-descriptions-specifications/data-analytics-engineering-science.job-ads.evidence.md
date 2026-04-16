@@ -2566,3 +2566,455 @@ This posting is a strong senior `NHS` information and performance role centred o
 - presentation of analysis and insight to clinicians, managers, and the executive team
 
 It is a useful evidence point because it shows a Band 7 role where the employer wants much more than report production. They want a senior analyst who can combine acute-pathway domain knowledge, strategic planning support, modelling and submission discipline, team leadership, and stakeholder-facing analytical judgement inside a mature Trust information service.
+
+---
+
+## Rail Statistics - Higher Statistical Officer - Department for Transport
+
+Source:
+- `Civil Service Jobs` - <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=c2VhcmNocGFnZT0xJnVzZXJzZWFyY2hjb250ZXh0PTE4MzIwMjgxMSZqb2JsaXN0X3ZpZXdfdmFjPTE5OTM3NzUmc2VhcmNoc29ydD1zY29yZSZwYWdlY2xhc3M9Sm9icyZwYWdlYWN0aW9uPXZpZXd2YWNieWpvYmxpc3Qmb3duZXJ0eXBlPWZhaXImb3duZXI9NTA3MDAwMCZyZXFzaWc9MTc3NjEyNDcyNS04YzgxZGRjNWZmZDlhYjA0NjliNDc3M2U5YTE1ZWFjOTBkNDU2Njc1>
+
+Role family:
+- `Official Statistics`
+- public-policy and operational statistics
+- transport and rail statistics
+- dissemination, quality assurance, and customer-facing statistical analysis
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Rail Statistics - Higher Statistical Officer` within the `Rail Reform & Strategy Group`, sitting in the `Transport Statistics` community. The role is explicitly positioned as using official statistics, management information, and big data to steer policy and operational activities and directly influence key decisions.
+
+The role sits in a policy-led environment and combines statistical production, analytical dissemination, stakeholder management, data-quality improvement, and ministerial support. The successful candidate is expected to produce an official statistics publication, build and maintain data tools, support ministerial briefings and press messaging, and work closely with internal and external rail stakeholders including `TOCs`, the `Office of Rail and Road`, and `Great British Railways`.
+
+This is therefore not just a statistical-analysis role. It is an official-statistics, policy-support, and dissemination role operating under strong public-sector quality and trust standards, with emphasis on customer needs, fit-for-purpose judgement, reproducible coding, and external relationship management.
+
+### Responsibilities Evidence
+
+#### 1. Official statistics production and dissemination
+
+- Use official statistics, management information, and big data to steer and develop policy and operational activities.
+- Produce the rail passenger crowding statistical release.
+- Carry out analysis for the statistical release.
+- Prepare key facts for the statistical release.
+- Prepare commentary for the statistical release.
+- Prepare the quality report for the statistical release.
+- Prepare charts and tables for the statistical release.
+- Carry out layout work for the statistical release.
+- Use a range of software packages and analytical coding techniques to produce statistical outputs for external publication.
+- Tell the story of the data in plain language to aid understanding.
+
+#### 2. Statistical advice, briefing, and policy support
+
+- Deliver high-quality statistical advice.
+- Support drafting of ministerial briefings.
+- Provide statistical advice to Ministers.
+- Contribute to ministerial submissions.
+- Contribute to briefings.
+- Contribute to press messaging.
+- Influence key decisions through analysis and statistics.
+- Support policy and operational activities with high-quality evidence.
+
+#### 3. Data acquisition, manipulation, and reporting-solution development
+
+- Extract data from multiple existing data sources.
+- Manipulate data from multiple existing data sources.
+- Enable complex new analysis from multiple data sources.
+- Use techniques to assess new data sources.
+- Use techniques to collect data from new sources.
+- Use techniques to store data from new sources.
+- Build new reporting solutions to present data to users.
+- Develop and maintain data tools for various customers.
+- Organise and manage own datasets according to best practice.
+
+#### 4. Coding, reproducibility, and analytical-delivery practice
+
+- Use at least one analytical coding language.
+- Develop skills in `R` if not already known.
+- Apply best practice associated with reproducible analytical pipelines.
+- Use coding to improve data processing.
+- Use coding to improve assurance processes.
+- Use coding to improve dissemination of data.
+- Ensure good standards of documentation and code management in own work.
+- Encourage similar standards across the team to ensure reproducibility.
+
+#### 5. Quality assurance, fit-for-purpose judgement, and statistical standards
+
+- Perform quality checks on familiar data sources.
+- Perform quality checks on new data sources.
+- Document quality checks on familiar and new data sources.
+- Innovate new quality-assurance processes to improve data quality.
+- Evaluate whether a data source is fit for purpose.
+- Make professional judgements on the suitability and relevance of data sources.
+- Communicate quality issues and their implications to end users.
+- Apply quality assurance processes proportionately to ensure outputs are fit for purpose.
+- Uphold quality standards for self and team.
+- Adhere to the `Code of Practice for Statistics`, `Aqua Book`, and other relevant guidance.
+- Follow statistical protocols to maximise trust and prevent unintended disclosure.
+- Ensure caveats and assumptions are documented and communicated appropriately.
+
+#### 6. Stakeholder engagement, customer needs, and external influencing
+
+- Work with multiple teams across the Department.
+- Work with public-sector rail entities internally and externally.
+- Work with the `Office of Rail and Road`.
+- Work with `Great British Railways`.
+- Build and maintain working relationships with train operating companies (`TOCs`).
+- Encourage `TOCs` to submit high-quality data to the Department.
+- Engage with `TOCs` to understand data-collection processes and challenges.
+- Use influence to improve data quality by advocating best practice.
+- Empower `TOCs` to take ownership of data-quality improvements.
+- Proactively engage with stakeholders to explore requirements, boundaries, and scope.
+- Ensure a diverse range of perspectives is considered.
+- Manage expectations effectively to align stakeholder expectations with deliverable outcomes.
+- Gather feedback to ensure products meet user needs and inform dissemination improvements.
+
+#### 7. Correspondence, customer service, and team contribution
+
+- Draft and contribute to external correspondence such as Parliamentary Questions (`PQs`) and `FOI` requests.
+- Provide tailored customer service through analytical correspondence.
+- Build rapport and trust for the team.
+- Line manage one summer student.
+- Understand the student's skill set.
+- Provide guidance and support to help the student develop skills and knowledge.
+- Prioritise, plan, and distribute tasks to keep workloads balanced.
+- Provide regular feedback to ensure required standards are met.
+
+### Person Specification Evidence
+
+#### 1. Experience and capability
+
+- Exceptional communication skills and ability to build strong, constructive working relationships across teams and stakeholders. Required.
+- Demonstrable experience in transforming diverse evidence into clear, compelling, and actionable narratives. Required.
+- Skilled in using data visualisation to highlight key messages and engage audiences effectively. Required.
+- Experience of at least one coding language, with ability to develop skills in `R` if not already known. Required.
+- Familiarity with best practices in reproducible analytical pipelines to ensure robust and efficient workflows. Required.
+- Experience in applying quality-assurance processes proportionately to ensure outputs are fit for purpose. Required.
+- Uphold quality standards for self and team in line with the `Code of Practice for Statistics`, `Aqua Book`, and other relevant guidance. Required.
+- Proven record of delivering analytical dissemination products on time and using project-management skills to manage workload and deliver impactful results. Required.
+
+#### 2. Technical framework and professional membership
+
+- Must be a member of the `Government Statistical Group (GSG)` or meet the eligibility requirements to join the `GSG`. Required.
+- Technical skills assessed against the `2021 GSG Competency Framework` at `HStO` level.
+- Technical assessment strands explicitly listed as:
+- `Statistical Strand 1: Acquiring data and understanding customer needs`
+- `Statistical Strand 2: Data Analysis`
+- `Statistical Strand 3: Presenting and disseminating data effectively`
+
+#### 3. Behaviours
+
+- `Communicating and Influencing`
+- `Working Together`
+- `Managing a Quality Service`
+
+### Additional Process and Environment Evidence
+
+- Role sits within the `Rail Reform & Strategy Group`.
+- Locations available are `Birmingham`, `Leeds`, and `London`.
+- Civil Service grade is `Higher Executive Officer`.
+- Role is suitable for hybrid working with a minimum expectation of 60% workplace attendance over a month.
+- Regular travel to other offices may be required, including occasional overnight stays.
+- Role does not offer visa sponsorship.
+- Appointment requires `BPSS` clearance and a criminal-record check.
+- Selection process includes CV and personal statement sift, then interview and presentation.
+- External applicants are subject to a social-media check as part of pre-employment screening.
+
+### Hiring Signal Summary
+
+This posting is a strong official-statistics and policy-support role centred on:
+- production and dissemination of official rail statistics
+- ministerial briefing and policy-facing statistical advice
+- extraction and integration of data from multiple sources for new analysis
+- coding, reproducible analytical pipelines, and reporting-solution development
+- quality assurance, fit-for-purpose judgement, and adherence to statistical standards
+- stakeholder management with `TOCs`, rail bodies, and departmental users
+- customer-focused dissemination, correspondence, and small-scale line management
+
+It is a useful evidence point because it shows a government statistical role where the employer wants more than good analysis. They want someone who can produce trusted official statistics, apply public-sector statistical standards rigorously, support ministers and policy teams, improve external data quality through influence, and communicate evidence in ways that shape decisions and public outputs.
+
+---
+
+## Data Analyst - Driver and Vehicle Standards Agency
+
+Source:
+- `Civil Service Jobs` - <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=cGFnZWNsYXNzPUpvYnMmc2VhcmNoc29ydD1zY29yZSZ1c2Vyc2VhcmNoY29udGV4dD0xODMyMDI4MTEmam9ibGlzdF92aWV3X3ZhYz0xOTkzOTM3JnNlYXJjaHBhZ2U9MSZvd25lcj01MDcwMDAwJm93bmVydHlwZT1mYWlyJnBhZ2VhY3Rpb249dmlld3ZhY2J5am9ibGlzdCZyZXFzaWc9MTc3NjEyNDcyNS04YzgxZGRjNWZmZDlhYjA0NjliNDc3M2U5YTE1ZWFjOTBkNDU2Njc1>
+
+Role family:
+- `Data Analytics`
+- government operational MI and reporting
+- service-led dashboarding / data modelling / business insight
+- public-sector transparency and data-governance support
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Data Analyst` in the `Digital and Data` directorate at the `DVSA`, supporting the agency's digital-first and service-led redesign. The role is positioned as owning the day-to-day delivery of robust, timely, and insightful management information and reporting so that stakeholders can make informed decisions based on evidence and recommendations.
+
+The role sits in a geographically dispersed team and combines reporting delivery, data-model ownership, stakeholder engagement, anomaly and trend investigation, data-change governance, and support for transparency obligations. It also carries some line-management responsibility, with the postholder managing one or two analysts and contributing to team leadership.
+
+This is therefore not just a dashboard-production post. It is a government operational data-analysis and MI role operating across requirements gathering, data modelling, business insight, public-sector reporting, governance, and service-led continuous improvement.
+
+### Responsibilities Evidence
+
+#### 1. Reporting, dashboards, and MI delivery
+
+- Own the day-to-day delivery of robust, timely, and insightful `MI` and reporting.
+- Deliver a range of daily dashboards.
+- Deliver a range of weekly dashboards.
+- Deliver a range of monthly dashboards.
+- Deliver ad-hoc dashboards and reports.
+- Ensure production of new `MI` reports.
+- Ensure production of regular `MI` reports.
+- Ensure production of ad-hoc `MI` reports.
+- Ensure information provided by the `MI` team is timely and accurate.
+- Ensure information meets customer requirements.
+- Ensure business value is added to `DVSA` data by analysing it and reporting it in a suitable medium.
+- Ensure statistical analysis is accurate and easy to understand.
+- Highlight relevant trends and hotspots.
+
+#### 2. Data models, requirements, and business understanding
+
+- Own the relevant data models required to deliver analysis.
+- Own the relevant datasets and the process for developing and maintaining them.
+- Design and create data models.
+- Establish requirements to identify the who, what, and why.
+- Liaise with customers to establish report content, format, and timescale.
+- Articulate data requirements to ensure data is available and in a usable form.
+- Work with system `SMEs` to understand how business logic is applied within data sources.
+- Maintain a data knowledge base detailing main data tables and elements, associated business rules, and known data-quality issues.
+
+#### 3. Analysis, anomaly detection, and business insight
+
+- Analyse and interrogate `DVSA` data.
+- Gain a better understanding of the trends that affect `DVSA` services.
+- Gain a better understanding of the anomalies that affect `DVSA` services.
+- Proactively identify trends.
+- Proactively identify anomalies.
+- Proactively identify early warning signs.
+- Investigate trends, anomalies, and early warning signs.
+- Oversee delivery of ad-hoc statistical analysis.
+- Gather and interpret information from a wide range of sources and form insights.
+- Provide guidance and insight to decision makers.
+
+#### 4. Technical delivery, tooling, and solution development
+
+- Create reporting solutions using `Power BI` or similar visualisation tools.
+- Use `Power Query`.
+- Use `Excel`, including advanced spreadsheet functionality.
+- Query databases.
+- Develop innovative solutions to meet reporting and analysis requirements.
+- Adhere to agreed standards while developing innovative solutions.
+- Work alongside analysts in designing, developing, and delivering high-quality data, insight, and visualisations.
+- Liaise with `Data Engineers` to ensure data is accessible and interpretable.
+- Advise of any effect that system changes would have on `MI` reporting.
+
+#### 5. Stakeholder communication, challenge, and business impact
+
+- Communicate with stakeholders at various levels.
+- Tailor communication styles and methods accordingly.
+- Communicate effectively with a range of stakeholders.
+- Present recommendations to stakeholders.
+- Provide information and statistical expertise to support business-as-usual work.
+- Provide information and statistical expertise to support continuous improvement work.
+- Provide information and statistical expertise to support project work.
+- Advise, contribute, and challenge where necessary.
+- Advise, contribute, and engage in driving the strategy forward.
+- Engage with stakeholders to ensure reporting and analysis continues to meet their needs.
+- Continuously make improvements while managing expectations.
+
+#### 6. Transparency, governance, and public-sector obligations
+
+- Provide official and operational statistics for publication.
+- Manage responses to `FOI` requests within deadlines and guidance standards set by the `Information Commissioner`.
+- Manage responses to subject access requests within deadlines and guidance standards.
+- Manage addition of new datasets to published statistics to increase transparency and reduce the number of `FOI` requests.
+- Participate in data-change governance with other stakeholders.
+- Support `DfT` with providing `DVSA` data for publication, publicity campaigns, or policy changes.
+
+#### 7. Leadership, management, and team contribution
+
+- Manage one or two analysts.
+- Demonstrate leadership by providing guidance to staff to support delivery of objectives.
+- Manage and engage with honesty and integrity.
+- Uphold the reputation of the Agency, Department, and Civil Service.
+- Work in collaboration with other managers across all functions for the good of `DVSA`.
+- Create a high-performing and well-respected Agency.
+- Manage effectively in line with `DVSA` policies and processes.
+- Work with, lead, and act as a role model for team members and colleagues in line with Civil Service values.
+- Determine and plan team requirements.
+- Allocate resources and prioritise activities over the short to medium term.
+
+### Person Specification Evidence
+
+#### 1. Required experience
+
+- Experience of reporting and dashboard-reporting design and creation, demonstrating requirements gathering from different business-user groups. Required.
+- Experience of creating reporting solutions using `Power BI` or other similar data-visualisation software, `Power Query`, and `Excel`, including experience of querying databases. Required.
+- Strong analytical skills, gathering and interpreting from a wide range of information and sources and forming insights. Required.
+- Outstanding verbal and written skills with the ability to communicate technical specifications to non-technical business users clearly and effectively. Required.
+- Advanced user of `MS Excel`, including graphs, formulas, and pivot tables, and knowledge of `SQL`. Required.
+- Naturally inquisitive with an eye for problem solving and finding innovative solutions. Required from advert framing.
+- Ability to advise, contribute, and challenge where necessary. Required from advert framing.
+- Ability to manage and engage with integrity. Required from advert framing.
+- Leadership and collaboration with other managers. Required from advert framing.
+- `Microsoft Certified Power BI Data Analyst Associate`. Desirable.
+
+#### 2. Technical skills assessed
+
+- `Communicating between Technical and Non Technical`
+- `Data Preparation and Linkage`
+- `Delivering business impact through data`
+
+#### 3. Behaviours assessed
+
+- `Managing a Quality Service`
+- `Changing and Improving`
+- `Working Together`
+- `Developing Self and Others` at sift stage
+
+### Additional Process and Environment Evidence
+
+- Three roles are available, focused respectively on `MOT` data, `Enforcement` data, and `Vehicle Testing` data.
+- Role sits in the `Digital and Data` directorate within a service-led redesign context.
+- Civil Service grade is `Higher Executive Officer`.
+- Role is suitable for hybrid working with a minimum expectation of 60% workplace attendance over a month.
+- Occasional travel to other offices may be required, including overnight stays.
+- `DVSA` does not offer visa sponsorship for the role.
+- Appointment requires `SC` clearance and `BPSS` checks, plus a criminal-record check.
+- Selection process includes CV and personal statement sift followed by online interview.
+- External applicants are subject to social-media checks as part of pre-employment screening.
+
+### Hiring Signal Summary
+
+This posting is a strong government operational `MI` and reporting role centred on:
+- delivery of robust recurring and ad-hoc dashboards and management information
+- data-model ownership and requirements gathering
+- analysis of trends, anomalies, hotspots, and early warning signs
+- stakeholder-facing insight and challenge across a service-led operational environment
+- `Power BI`, `Power Query`, `Excel`, database querying, and reporting-solution design
+- transparency obligations through publication support, `FOI`, and subject-access-response handling
+- data-change governance and small-scale line management
+
+It is a useful evidence point because it shows a public-sector data-analyst role where the employer wants more than dashboard production. They want someone who can combine operational insight delivery, model ownership, stakeholder management, transparency and governance obligations, and team contribution inside a modern digital-and-data function.
+
+---
+
+## Data Scientist - M&S
+
+Source:
+- `M&S Careers` - <https://jobs.marksandspencer.com/job-search/digital-tech/london-greater-london/data-scientist/300007258972366>
+
+Role family:
+- `Data Science`
+- enterprise retail data science
+- machine learning / optimisation / production data science
+- cross-functional model delivery across the retail value chain
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Data Scientist` in the `Enterprise Data Science` team, responsible for helping design, build, and deploy machine-learning and optimisation solutions that drive measurable business value across the retail value chain.
+
+The role is explicitly positioned as hands-on and end-to-end. It combines statistical, machine-learning, and optimisation problem solving with problem framing, feature engineering, experimentation, model evaluation, and support for production deployment and monitoring. The role also sits in a strongly cross-functional environment involving `Data Engineers`, `MLOps`, `Product Managers`, Analysts, and business stakeholders.
+
+This is therefore not just a modelling role. It is a production-minded enterprise data-science role operating across business problem framing, technical delivery, cross-functional embedding, reusable team assets, and continuous growth in software-engineering and commercial understanding.
+
+### Responsibilities Evidence
+
+#### 1. Applied machine learning, optimisation, and retail problem solving
+
+- Apply statistical techniques to solve business problems across the retail value chain.
+- Apply machine-learning techniques to solve business problems across the retail value chain.
+- Apply optimisation techniques to solve business problems across the retail value chain.
+- Support use cases such as forecasting.
+- Support use cases such as pricing.
+- Support use cases such as inventory optimisation.
+- Support use cases such as customer decisioning.
+- Support use cases such as operations.
+
+#### 2. Problem framing, analysis, and experimentation
+
+- Work with stakeholders and senior team members to understand business challenges.
+- Translate business challenges into tangible data-science or machine-learning problems.
+- Carry out exploratory analysis.
+- Carry out feature engineering.
+- Carry out experimentation.
+- Carry out model evaluation.
+- Work through ambiguity using structured problem solving.
+
+#### 3. Model development, deployment, and production support
+
+- Design robust data-science and machine-learning solutions.
+- Build robust data-science and machine-learning solutions.
+- Test robust data-science and machine-learning solutions.
+- Support deployment of robust and scalable data-science and machine-learning solutions in production environments.
+- Support monitoring of robust and scalable data-science and machine-learning solutions in production environments.
+- Contribute to scalable, production-ready data-science products.
+
+#### 4. Cross-functional delivery and adoption
+
+- Collaborate closely with `Data Engineers`.
+- Collaborate closely with `MLOps`.
+- Collaborate closely with `Product Managers`.
+- Collaborate closely with Analysts.
+- Collaborate closely with business stakeholders.
+- Support successful delivery of data-science solutions.
+- Support adoption of data-science solutions.
+- Support embedding of data-science solutions into business use.
+
+#### 5. Capability building, reusable assets, and engineering practice
+
+- Contribute to reusable assets across the team.
+- Contribute to templates across the team.
+- Contribute to best practices across the team.
+- Continuously improve technical skills.
+- Continuously improve commercial skills.
+- Continuously improve software-engineering skills.
+- Work with version control.
+- Apply modular design.
+- Apply testing practices.
+- Apply documentation practices.
+
+### Person Specification Evidence
+
+#### 1. Technical / Data Science / ML capability
+
+- Strong `Python` skills across `EDA`, statistical modelling, `ML`, experimentation, and model evaluation. Required.
+- Familiarity with production environments. Advantageous.
+- `PySpark` or similar distributed frameworks. Desirable.
+- Exposure to optimisation techniques. Advantageous.
+
+#### 2. Problem-solving and delivery mindset
+
+- Strong analytical and structured problem-solving skills. Required.
+- Ability to work through ambiguity. Required.
+- Ability to apply appropriate data-science techniques to deliver insight and value. Required.
+- Experience contributing to end-to-end data-science projects. Required.
+- Good understanding of how solutions move from exploration to production. Required.
+- Good understanding of how solutions create practical business impact. Required.
+
+#### 3. Collaboration, communication, and learning agility
+
+- Comfortable working in cross-functional teams. Required.
+- Ability to communicate technical concepts clearly to technical audiences. Required.
+- Ability to communicate findings and recommendations clearly to non-technical audiences. Required.
+- Good understanding of software-engineering fundamentals including version control, modular design, testing, and documentation. Required.
+- Proactive and curious mindset to continuously develop technical and business understanding. Required.
+
+### Additional Process and Environment Evidence
+
+- Role is based at the `London Support Office`.
+- `M&S` expects support teams to work in the office at least three days a week.
+- Role sits inside a wider retail-transformation context and is framed as supporting measurable business value across the retail value chain.
+- Team context emphasises collaboration, pace of transformation, and embedding production-ready data-science capability into a large retail organisation.
+
+### Hiring Signal Summary
+
+This posting is a strong enterprise retail data-science role centred on:
+- applied machine learning and optimisation across retail use cases
+- problem framing, experimentation, feature engineering, and model evaluation
+- production deployment and monitoring of scalable data-science products
+- cross-functional delivery with `Data Engineering`, `MLOps`, product, analytics, and business teams
+- reusable assets, templates, and team best practices
+- strong `Python`-led delivery with awareness of distributed frameworks and optimisation methods
+- software-engineering discipline alongside commercial and business value awareness
+
+It is a useful evidence point because it shows a modern enterprise data-science role where the employer wants more than modelling skill. They want someone who can help turn ambiguous retail problems into production-ready machine-learning and optimisation solutions that are embedded into the business and supported by sound engineering and cross-functional delivery practices.

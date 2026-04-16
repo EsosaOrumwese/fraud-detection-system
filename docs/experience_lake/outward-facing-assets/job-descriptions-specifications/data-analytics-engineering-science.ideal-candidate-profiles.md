@@ -2584,3 +2584,442 @@ The strongest-fit candidate would likely go beyond generic senior-analyst claims
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a senior NHS information analyst who can lead a small team, deliver trusted performance and operational intelligence, support submissions and acute-pathway analytics, contribute to long-term planning and modelling, and help modernise the Trust's reporting environment. They are useful because they combine domain knowledge, technical depth, governance discipline, and leadership in a way that strengthens both day-to-day information delivery and wider service improvement.
+
+---
+
+## Ideal Candidate Profile - Rail Statistics - Higher Statistical Officer - Department for Transport
+
+Source role:
+- `Rail Statistics - Higher Statistical Officer`
+- `Department for Transport`
+- <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=c2VhcmNocGFnZT0xJnVzZXJzZWFyY2hjb250ZXh0PTE4MzIwMjgxMSZqb2JsaXN0X3ZpZXdfdmFjPTE5OTM3NzUmc2VhcmNoc29ydD1zY29yZSZwYWdlY2xhc3M9Sm9icyZwYWdlYWN0aW9uPXZpZXd2YWNieWpvYmxpc3Qmb3duZXJ0eXBlPWZhaXImb3duZXI9NTA3MDAwMCZyZXFzaWc9MTc3NjEyNDcyNS04YzgxZGRjNWZmZDlhYjA0NjliNDc3M2U5YTE1ZWFjOTBkNDU2Njc1>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a generic data analyst and not a narrow statistician focused only on technical method. The employer is looking for a policy-facing government statistician who can produce trusted official statistics, support ministers and policy teams with clear evidence, apply strong quality-assurance discipline, and work collaboratively with external data suppliers and internal customers.
+
+This person would likely present as someone who is comfortable moving between:
+- official statistics production and publication
+- policy and ministerial statistical advice
+- multi-source data acquisition and manipulation
+- coding and reproducible analytical pipelines
+- quality assurance and fit-for-purpose judgement
+- stakeholder engagement and data-quality improvement through influence
+- customer-focused dissemination, correspondence, and line management
+
+They would sound like someone who can help turn rail data into trusted public statistics and actionable policy evidence in a standards-heavy government environment.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in official statistics, public-sector analysis, government data work, or a similar standards-driven environment where outputs must be trustworthy, timely, well-documented, and usable by policy customers. Their story would show that they can manage analytical dissemination products, code reproducible workflows, work with complex and imperfect data sources, and translate evidence into plain-language narratives for decision-makers.
+
+They would likely have experience that sounds like this:
+- producing or supporting official-statistics releases or similar public analytical outputs
+- using coding to process, quality-assure, and disseminate data
+- applying recognised quality frameworks and standards to analytical work
+- working with users and stakeholders to understand requirements and improve outputs
+- preparing analytical briefings or responses for senior, policy, or public audiences
+- improving data quality by working with external suppliers or partner organisations
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants official-statistics production capability
+
+The ideal candidate would sound like someone who can do more than analyse data internally. They would likely show that they can produce complete dissemination products, including release content, commentary, quality notes, and presentation assets, in ways that meet public trust and publication standards.
+
+The candidate's evidence would likely include:
+- producing official-statistics releases or equivalent outputs
+- preparing charts, tables, key facts, and commentary
+- writing quality reports or caveat material
+- managing release production to deadline
+
+#### B. If the employer wants policy and ministerial support
+
+The ideal candidate would sound like someone whose analysis is usable in live policy settings. They would likely show that they can support ministers and policy teams through briefings, submissions, and clear explanation of what the data means.
+
+The candidate's evidence would likely include:
+- drafting or supporting ministerial briefings
+- advising policy teams using data
+- turning analysis into plain-language narratives
+- contributing to press messaging or external-facing evidence
+
+#### C. If the employer wants strong coding and reproducible analytical practice
+
+The ideal candidate would not only work in spreadsheets or point-and-click tools. They would also show that they can code, document, and structure analytical workflows so that outputs are reproducible and efficient.
+
+The candidate's evidence would likely include:
+- use of at least one coding language
+- reproducible analytical pipelines
+- code management and documentation
+- coding to improve data processing, quality assurance, or dissemination
+
+#### D. If the employer wants proportionate quality assurance and professional statistical judgement
+
+The ideal candidate would sound like someone who understands that statistical work is only useful if users can trust it. They would likely show that they can assess data quality, judge fitness for purpose, apply QA appropriately, and communicate limitations clearly.
+
+The candidate's evidence would likely include:
+- performing and documenting quality checks
+- evaluating new and existing data sources for suitability and relevance
+- applying the `Code of Practice for Statistics`, `Aqua Book`, or similar guidance
+- communicating caveats, assumptions, and quality implications to users
+
+#### E. If the employer wants strong stakeholder and supplier management
+
+The ideal candidate would sound like someone who can improve data quality and product usefulness through relationships, not just internal technical work. They would likely show that they can work with external suppliers and internal customers to clarify needs, improve submissions, and manage expectations.
+
+The candidate's evidence would likely include:
+- building relationships with external data providers or partner bodies
+- understanding supplier data-collection processes and challenges
+- influencing others to improve data quality
+- exploring requirements and managing stakeholder expectations effectively
+
+#### F. If the employer wants strong dissemination and communication skill
+
+The ideal candidate would sound like someone who can present statistical evidence in a way that non-specialists can understand and act on. They would likely show that they can use data visualisation and narrative well and adapt outputs for different audiences.
+
+The candidate's evidence would likely include:
+- data visualisation that highlights key messages
+- clear plain-language storytelling from complex evidence
+- production of audience-appropriate dissemination products
+- drafting `FOI`, `PQ`, or similar externally-facing analytical correspondence
+
+#### G. If the employer wants service-minded delivery and junior support
+
+The ideal candidate would not only produce their own outputs. They would also show that they can help maintain service quality and support junior colleagues in structured delivery.
+
+The candidate's evidence would likely include:
+- delivering products on time with sound workload management
+- tailored customer service for analytical users
+- line management or supervision of junior staff or students
+- balancing team standards with customer needs
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can produce trusted statistical outputs and dissemination products that meet high public-sector quality standards and support policy and operational decisions.
+- I am comfortable turning complex evidence into clear, compelling, and actionable narratives for ministers, policy teams, and other non-specialist users.
+- I can work with multiple existing and new data sources, use coding to build reproducible analytical pipelines, and improve how data is processed, quality-assured, and presented.
+- I apply quality assurance proportionately and make sound professional judgements about whether data is fit for purpose, communicating caveats and implications clearly.
+- I can build constructive relationships with internal and external stakeholders, including data suppliers, and use influence to improve data quality and align outputs to user needs.
+- I can deliver analytical products to deadline while maintaining documentation, customer focus, and appropriate support for junior colleagues.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is specific, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- genuine statistical-profession credibility through `GSG` membership or eligibility
+- ability to produce analytical dissemination products to high standards and on time
+- at least one coding language plus reproducible analytical workflow discipline
+- strong quality-assurance judgement grounded in recognised statistical guidance
+- ability to communicate with policy, ministerial, and external audiences
+- confidence working with stakeholders and external data providers
+- strong service orientation and delivery discipline in a government context
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic statistics claims and show evidence of:
+- direct experience with official statistics or similar public dissemination products
+- practical use of quality frameworks such as the `Code of Practice for Statistics` and `Aqua Book`
+- policy-facing or ministerial analytical support
+- external supplier or stakeholder management that improved data quality
+- strong data visualisation and plain-language communication capability
+- line management or structured support of junior analysts or students
+- familiarity with transport, rail, or similarly regulated operational domains
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a government statistician who can produce trusted official-statistics outputs, support ministers and policy teams with clear evidence, code and maintain reproducible analytical workflows, and improve data quality through rigorous QA and constructive stakeholder engagement. They are useful because they combine statistical professionalism, delivery discipline, and communication skill in a way that makes complex rail data influential and trustworthy.
+
+---
+
+## Ideal Candidate Profile - Data Analyst - Driver and Vehicle Standards Agency
+
+Source role:
+- `Data Analyst`
+- `Driver and Vehicle Standards Agency`
+- <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=cGFnZWNsYXNzPUpvYnMmc2VhcmNoc29ydD1zY29yZSZ1c2Vyc2VhcmNoY29udGV4dD0xODMyMDI4MTEmam9ibGlzdF92aWV3X3ZhYz0xOTkzOTM3JnNlYXJjaHBhZ2U9MSZvd25lcj01MDcwMDAwJm93bmVydHlwZT1mYWlyJnBhZ2VhY3Rpb249dmlld3ZhY2J5am9ibGlzdCZyZXFzaWc9MTc3NjEyNDcyNS04YzgxZGRjNWZmZDlhYjA0NjliNDc3M2U5YTE1ZWFjOTBkNDU2Njc1>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a narrow report builder and not a purely technical data specialist detached from business users. The employer is looking for a service-minded government data analyst who can own recurring and ad-hoc `MI`, design and maintain data models, work closely with stakeholders to shape reporting outputs, and provide operational insight that supports both routine delivery and strategic improvement.
+
+This person would likely present as someone who is comfortable moving between:
+- requirements gathering and business understanding
+- dashboard and reporting-solution development
+- data-model ownership and maintenance
+- anomaly and trend investigation
+- stakeholder communication and challenge
+- transparency and publication obligations
+- small-scale line management and team contribution
+
+They would sound like someone who can make operational data useful, understandable, and action-oriented inside a service-led public-sector environment.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in operational reporting, `MI`, business insight, or public-sector data analysis where outputs must be timely, robust, and understandable to non-technical stakeholders. Their story would show that they can gather requirements from multiple user groups, design reporting solutions in `Power BI` or similar tools, own data models, investigate anomalies and early warning signs, and support wider business and project work through analytical insight.
+
+They would likely have experience that sounds like this:
+- designing and building dashboards and reporting products for business users
+- working with `Power BI`, `Power Query`, `Excel`, and queried datasets
+- translating stakeholder needs into data models and reporting logic
+- identifying trends, anomalies, and hotspots in operational data
+- providing evidence and recommendations for continuous improvement
+- working within governance and transparency obligations such as publication support or information requests
+- supporting or supervising junior analysts while collaborating with wider managers and technical teams
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants strong dashboard and reporting-solution capability
+
+The ideal candidate would sound like someone who can do more than maintain an existing report catalogue. They would likely show that they can gather requirements, design outputs, and build reporting solutions that actually meet the needs of different business user groups.
+
+The candidate's evidence would likely include:
+- designing and creating dashboards
+- building reporting solutions in `Power BI` or similar tools
+- using `Power Query`, `Excel`, and queried datasets in reporting workflows
+- tailoring report format, content, and delivery to user needs
+
+#### B. If the employer wants data-model ownership and business-logic understanding
+
+The ideal candidate would sound like someone who understands that good reporting depends on understanding the underlying data and business rules. They would likely show that they can own the model, document the source logic, and keep the analytical layer aligned with how services actually operate.
+
+The candidate's evidence would likely include:
+- creating and maintaining data models
+- understanding business logic within source systems
+- documenting tables, elements, business rules, and data-quality issues
+- articulating data requirements so data is available in a usable form
+
+#### C. If the employer wants strong analytical judgement and service insight
+
+The ideal candidate would sound like someone who can do more than display metrics. They would likely show that they can interrogate data to identify trends, anomalies, and early warning signs and convert those findings into guidance for decision-makers.
+
+The candidate's evidence would likely include:
+- analysing operational data from multiple sources
+- investigating anomalies and hotspots
+- identifying early warning signs
+- forming and communicating insights and recommendations
+
+#### D. If the employer wants stakeholder engagement and communication across levels
+
+The ideal candidate would sound like someone who can work closely with different business users, adapt communication style, and manage expectations without losing analytical integrity.
+
+The candidate's evidence would likely include:
+- gathering requirements from different stakeholder groups
+- presenting recommendations to stakeholders
+- explaining technical specifications to non-technical users
+- advising, contributing, and challenging appropriately
+
+#### E. If the employer wants business impact and continuous improvement contribution
+
+The ideal candidate would sound like someone whose reporting and analysis supports not just business-as-usual, but improvement and project delivery. They would likely show that they can use data to support service-led change and strategic direction.
+
+The candidate's evidence would likely include:
+- supporting `BAU`, continuous-improvement, and project work with analysis
+- developing innovative reporting or analysis solutions
+- advising on the impact of system changes on reporting
+- helping ensure systems and reports continue to meet business requirements
+
+#### F. If the employer wants governance, transparency, and public-sector discipline
+
+The ideal candidate would sound like someone who understands that public-sector data work also carries obligations around publication, transparency, and governance. They would likely show that they can support official and operational publication needs while participating in data-change control and information-request handling.
+
+The candidate's evidence would likely include:
+- supporting official or operational statistics for publication
+- handling `FOI` or subject access response work
+- adding new datasets to published outputs to improve transparency
+- participating in data-change governance
+
+#### G. If the employer wants leadership and collaborative team contribution
+
+The ideal candidate would not only deliver their own outputs. They would also show that they can guide junior analysts, collaborate with other managers, and help the team operate effectively within a distributed delivery environment.
+
+The candidate's evidence would likely include:
+- managing one or two analysts
+- providing guidance to staff
+- planning team requirements and allocating work
+- working with managers across functions to support wider agency outcomes
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can design and deliver robust dashboards, reports, and data models that give business users clear, timely, and actionable operational insight.
+- I am comfortable gathering requirements from different stakeholder groups, translating those needs into reporting logic, and adapting communication for technical and non-technical audiences.
+- I can interrogate operational data to identify trends, anomalies, hotspots, and early warning signs, and use those findings to support better decisions and continuous improvement.
+- I can work confidently with `Power BI`, `Power Query`, `Excel`, and queried data sources to build and maintain reporting solutions that meet changing business needs.
+- I understand that public-sector data work includes governance and transparency obligations, and I can support publication, information-request handling, and data-change governance appropriately.
+- I can contribute as both an analyst and a team leader, guiding junior staff, collaborating across functions, and helping maintain a high-quality `MI` service in a service-led organisation.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is broad, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- real experience of dashboard and reporting-solution design
+- strong `Power BI` or similar visualisation-tool capability
+- comfort with data modelling, requirements gathering, and queried datasets
+- ability to form insights from varied operational data and communicate them clearly
+- willingness to advise and challenge stakeholders where necessary
+- ability to work within transparency and governance obligations
+- enough leadership maturity to guide junior analysts and collaborate with other managers
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic `MI` claims and show evidence of:
+- direct operational `MI` ownership in a public-sector or service-led environment
+- strong `Power BI`, `Power Query`, `Excel`, and `SQL` capability
+- evidence of data-model ownership and documentation of business logic
+- anomaly detection and insight-led reporting that influenced operational action
+- experience with publication support, `FOI`, or subject access processes
+- line-management or close supervision of junior analysts
+- familiarity with transport, enforcement, testing, or similarly operational government domains
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a service-oriented government data analyst who can own dashboards and data models, gather business requirements, turn operational data into timely insight, and support transparency and governance obligations while helping a distributed team deliver a strong `MI` service. They are useful because they combine technical reporting capability, analytical judgement, stakeholder communication, and practical team contribution in a way that supports both day-to-day decisions and continuous improvement.
+
+---
+
+## Ideal Candidate Profile - Data Scientist - M&S
+
+Source role:
+- `Data Scientist`
+- `M&S`
+- <https://jobs.marksandspencer.com/job-search/digital-tech/london-greater-london/data-scientist/300007258972366>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a research-only data scientist and not a narrow model builder who stops at experimentation. The employer is looking for a hands-on enterprise data scientist who can turn real business problems across the retail value chain into robust machine-learning or optimisation solutions that are deployed, monitored, and adopted in production.
+
+This person would likely present as someone who is comfortable moving between:
+- retail problem framing and analytical diagnosis
+- statistical, machine-learning, and optimisation methods
+- feature engineering, experimentation, and model evaluation
+- production-minded model development and deployment support
+- cross-functional delivery with engineering, `MLOps`, product, and business teams
+- reusable asset creation and software-engineering discipline
+- commercial thinking about measurable business value
+
+They would sound like someone who can help make enterprise data science practical, scalable, and valuable rather than leaving it as isolated modelling work.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked on end-to-end data-science projects where the work moved from business ambiguity and exploratory analysis into production-ready solutions. Their story would show that they can use strong `Python`-based data-science capability to solve forecasting, pricing, inventory, customer, or operational problems while working effectively with engineers, product teams, and business stakeholders.
+
+They would likely have experience that sounds like this:
+- solving real business problems with statistical, machine-learning, or optimisation methods
+- carrying out `EDA`, feature engineering, experimentation, and model evaluation
+- supporting deployment and monitoring of models in production settings
+- collaborating across `Data Engineering`, `MLOps`, analytics, and product functions
+- contributing to reusable code, templates, and best practices
+- using software-engineering fundamentals to improve analytical delivery quality
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants applied machine-learning and optimisation capability
+
+The ideal candidate would sound like someone who can pick and apply appropriate techniques to concrete business problems rather than only discussing generic model types. They would likely show that they can solve forecasting, pricing, inventory, decisioning, or operations problems with methods that create measurable value.
+
+The candidate's evidence would likely include:
+- applying statistical methods to business problems
+- applying `ML` methods to business problems
+- applying optimisation approaches where appropriate
+- working across a range of commercial use cases
+
+#### B. If the employer wants strong problem framing and experimentation skill
+
+The ideal candidate would sound like someone who can translate messy business challenges into tractable data-science problems. They would likely show that they can frame use cases well, analyse the underlying data, experiment sensibly, and evaluate models in ways that support real delivery decisions.
+
+The candidate's evidence would likely include:
+- translating stakeholder questions into analytical problems
+- `EDA` and feature engineering
+- experimentation and model evaluation
+- structured problem solving under ambiguity
+
+#### C. If the employer wants production-minded data-science delivery
+
+The ideal candidate would not stop at notebooks. They would also show that they understand how robust solutions are designed, built, tested, deployed, and monitored in production environments.
+
+The candidate's evidence would likely include:
+- end-to-end data-science project delivery
+- production deployment support
+- model monitoring awareness
+- understanding of scalability and robustness in production settings
+
+#### D. If the employer wants strong cross-functional collaboration
+
+The ideal candidate would sound like someone who can succeed in a delivery environment where data science depends on many other roles. They would likely show that they can work closely with `Data Engineers`, `MLOps`, `Product Managers`, Analysts, and business stakeholders to get solutions adopted.
+
+The candidate's evidence would likely include:
+- collaboration with engineering and product roles
+- communication with technical and non-technical audiences
+- support for adoption and embedding of solutions
+- shared delivery ownership across functions
+
+#### E. If the employer wants software-engineering discipline inside data science
+
+The ideal candidate would sound like someone who understands that good data science in an enterprise setting needs engineering discipline. They would likely show that they can work with version control, modular design, testing, and documentation rather than relying on informal exploratory habits alone.
+
+The candidate's evidence would likely include:
+- version-controlled analytical work
+- modular code or reusable components
+- testing and documentation practices
+- contribution to reusable assets and templates
+
+#### F. If the employer wants commercial and business-value awareness
+
+The ideal candidate would sound like someone who understands that technical sophistication only matters if it drives measurable business value. They would likely show that they can connect solutions to operational, customer, or commercial outcomes.
+
+The candidate's evidence would likely include:
+- focus on measurable business value
+- practical understanding of how solutions affect business decisions
+- connecting technical work to retail performance outcomes
+- balancing technical choice with business context
+
+#### G. If the employer wants learning agility and growth contribution
+
+The ideal candidate would not only deliver current work well. They would also show that they are building capability over time, both personally and for the team.
+
+The candidate's evidence would likely include:
+- continuous development of technical and commercial skills
+- curiosity and proactive learning
+- contribution to team best practices
+- willingness to grow in adjacent areas such as distributed frameworks or optimisation
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can turn ambiguous business problems into well-framed data-science or machine-learning problems and solve them using appropriate statistical, `ML`, or optimisation techniques.
+- I am comfortable taking data-science work from exploration through feature engineering, experimentation, model evaluation, and into production-oriented delivery.
+- I can contribute to scalable, production-ready data-science products and work effectively with `Data Engineers`, `MLOps`, product teams, analysts, and business stakeholders to get them adopted.
+- I combine strong `Python`-based analytical capability with good software-engineering fundamentals such as version control, modular design, testing, and documentation.
+- I understand that data science has to create measurable business value, and I can work across retail use cases such as forecasting, pricing, inventory, customer decisioning, and operations.
+- I contribute beyond individual model work by helping create reusable assets, templates, and best practices while continuing to grow my technical and commercial capability.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is straightforward, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- strong `Python`-led data-science capability
+- confidence with end-to-end project delivery rather than analysis-only work
+- comfort moving from exploration to production-minded implementation
+- ability to work effectively in cross-functional delivery teams
+- enough software-engineering discipline to operate in an enterprise setting
+- ability to communicate clearly with both technical and non-technical stakeholders
+- strong orientation toward practical business impact
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic data-science claims and show evidence of:
+- direct experience in retail, ecommerce, pricing, inventory, customer, or operations use cases
+- support for deployed `ML` or optimisation solutions in production
+- practical exposure to `PySpark` or similar distributed frameworks
+- evidence of model monitoring or production-support work
+- reusable code, templates, or internal data-science frameworks
+- strong collaboration across `Data Engineering`, `MLOps`, and product teams
+- a clear ability to explain how technical work created measurable business value
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a hands-on enterprise data scientist who can frame business problems well, build and evaluate machine-learning and optimisation solutions, support production deployment and monitoring, and work effectively with cross-functional teams to deliver measurable retail value. They are useful because they combine strong technical depth, delivery discipline, and business awareness in a way that helps data science become a scalable product capability rather than an isolated analytical function.
