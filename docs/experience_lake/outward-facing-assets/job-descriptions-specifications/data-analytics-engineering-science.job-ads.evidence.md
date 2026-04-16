@@ -2898,6 +2898,123 @@ It is a useful evidence point because it shows a public-sector data-analyst role
 
 ---
 
+## Data Analyst - Distribution - M&S
+
+Source:
+- `M&S Careers` - <https://jobs.marksandspencer.com/job-search/digital-tech/castle-donington-leicestershire/data-analyst-distribution/300007299824941>
+
+Role family:
+- `Data Analytics`
+- operational and distribution analytics
+- ecommerce and supply-chain management information
+- cloud-enabled reporting, automation, and decision support
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Data Analyst - Distribution` based at `Castle Donington`, the flagship `M&S` distribution centre responsible for a large share of ecommerce orders. The role is positioned as helping operational teams make better and faster decisions by creating insightful and actionable management information across the ecommerce network.
+
+The role sits inside a large-scale, fast-moving distribution and fulfilment environment and combines operational analysis, stakeholder-facing `MI`, complex-data interrogation, automation, and use of modern cloud data platforms. It is explicitly tied to efficiency, productivity, resilience, and customer experience rather than being limited to passive reporting.
+
+This is therefore not just a local reporting role. It is an operational distribution-analytics role operating across site and network decision support, modern reporting tools, reusable data assets, automation, and cloud-based data-engineering-adjacent workflows.
+
+### Responsibilities Evidence
+
+#### 1. Management information, stakeholder support, and operational decision support
+
+- Create insightful and actionable management information.
+- Empower operational teams to make well-informed decisions.
+- Support informed decision making across the `Castle Donington` operation.
+- Deliver high-quality data analytics tailored to the needs of internal stakeholders.
+- Manage multiple concurrent analytical and reporting requirements.
+- Support functional and support areas of the site including `Operations`, `Inventory Control`, `Planning`, and `Finance`.
+- Collaborate with other sites across the wider network.
+- Translate findings into clear and practical recommendations.
+- Strengthen site resilience through actionable analysis.
+- Support digital growth ambitions through analysis and `MI`.
+
+#### 2. Complex-data analysis and operational opportunity identification
+
+- Utilise complex datasets to uncover operational opportunities.
+- Interrogate complex datasets.
+- Transform complex datasets into powerful insights.
+- Translate complex business questions into clear, data-driven insights.
+- Produce recommendations that drive action.
+- Support improvements that enhance efficiency.
+- Support improvements that enhance productivity.
+- Support improvements that enhance overall customer experience.
+
+#### 3. Reporting products, presentations, and visual analytics
+
+- Deliver reports for internal stakeholders.
+- Deliver presentations for internal stakeholders.
+- Develop meaningful and actionable `MI`.
+- Champion adoption of modern reporting tools.
+- Use `Power BI` dashboards as a modern reporting surface.
+- Provide guidance and support to the wider business in effective use of reporting tools.
+- Create intuitive, high-impact dashboards and reports.
+- Use modern data-visualisation tools including `Power BI` and/or `Tableau`.
+
+#### 4. Automation, reusable assets, and analytical workflow improvement
+
+- Enhance the efficiency of analytics production at `Castle Donington`.
+- Enhance the speed of analytics production at `Castle Donington`.
+- Use process automation to improve analytics production.
+- Identify reusable data assets.
+- Adopt best-practice data workflows.
+- Contribute to improvements in analytical production workflows.
+
+#### 5. Cloud platforms, technical tooling, and enterprise data access
+
+- Use cloud-based data platforms including `Azure Data Lake Services`.
+- Use cloud-based data platforms including `Azure Data Factory (ADF)`.
+- Use cloud-based data platforms including `Databricks`.
+- Work with scalable data engineering and pipeline management environments.
+- Use analytical and programming languages such as `SQL` and `Python` or `R`.
+- Access, link, and query data across multiple database environments.
+- Work with large-scale datasets across enterprise data platforms including `SQL Server` and `Oracle`.
+- Troubleshoot technical problems in data workflows.
+- Troubleshoot data-workflow issues across enterprise platforms.
+
+### Person Specification Evidence
+
+#### 1. Technical and analytical capability
+
+- Advanced data manipulation and analytical skills, with the ability to interrogate complex datasets and transform findings into clear, actionable insights. Required.
+- Hands-on experience with cloud-based data platforms including `Azure Data Lake Services`, `Azure Data Factory`, and `Databricks` for scalable data engineering and pipeline management. Required.
+- Proficiency in analytical and programming languages such as `SQL` and `Python`, with the ability to access, link, and query data across multiple database environments. Required.
+- Skilled in modern data-visualisation tools, particularly `Power BI` and/or `Tableau`, with the capability to create intuitive, high-impact dashboards and reports. Required.
+- Experience working with large-scale datasets across enterprise data platforms (`SQL Server` and `Oracle`), with strong technical problem-solving and data-workflow troubleshooting capability. Required.
+
+#### 2. Working style and business contribution
+
+- Curious and data-driven problem solver. Strongly implied.
+- Comfortable transforming complexity into clarity. Strongly implied.
+- Able to support internal stakeholders across multiple concurrent requirements. Strongly implied.
+- Comfortable partnering with stakeholders to shape operational behaviours and decision quality. Strongly implied.
+
+### Additional Process and Environment Evidence
+
+- Role is based at the `Castle Donington` distribution centre in Derbyshire.
+- Advert frames `Castle Donington` as a flagship distribution centre of over `900,000 sq. ft` and responsible for over `65%` of all ecommerce orders.
+- Role sits inside `Digital & Tech`.
+- `M&S` expects support teams to be in the office at least three days a week.
+- Wider context emphasises digital growth, operational expansion, and transformation at pace in ecommerce and retail operations.
+
+### Hiring Signal Summary
+
+This posting is a strong operational-distribution analytics role centred on:
+- actionable `MI` and analytics for site and network decision support
+- complex-data interrogation for operational opportunity identification
+- stakeholder-facing recommendations across operations, inventory, planning, and finance
+- automation, reusable data assets, and faster analytics production
+- cloud-enabled data access and pipeline-adjacent work in `Azure Data Lake`, `ADF`, and `Databricks`
+- modern dashboarding and reporting with `Power BI` / `Tableau`
+- efficiency, productivity, resilience, and customer-experience improvement in a large ecommerce distribution environment
+
+It is a useful evidence point because it shows a retail-operations analyst role that is much more than dashboard production. The employer wants someone who can combine operational insight, cloud-platform fluency, analytical workflow improvement, and stakeholder-facing `MI` to influence decisions across a major ecommerce fulfilment environment.
+
+---
+
 ## Data Scientist - M&S
 
 Source:

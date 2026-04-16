@@ -2880,6 +2880,142 @@ The ideal candidate for this post is a service-oriented government data analyst 
 
 ---
 
+## Ideal Candidate Profile - Data Analyst - Distribution - M&S
+
+Source role:
+- `Data Analyst - Distribution`
+- `M&S`
+- <https://jobs.marksandspencer.com/job-search/digital-tech/castle-donington-leicestershire/data-analyst-distribution/300007299824941>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a narrow report runner and not a purely technical data engineer detached from operations. The employer is looking for an operational distribution analyst who can turn complex fulfilment and network data into actionable management information, help stakeholders make better decisions quickly, and improve the way analytics is produced across a large-scale ecommerce environment.
+
+This person would likely present as someone who is comfortable moving between:
+- operational `MI` and dashboard delivery
+- complex-data interrogation and operational opportunity analysis
+- stakeholder-facing recommendation and decision support
+- cloud-platform and pipeline-adjacent data work
+- automation and reusable analytical assets
+- modern reporting-tool enablement across the business
+
+They would sound like someone who can make analytics useful inside a live distribution operation rather than only produce reports after the fact.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in operational analytics, supply-chain analytics, ecommerce analytics, or a similar environment where large datasets, fast-moving decisions, and business-user needs all matter. Their story would show that they can deliver high-quality `MI`, interrogate operational data for opportunities, work across cloud and enterprise data platforms, and partner with stakeholders to improve efficiency, resilience, and customer outcomes.
+
+They would likely have experience that sounds like this:
+- producing management information and analytical outputs for operational teams
+- handling multiple concurrent reporting and analysis requests
+- using `SQL`, `Python` or `R`, and modern `BI` tooling to work with complex datasets
+- querying across multiple enterprise database environments
+- improving analytics-production workflows through automation and reuse
+- helping operations, planning, inventory, or finance teams act on insight
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants strong operational management-information capability
+
+The ideal candidate would sound like someone who can do more than create dashboards on request. They would likely show that they can deliver decision-useful `MI` that helps operational teams act quickly and appropriately across a busy fulfilment environment.
+
+The candidate's evidence would likely include:
+- producing actionable `MI`
+- supporting operations, planning, inventory, or finance decisions
+- managing multiple analytical requirements at once
+- tailoring output to different internal stakeholder groups
+
+#### B. If the employer wants strong analytical judgement on complex operational data
+
+The ideal candidate would sound like someone who can interrogate complex datasets and surface where the real operational opportunities are. They would likely show that they can translate business questions into analysis and use the findings to recommend concrete action.
+
+The candidate's evidence would likely include:
+- interrogating large and complex datasets
+- identifying opportunities, trends, or inefficiencies
+- translating business questions into analytical outputs
+- producing clear, practical recommendations
+
+#### C. If the employer wants modern reporting and visualisation capability
+
+The ideal candidate would sound like someone who can use modern reporting tools to turn complex operational reality into intuitive, high-impact dashboards and reports. They would likely show that they can help the wider business use those tools effectively.
+
+The candidate's evidence would likely include:
+- building `Power BI` or `Tableau` dashboards
+- creating intuitive visual reporting products
+- supporting adoption of modern reporting tools
+- guiding stakeholders in effective report usage
+
+#### D. If the employer wants cloud-platform and data-engineering-adjacent fluency
+
+The ideal candidate would not only speak about dashboards. They would also show that they can work confidently with the cloud data platforms and pipeline environments that feed analytics in a modern enterprise setting.
+
+The candidate's evidence would likely include:
+- working with `Azure Data Lake Services`
+- working with `Azure Data Factory`
+- working with `Databricks`
+- querying and linking data across multiple environments
+- troubleshooting data-workflow issues
+
+#### E. If the employer wants automation and analytical-production improvement
+
+The ideal candidate would sound like someone who improves how analytics gets produced, not just the final report. They would likely show that they can speed up delivery, automate repetitive work, and identify reusable assets that make future analysis more efficient.
+
+The candidate's evidence would likely include:
+- process automation in analytics
+- reusable data assets or analytical components
+- best-practice data workflows
+- improving efficiency and speed of analytics production
+
+#### F. If the employer wants cross-functional operational partnership
+
+The ideal candidate would sound like someone who works closely with operational stakeholders rather than analysing in isolation. They would likely show that they can partner with business teams to shape the right behaviours and outcomes from the analysis.
+
+The candidate's evidence would likely include:
+- partnering with operational and support functions
+- shaping meaningful, actionable `MI`
+- influencing operational behaviours through insight
+- collaborating across multiple sites or network areas
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can turn complex operational and fulfilment data into clear, actionable management information that helps teams make better and faster decisions.
+- I am comfortable working across large-scale enterprise datasets and cloud platforms, using `SQL`, `Python` or `R`, and tools such as `Power BI`, `Tableau`, `Azure Data Lake`, `ADF`, and `Databricks` to access, link, analyse, and present data.
+- I can translate business questions into analytical outputs and recommendations that improve efficiency, productivity, resilience, and customer experience.
+- I can improve the way analytics is produced by automating processes, identifying reusable data assets, and adopting stronger analytical workflows.
+- I work effectively with stakeholders across operational and support functions, creating meaningful `MI` and helping the wider business use modern reporting tools well.
+- I can handle multiple concurrent analytical demands in a fast-moving environment while keeping outputs useful, practical, and aligned to business priorities.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is broad, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- strong operational analytics and `MI` capability
+- confidence with complex, large-scale enterprise datasets
+- practical fluency with `SQL` and at least one modern analytical language
+- competence in modern `BI` tooling such as `Power BI` or `Tableau`
+- comfort with cloud data platforms and pipeline-oriented environments
+- ability to translate operational questions into clear recommendations
+- ability to work across multiple stakeholder groups and concurrent demands
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- direct ecommerce, fulfilment, supply-chain, or distribution-operations analytics experience
+- strong cloud-platform experience in `Azure Data Lake`, `ADF`, or `Databricks`
+- practical automation of analytical production workflows
+- reusable data-asset creation
+- site and network-level operational decision support
+- strong `Power BI` / `Tableau` dashboarding capability
+- evidence of improving efficiency, resilience, or customer outcomes through analysis
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is an operational distribution analyst who can deliver actionable `MI`, interrogate complex fulfilment data, work fluently across cloud and enterprise data platforms, improve analytics-production workflows, and help operational stakeholders act on insight across a major ecommerce distribution environment. They are useful because they combine technical depth, operational understanding, and practical decision support in a way that improves how the network performs day to day.
+
+---
+
 ## Ideal Candidate Profile - Data Scientist - M&S
 
 Source role:
