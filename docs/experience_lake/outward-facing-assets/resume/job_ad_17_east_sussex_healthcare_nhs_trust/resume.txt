@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Principal Information Analyst | Acute Performance, Forecasting & Demand-Capacity Intelligence
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Senior Data Analyst with experience delivering high-quality information services, performance reporting, and planning insight in high-accountability environments. Strong in SQL, Excel, Power BI, Tableau, Python, and DAX, with experience producing routine and senior-facing reporting, handling external submission discipline, analysing acute performance pressures, supporting forecasting and demand-capacity planning, and translating complex analytical findings into clear operational direction for managers and stakeholders.
+
+**CORE SKILLS**
+Information-Service Leadership: Information-service delivery, routine reporting, external submissions, reporting timetables, customer-focused analytical support, governance-safe outputs
+Acute Performance & Operational Analysis: Elective performance, emergency performance, waiting-time analysis, RTT monitoring, patient flow, front-door pressures, demand intelligence, capacity analysis
+Forecasting & Planning Support: Strategic forecasting, activity planning, demand-and-capacity modelling, scenario analysis, short- and medium-term planning, operational implications
+Executive Communication & Recommendation: Senior stakeholder reporting, decision-ready packs, recommendation writing, operational direction, action-focused interpretation, clear explanation of implications
+Data Analysis & Working Tools: SQL, advanced Excel, Power BI, Tableau, Python, DAX, relational analysis, data manipulation, reporting-ready outputs
+Reporting Platforms & Improvement: Excel-to-dashboard transition, scalable reporting workflows, self-service reporting support, methodology improvement, online reporting development
+Governance, Quality & Documentation: Data quality review, controlled submissions, documentation discipline, release checks, traceability, governed reporting delivery
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Led high-quality reporting delivery across a significant operational portfolio, producing routine internal reporting and external submissions in line with controlled timetables, documentation standards, and release discipline.
+- Analysed elective, emergency, RTT, waiting-time, patient-flow, and front-door performance signals across integrated operational views, turning complex pathway and demand data into timely management information for service review.
+- Produced strategic forecasts and short-, medium-, and longer-range planning outputs, using time-aware trend analysis and demand-capacity comparisons to support delivery planning rather than retrospective reporting alone.
+- Worked with service and operational stakeholders to compare expected demand against available capacity, highlighting shortfalls, pressure points, and practical delivery implications for follow-up action.
+- Presented complex analytical findings clearly to senior stakeholders, translating technical conclusions into decision-ready packs, recommendations, and operational direction rather than raw analysis.
+- Used SQL and advanced Excel as core delivery tools while supporting more scalable SSRS and Power BI reporting workflows, helping move reporting beyond spreadsheet-heavy production into repeatable online outputs.
+- Maintained data quality, documentation, and submission discipline while handling complex analytical queries and competing stakeholder demands, supporting a reliable information service and a more scalable self-service reporting culture.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain reliable service, quality, and clear communication in a busy environment where timing, accuracy, and customer focus all matter.
+- Prioritise competing demands and adapt quickly when workloads change, helping the wider team keep outputs consistent under pressure.
+- Support colleagues through clear handovers, practical guidance, and steady communication during busy shifts.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a controlled operational environment where accurate readings, disciplined procedures, and dependable reporting were essential to safe delivery.
+- Monitored technical trends, identified irregular conditions early, and supported corrective action through structured evidence and escalation.
+- Prepared clear updates and handovers for supervisors and teams so technical information could be used confidently in operational decisions.
