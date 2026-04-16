@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Higher Statistical Officer | Official Statistics, Ministerial Briefings & Dissemination
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience producing publication-ready analytical outputs aligned to official statistics standards, combining multiple data sources into usable evidence products, and turning complex findings into clear commentary for non-specialist audiences. Strong in Python, SQL, Excel, Power BI, Tableau, Power Query M, and DAX, with experience building reproducible analytical workflows, producing charts, tables, briefing-ready narratives, and quality notes, supporting stakeholder-facing dissemination, and applying proportionate quality assurance and fit-for-purpose judgement in high-accountability reporting environments.
+
+**CORE SKILLS**
+Official Statistics & Dissemination: Publication-ready outputs, statistical commentary, key facts, charts, tables, quality notes, plain-language narratives, dissemination products
+Policy, Ministerial & Public-Facing Support: Briefing support, submission support, ministerial and policy support, press-ready messaging, Parliamentary Question and FOI analytical correspondence
+Data Integration & Reproducible Pipelines: Multi-source data extraction, data combination, coding workflows, reproducible analytical pipelines, code-managed delivery, process improvement
+Reporting Tools & Evidence Products: Reporting-solution development, dashboard support, usable evidence products, stakeholder-facing outputs, data visualisation, customer-focused reporting
+Quality Assurance & Statistical Standards: Quality checks, fit-for-purpose judgement, caveat communication, assumption tracking, Code of Practice for Statistics awareness, Aqua Book awareness
+Stakeholder & Supplier Engagement: Requirement gathering, scope definition, feedback-led improvement, data-quality issue resolution, external stakeholder communication
+Delivery & Team Support: Deadline management, workload prioritisation, customer focus, structured support to colleagues, review discipline, reliable analytical delivery
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Produced publication-ready analytical outputs aligned to official statistics standards end to end, combining analysis, commentary, key facts, charts, tables, and quality notes into clear dissemination-ready products rather than isolated internal reporting.
+- Turned complex analytical findings into plain-language narratives for non-specialist and decision-making audiences, supporting briefings, policy-facing interpretation, and concise evidence summaries.
+- Supported ministerial, submission, press, Parliamentary Question, FOI, and correspondence-related analytical needs by turning complex evidence into clear answers, caveats, and briefing-ready material rather than raw technical analysis.
+- Extracted, combined, and analysed data from multiple sources using Python and SQL, building reproducible analytical workflows that improved processing, assurance, documentation, and repeatable output generation.
+- Built usable reporting and visual evidence products that made complex findings easier for stakeholders to interpret, helping move analysis from spreadsheet-heavy handling into clearer, more scalable dissemination outputs.
+- Applied proportionate quality checks and fit-for-purpose judgement to familiar and new analytical inputs, making assumptions, limitations, and quality implications explicit in line with Code of Practice for Statistics and Aqua Book expectations.
+- Worked to deadline with a strong customer focus while managing competing requests, engaging stakeholders and data suppliers to improve data quality and output usability, and providing structured support that helped maintain delivery standards across shared analytical work.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Deliver clear customer-facing information and service to deadline in a busy environment where accuracy, pace, and usability all matter.
+- Manage competing demands calmly, keeping work structured and reliable under pressure.
+- Support colleagues through clear guidance, practical handovers, and dependable teamwork across shared tasks.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a controlled technical environment where documentation, checks, and evidence-based judgement were essential to safe and reliable delivery.
+- Combined readings from multiple sources, identified quality issues early, and supported corrective action through structured analysis and escalation.
+- Prepared clear technical updates and handovers so different stakeholders could act on the same evidence confidently and on time.
