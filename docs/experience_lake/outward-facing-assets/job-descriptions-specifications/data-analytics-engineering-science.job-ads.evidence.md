@@ -2376,3 +2376,193 @@ This posting is a strong translational health-data research role centred on:
 - research reporting, publication support, and grant-bid contribution
 
 It is a useful evidence point because it shows a research-assistant role that is much more technical and analytically substantive than generic research support. The employer wants someone who can work across health-data engineering, multimodal longitudinal analysis, cloud tooling, and collaborative translational research in a digital-health setting.
+
+---
+
+## Principal Information Analyst - East Sussex Healthcare NHS Trust
+
+Source:
+- `NHS Jobs Beta` - <https://beta.jobs.nhs.uk/candidate/jobadvert/C9374-26-0348?searchFormType=main&keyword=analyst&language=en>
+
+Role family:
+- `Information Analytics`
+- NHS information management and performance
+- acute provider performance / planning / operational intelligence
+- senior analyst / team leadership / reporting platform transition
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Principal Information Analyst` within the `Information Department & Performance` team, responsible for providing analytical expertise across a broad portfolio and supporting the day-to-day running of the department.
+
+The role is positioned as central to the Trust's ability to analyse and manage clinical and business operations. It carries responsibility for delivering information services to a significant part of the Trust's business, supporting managers and clinicians with the information required to deliver appropriate services to patients, and ensuring that high-quality analysis is available for service improvement.
+
+The posting also makes clear that this is a senior, specialist `NHS` informatics role with acute-provider pathway knowledge, external submission ownership, demand-and-capacity planning contribution, and day-to-day management of a small analyst team. It is therefore not just a reporting role. It is a senior operational-intelligence, performance-management, and planning-support role inside a complex acute-trust information service.
+
+### Responsibilities Evidence
+
+#### 1. Information-service delivery, reporting, and submissions
+
+- Deliver information services to a significant part of the Trust's business.
+- Ensure managers and clinicians have the information they require to deliver the highest quality and most appropriate services to patients.
+- Ensure the timely production and delivery of all clinical unit reports.
+- Develop and write monthly Trust Information Performance Reports.
+- Ensure external and internal information requests are kept up to date.
+- Ensure information requests are aligned to the latest guidance.
+- Ensure information requests are submitted in a timely manner.
+- Develop and maintain processes to ensure data submissions to `SUS`, `NHSI`, and `CCGs` are made in accordance with national and locally agreed protocols and timetables.
+- Develop and maintain processes to ensure internal routine reporting needs are met in a timely way.
+
+#### 2. Acute pathway, access, and operational-performance analytics
+
+- Lead on elective care and/or emergency care.
+- Manage waiting-time analysis.
+- Manage `RTT` analysis.
+- Manage capacity and demand analysis.
+- Manage front-door emergency pathways and patient flow analysis.
+- Support business decision-making using large datasets.
+- Use specialist knowledge of `NHS` datasets and definitions.
+- Use knowledge of `NHS`, elective and non-elective pathways, `RTT`, and developments shaping the information agenda.
+- Support delivery of service improvements through high-quality information analysis.
+
+#### 3. Strategic planning, forecasting, and demand-and-capacity modelling
+
+- Work with the Head of Information in developing short-, medium-, and long-term activity plans and strategic direction for the Trust.
+- Formulate long-term strategic plans involving uncertainty that impact across the whole organisation.
+- Produce detailed strategic planning forecasts for the Trust.
+- Develop, structure, and schedule strategic plans.
+- Work on strategic plans extending 1, 5, and 10 years.
+- Develop capacity and demand models.
+- Work with operational and clinical leads to analyse capacity against expected demand.
+- Help develop delivery plans.
+- Set, maintain, and monitor the Trust's strategic long-term activity plan.
+
+#### 4. Stakeholder communication, presentation, and relationship management
+
+- Present information, analysis, and insight at key Trust meetings to all levels of the organisation, including the executive team.
+- Communicate conclusions drawn from statistical and performance analyses to a wide range of internal and external staff.
+- Communicate implications of analytical results to internal and external staff.
+- Guide stakeholders on a certain course of action based on analysis.
+- Convey complex analytical concepts clearly.
+- Develop and deliver formal, complex analytical presentations to large groups.
+- Build working relationships and networks with staff at all levels within the Trust and with external organisations.
+- Represent Information Management and Performance in key stakeholder meetings.
+- Supply accurate and timely data to `GPs`, `CCGs`, `CSUs`, `NHSI`, and other stakeholders as required.
+
+#### 5. Team leadership, departmental support, and information-culture development
+
+- Be responsible for the day-to-day management of the `Information Analysts` within the team.
+- Lead a small team of analysts.
+- Ensure the team effectively provides reporting, information, and intelligence to clinical units and corporate functions.
+- Be responsible for recruitment, appraisal, discipline, training, and career development of `Information Analysts` within the team.
+- Authorise time sheets for staff and travel expenses.
+- Support the local implementation of the Trust's Information Strategy.
+- Support the ongoing development of the Trust's Information Management Strategy.
+- Support development of an information culture within the Trust.
+- Support and provide key input to the development of a self-service culture within the Trust.
+- Ensure outputs from the analyst team are insightful and action-oriented.
+- Support the day-to-day running of the department.
+
+#### 6. Technical tooling, platform transition, and analytical-method capability
+
+- Use knowledge of analytical processes such as `SPC`.
+- Use analytical and reporting software and platforms such as `SQL`, `Excel`, `SSRS`, and `Power BI`.
+- Use advanced `Excel` skills and `SQL` to drive reporting and analysis developments.
+- Use `SQL Server` for querying data.
+- Write stored procedures in `SQL Server`.
+- Use `SQL Server Reporting Services` and `Power BI` to help the team transition from Excel to online reporting platforms.
+- Maintain knowledge of Trust information not directly produced or held by the Information Management team.
+- Answer challenging questions accurately and spontaneously across a wide range of healthcare-informatics areas.
+
+#### 7. Governance, data quality, policy, and service development
+
+- Be responsible for all aspects of information management, including the quality of data captured and the provision of information to support planning, operation, and performance management.
+- Ensure careful use of Trust systems, both manual and electronic, to ensure accuracy of data.
+- Store and share information in accordance with departmental protocols, Trust Information Governance Policy, and `Data Protection` legislation.
+- Keep abreast of the national agenda and advise on key developments within the information arena and their likely effect on Trust reporting processes.
+- Implement departmental policies and propose changes to working practices resulting from new guidelines or legislation.
+- Propose changes to Trust and departmental policies, concepts, and procedures affecting other areas.
+- Propose and support implementation of changes to and redesigns of statistical, information, and local managerial policies and procedures affecting other areas.
+- Regularly undertake surveys, audits, or research to support service development.
+- Audit data quality.
+- Develop new data-collection systems.
+- Introduce new methodologies for analysis and interpretation of data.
+
+### Person Specification Evidence
+
+Note:
+- the assessment legend stated in the person specification is:
+- `A = Application`
+- `I = Interview`
+- `R = References`
+- `T = Testing`
+- `C = Certificate`
+
+#### 1. Qualifications
+
+- `GCSE / O level` (or equivalent) in English and Maths. Essential. Assessment: `A/I`
+- Educated to degree level in a relevant subject or equivalent experience in healthcare informatics. Essential. Assessment: `A/I`
+- Evidence of continued professional development to Masters level or equivalent knowledge and skills. Essential. Assessment: `A/I`
+- `SQL Server` query writing or relevant demonstrable experience. Essential. Assessment: `A/I`
+
+#### 2. Experience
+
+- At least 3 years' experience working in the `NHS` with at least 1 year within an acute provider organisation. Essential. Assessment: `A/I`
+- Experience of undertaking analysis of complex data to support business decision-making using large datasets. Essential. Assessment: `A/I`
+- Good understanding of the `NHS`, elective and non-elective pathways, `RTT`, and key developments shaping the information agenda. Essential. Assessment: `A/I`
+- Able to build working relationships and networks with staff at all levels within the Trust and with external organisations. Essential. Assessment: `A/I`
+- Able to prioritise workloads and conflicting demands. Essential. Assessment: `A/I`
+- `NHS` information and data-modelling concepts. Essential. Assessment: `A/I`
+- `NHS` data standards and terminology, including clinical datasets. Essential. Assessment: `A/I`
+- Experience of delivering presentations to clinical and administrative staff. Essential. Assessment: `A/I`
+- Knowledge of Lean analysis techniques and statistical methods. Essential. Assessment: `A/I`
+- Previous experience of supervising or managing staff. Essential. Assessment: `A/I`
+- `SQL Server` query writing. Essential. Assessment: `A/I`
+- Knowledge of project-management methodologies. Desirable. Assessment: `A/I`
+- Methodical with attention to detail. Desirable. Assessment: `A/I`
+- Experience in developing web-based reporting tools. Desirable. Assessment: `A/I`
+- `SQL Server Reporting Services (SSRS)` / `Power BI`. Desirable. Assessment: `A/I`
+
+#### 3. Skills, knowledge, and abilities
+
+- Excellent interpersonal skills, including communicating complex technical issues to non-technical staff verbally and in writing. Essential. Assessment: `A/I`
+- Ability to analyse, investigate, and resolve complex analytical queries and issues where there is a range of solutions or analyses. Essential. Assessment: `A/I`
+- Ability to interpret and resolve highly complex statistical and information problems where there is no precedent or leading opinions may conflict. Essential. Assessment: `A/I`
+- Good knowledge of `SQL Server` for querying data and writing stored procedures. Essential. Assessment: `A/I`
+- Advanced knowledge of Microsoft `Excel` for analysis and reporting. Essential. Assessment: `A/I`
+- Ability to plan, prioritise, and delegate efficiently. Essential. Assessment: `A/I`
+- Ability to exercise own initiative and work independently to achieve objectives within deadlines. Essential. Assessment: `A/I`
+- Ability to manage the twin challenges of delivering a high-quality service to meet client-directorate demand while maintaining close professional relationships with the wider information service. Essential. Assessment: `A/I`
+- Ability to work and concentrate in a busy and demanding environment. Essential. Assessment: `A/I`
+- Specialist knowledge of developing large-scale, complex demand-and-capacity models using `NHS` information systems. Desirable. Assessment: `A/I`
+
+#### 4. Other
+
+- Reliable work record. Essential. Assessment: `A/I/R`
+- `DBS` clearance. Essential. Assessment: `T`
+- Evidence that personal behaviour reflects Trust values. Essential. Assessment: `A/I/R`
+- Ability to travel between sites in an efficient and timely manner. Essential. Assessment: `A/I`
+
+### Additional Process and Environment Evidence
+
+- Primary base is `Conquest Hospital`, with cross-site working.
+- Specialist systems listed include `OASIS`, `SystmOne`, `SQL Server`, and `MS Office`.
+- Job description explicitly marks `PC / VDU` use and long periods of concentration as relevant working-environment demands.
+- Trust values referenced in the job description are:
+- `Working Together`
+- `Respect and Compassion`
+- `Engagement and Involvement`
+- `Improvement and Development`
+- Job advert additionally includes a statement discouraging the use of `AI`-generated application content.
+
+### Hiring Signal Summary
+
+This posting is a strong senior `NHS` information and performance role centred on:
+- delivery of high-quality information services across a significant acute-trust portfolio
+- elective, emergency, `RTT`, patient-flow, and operational-performance analytics
+- strategic planning, forecasting, and demand-and-capacity modelling
+- team leadership and support for departmental operations
+- transition from `Excel`-heavy reporting toward `SSRS` / `Power BI` online reporting platforms
+- governance-aware submissions, documentation, and data-quality ownership
+- presentation of analysis and insight to clinicians, managers, and the executive team
+
+It is a useful evidence point because it shows a Band 7 role where the employer wants much more than report production. They want a senior analyst who can combine acute-pathway domain knowledge, strategic planning support, modelling and submission discipline, team leadership, and stakeholder-facing analytical judgement inside a mature Trust information service.

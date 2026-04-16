@@ -2436,3 +2436,151 @@ The strongest-fit candidate would likely go beyond generic research-assistant cl
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a technically capable health-data research assistant who can support cloud-based pipelines, integrate multimodal longitudinal datasets, contribute quantitative analysis and emerging `AI` work, and operate effectively across a complex translational research network. They are useful because they help convert real-world health data into reliable analytical and modelling inputs for clinically meaningful digital-health research.
+
+---
+
+## Ideal Candidate Profile - Principal Information Analyst - East Sussex Healthcare NHS Trust
+
+Source role:
+- `Principal Information Analyst`
+- `East Sussex Healthcare NHS Trust`
+- <https://beta.jobs.nhs.uk/candidate/jobadvert/C9374-26-0348?searchFormType=main&keyword=analyst&language=en>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a narrow reporting technician and not a purely strategic planner detached from operational detail. The employer is looking for a senior NHS information analyst who can lead a small analyst function, deliver trusted information services across an acute-provider environment, support external and internal reporting obligations, and contribute directly to operational performance, service improvement, and strategic planning.
+
+This person would likely present as someone who is comfortable moving between:
+- acute-pathway performance analysis
+- elective, emergency, `RTT`, and patient-flow intelligence
+- information-service leadership and team management
+- demand-and-capacity modelling and strategic forecasting
+- stakeholder presentation and executive-facing insight
+- submission, governance, and documentation discipline
+- technical reporting-platform development and migration from `Excel` toward online reporting tools
+
+They would sound like someone who can operate as a senior informatics lead within a Trust information service rather than only as an individual analyst.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in an `NHS` information-management or performance team, ideally in an acute provider, where they have been responsible for complex operational reporting, acute-pathway analysis, submission discipline, and high-level stakeholder support. Their story would show that they can manage conflicting priorities, supervise analysts, provide technically strong `SQL` and `Excel`-based analysis, and translate complex information into action-oriented insight for clinicians, managers, and executives.
+
+They would likely have experience that sounds like this:
+- delivering reporting and analytical services across a sizeable clinical or operational portfolio
+- working with elective, non-elective, waiting-time, and access-performance data
+- managing external submissions and routine internal reporting processes
+- developing forecasts, activity plans, or demand-and-capacity models
+- leading or supervising analysts and maintaining service quality
+- presenting analytical findings to senior operational and clinical audiences
+- contributing to information-strategy and self-service reporting development
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants strong acute-provider information and performance capability
+
+The ideal candidate would sound like someone who understands the operational language of an acute trust and can produce analysis that directly supports service delivery and performance management. They would likely show that they can work across elective and emergency pathways and respond confidently to questions grounded in `NHS` performance rules and definitions.
+
+The candidate's evidence would likely include:
+- acute-provider analytical experience
+- work on elective and non-elective pathways
+- `RTT`, waiting-time, patient-flow, or front-door analysis
+- understanding of `NHS` datasets, definitions, and information standards
+
+#### B. If the employer wants strategic planning and modelling capability
+
+The ideal candidate would not only produce retrospective performance reports. They would also show that they can support the Trust's forward planning through forecasting, strategic activity plans, and demand-and-capacity modelling.
+
+The candidate's evidence would likely include:
+- strategic planning forecasts
+- activity planning across multiple time horizons
+- capacity-and-demand modelling
+- linking modelling outputs to operational delivery plans
+
+#### C. If the employer wants senior stakeholder support and analytical communication
+
+The ideal candidate would sound like someone who can present analytical conclusions with authority and clarity to a wide range of audiences, including executives, clinical leaders, and external stakeholders.
+
+The candidate's evidence would likely include:
+- executive-facing or board-level presentations
+- translating complex analytical findings into clear action
+- responding to challenging informatics questions in live settings
+- building trusted relationships across clinical, corporate, and external stakeholders
+
+#### D. If the employer wants team leadership and department support
+
+The ideal candidate would not only deliver their own analysis. They would also show that they can lead analysts, help run the department day to day, and ensure the service remains consistent, documented, and customer-focused.
+
+The candidate's evidence would likely include:
+- supervising or managing analysts
+- prioritising and delegating work
+- supporting recruitment, appraisal, training, or development
+- helping maintain day-to-day information-service delivery
+
+#### E. If the employer wants strong governance, submission, and documentation discipline
+
+The ideal candidate would sound like someone who treats data quality, documentation, and submission timeliness as part of the core service, not back-office extras. They would likely show that they can maintain robust processes for internal and external reporting and comply with `NHS` and Trust information-governance expectations.
+
+The candidate's evidence would likely include:
+- maintaining routine and statutory reporting processes
+- developing submission workflows for national and local bodies
+- ensuring data accuracy and up-to-date documentation
+- working within `Data Protection`, `FOI`, and Trust information-governance requirements
+
+#### F. If the employer wants strong technical development capability
+
+The ideal candidate would sound like someone who can work fluently with the core technical stack of a Trust information service and help modernise it. They would likely show that they can use `SQL Server` and advanced `Excel`, and ideally help move reporting into `SSRS` or `Power BI`.
+
+The candidate's evidence would likely include:
+- `SQL Server` querying and stored-procedure work
+- advanced `Excel` reporting and analysis
+- experience with `SSRS` or `Power BI`
+- helping shift reporting from manual spreadsheet processes to online reporting platforms
+
+#### G. If the employer wants policy, service development, and information-culture contribution
+
+The ideal candidate would sound like someone who can help shape how the Trust uses information over time, not just how reports are produced this month. They would likely show that they can contribute to strategy, self-service reporting, new methodologies, and improved working practices.
+
+The candidate's evidence would likely include:
+- input into information-strategy implementation
+- support for self-service reporting cultures
+- proposing policy or process changes
+- introducing new data-collection systems or analytical methods
+- using audits or research to support service development
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can lead the delivery of high-quality information services across a complex acute-trust environment, ensuring clinicians and managers get the analysis they need for operational and strategic decision-making.
+- I have strong `NHS` acute-provider expertise across elective, emergency, `RTT`, waiting-time, patient-flow, and performance reporting, and I can use that knowledge to answer challenging questions and support service improvement.
+- I can develop strategic forecasts, long-term activity plans, and demand-and-capacity models that help operational leaders plan delivery against expected demand.
+- I am comfortable managing analysts, prioritising workloads, and maintaining a documented, customer-focused information service under pressure.
+- I treat submissions, data quality, governance, and documentation as core parts of the analytical role and can keep internal and external reporting processes reliable and timely.
+- I can work fluently with `SQL Server`, advanced `Excel`, and reporting tools such as `SSRS` and `Power BI`, including helping teams move from spreadsheet-heavy reporting toward more scalable online reporting platforms.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is broad, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- real `NHS` information and performance experience, ideally in an acute provider
+- comfort with elective, non-elective, `RTT`, and acute-pathway analysis
+- strong `SQL Server` and advanced `Excel` capability
+- ability to handle complex analytical queries and conflicting stakeholder demands
+- confidence presenting analysis to clinical and senior operational audiences
+- ability to supervise staff and support departmental operations
+- high standards around documentation, governance, and timely submission
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic senior-analyst claims and show evidence of:
+- direct Band 7-style `NHS` information or performance leadership experience
+- deep acute-provider knowledge of access, flow, and capacity issues
+- demand-and-capacity modelling and strategic planning work
+- `SSRS` / `Power BI` reporting-platform development experience
+- management or supervision of analysts
+- evidence of contributing to information strategy, self-service reporting, or service redesign
+- strong presentational credibility with executives, clinicians, and external stakeholders
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a senior NHS information analyst who can lead a small team, deliver trusted performance and operational intelligence, support submissions and acute-pathway analytics, contribute to long-term planning and modelling, and help modernise the Trust's reporting environment. They are useful because they combine domain knowledge, technical depth, governance discipline, and leadership in a way that strengthens both day-to-day information delivery and wider service improvement.
