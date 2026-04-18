@@ -3297,3 +3297,132 @@ This posting is a strong clinical-information and national-audit analytics role 
 - subject-matter ownership of local clinical-system data definitions and workflow improvement
 
 It is a useful evidence point because it shows an NHS analytics role where value comes less from dashboard breadth and more from domain interpretation, audit credibility, clinician challenge, and governed stewardship of specialist clinical data that feeds national performance and quality regimes.
+
+---
+
+## Scientist - Defence Applications - Met Office
+
+Source:
+- `Met Office Careers` - <https://careershub.metoffice.gov.uk/members/modules/job/detail.php?record=1222>
+
+Role family:
+- `Scientist`
+- applied environmental / climate / weather analytics
+- defence and security decision-support science
+- stakeholder-facing scientific analysis and delivery
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Scientist - Defence Applications` in a team that translates `Met Office` weather and climate science and modelling expertise into information and intelligence that directly supports decision-making across defence and security stakeholders.
+
+The role is explicitly positioned as applied rather than purely academic. It focuses on exploring how climate and environmental conditions affect defence planning and operations, developing methods to model environmental impacts on defence systems and tactical decisions, and working closely with customers and other `Met Office` teams to create real-world impact.
+
+This is therefore not a pure research-science role and not a generic analyst role. It is an applied scientific-analysis role that combines environmental and climate data work, user-relevant problem solving, stakeholder translation, project delivery, and scientific communication in a defence context.
+
+### Responsibilities Evidence
+
+#### 1. Applied analysis and data-science work on environmental, weather, and climate data
+
+- Develop suitable analysis techniques on environmental, weather, and climate data.
+- Apply suitable analysis techniques on environmental, weather, and climate data.
+- Develop suitable data-science techniques on environmental, weather, and climate data.
+- Apply suitable data-science techniques on environmental, weather, and climate data.
+- Assess impacts to customer interests using environmental, weather, and climate data.
+- Assess risks to customer interests using environmental, weather, and climate data.
+- Explore the effects of climate and climate change on defence planning.
+- Explore the effects of climate and climate change on defence operations.
+- Develop methods to model environmental impacts on defence systems.
+- Develop methods to model environmental impacts on tactical decisions.
+
+#### 2. Scientific delivery and project-output production
+
+- Contribute to the scientific production of high-quality project reports.
+- Contribute to the delivery of high-quality project reports.
+- Contribute to other outputs for customers.
+- Deliver significant contributions to high-quality scientific outputs while meeting tight deadlines.
+
+#### 3. Stakeholder engagement and user-relevant solutioning
+
+- Work closely with customers to create real-world impact.
+- Work closely with other teams across the `Met Office` to create real-world impact.
+- Discuss diverse user needs.
+- Propose appropriate solutions for diverse user needs.
+- Apply scientific and analytical skills to generate user-relevant insights.
+- Work with wider `Met Office` teams to understand capabilities.
+- Work with partners across government to understand capabilities.
+- Understand how `Met Office` capabilities can be used to address stakeholder requirements.
+
+#### 4. Scientific communication, representation, and knowledge sharing
+
+- Represent the `Met Office` at customer meetings.
+- Represent the `Met Office` at workshops.
+- Represent the `Met Office` at scientific conferences.
+- Present and discuss the application of science in external-facing settings.
+- Convey complex scientific and technical information clearly and with impact to a range of audiences.
+- Act as a collaborative and supportive team member.
+- Share knowledge to develop the team's scientific and technical capabilities.
+
+#### 5. Scientific computing, coding, and quality assurance
+
+- Use strong scientific computing skills.
+- Use coding skills, especially in `Python`.
+- Use advanced tools for data analysis and visualisation.
+- Apply recognised approaches to software quality assurance.
+
+### Person Specification Evidence
+
+#### 1. Scientific and analytical grounding
+
+- Experience and knowledge in a physical or environmental science, mathematics, statistics, and/or data science. Essential and lead criterion.
+- Relevant degree or subsequent professional experience and/or postgraduate qualification in the above areas. Essential route to qualification.
+
+#### 2. Communication and collaborative delivery
+
+- Effective oral communication skills. Essential.
+- Effective written communication skills. Essential.
+- Demonstrated ability to convey complex scientific and technical information clearly and with impact to a range of audiences. Essential.
+- Good organisational skills. Essential.
+- Ability to plan own work. Essential.
+- Ability to collaborate with others to deliver significant contributions to high-quality scientific outputs while meeting tight deadlines. Essential.
+
+#### 3. User-needs, insight generation, and problem solving
+
+- Ability to discuss diverse user needs and propose appropriate solutions. Essential.
+- Ability to apply scientific and analytical skills to generate user-relevant insights. Essential.
+
+#### 4. Computing and analytical tooling
+
+- Strong scientific computing skills. Essential.
+- Experience of coding, especially in `Python`. Essential.
+- Experience of using advanced tools for data analysis and visualisation. Essential.
+- Experience of applying recognised approaches to software quality assurance. Essential.
+
+#### 5. Security and operating-context requirements
+
+- `Developed Vetting (DV)` security clearance, or willingness to undergo the process on appointment. Not essential at appointment but explicitly referenced.
+- Security clearance required within the first six months.
+
+### Additional Process and Environment Evidence
+
+- Role is based in `Exeter`.
+- Role is `Permanent`.
+- Role is `37` hours per week, with part-time working considered down to `25` hours per week.
+- Role may be suitable for hybrid working.
+- Closing date is `19/04/2026`.
+- First-stage interviews commence from `11/05/2026`.
+- Role sits in the `Science` profession.
+- Employer frames the role around defence and security stakeholders across government.
+- Employer explicitly references potential selection exercises including presentation, written test, or scenario-based activity.
+- Role sits inside a Civil Service environment with security-clearance requirements.
+
+### Hiring Signal Summary
+
+This posting is a strong applied science and analytical decision-support role centred on:
+- environmental, weather, and climate analysis for defence and security use cases
+- translating scientific and modelling capability into user-relevant information and intelligence
+- impact and risk assessment for defence planning, operations, systems, and tactical decisions
+- strong stakeholder engagement across customers, government partners, and internal scientific teams
+- project-report delivery and external scientific communication
+- `Python`, scientific computing, advanced analysis / visualisation tooling, and software-quality discipline
+
+It is a useful evidence point because it shows a role where the employer wants more than technical science capability. They want someone who can convert scientific expertise into decision-support outputs for high-stakes users, communicate credibly across technical and stakeholder settings, and work with enough computing and software-quality rigour to make the science operationally useful.

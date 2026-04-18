@@ -3294,3 +3294,129 @@ The strongest-fit candidate would likely go beyond generic NHS analyst claims an
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a clinically credible information analyst who can interpret specialist cardiology data, safeguard the quality of national audit submissions, work confidently with clinicians to resolve data issues, and produce useful governed reporting that supports quality improvement and organisational accountability. They are useful because they combine data-quality rigour, healthcare-context understanding, and trustworthy stewardship of sensitive clinical information.
+
+---
+
+## Ideal Candidate Profile - Scientist - Defence Applications - Met Office
+
+Source role:
+- `Scientist - Defence Applications`
+- `Met Office`
+- <https://careershub.metoffice.gov.uk/members/modules/job/detail.php?record=1222>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a purely academic researcher and not a generic data scientist with no domain story. The employer is looking for an applied scientist who can use environmental, weather, and climate data to support defence and security decision-making, while also working credibly with customers, government partners, and internal scientific teams.
+
+This person would likely present as someone who is comfortable moving between:
+- physical, environmental, statistical, or data-science problem solving
+- analysis of weather, climate, and environmental impacts
+- user-needs discovery and solution framing
+- scientific report production and delivery to customers
+- external representation of scientific work
+- scientific computing, `Python`, and analytical visualisation
+- enough software-quality discipline to make outputs operationally trustworthy
+
+They would sound like someone who can turn science into actionable intelligence for real users rather than keeping the work at the level of abstract analysis.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has a strong grounding in environmental science, physical science, mathematics, statistics, or data science and has used that grounding to solve applied problems with real stakeholder value. Their story would show that they can analyse complex environmental or climate-related data, model impacts and risks, communicate clearly with mixed audiences, and contribute to project outputs that support decision making in a government or operational context.
+
+They would likely have experience that sounds like this:
+- applying scientific or analytical methods to real-world decision-support problems
+- working with environmental, weather, climate, or similarly complex scientific datasets
+- using `Python` and advanced analytical or visualisation tools
+- translating stakeholder needs into analytical approaches or outputs
+- producing reports, briefings, or customer-facing scientific outputs
+- contributing to work that needs both technical credibility and operational usefulness
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants strong applied scientific-analysis capability
+
+The ideal candidate would sound like someone who can use appropriate analytical or data-science methods on environmental or related data to answer practical questions about impacts and risks. They would likely show that they can move from domain understanding into technically sound analysis that matters to users.
+
+The candidate's evidence would likely include:
+- use of scientific, statistical, or data-science methods on complex datasets
+- analysis of impacts, risk, or scenario effects
+- work on environmental, climate, weather, or similarly domain-heavy data
+- ability to choose suitable methods for the problem rather than applying tools mechanically
+
+#### B. If the employer wants defence-facing user relevance rather than science for its own sake
+
+The ideal candidate would sound like someone who can understand user needs in a high-stakes operational setting and translate them into analytical work that is relevant to planning, operations, systems, or tactical decisions.
+
+The candidate's evidence would likely include:
+- discussion of user needs before analysis begins
+- proposal of appropriate analytical or scientific solutions
+- generation of user-relevant insights rather than generic outputs
+- evidence that work informed decisions, planning, or operational thinking
+
+#### C. If the employer wants strong communication and representation capability
+
+The ideal candidate would not stay hidden behind code or technical detail. They would also show that they can explain complex scientific material clearly, write high-quality reports, and represent work confidently in meetings, workshops, or similar forums.
+
+The candidate's evidence would likely include:
+- communication of technical ideas to mixed audiences
+- production of clear scientific or analytical reports
+- presentations to customers, partners, or specialist communities
+- ability to explain complex science with clarity and impact
+
+#### D. If the employer wants collaborative delivery across teams and government partners
+
+The ideal candidate would sound like someone who can work effectively in a team that sits between science capability and stakeholder demand. They would likely show that they can collaborate with internal technical teams and external partners to shape useful outputs and build shared understanding of what the science can do.
+
+The candidate's evidence would likely include:
+- work across multidisciplinary teams
+- collaboration with government, public-sector, or external partners
+- knowledge sharing that develops team capability
+- contribution to high-quality outputs under deadline pressure
+
+#### E. If the employer wants strong scientific computing and software-quality practice
+
+The ideal candidate would sound like someone who understands that applied science in an operational setting has to be technically robust. They would likely show that they can code well, use modern analytical tools, and apply software-quality practices that make outputs reliable and maintainable.
+
+The candidate's evidence would likely include:
+- strong `Python` use in scientific or analytical work
+- use of advanced tools for analysis and visualisation
+- software quality-assurance practices
+- reproducible, well-structured computational work
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can apply scientific, statistical, or data-science methods to environmental or similarly complex data to assess impacts, risks, and user-relevant outcomes.
+- I am comfortable working with stakeholders to understand operational needs and shape analytical approaches that support real decisions rather than producing analysis in isolation.
+- I can contribute to high-quality scientific reports and explain complex technical work clearly to different audiences, including customers and specialist communities.
+- I work well across multidisciplinary teams and can help connect scientific capability to practical government or operational requirements.
+- I bring strong scientific-computing capability, especially in `Python`, and I understand the need for software-quality discipline in applied analytical work.
+- I can operate in a context where trust, security, and delivery quality matter, and where analytical outputs need to be both scientifically credible and operationally useful.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is simple, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- strong scientific or analytical grounding
+- ability to work with environmental, weather, climate, or related complex data
+- strong written and verbal communication
+- stakeholder-facing problem framing and user-needs translation
+- `Python` or comparable scientific-computing capability
+- ability to collaborate effectively while delivering to deadlines
+- comfort operating in a security-conscious government setting
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic science claims and show evidence of:
+- direct work on weather, climate, environmental-risk, or defence-adjacent analytical problems
+- practical translation of science into decision-support outputs
+- strong customer-facing or stakeholder-facing scientific communication
+- project delivery in government, defence, or high-assurance contexts
+- robust coding and analytical-visualisation practice in `Python`
+- evidence of applying software-quality methods in scientific computing
+- credible examples of turning complex technical capability into operational value
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is an applied scientist who can analyse environmental and climate-related data, model impacts and risks, work closely with users to shape relevant solutions, and communicate scientific outputs clearly in support of defence and security decision making. They are useful because they combine domain-science credibility, analytical computing strength, stakeholder translation, and delivery discipline in a way that makes the science operationally usable.
