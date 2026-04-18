@@ -68,31 +68,35 @@ Experience and knowledge in a physical or environmental science, mathematics, st
 Effective oral and written communication skills, with demonstrated ability to convey complex scientific and technical information clearly and with impact to a range of audiences.
 
 **Context**
-- The strongest example from my recent work came in a `Mar 2026` platform review where I had to communicate the implications of a tighter fraud-decision posture to people who needed different things from the same analysis.
-- The technical problem was not hard to state but harder to communicate properly: the preferred posture improved fraud-truth yield and reduced operational burden, but it also carried a positive-capture trade-off that needed to stay visible.
-- The wider business goal was to improve fraud-control effectiveness without overwhelming downstream operations with unnecessary review work. That meant I could not communicate the work as a model result alone. I had to explain what it meant for investigation capacity, queue pressure, fraud detection quality, and the control trade-off the business would be accepting.
+- The strongest example from my recent work came in a `Mar 2026` platform review where I had to explain the difference between a broader and a tighter fraud-selection posture to readers who cared about different parts of the same operating journey.
+- The underlying analytical question was whether the platform should continue sending a broader review population into downstream case handling, or move to a tighter posture that concentrated more strongly on likely fraud.
+- The real stakeholder issue was not the metric on its own. It was what the metric meant for the operating chain from suspicious events to case workload to confirmed fraud outcomes. If I did not explain that chain clearly, the work could easily be misread as “the tighter option is simply better,” when the actual result was more conditional than that.
 
 **Action**
-- I wrote the analysis up as a controlled evidence pack rather than as raw notebook output. The written output combined a control-effectiveness base, a second-line-alignment view across `4` dimensions, and a compliance-adherence view across `4` evidence rows, so the same analytical result could be read from operational, technical, and challenge-readiness perspectives.
-- In the writing itself, I made three things explicit because they were the parts most likely to be misread if presented too narrowly:
-  - the improvement: fraud-truth yield moved from `12.06%` to `12.37%`;
-  - the burden reduction: `511,500` fewer selected flows and `1,185,849` fewer downstream case events;
-  - the trade-off: an explicit `-2.48 pp` fraud-truth-capture reduction remained attached to the preferred posture.
-- I then translated those figures into business terms for each audience rather than leaving them as technical outputs:
-  - with technical reviewers, I explained that the gain was not just a thresholding artefact and that the capture trade-off was analytically real, so the posture should only be adopted with that constraint understood;
-  - with operational users, I explained that `511,500` fewer selected flows and `1,185,849` fewer downstream case events meant less avoidable queue pressure, less analyst effort spent on lower-value work, and more capacity to focus on stronger fraud signals;
-  - with control-oriented stakeholders, I explained that the result was not “free performance”, but a choice: the business could improve concentration of confirmed fraud and reduce workload, but only by accepting a measured reduction in overall positive capture.
-- Orally, that meant moving away from metric language alone and stating the implication plainly: the tighter posture was useful if the business priority was better use of investigation capacity and cleaner operational focus, but it was not the right choice if the priority was maximum positive capture at all costs.
+- I wrote the result up as a review pack rather than leaving it as a model comparison. The written output kept the comparison tied to the operating questions people would actually care about:
+  - how many flows would be sent forward for review;
+  - how much downstream case activity that would create;
+  - how concentrated the confirmed fraud outcomes would be within that reviewed population;
+  - what would be lost if the gate became tighter.
+- In the write-up, I kept three figures explicit:
+  - the tighter posture improved confirmed fraud yield from `12.06%` to `12.37%`;
+  - it reduced selected-flow burden by `511,500` and downstream case-event burden by `1,185,849`;
+  - it retained `89.53%` of the broader posture’s positives, which meant some capture was still being given up.
+- The important communication step was not stating those numbers, but interpreting them against the operating journey. I made the written message clear: the tighter posture did not mean “better fraud performance” in the abstract. It meant a smaller review population, less downstream handling work, and a higher concentration of confirmed fraud inside the work that remained, but at the cost of giving up part of the broader posture’s fraud capture.
+- When explaining the same result orally, I adjusted the emphasis by audience:
+  - for technical readers, I focused on why the comparison was valid and why the yield-versus-capture trade-off was genuine;
+  - for operations-facing readers, I focused on what `511,500` fewer selected flows and `1,185,849` fewer downstream case events meant in practice: a lighter review burden and a smaller workload moving into case handling;
+  - for decision-focused readers, I stated the decision plainly: choose the tighter posture if the priority is a more selective and efficient review population, but not if the priority is to push the widest possible set of positives through the workflow.
 
 **Result**
-- The result was not just that the analysis was understood, but that it was understood in a decision-useful way by different audiences without becoming inconsistent.
-- Instead of the work being read as a simplistic “better strategy” claim, the communication made the decision logic clear: this option improved fraud-yield concentration and reduced operational burden, but it did so by giving up some positive capture. That allowed the recommendation to support review, challenge, and prioritisation rather than one-sided persuasion.
-- That mattered because the end goal was not to admire a model result. The end goal was to help stakeholders decide how to balance fraud effectiveness against operational cost and investigation capacity. In this case, the output became a usable decision-support object rather than a technical artefact that only the analyst could interpret.
+- The result was that the analysis could be used as a real decision object rather than as a technical comparison table.
+- Instead of readers taking away only that the tighter posture had a slightly better yield, they could see the full operating meaning: it created a more selective review population, reduced downstream handling burden, and concentrated confirmed fraud more effectively, but it was not the right choice if the business wanted maximum capture from the broader gate.
+- That is what made the communication effective. It linked the technical result to the actual choice in front of the stakeholders: what kind of review posture they wanted to run, and what burden-versus-capture balance they were willing to accept.
 
 **Learning**
-- The main learning for me has been that effective communication in scientific and technical work is not just about explaining the method clearly. It is about connecting the method and the metrics to the actual decision the stakeholder needs to make.
-- In practice, that means I write and speak differently depending on whether the audience needs methodological confidence, operational implication, or control assurance, while keeping the underlying analytical truth unchanged.
-- That is the strongest evidence I have for this criterion from recent experience: I can take a technically complex, trade-off-heavy analytical result and communicate it in both written and oral form so that technical and non-technical audiences understand not only what the numbers are, but what they mean for the decision in front of them.
+- The main learning for me has been that effective communication in technical work is not about restating the metrics in simpler words. It is about tying the metrics back to the operating question the stakeholder is actually trying to answer.
+- In this platform context, that means explaining where an analytical result sits in the event-to-case-to-outcome chain, what part of the workflow it changes, and what choice it creates for the people running that workflow.
+- That is the strongest evidence I have for this criterion from recent experience: I can take a trade-off-heavy analytical result, keep the technical truth intact, and still explain it in a way that helps different audiences understand the operational choice in front of them.
 
 ---
 
