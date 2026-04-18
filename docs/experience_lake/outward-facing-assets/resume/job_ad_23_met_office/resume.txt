@@ -1,0 +1,50 @@
+**Esosa Orumwese**
+Applied Scientist | Scientific Computing, Time-Aware Analysis & Decision Support
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Applied scientist with experience using statistical, predictive, and time-aware analytical methods to solve real decision-support problems in high-accountability settings. Strong in Python, SQL, R, Excel, Power BI, Tableau, and scientific-style analytical delivery, with experience turning complex governed data into prioritisation surfaces, forecasting outputs, quantitative evidence packs, and stakeholder-ready reports. Comfortable moving from problem framing through analysis and interpretation to clear communication, controlled outputs, and reproducible technical delivery.
+
+**CORE SKILLS**
+Applied Scientific Analysis: Statistical analysis, predictive modelling, risk assessment, impact analysis, time-aware interpretation, quantitative problem solving, user-relevant insight
+Scientific Computing & Programming: Python, SQL, R, Excel, Jupyter, data shaping, analytical workflows, reproducible computation, structured technical delivery
+Time-Series & Forecasting: Time-aware analysis, longitudinal-style interpretation, bounded forecasting, prioritisation surfaces, planning support, sequence-aware reading
+Decision Support & Reporting: Project reports, evidence packs, technical summaries, mixed-audience communication, recommendation writing, decision-ready outputs
+Visualisation & Analytical Presentation: Power BI, Tableau, charts, comparative views, technical storytelling, clear explanation of complex findings
+Delivery Discipline & Quality: Version control, modular design, testing, documentation, controlled reruns, release checks, software-quality-aware analytical practice
+Collaboration & Operational Context: Cross-functional delivery, stakeholder problem framing, customer-focused outputs, high-accountability environments, safety-conscious working
+
+**RELEVANT EXPERIENCE**
+
+**Data Scientist & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Applied statistical, predictive, and time-aware analytical methods to complex governed data, producing prioritisation and forecasting outputs that delivered 2.29x baseline yield in the highest-risk band, captured 41.3% of positives in the top 20.1% of scored flows, and achieved 7.31% test MAPE on bounded daily demand forecasting.
+- Framed ambiguous operational questions into bounded analytical studies, using month-on-month and cohort comparisons to separate stable topline movement from concentrated risk and turn that into targeted next-step recommendations.
+- Modelled impacts and risks by comparing alternative decision postures, showing that a tighter preferred strategy reduced selected-flow burden by 511,500 and downstream case-handling activity by 1,185,849 while improving fraud-truth yield from 12.06% to 12.37%.
+- Produced user-relevant analytical outputs including evidence packs, comparative figures, quantitative summaries, and decision notes so technical work could support review, planning, and operational action rather than remain in notebooks.
+- Worked with technical and operational stakeholders to shape useful outputs, translating analytical findings into clearer workload, decision-quality, and planning implications for downstream users.
+- Used Python, SQL, and advanced analytical tooling as practical working tools for modelling, scoring, forecasting, and visual explanation, keeping workflows reproducible, controlled, and fast to rerun.
+- Applied software-quality discipline through version control, documented logic, modular analytical builds, release checks, and repeatable output generation so results remained robust and trustworthy.
+- Communicated complex technical findings clearly to mixed audiences, explaining trade-offs, model behaviour, and operational implications in language that others could use for action and review.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a technical and safety-conscious environment where operational decisions depended on accurate interpretation of telemetry, equipment conditions, and changing field signals.
+- Monitored pressure and temperature readings, identified irregular conditions early, and supported timely escalation and corrective action through structured technical evidence.
+- Prepared clear technical updates and handovers for engineers and supervisors so complex information could be used reliably in operational decision-making.
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Work in a live service environment where pace, reliability, and communication all matter, and where small operational decisions have immediate downstream effects.
+- Stay calm under pressure, balance competing priorities, and keep delivery standards consistent in a fast-moving team setting.
+- Support colleagues through clear communication, dependable handovers, and practical teamwork during busy periods.
