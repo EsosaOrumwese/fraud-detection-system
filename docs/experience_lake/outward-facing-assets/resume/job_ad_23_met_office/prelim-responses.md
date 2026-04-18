@@ -107,16 +107,26 @@ Effective oral and written communication skills, with demonstrated ability to co
 Good organisational skills, with an ability to plan your own work and collaborate with others to deliver significant contributions to high quality scientific outputs while meeting tight deadlines.
 
 **Context**
-- To be completed
+- The clearest example for this criterion came during my masters in a group project on the `Bi-objective Travelling Thief Problem` for the `GECCO2019` competition.
+- The task was not a simple coursework exercise. It was a research-led optimisation problem combining `TSP` and `Knapsack` dynamics, with a limited delivery window, computational constraints, and a team where only `4` of the `6` members remained consistently active through the work.
+- The output standard still had to remain high: we needed a defensible scientific approach, a coherent algorithm design, a working implementation, and a report that could explain what we built, what worked, and what constrained the results.
 
 **Action**
-- To be completed
+- I helped organise the work by breaking the overall algorithm into smaller functional responsibilities, assigning ownership across the active team, and making sure our implementation stayed aligned with the research paper we had chosen as the basis for the solution.
+- My own planning had two parts. First, I had to plan my direct technical contribution: I implemented the `NSGA2`-based survival logic, including non-dominated sorting and crowding distance, and the local-search logic that applied `2-opt` improvement to the `TSP` component and random bit-flip search to the `Knapsack` component. Second, I had to plan how that work would fit into the wider algorithm so integration did not fail at the point of merge.
+- Collaboration mattered because the project could not be delivered as isolated code fragments. Each team member was responsible for researching and implementing different functions, and we then met in the lab to integrate those parts into one working algorithm. I had to read the reference method closely enough to spot where an implementation was drifting from the intended design, give feedback, and help steer the merge into a coherent whole.
+- We also had to adapt our plan as constraints became clearer. The full parameter settings from the paper were too expensive for the dataset sizes and the available compute, so we shifted to smaller tests, adjusted the scope of our runs, and focused on producing a solid and explainable implementation rather than pretending we could fully exhaust the search space within the deadline.
 
 **Result**
-- To be completed
+- The project was delivered as a working optimisation implementation and a high-quality scientific report that clearly explained the problem structure, algorithm choice, implementation logic, limitations, and evaluation of the result.
+- Although the competition results were not optimal, the scientific output was still strong and defensible because the implementation was grounded in literature, the algorithm design was coherent, and the report was honest about the runtime and resource constraints that shaped the final performance.
+- For my own part, I delivered the `NSGA2` selection logic and local-search functions needed for the algorithm to operate as intended, while also contributing to task coordination and integration across the active team.
+- This is the strongest direct example I have of planning my own work, collaborating with others under pressure, and still helping produce a meaningful technical output to deadline rather than lowering standards when the work became difficult.
 
 **Learning**
-- To be completed
+- The main learning from that project was that good organisation in technical work is not rigid task-tracking. It is keeping the delivery standard fixed while adapting the method when time, compute, or team capacity shifts.
+- It also reinforced that collaboration in analytical and scientific work depends on more than just dividing tasks. It depends on shared understanding of the method, clear ownership, regular integration, and the willingness to adjust the plan when reality changes.
+- That is why I see this as strong evidence for the criterion: I can plan my own technical contribution, work constructively with others, and help deliver a high-quality scientific output under deadline pressure without losing control of the method or the standard.
 
 ---
 
@@ -127,16 +137,37 @@ Good organisational skills, with an ability to plan your own work and collaborat
 An ability to discuss diverse user needs and propose appropriate solutions, and to apply your scientific and analytical skills to generate user-relevant insights.
 
 **Context**
-- To be completed
+- The strongest example for this criterion came from the predictive-modelling slice I built on the platform in `Apr 2026`.
+- The analytical problem was not just “build a model.” It began with different users needing different kinds of help from the same governed fraud world:
+  - an operations user need to know which suspicious flows were more worth prioritising because review capacity was limited;
+  - a case-handling or workload-planning need to understand what near-term case demand might look like for the same bounded flow universe;
+  - a review and control need to keep the work reproducible, bounded, and inspectable rather than turning it into an open-ended modelling exercise.
+- So the real task was to turn those different needs into one solution that was scientifically defensible and still usable by the downstream consumers.
 
 **Action**
-- To be completed
+- I framed the work around a focused user question: which suspicious flows in this bounded governed universe were more likely to lead to authoritative fraud-confirmed outcomes, and what did that imply for near-term case demand.
+- From that, I proposed a bounded solution rather than a broad modelling programme:
+  - build a `flow_id`-level risk-stratification surface;
+  - convert the scores into interpretable `High`, `Medium`, and `Low` cohorts rather than leaving the output as raw probabilities;
+  - add a lightweight daily case-demand forecast so the same work could support short-range planning as well as prioritisation.
+- I kept the execution SQL-first so the analytical base stayed controlled, then used `Python` for the modelling and evaluation layer. The delivered model base contained `2,073,369` training rows, `691,122` validation rows, `691,122` test rows, and `17` model features. I used a pragmatic `statsmodels` binomial logistic model because it was stable in the available environment and allowed the slice to stay focused on usable analytical output rather than dependency churn.
+- I then turned the model output into something people could actually use:
+  - the `High` band covered only `4.9%` of scored test flows but achieved `6.26%` fraud-truth yield, or `2.29x` the overall test baseline;
+  - the combined `High` and `Medium` queue covered `20.1%` of scored flows while capturing `41.3%` of all test positives at `2.06x` baseline yield;
+  - a bounded daily case-demand forecast was added and achieved `7.31%` test `MAPE`.
 
 **Result**
-- To be completed
+- The result was a solution that answered multiple user needs from one coherent analytical slice rather than forcing each need into a separate disconnected output.
+- For operations users, it produced a practical prioritisation surface rather than only model diagnostics.
+- For people planning downstream case-handling effort, it added a bounded forward view of case demand rather than stopping at retrospective scoring.
+- For review and control purposes, it remained reproducible, bounded, and inspectable, with stable validation and test performance rather than a one-off notebook result.
+- Most importantly, it gave users an actual decision surface: whether limited review effort should be concentrated on the top-ranked queue, and what level of near-term case demand that same prioritised population was likely to create.
+- This is why I see it as strong evidence for the criterion: I started from different user needs, proposed a proportionate analytical solution, and generated outputs whose value was tied to the actual decisions those users needed to make.
 
 **Learning**
-- To be completed
+- The main learning for me was that user-relevant analytical work starts with the decision problem, not with the model family.
+- In this case, the right answer was not to build the most complex scoring system possible. It was to build a bounded prioritisation-and-planning surface that operations and planning users could actually use, while still keeping the work technically defensible.
+- That is the strongest evidence I have for this criterion from recent experience: I can discuss different user needs, define a solution that fits those needs, and apply scientific and analytical methods in a way that produces usable insight rather than analysis for its own sake.
 
 ---
 
