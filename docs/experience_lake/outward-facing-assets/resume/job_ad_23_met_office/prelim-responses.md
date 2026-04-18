@@ -19,16 +19,45 @@ Important note:
 Experience and knowledge in a physical or environmental science, mathematics, statistics and/or data science, gained through a relevant degree or subsequent professional experience and/or postgraduate qualification.
 
 **Context**
-- To be completed
+- My strongest route into this criterion is through physical science, mathematics, statistics, and data science rather than through a direct environmental-science specialism.
+- I bring that mix from three places that fit together cleanly:
+  - a first-class undergraduate grounding in mechanical engineering and later field exposure in a technical oilfield environment where equipment behaviour, pressure, temperature, and signal interpretation mattered;
+  - a postgraduate qualification in `MSc Data Science with Artificial Intelligence (Distinction)`;
+  - subsequent professional experience on the governed fraud platform, where I have been applying statistical, predictive, and time-aware analytical methods to large operational datasets in a production-shaped analytical setting.
+- I also have supporting masters-level project work that widened that base beyond one narrow modelling type:
+  - a multitask deep-learning thesis on smartphone sensor data;
+  - a game-theoretic network-analysis study for counterterrorism surveillance prioritisation;
+  - a pandemic business-activity and government-policy time-series analysis;
+  - multi-objective optimisation work using evolutionary methods.
 
 **Action**
-- To be completed
+- In the strongest academic example, my masters thesis, I worked with raw physical-signal data from smartphone accelerometers, gyroscopes, and rotation-vector sensors using the `SHL` dataset preview subset: `227` hours of labelled `100Hz` data and `81,938,560` raw records. I reduced that to `4,096,928` records through controlled downsampling, built journey segmentation and sub-segmentation logic, transformed device-coordinate signals into Earth-coordinate representations using quaternions, Euler angles, and rotation matrices, and then implemented `BiLSTM`, `ResNet50-GRU`, and multitask deep-learning models in `Python`/`PyTorch`, with hyperparameter tuning through `Ray Tune`.
+- In parallel masters work, I applied mathematical and statistical reasoning to materially different problem classes rather than only one modelling pattern:
+  - used game-theoretic centrality, graph methods, and `NetworkX` to rank key actors in a pre-attack terrorist network and turn that into a bounded surveillance recommendation;
+  - combined `1,004` daily Facebook business-activity files into a `2,396,549`-row time-series base, then integrated policy data to interpret how external interventions related to business recovery patterns across countries;
+  - implemented `NSGA2`-style non-dominated sorting, crowding distance, and local-search logic for a bi-objective travelling thief optimisation problem.
+- In subsequent professional work on the platform, I moved from academic analysis into applied statistical and data-science delivery. I used `Python`, `SQL`, `R`, and structured analytical workflows to build prioritisation, forecasting, and impact-modelling outputs over governed fraud data, comparing alternative decision postures, quantifying uncertainty and trade-offs, and turning model behaviour into reviewable decision-support material.
 
 **Result**
-- To be completed
+- The academic route gives me formal depth:
+  - `MSc Data Science with Artificial Intelligence (Distinction)`;
+  - first-class undergraduate training in a physical-science/engineering discipline.
+- The thesis and project work gave me evidence across physical-signal modelling, mathematical transformation, statistical evaluation, time-series interpretation, optimisation, and network science rather than only classroom exposure.
+- The professional route shows that I can apply that grounding to consequential analytical problems. On the platform, the work delivered:
+  - `2.29x` baseline yield in the highest-risk band;
+  - capture of `41.3%` of positives in the top `20.1%` of scored flows;
+  - `7.31%` test `MAPE` on bounded daily demand forecasting;
+  - a tighter preferred decision posture that reduced selected-flow burden by `511,500` and downstream case-handling activity by `1,185,849` while improving fraud-truth yield from `12.06%` to `12.37%`.
+- Taken together, that gives me a defensible evidence base for this criterion through degree-level study, postgraduate data science, and subsequent applied analytical delivery.
 
 **Learning**
-- To be completed
+- The main learning from this path is that I work best where observed systems, mathematical structure, and decision use meet.
+- My background has made me comfortable moving between physical behaviour, statistical reasoning, computational modelling, and user-facing interpretation:
+  - from field signals and equipment context,
+  - to sensor and time-series data,
+  - to optimisation and network analysis,
+  - to production-shaped data-science work over governed operational data.
+- That is the strongest honest case for this lead criterion: I am not claiming a specialist climate-science background I do not have, but I can show a strong and sustained base in physical-science thinking, mathematics/statistics, and applied data science, gained through formal qualifications and then extended through substantial hands-on analytical work.
 
 ---
 
