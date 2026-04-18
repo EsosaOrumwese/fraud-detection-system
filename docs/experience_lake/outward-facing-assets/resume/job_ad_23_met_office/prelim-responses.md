@@ -178,16 +178,48 @@ An ability to discuss diverse user needs and propose appropriate solutions, and 
 Strong scientific computing skills, with experience of coding, especially in Python, and/or using advanced tools for data analysis and visualisation. Experience of applying recognised approaches to software quality assurance.
 
 **Context**
-- To be completed
+- The strongest recent example for this criterion came from the predictive-modelling slice I delivered on the governed fraud platform in `Apr 2026`.
+- The task was not only to analyse data. It was to build a bounded, technically trustworthy analytical product that combined:
+  - `SQL`-based shaping over large governed surfaces;
+  - `Python`-based modelling and evaluation;
+  - visual outputs that made the score behaviour and forecast behaviour inspectable;
+  - enough quality discipline that the result could be rerun, reviewed, and defended rather than living as a private notebook result.
+- That made it a good test of scientific computing in the fuller sense of the criterion: coding, analysis, visualisation, and quality assurance all had to work together.
 
 **Action**
-- To be completed
+- I kept the execution SQL-first because the governed local run was large and the wrong posture would have been to load broad raw surfaces into memory. I first inspected schema and bounded aggregates in SQL, then materialised a model-ready flow table in SQL, then materialised downstream cohort and forecast-support tables in SQL, and only moved the already-shaped bounded slice into `Python` for modelling and evaluation.
+- The main modelling surface, `flow_model_base_v2`, contained:
+  - `2,073,369` training rows;
+  - `691,122` validation rows;
+  - `691,122` test rows;
+  - `17` model features.
+- In `Python`, I used a statistical modelling path that was stable in the available environment rather than widening scope into unnecessary tooling churn. I built the scoring layer with a `statsmodels` binomial logistic model, used time-based train, validation, and test windows, and created interpretable `High`, `Medium`, and `Low` cohorts from the validation score distribution.
+- I also extended the slice into a bounded daily case-demand forecast. The forecast comparison tested a `7-day` seasonal naive, `7-day` rolling mean, and weekday mean approach, with `weekday_mean` selected as the best bounded option.
+- The visualisation layer mattered because the outputs had to be inspectable by others. I produced figures showing:
+  - risk-band performance;
+  - validation and test stability of the risk bands;
+  - cohort separation against both fraud-truth and bank-view outcomes;
+  - forecast versus actual case-demand behaviour.
+- The quality-assurance part was built into the method rather than added at the end. I used:
+  - time-based splits instead of random mixing;
+  - train-only smoothed entity fraud-rate encodings to avoid leakage;
+  - saved SQL shaping logic and saved Python modelling logic rather than one-off interactive steps;
+  - bounded source-file traceability through `bounded_file_selection.json`;
+  - machine-readable metrics and figure artefacts so the outputs could be checked, rerun, and reviewed consistently.
 
 **Result**
-- To be completed
+- The slice produced a usable prioritisation and planning surface rather than just a coded experiment.
+- On the test window:
+  - the `High` band covered only `4.9%` of scored flows but achieved `6.26%` fraud-truth yield, or `2.29x` the overall test baseline;
+  - the combined `High` and `Medium` queue covered `20.1%` of scored flows while capturing `41.3%` of all test positives at `2.06x` baseline yield;
+  - the bounded daily case-demand forecast achieved `7.31%` test `MAPE`.
+- Just as important, the slice was technically reviewable. Validation and test discrimination remained closely aligned, the cohort ordering held against a secondary bank-view surface, and the code and artefacts were saved in a form that made the delivery reproducible and inspectable.
+- That is why I see this as strong evidence for the criterion: it shows practical `Python`-led scientific computing, advanced analytical and visualisation tooling, and a real software-quality posture rather than notebook-only analysis.
 
 **Learning**
-- To be completed
+- The main learning for me has been that strong scientific computing is not just “being able to code in Python.” It is being able to structure the full analytical workflow so that the computation is bounded, the modelling logic is defensible, the outputs are inspectable, and the results can be rerun without ambiguity.
+- It also reinforced that software-quality assurance in analytical work needs to be explicit. In this slice, that meant controlling leakage, separating train/validation/test windows properly, saving the shaping and modelling logic, and preserving traceability from bounded inputs through to metrics and figures.
+- That is the strongest recent evidence I have for this criterion: I can code analytical workflows in `Python`, work with advanced tools for modelling and visualisation, and apply quality discipline so that the resulting scientific output is robust enough to be trusted and reused.
 
 ---
 
