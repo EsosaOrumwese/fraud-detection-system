@@ -83,14 +83,43 @@ In that world:
   - `home_country_iso`
   - `gdp_bucket`
   - `ln_gdp_pc_usd_2015`
-- the priors assign a latent branch tendency using:
-  - base logit
-  - channel offsets
-  - GDP-bucket offsets
-  - MCC offsets
-  - merchant-level logit noise
-- that latent tendency becomes a synthetic probability `pi`
-- a deterministic RNG draw then turns that probability into `y_hurdle`
+
+The branch probability is created in stages.
+
+First, the priors assign each merchant a latent branch tendency. That latent tendency is the hurdle logit, usually written as `eta`:
+
+$$
+\eta_m =
+\text{base\_logit}
++ \Delta_{\text{channel}(m)}
++ \Delta_{\text{bucket}(m)}
++ \Delta_{\text{MCC}(m)}
++ \epsilon_{\text{logit},m}
+$$
+
+This `eta` is not yet a probability. It is a log-odds score on the real number line. Higher `eta` means stronger synthetic tendency toward the multi-site branch; lower `eta` means stronger synthetic tendency toward the single-site branch.
+
+Second, the script maps `eta` through the logistic sigmoid:
+
+$$
+\pi_m^{raw} = \sigma(\eta_m) = \frac{1}{1 + e^{-\eta_m}}
+$$
+
+That sigmoid is what turns the unrestricted latent tendency into a value between `0` and `1`.
+
+Third, the resulting probability is clipped to the configured `pi` corridor:
+
+$$
+\pi_m = \mathrm{clip}(\pi_m^{raw},\ \pi_{\min},\ \pi_{\max})
+$$
+
+For the active priors, this corridor is `[0.01, 0.75]`. This keeps the simulated training world away from merchants that are effectively impossible or certain to be multi-site.
+
+Finally, a deterministic RNG draw turns that probability into the synthetic training label:
+
+$$
+y_{\text{hurdle},m} = \mathbf{1}\{u_m < \pi_m\}
+$$
 
 So the simulated hurdle world is the training-time answer to:
 
@@ -111,13 +140,57 @@ The phrase "NB-count world" means the synthetic outlet-count world created for t
 In that world:
 
 - only merchants that landed on the simulated multi-site branch receive a count target
+- the retained merchant descriptors are the same core descriptors carried by the hurdle training surface:
+  - `mcc`
+  - `channel`
+  - `home_country_iso`
+  - `gdp_bucket`
+  - `ln_gdp_pc_usd_2015`
 - the priors assign each such merchant a synthetic count posture using:
   - base log mean
   - channel offsets
   - MCC offsets
   - merchant-level log-mu noise
   - dispersion structure
-- the script then samples a zero-truncated NB-style count target
+
+This is not another `pi` lane. The NB-count world is not asking "does this merchant become multi-site?" That question has already been answered by `y_hurdle`.
+
+Instead, the NB-count world asks: given that this merchant is already on the synthetic multi-site branch, how large should its outlet count be?
+
+The NB mean lane therefore builds a log-scale mean:
+
+$$
+\log \mu_m =
+\text{base\_log\_mean}
++ \Delta_{\text{channel}(m)}
++ \Delta_{\text{MCC}(m)}
++ \epsilon_{\log \mu,m}
+$$
+
+and maps it to a positive mean:
+
+$$
+\mu_m = \exp(\log \mu_m)
+$$
+
+The dispersion lane builds a log-scale dispersion:
+
+$$
+\log \phi_m =
+\text{base\_log\_phi}
++ s_{\text{gdp}}\log(g_m)
++ \Delta_{\text{channel}(m)}
++ \Delta_{\text{MCC}(m)}
++ \epsilon_{\log \phi,m}
+$$
+
+and maps it to a positive dispersion:
+
+$$
+\phi_m = \exp(\log \phi_m)
+$$
+
+Both `mu` and `phi` are then clipped to their configured corridors. The script uses these quantities to sample a zero-truncated NB-style count target, `y_nb`.
 
 The output surface for this world is:
 
@@ -133,6 +206,8 @@ So the two worlds are related but not identical:
 
 - the simulated hurdle world trains **who becomes multi-site**
 - the NB-count world trains **how large the multi-site merchant becomes**
+- the NB-count world keeps the same merchant context columns for lineage and analysis, but `beta_mu` itself is fit from the narrower NB-mean design: intercept, MCC one-hot, and channel one-hot
+- `pi` belongs to the hurdle branch lane; the NB-count world depends on the hurdle result for admission, but its own synthetic quantities are `mu`, `phi`, and `y_nb`
 
 This is why the priors file defines more than one kind of structure. It needs one authored structure for the branch decision and another authored structure for the multi-site count behaviour.
 
