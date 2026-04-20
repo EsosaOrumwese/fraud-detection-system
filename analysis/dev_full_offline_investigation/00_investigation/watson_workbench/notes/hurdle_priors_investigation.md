@@ -160,34 +160,34 @@ Instead, the NB-count world asks: given that this merchant is already on the syn
 The NB mean lane therefore builds a log-scale mean:
 
 $$
-\log \mu_m =
-\text{base\_log\_mean}
-+ \Delta_{\text{channel}(m)}
-+ \Delta_{\text{MCC}(m)}
-+ \epsilon_{\log \mu,m}
+   \log \mu_m =
+   \text{base\_log\_mean}
+   + \Delta_{\text{channel}(m)}
+   + \Delta_{\text{MCC}(m)}
+   + \epsilon_{\log \mu,m}
 $$
 
 and maps it to a positive mean:
 
 $$
-\mu_m = \exp(\log \mu_m)
+   \mu_m = \exp(\log \mu_m)
 $$
 
 The dispersion lane builds a log-scale dispersion:
 
 $$
-\log \phi_m =
-\text{base\_log\_phi}
-+ s_{\text{gdp}}\log(g_m)
-+ \Delta_{\text{channel}(m)}
-+ \Delta_{\text{MCC}(m)}
-+ \epsilon_{\log \phi,m}
+   \log \phi_m =
+   \text{base\_log\_phi}
+   + s_{\text{gdp}}\log(g_m)
+   + \Delta_{\text{channel}(m)}
+   + \Delta_{\text{MCC}(m)}
+   + \epsilon_{\log \phi,m}
 $$
 
 and maps it to a positive dispersion:
 
 $$
-\phi_m = \exp(\log \phi_m)
+   \phi_m = \exp(\log \phi_m)
 $$
 
 Both `mu` and `phi` are then clipped to their configured corridors. The script uses these quantities to sample a zero-truncated NB-style count target, `y_nb`.
