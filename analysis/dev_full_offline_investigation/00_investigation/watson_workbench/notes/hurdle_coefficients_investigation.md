@@ -11,6 +11,132 @@ But the bundle also does more than its name first suggests. It is a dual-purpose
 
 So this is not merely "the hurdle file." It is a governed coefficient bundle that spans the `S1` and `S2` boundary inside Segment `1A`.
 
+## Conceptual model: what are `X`, `y`, coefficients, and intercept here?
+
+The simple regression expression:
+
+```text
+y = mX + b
+```
+
+is only an analogy for orientation. It is **not** the actual mathematical form used by `S1` or `S2`.
+
+The actual `S1` hurdle form is logistic:
+
+$$
+\eta_m = \beta^\top x_m
+$$
+
+$$
+\pi_m = \sigma(\eta_m) = \frac{1}{1 + e^{-\eta_m}}
+$$
+
+$$
+\mathrm{is\_multi}_m = \mathbf{1}\{u_m < \pi_m\}
+$$
+
+where:
+
+- `x_m` is the merchant predictor vector
+- `beta` is the hurdle coefficient vector
+- `eta_m` is the linear score
+- `pi_m` is the probability that merchant `m` is multi-site
+- `u_m` is the RNG draw used to realize the Bernoulli decision
+
+The actual `S2` NB-mean lane uses a log-link style mean:
+
+$$
+\eta_{\mu,m} = \beta_\mu^\top x_{\mu,m}
+$$
+
+$$
+\mu_m = \exp(\eta_{\mu,m})
+$$
+
+where:
+
+- `x_mu_m` is the narrower merchant predictor vector used for the NB mean path
+- `beta_mu` is the NB-mean coefficient vector
+- `mu_m` is the expected outlet count for the multi-site branch
+
+For the `S1` hurdle lane:
+
+- `X` is the merchant predictor basis:
+  - intercept
+  - MCC one-hot
+  - channel one-hot
+  - GDP-bucket one-hot
+- `y` in training is the synthetic binary label:
+  - `y_hurdle = 1` means the merchant is multi-site in the simulated training corpus
+  - `y_hurdle = 0` means the merchant is single-site in the simulated training corpus
+- `m` is the vector of learned coefficients:
+  - the MCC, channel, and GDP-bucket coefficient blocks in `beta`
+- `b` is the intercept:
+  - the first value in `beta`
+- the model output is not directly `y`; it is:
+  - `pi = P(multi-site)`
+  - then `S1` draws a random uniform and emits `is_multi`
+
+For the `S2` NB-mean lane:
+
+- `X` is narrower:
+  - intercept
+  - MCC one-hot
+  - channel one-hot
+- `y` in training is the synthetic count target:
+  - `y_nb`, the simulated outlet-count target for merchants that were multi-site in the synthetic corpus
+- `m` is the non-intercept part of `beta_mu`
+- `b` is the `beta_mu` intercept
+- the model output is:
+  - `mu = expected outlet count for the multi-site branch`
+
+So the coefficient bundle stores the learned `m` and `b`, plus the dictionary rules needed to interpret `X`.
+
+It does **not** store the training `X` and `y` directly. Those live in the synthetic training corpus:
+
+- [`logistic.parquet`](../../../../../artefacts/training/1A/hurdle_sim/simulation_version=2026-01-03/seed=9248923/20260103T184840Z/logistic.parquet)
+- [`nb_mean.parquet`](../../../../../artefacts/training/1A/hurdle_sim/simulation_version=2026-01-03/seed=9248923/20260103T184840Z/nb_mean.parquet)
+
+And it does **not** store the runtime `X` directly either. Runtime `X` is represented by:
+
+- [`hurdle_design_matrix`](../../../../../runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer1/1A/hurdle_design_matrix/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/part-00000.parquet)
+
+## How the priors and coefficients relate
+
+The priors do not directly equal the coefficients.
+
+The priors govern how the synthetic training world is created:
+
+- they help define the synthetic `X` context
+- they help generate the synthetic `y_hurdle`
+- they help generate the synthetic `y_nb`
+- they constrain the shape of the training world through offsets, noise, calibration targets, and clamps
+
+The coefficient bundle is then fit from that synthetic training world.
+
+So the flow is:
+
+```text
+priors + merchant/GDP/bucket inputs
+  -> synthetic training corpus
+  -> training X and synthetic y
+  -> fitted coefficients
+  -> hurdle_coefficients.yaml
+  -> runtime scoring against hurdle_design_matrix
+  -> rng_event_hurdle_bernoulli
+```
+
+In that sense:
+
+- the priors help govern the `X` context and the synthetic `y`
+- the fitting process learns the `m` and `b`
+- the coefficient bundle stores the learned `m` and `b`, plus the dictionary contract needed to rebuild `X` consistently
+
+This distinction matters because it prevents us from confusing the two artefacts:
+
+- `hurdle_simulation.priors.yaml` defines the simulated world used for training
+- `hurdle_coefficients.yaml` is the trained/remediated model authority used by the engine
+
 ## The exact bundle used by our pinned run
 
 The active run seals this exact file:
