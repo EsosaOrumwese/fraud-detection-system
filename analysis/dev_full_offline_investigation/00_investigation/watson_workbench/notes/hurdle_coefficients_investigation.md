@@ -32,7 +32,11 @@ $$
 $$
 
 $$
-\mathrm{is\_multi}_m = \mathbf{1}\{u_m < \pi_m\}
+\mathrm{is\_multi}_m =
+\begin{cases}
+1, & u_m < \pi_m \\
+0, & u_m \ge \pi_m
+\end{cases}
 $$
 
 where:
