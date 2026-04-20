@@ -1,0 +1,115 @@
+{
+  "branch_surface": {
+    "bernoulli_sd": 46.44948289330924,
+    "bernoulli_variance": 2157.5544610558277,
+    "expected_multi": 5829.392652227004,
+    "expected_multi_rate": 0.5829392652227003,
+    "pi_max": 0.9503808074574316,
+    "pi_mean": 0.5829392652227003,
+    "pi_median": 0.5992518589885862,
+    "pi_min": 0.000793599114709658,
+    "pi_p05": 0.2975141705214004,
+    "pi_p95": 0.8280747029264198,
+    "realized_multi": 5817,
+    "realized_multi_rate": 0.5817,
+    "residual_count": -12.392652227003964,
+    "residual_rate_pp": -0.12392652227003476,
+    "residual_z": -0.26679849709993325,
+    "single_site": 4183
+  },
+  "coverage": {
+    "design_distinct_merchants": 10000,
+    "design_rows": 10000,
+    "event_distinct_merchants": 10000,
+    "event_rows": 10000,
+    "merchant_distinct_merchants": 10000,
+    "merchant_rows": 10000,
+    "missing_country_after_join": 0,
+    "missing_design_rows_after_join": 0,
+    "missing_pi_rows_after_join": 0,
+    "pi_distinct_merchants": 10000,
+    "pi_rows": 10000
+  },
+  "lineage": {
+    "manifest_fingerprint_values": [
+      "76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460"
+    ],
+    "module_values": [
+      "1A.hurdle_sampler"
+    ],
+    "parameter_hash_values": [
+      "0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00"
+    ],
+    "run_id_values": [
+      "a3bd8cac9a4284cd36072c6b9624a0c1"
+    ],
+    "seed_values": [
+      42
+    ],
+    "substream_label_values": [
+      "hurdle_bernoulli"
+    ]
+  },
+  "paths": {
+    "active_bundle": "config/layer1/1A/models/hurdle/exports/version=2026-02-14/20260214T173000Z/hurdle_coefficients.yaml",
+    "design_matrix": "runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer1/1A/hurdle_design_matrix/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/part-00000.parquet",
+    "event": "runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/logs/layer1/1A/rng/events/hurdle_bernoulli/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/run_id=a3bd8cac9a4284cd36072c6b9624a0c1/part-00000.jsonl",
+    "pi_probs": "runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer1/1A/hurdle_pi_probs/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/part-00000.parquet",
+    "trace": "runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/logs/layer1/1A/rng/trace/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/run_id=a3bd8cac9a4284cd36072c6b9624a0c1/rng_trace_log.jsonl"
+  },
+  "probability_alignment": {
+    "max_abs_event_minus_diag_pi": 2.9753620123251778e-08,
+    "max_abs_event_minus_recomputed_pi": 2.220446049250313e-16,
+    "max_abs_logit_recomputed_minus_diag": 2.2042245273468097e-07,
+    "mean_abs_event_minus_diag_pi": 1.2606904927580211e-08,
+    "mean_abs_event_minus_recomputed_pi": 1.0882419097801855e-17
+  },
+  "rng_accounting": {
+    "blocks_0": 0,
+    "blocks_1": 10000,
+    "counter_hi_delta_nonzero": 0,
+    "counter_lo_delta_not_one": 0,
+    "decision_mismatches": 0,
+    "deterministic_false": 10000,
+    "deterministic_true": 0,
+    "draws_0": 0,
+    "draws_1": 10000,
+    "u_max": 0.9999829949724643,
+    "u_mean": 0.5010563838931009,
+    "u_median": 0.5048375843854251,
+    "u_min": 2.356966247753125e-05,
+    "u_non_null": 10000,
+    "u_null": 0
+  },
+  "trace": {
+    "hurdle_blocks_total_max": 10000,
+    "hurdle_draws_total_max": 10000,
+    "hurdle_events_total_max": 10000,
+    "hurdle_trace_rows": 10000,
+    "trace_module_values": [
+      "1A.dirichlet_allocator",
+      "1A.foreign_country_selector",
+      "1A.hurdle_sampler",
+      "1A.integerisation",
+      "1A.nb_and_dirichlet_sampler",
+      "1A.nb_poisson_component",
+      "1A.nb_sampler",
+      "1A.s0",
+      "1A.site_id_allocator",
+      "1A.ztp_sampler"
+    ],
+    "trace_rows": 104195,
+    "trace_substream_values": [
+      "dirichlet_gamma_vector",
+      "gamma_nb",
+      "gumbel_key",
+      "hurdle_bernoulli",
+      "nb_final",
+      "poisson_component",
+      "poisson_nb",
+      "residual_rank",
+      "s0.anchor",
+      "sequence_finalize"
+    ]
+  }
+}

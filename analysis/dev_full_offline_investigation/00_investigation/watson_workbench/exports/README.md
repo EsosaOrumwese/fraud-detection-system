@@ -7,3 +7,4 @@ Generated figures and derived tables are grouped by investigation topic so the e
 - `merchant_allocation_policy/`: merchant allocation policy counterfactuals and implementation-artifact views.
 - `hurdle_priors/`: hurdle prior authoring and synthetic-world explainability figures.
 - `hurdle_coefficients/`: hurdle coefficient bundle, training fit, lineage, and runtime scoring figures.
+- `rng_event_hurdle_bernoulli/`: S1 hurdle event-stream summaries and branch-surface diagnostic tables.
