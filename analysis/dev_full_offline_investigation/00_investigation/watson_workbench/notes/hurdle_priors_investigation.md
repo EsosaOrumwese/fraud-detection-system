@@ -70,6 +70,72 @@ That manifest records:
 
 So, in lineage terms, the priors file is not just conceptually connected to the bundle. It is explicitly recorded in the training manifest that the bundle points back to.
 
+## What are the simulated hurdle world and NB-count world?
+
+The phrase "simulated hurdle world" means the synthetic merchant-level branch world created for training the `S1` hurdle model.
+
+In that world:
+
+- every merchant from the merchant parquet is present
+- each merchant is given the same core descriptors the hurdle model will later understand:
+  - `mcc`
+  - `channel`
+  - `home_country_iso`
+  - `gdp_bucket`
+  - `ln_gdp_pc_usd_2015`
+- the priors assign a latent branch tendency using:
+  - base logit
+  - channel offsets
+  - GDP-bucket offsets
+  - MCC offsets
+  - merchant-level logit noise
+- that latent tendency becomes a synthetic probability `pi`
+- a deterministic RNG draw then turns that probability into `y_hurdle`
+
+So the simulated hurdle world is the training-time answer to:
+
+> If this merchant universe had realistic single-site vs multi-site behaviour, which merchants would be labelled multi-site in the synthetic corpus?
+
+The output surface for this world is:
+
+- [`logistic.parquet`](../../../../../artefacts/training/1A/hurdle_sim/simulation_version=2026-01-03/seed=9248923/20260103T184840Z/logistic.parquet)
+
+It has one row per merchant and contains the synthetic target:
+
+- `y_hurdle`
+
+That `y_hurdle` is what the offline fitter uses as the training label for the hurdle coefficients.
+
+The phrase "NB-count world" means the synthetic outlet-count world created for training the `S2` count model.
+
+In that world:
+
+- only merchants that landed on the simulated multi-site branch receive a count target
+- the priors assign each such merchant a synthetic count posture using:
+  - base log mean
+  - channel offsets
+  - MCC offsets
+  - merchant-level log-mu noise
+  - dispersion structure
+- the script then samples a zero-truncated NB-style count target
+
+The output surface for this world is:
+
+- [`nb_mean.parquet`](../../../../../artefacts/training/1A/hurdle_sim/simulation_version=2026-01-03/seed=9248923/20260103T184840Z/nb_mean.parquet)
+
+It contains the synthetic target:
+
+- `y_nb`
+
+That `y_nb` is what the offline fitter uses as the training target for `beta_mu`, the NB-mean lane carried by `hurdle_coefficients.yaml`.
+
+So the two worlds are related but not identical:
+
+- the simulated hurdle world trains **who becomes multi-site**
+- the NB-count world trains **how large the multi-site merchant becomes**
+
+This is why the priors file defines more than one kind of structure. It needs one authored structure for the branch decision and another authored structure for the multi-site count behaviour.
+
 ## What the priors declare
 
 ### 1. RNG posture
