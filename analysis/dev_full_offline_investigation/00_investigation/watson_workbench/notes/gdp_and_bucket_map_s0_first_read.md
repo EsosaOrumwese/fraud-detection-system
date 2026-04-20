@@ -240,22 +240,22 @@ Reason:
 ## Files written
 
 - merchant-country GDP/bucket summary:
-  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_merchant_country_summary.csv`
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map/gdp_bucket_map_merchant_country_summary.csv`
 - bucket distribution summary:
-  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket_distribution.csv`
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map/gdp_bucket_map_bucket_distribution.csv`
 - bucket GDP-range summary:
-  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket_ranges.csv`
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map/gdp_bucket_map_bucket_ranges.csv`
 - relationship scatter:
-  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_relationship_scatter.png`
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map/gdp_bucket_map_relationship_scatter.png`
 - top-country bucket-membership view:
-  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_top20_bucket_membership.png`
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map/gdp_bucket_map_top20_bucket_membership.png`
 - bucket-compression view:
-  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket_compression.png`
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map/gdp_bucket_map_bucket_compression.png`
 - low-bucket exception view:
-  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket1_exception.png`
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map/gdp_bucket_map_bucket1_exception.png`
 - ranked GDP surface view:
-  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_ranked_surface.png`
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map/gdp_bucket_map_ranked_surface.png`
 - within-bucket GDP distribution view:
-  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket_distributions.png`
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map/gdp_bucket_map_bucket_distributions.png`
 - explicit GDP range compression view:
-  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map_bucket_ranges.png`
+  - `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/gdp_bucket_map/gdp_bucket_map_bucket_ranges.png`

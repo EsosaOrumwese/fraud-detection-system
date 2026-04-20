@@ -16,7 +16,7 @@ import seaborn as sns
 
 ROOT = Path(__file__).resolve().parents[5]
 WORKBENCH = Path(__file__).resolve().parents[1]
-EXPORTS = WORKBENCH / "exports"
+EXPORTS = WORKBENCH / "exports" / "merchant_allocation_policy"
 
 MERCHANT_PATH = (
     ROOT

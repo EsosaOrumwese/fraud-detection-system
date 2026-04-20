@@ -13,7 +13,7 @@ import seaborn as sns
 
 ROOT = Path(r"c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system")
 WORKBENCH = ROOT / "analysis/dev_full_offline_investigation/00_investigation/watson_workbench"
-EXPORTS = WORKBENCH / "exports"
+EXPORTS = WORKBENCH / "exports" / "transaction_schema_merchant_ids"
 EXPORTS.mkdir(parents=True, exist_ok=True)
 
 MERCHANT_PATH = ROOT / "reference/layer1/transaction_schema_merchant_ids/2026-01-03/transaction_schema_merchant_ids.parquet"

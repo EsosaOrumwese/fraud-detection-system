@@ -13,7 +13,7 @@ The country Pareto chart tells us where merchant weight sits, but not whether th
 - merchant universe: `reference\layer1\transaction_schema_merchant_ids\2026-01-03\transaction_schema_merchant_ids.parquet`
 - channel policy: `config\layer1\1A\policy\channel_policy.1A.yaml`
 - concentration explanation: `analysis\dev_full_offline_investigation\00_investigation\watson_workbench\notes\transaction_schema_country_concentration_explanation.md`
-- residual-effect table: `analysis\dev_full_offline_investigation\00_investigation\watson_workbench\exports\transaction_schema_country_concentration_residual_effect.csv`
+- residual-effect table: `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_merchant_ids/transaction_schema_country_concentration_residual_effect.csv`
 
 ## Top-country set
 
@@ -65,7 +65,7 @@ The optional checks strengthen the earlier conclusion rather than overturn it. T
 
 ## Files written
 
-- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_top_country_mix_summary.csv`
-- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_top_country_channel_mix.csv`
-- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_top_country_policy_artifact_summary.csv`
-- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_top_country_mcc_top5.csv`
+- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_merchant_ids/transaction_schema_top_country_mix_summary.csv`
+- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_merchant_ids/transaction_schema_top_country_channel_mix.csv`
+- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_merchant_ids/transaction_schema_top_country_policy_artifact_summary.csv`
+- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_merchant_ids/transaction_schema_top_country_mcc_top5.csv`

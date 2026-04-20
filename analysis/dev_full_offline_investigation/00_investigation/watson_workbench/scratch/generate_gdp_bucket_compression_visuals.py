@@ -14,7 +14,7 @@ import seaborn as sns
 
 ROOT = Path(r"c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system")
 WORKBENCH = ROOT / "analysis/dev_full_offline_investigation/00_investigation/watson_workbench"
-EXPORTS = WORKBENCH / "exports"
+EXPORTS = WORKBENCH / "exports" / "gdp_bucket_map"
 EXPORTS.mkdir(parents=True, exist_ok=True)
 
 

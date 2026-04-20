@@ -60,5 +60,5 @@ The concentration is mostly explained by the governed merchant-allocation policy
 
 ## Files written
 
-- top-country table: `analysis\dev_full_offline_investigation\00_investigation\watson_workbench\exports\transaction_schema_country_concentration_top20.csv`
-- residual-effect table: `analysis\dev_full_offline_investigation\00_investigation\watson_workbench\exports\transaction_schema_country_concentration_residual_effect.csv`
+- top-country table: `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_merchant_ids/transaction_schema_country_concentration_top20.csv`
+- residual-effect table: `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_merchant_ids/transaction_schema_country_concentration_residual_effect.csv`

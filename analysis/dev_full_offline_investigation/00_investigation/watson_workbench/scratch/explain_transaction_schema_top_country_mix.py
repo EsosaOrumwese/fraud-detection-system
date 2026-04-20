@@ -8,7 +8,7 @@ import pandas as pd
 
 ROOT = Path(r"c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system")
 WORKBENCH = ROOT / "analysis/dev_full_offline_investigation/00_investigation/watson_workbench"
-EXPORTS = WORKBENCH / "exports"
+EXPORTS = WORKBENCH / "exports" / "transaction_schema_merchant_ids"
 NOTES = WORKBENCH / "notes"
 EXPORTS.mkdir(parents=True, exist_ok=True)
 NOTES.mkdir(parents=True, exist_ok=True)
@@ -20,8 +20,7 @@ CONCENTRATION_EXPLANATION_PATH = (
     / "analysis/dev_full_offline_investigation/00_investigation/watson_workbench/notes/transaction_schema_country_concentration_explanation.md"
 )
 RESIDUAL_EFFECT_PATH = (
-    ROOT
-    / "analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_country_concentration_residual_effect.csv"
+    EXPORTS / "transaction_schema_country_concentration_residual_effect.csv"
 )
 
 
@@ -213,10 +212,10 @@ def main() -> None:
         "",
         "## Files written",
         "",
-        "- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_top_country_mix_summary.csv`",
-        "- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_top_country_channel_mix.csv`",
-        "- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_top_country_policy_artifact_summary.csv`",
-        "- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_top_country_mcc_top5.csv`",
+        "- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_merchant_ids/transaction_schema_top_country_mix_summary.csv`",
+        "- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_merchant_ids/transaction_schema_top_country_channel_mix.csv`",
+        "- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_merchant_ids/transaction_schema_top_country_policy_artifact_summary.csv`",
+        "- `analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/transaction_schema_merchant_ids/transaction_schema_top_country_mcc_top5.csv`",
     ]
 
     note_path = NOTES / "transaction_schema_merchant_ids_top_country_mix.md"

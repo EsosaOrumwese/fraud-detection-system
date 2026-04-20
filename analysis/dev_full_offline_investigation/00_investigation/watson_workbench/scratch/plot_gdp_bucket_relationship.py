@@ -11,7 +11,15 @@ import seaborn as sns
 
 
 ROOT = Path(__file__).resolve().parents[5]
-EXPORTS = ROOT / "analysis" / "dev_full_offline_investigation" / "00_investigation" / "watson_workbench" / "exports"
+EXPORTS = (
+    ROOT
+    / "analysis"
+    / "dev_full_offline_investigation"
+    / "00_investigation"
+    / "watson_workbench"
+    / "exports"
+    / "gdp_bucket_map"
+)
 
 SUMMARY_PATH = EXPORTS / "gdp_bucket_map_merchant_country_summary.csv"
 BUCKET_DIST_PATH = EXPORTS / "gdp_bucket_map_bucket_distribution.csv"

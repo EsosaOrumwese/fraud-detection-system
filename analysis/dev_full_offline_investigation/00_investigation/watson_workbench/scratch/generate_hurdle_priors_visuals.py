@@ -16,7 +16,15 @@ from matplotlib.ticker import PercentFormatter
 
 
 REPO = Path(__file__).resolve().parents[5]
-EXPORTS = REPO / "analysis" / "dev_full_offline_investigation" / "00_investigation" / "watson_workbench" / "exports"
+EXPORTS = (
+    REPO
+    / "analysis"
+    / "dev_full_offline_investigation"
+    / "00_investigation"
+    / "watson_workbench"
+    / "exports"
+    / "hurdle_priors"
+)
 EXPORTS.mkdir(parents=True, exist_ok=True)
 
 plt.style.use("seaborn-v0_8-whitegrid")

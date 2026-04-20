@@ -8,8 +8,10 @@ import pandas as pd
 
 ROOT = Path(r"c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system")
 WORKBENCH = ROOT / "analysis/dev_full_offline_investigation/00_investigation/watson_workbench"
-EXPORTS = WORKBENCH / "exports"
+EXPORTS = WORKBENCH / "exports" / "transaction_schema_merchant_ids"
+NOTES = WORKBENCH / "notes"
 EXPORTS.mkdir(parents=True, exist_ok=True)
+NOTES.mkdir(parents=True, exist_ok=True)
 
 MERCHANT_PATH = ROOT / "reference/layer1/transaction_schema_merchant_ids/2026-01-03/transaction_schema_merchant_ids.parquet"
 MERCHANT_MANIFEST_PATH = (
@@ -269,7 +271,7 @@ def main() -> None:
         f"- residual-effect table: `{residual_path.relative_to(ROOT)}`",
     ]
 
-    report_path = EXPORTS / "transaction_schema_country_concentration_explanation.md"
+    report_path = NOTES / "transaction_schema_country_concentration_explanation.md"
     report_path.write_text("\n".join(report_lines) + "\n", encoding="utf-8")
 
     print(report_path)
