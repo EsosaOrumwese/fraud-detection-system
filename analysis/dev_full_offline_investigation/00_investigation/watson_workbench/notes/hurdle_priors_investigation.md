@@ -92,7 +92,14 @@ $$
 \eta_m = b_0 + \delta^{ch}_m + \delta^{bucket}_m + \delta^{mcc}_m + \epsilon^{logit}_m
 $$
 
-Here, `b_0` corresponds to the priors' `base_logit`; the three `delta` terms correspond to the channel, GDP-bucket, and MCC offsets; and `epsilon` is the merchant-level logit noise.
+where:
+
+- `m` is the merchant being simulated
+- `b_0` is the baseline hurdle logit, corresponding to `base_logit`
+- `delta^ch_m` is the channel offset for merchant `m`
+- `delta^bucket_m` is the GDP-bucket offset for merchant `m`
+- `delta^mcc_m` is the MCC offset for merchant `m`
+- `epsilon^logit_m` is the merchant-level logit noise
 
 This `eta` is not yet a probability. It is a log-odds score on the real number line. Higher `eta` means stronger synthetic tendency toward the multi-site branch; lower `eta` means stronger synthetic tendency toward the single-site branch.
 
@@ -102,6 +109,12 @@ $$
 \pi_m^{\mathrm{raw}} = \sigma(\eta_m) = \frac{1}{1 + e^{-\eta_m}}
 $$
 
+where:
+
+- `pi_raw_m` is the unclipped synthetic multi-site probability for merchant `m`
+- `sigma` is the logistic sigmoid function
+- `eta_m` is the latent hurdle logit from the previous step
+
 That sigmoid is what turns the unrestricted latent tendency into a value between `0` and `1`.
 
 Third, the resulting probability is clipped to the configured `pi` corridor:
@@ -110,6 +123,11 @@ $$
 \pi_m = \mathrm{clip}(\pi_m^{\mathrm{raw}},\ \pi_{\min},\ \pi_{\max})
 $$
 
+where:
+
+- `pi_m` is the final synthetic hurdle probability used for merchant `m`
+- `pi_min` and `pi_max` are the lower and upper probability clamps from the priors
+
 For the active priors, this corridor is `[0.01, 0.75]`. This keeps the simulated training world away from merchants that are effectively impossible or certain to be multi-site.
 
 Finally, a deterministic RNG draw turns that probability into the synthetic training label:
@@ -117,6 +135,12 @@ Finally, a deterministic RNG draw turns that probability into the synthetic trai
 $$
 y^{hurdle}_m = \mathbf{1}\{u_m < \pi_m\}
 $$
+
+where:
+
+- `y_hurdle_m` is the synthetic training label for merchant `m`
+- `u_m` is the deterministic uniform draw for merchant `m`
+- the indicator returns `1` when the merchant is labelled multi-site, otherwise `0`
 
 So the simulated hurdle world is the training-time answer to:
 
@@ -160,7 +184,13 @@ $$
 \ell_{\mu,m} = a_0 + \delta^{ch}_{\mu,m} + \delta^{mcc}_{\mu,m} + \epsilon_{\mu,m}
 $$
 
-Here, `a_0` corresponds to the priors' `base_log_mean`; the `delta` terms correspond to the NB-mean channel and MCC offsets; and `epsilon` is the merchant-level log-mean noise.
+where:
+
+- `ell_mu_m` is the log-scale NB mean score for merchant `m`
+- `a_0` is the baseline log mean, corresponding to `base_log_mean`
+- `delta_ch_mu_m` is the NB-mean channel offset for merchant `m`
+- `delta_mcc_mu_m` is the NB-mean MCC offset for merchant `m`
+- `epsilon_mu_m` is the merchant-level log-mean noise
 
 and maps it to a positive mean:
 
@@ -168,19 +198,37 @@ $$
 \mu_m = \exp(\ell_{\mu,m})
 $$
 
+where:
+
+- `mu_m` is the positive NB mean used for merchant `m`
+- `exp` maps the log-scale score back to the count scale
+
 The dispersion lane builds a log-scale dispersion:
 
 $$
 \ell_{\phi,m} = c_0 + s_g \log(g_m) + \delta^{ch}_{\phi,m} + \delta^{mcc}_{\phi,m} + \epsilon_{\phi,m}
 $$
 
-Here, `c_0` corresponds to the priors' `base_log_phi`; `s_g` is the GDP-log slope; the `delta` terms correspond to the dispersion channel and MCC offsets; and `epsilon` is the merchant-level log-dispersion noise.
+where:
+
+- `ell_phi_m` is the log-scale dispersion score for merchant `m`
+- `c_0` is the baseline log dispersion, corresponding to `base_log_phi`
+- `s_g` is the GDP-log slope
+- `g_m` is the GDP-related value for merchant `m`'s home country
+- `delta_ch_phi_m` is the dispersion channel offset for merchant `m`
+- `delta_mcc_phi_m` is the dispersion MCC offset for merchant `m`
+- `epsilon_phi_m` is the merchant-level log-dispersion noise
 
 and maps it to a positive dispersion:
 
 $$
 \phi_m = \exp(\ell_{\phi,m})
 $$
+
+where:
+
+- `phi_m` is the positive NB dispersion used for merchant `m`
+- `exp` maps the log-scale dispersion score back to the positive dispersion scale
 
 Both `mu` and `phi` are then clipped to their configured corridors. The script uses these quantities to sample a zero-truncated NB-style count target, `y_nb`.
 
