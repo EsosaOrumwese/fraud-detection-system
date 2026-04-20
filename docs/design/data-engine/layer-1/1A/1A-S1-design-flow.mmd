@@ -1,44 +1,110 @@
 flowchart TD
-  subgraph inputs["Authority inputs"]
-    I1["hurdle_design_matrix from S0.5"]
-    I2["hurdle_coefficients bundle"]
-    I3["seed, parameter_hash, manifest_fingerprint,<br/>run_id and rng_audit_log"]
+  %% 1A.S1 is the runtime hurdle gate. The coefficient-training lane is shown
+  %% because it explains the active bundle S1 consumes, but it is not executed
+  %% during S1 itself.
+
+  subgraph lineage["Coefficient authoring lineage before runtime S1"]
+    A1["hurdle_simulation.priors.yaml<br/>authored synthetic world recipe"]
+    A2["merchant parquet + GDP vintage<br/>+ bucket map + ISO canonical"]
+    A3["build_hurdle_exports.py<br/>materializes simulated worlds"]
+    A4["simulated hurdle world<br/>logistic.parquet with y_hurdle"]
+    A5["NB-count world<br/>nb_mean.parquet with y_nb"]
+    A6["fit governed coefficient lanes<br/>beta for S1, beta_mu for S2"]
+    A7["export hurdle_coefficients.yaml<br/>with dictionaries and design order"]
+    A8["governed remediation trail<br/>P1b beta intercept +2.2<br/>P4.R4A beta_mu reshaping"]
+    A9["active sealed coefficient bundle<br/>consumed by the pinned run"]
   end
 
-  subgraph core["Actual S1 design"]
-    C1["Verify shape alignment between design vector<br/>and coefficients before any emission"]
-    C2["Compute eta and pi under binary64 fixed-order math"]
-    C3["If pi is exactly 0 or 1 then take deterministic branch<br/>with zero draws"]
-    C4["Else consume exactly one open-interval uniform<br/>from keyed hurdle_bernoulli substream"]
-    C5["Emit one hurdle event per merchant<br/>as sole branch gate for multi-site path"]
-    C6["Append cumulative trace rows and validate replay posture"]
+  subgraph inputs["Runtime S1 authority inputs"]
+    I1["hurdle_design_matrix from S0.5<br/>runtime merchant predictor basis x_m"]
+    I2["active hurdle beta lane<br/>plus dict_mcc, dict_ch, dict_dev5 order"]
+    I3["seed, parameter_hash,<br/>manifest_fingerprint and run_id"]
+    I4["rng_audit_log precondition<br/>and S0 keyed-substream law"]
+    I5["hurdle_pi_probs from S0.7<br/>optional diagnostic only"]
   end
 
-  subgraph shifts["Implemented design shifts"]
-    S1["S1 was rewritten so registry resolution,<br/>trace totals and validator behavior match the spec"]
-    S2["Legacy trace fallback was removed;<br/>actual validation now selects the row with highest cumulative totals"]
-    S3["Resume semantics were added without changing<br/>branch-gate authority"]
-    S4["merchant_id range handling was hardened so contract and runtime<br/>agree on id64 posture"]
+  subgraph guards["Pre-emission guards"]
+    G1["Resolve sealed inputs and registry bindings"]
+    G2["Check design vector and beta shape<br/>1 + MCC + channel + GDP bucket"]
+    G3["Check dictionary order alignment<br/>MCC, CP/CNP, buckets 1..5"]
+    G4["Require RNG audit row before first event"]
+    G5["Abort before emission on mismatch<br/>or missing lineage/audit authority"]
   end
 
-  subgraph outputs["Owned authority"]
-    O1["rng_event_hurdle_bernoulli"]
-    O2["rng_trace_log updates for S1 family"]
-    O3["is_multi branch authority for S2 and downstream"]
+  subgraph core["Actual S1 hurdle decision"]
+    C1["For each merchant, rebuild x_m<br/>from the frozen design surface"]
+    C2["Compute eta = beta dot x_m<br/>fixed-order binary64 math"]
+    C3["Compute pi = logistic eta<br/>two-branch overflow-safe evaluation"]
+    C4{"Is pi exactly 0 or 1?"}
+    C5["Deterministic branch<br/>consume zero uniforms<br/>u = null"]
+    C6["Stochastic branch<br/>consume one open-interval uniform<br/>from hurdle_bernoulli substream"]
+    C7["Decide is_multi<br/>pi==1 when deterministic<br/>or u < pi when stochastic"]
+    C8["Emit one hurdle event per merchant<br/>with pi, u, is_multi, deterministic,<br/>draws and counters"]
+    C9["Append cumulative rng_trace_log rows<br/>for 1A.hurdle_sampler / hurdle_bernoulli"]
   end
 
-  I1 --> C1
-  I2 --> C1
-  I3 --> C1
-  C1 --> C2 --> C3
-  C2 --> C4
-  C3 --> C5
-  C4 --> C5 --> C6
-  C5 --> O1
-  C6 --> O2
+  subgraph validation["Replay and validation proof"]
+    V1["Schema and path/embed equality<br/>seed, parameter_hash, run_id"]
+    V2["Recompute eta and pi<br/>from design matrix and active beta"]
+    V3["Reconstruct base counter<br/>from seed, fingerprint, label, merchant_id"]
+    V4["Replay u when stochastic<br/>and verify is_multi"]
+    V5["Reconcile draws, blocks<br/>and cumulative trace totals"]
+    V6["Presence-based downstream gating check<br/>only is_multi merchants may emit gated streams"]
+  end
+
+  subgraph outputs["Owned authority and handoff"]
+    O1["rng_event_hurdle_bernoulli<br/>authoritative branch event stream"]
+    O2["rng_trace_log updates<br/>for the hurdle Bernoulli family"]
+    O3["Xi_m handoff tuple<br/>is_multi, N, K, country set, audit counter"]
+    O4["single-site merchants<br/>N = 1, K = 0, route toward S7"]
+    O5["multi-site merchants<br/>route into S2 NB count path"]
+    O6["hurdle_pi_probs remains diagnostic<br/>never overrides replayed S1 decisions"]
+  end
+
+  A1 --> A3
+  A2 --> A3
+  A3 --> A4
+  A3 --> A5
+  A4 --> A6
+  A5 --> A6
+  A6 --> A7
+  A7 --> A8
+  A8 --> A9
+  A9 --> I2
+
+  I1 --> G1
+  I2 --> G1
+  I3 --> G1
+  I4 --> G4
+  I5 -. diagnostic comparison only .-> O6
+  G1 --> G2 --> G3 --> G4 --> G5
+  G5 --> C1
+
+  C1 --> C2 --> C3 --> C4
+  C4 -- yes --> C5 --> C7
+  C4 -- no --> C6 --> C7
+  C7 --> C8 --> C9
+
+  C8 --> O1
+  C9 --> O2
   O1 --> O3
+  O3 --> O4
+  O3 --> O5
 
-  S1 -.-> C1
-  S2 -.-> C6
-  S3 -.-> C5
-  S4 -.-> C1
+  O1 --> V1 --> V2 --> V3 --> V4 --> V5 --> V6
+  O2 --> V5
+  O5 --> V6
+
+  classDef authoring fill:#eef2ff,stroke:#4f46e5,stroke-width:1.5px,color:#111827;
+  classDef runtime fill:#ecfdf5,stroke:#059669,stroke-width:1.5px,color:#052e16;
+  classDef guard fill:#fff7ed,stroke:#ea580c,stroke-width:1.5px,color:#431407;
+  classDef event fill:#fef2f2,stroke:#dc2626,stroke-width:1.7px,color:#450a0a;
+  classDef validate fill:#f0f9ff,stroke:#0284c7,stroke-width:1.5px,color:#082f49;
+  classDef diagnostic fill:#f8fafc,stroke:#64748b,stroke-dasharray:4 3,color:#334155;
+
+  class A1,A2,A3,A4,A5,A6,A7,A8,A9 authoring;
+  class I1,I2,I3,I4,C1,C2,C3,C4,C5,C6,C7 runtime;
+  class G1,G2,G3,G4,G5 guard;
+  class C8,C9,O1,O2,O3,O4,O5 event;
+  class V1,V2,V3,V4,V5,V6 validate;
+  class I5,O6 diagnostic;
