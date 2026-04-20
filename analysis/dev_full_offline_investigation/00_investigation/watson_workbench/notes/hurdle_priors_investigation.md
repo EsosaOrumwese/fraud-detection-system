@@ -133,14 +133,18 @@ For the active priors, this corridor is `[0.01, 0.75]`. This keeps the simulated
 Finally, a deterministic RNG draw turns that probability into the synthetic training label:
 
 $$
-y^{hurdle}_m = \mathbf{1}\{u_m < \pi_m\}
+y^{hurdle}_m =
+\begin{cases}
+1, & u_m < \pi_m \\
+0, & u_m \ge \pi_m
+\end{cases}
 $$
 
 where:
 
 - `y_hurdle_m` is the synthetic training label for merchant `m`
 - `u_m` is the deterministic uniform draw for merchant `m`
-- the indicator returns `1` when the merchant is labelled multi-site, otherwise `0`
+- the label is `1` when the merchant is labelled multi-site, otherwise `0`
 
 So the simulated hurdle world is the training-time answer to:
 
