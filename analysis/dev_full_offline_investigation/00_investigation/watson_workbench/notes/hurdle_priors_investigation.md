@@ -89,15 +89,17 @@ The branch probability is created in stages.
 First, the priors assign each merchant a latent branch tendency. That latent tendency is the hurdle logit, usually written as `eta`:
 
 $$
-\eta_m = \text{base\_logit} + \Delta_{\text{channel}(m)} + \Delta_{\text{bucket}(m)} + \Delta_{\text{MCC}(m)} + \epsilon_{\text{logit},m}
+\eta_m = b_0 + \delta^{ch}_m + \delta^{bucket}_m + \delta^{mcc}_m + \epsilon^{logit}_m
 $$
+
+Here, `b_0` corresponds to the priors' `base_logit`; the three `delta` terms correspond to the channel, GDP-bucket, and MCC offsets; and `epsilon` is the merchant-level logit noise.
 
 This `eta` is not yet a probability. It is a log-odds score on the real number line. Higher `eta` means stronger synthetic tendency toward the multi-site branch; lower `eta` means stronger synthetic tendency toward the single-site branch.
 
 Second, the script maps `eta` through the logistic sigmoid:
 
 $$
-\pi_m^{raw} = \sigma(\eta_m) = \frac{1}{1 + e^{-\eta_m}}
+\pi_m^{\mathrm{raw}} = \sigma(\eta_m) = \frac{1}{1 + e^{-\eta_m}}
 $$
 
 That sigmoid is what turns the unrestricted latent tendency into a value between `0` and `1`.
@@ -105,7 +107,7 @@ That sigmoid is what turns the unrestricted latent tendency into a value between
 Third, the resulting probability is clipped to the configured `pi` corridor:
 
 $$
-\pi_m = \mathrm{clip}(\pi_m^{raw},\ \pi_{\min},\ \pi_{\max})
+\pi_m = \mathrm{clip}(\pi_m^{\mathrm{raw}},\ \pi_{\min},\ \pi_{\max})
 $$
 
 For the active priors, this corridor is `[0.01, 0.75]`. This keeps the simulated training world away from merchants that are effectively impossible or certain to be multi-site.
@@ -113,7 +115,7 @@ For the active priors, this corridor is `[0.01, 0.75]`. This keeps the simulated
 Finally, a deterministic RNG draw turns that probability into the synthetic training label:
 
 $$
-y_{\text{hurdle},m} = \mathbf{1}\{u_m < \pi_m\}
+y^{hurdle}_m = \mathbf{1}\{u_m < \pi_m\}
 $$
 
 So the simulated hurdle world is the training-time answer to:
@@ -155,25 +157,29 @@ Instead, the NB-count world asks: given that this merchant is already on the syn
 The NB mean lane therefore builds a log-scale mean:
 
 $$
-\log \mu_m = \text{base\_log\_mean} + \Delta_{\text{channel}(m)} + \Delta_{\text{MCC}(m)} + \epsilon_{\log \mu,m}
+\ell_{\mu,m} = a_0 + \delta^{ch}_{\mu,m} + \delta^{mcc}_{\mu,m} + \epsilon_{\mu,m}
 $$
+
+Here, `a_0` corresponds to the priors' `base_log_mean`; the `delta` terms correspond to the NB-mean channel and MCC offsets; and `epsilon` is the merchant-level log-mean noise.
 
 and maps it to a positive mean:
 
 $$
-\mu_m = \exp(\log \mu_m)
+\mu_m = \exp(\ell_{\mu,m})
 $$
 
 The dispersion lane builds a log-scale dispersion:
 
 $$
-\log \phi_m = \text{base\_log\_phi} + s_{\text{gdp}}\log(g_m) + \Delta_{\text{channel}(m)} + \Delta_{\text{MCC}(m)} + \epsilon_{\log \phi,m}
+\ell_{\phi,m} = c_0 + s_g \log(g_m) + \delta^{ch}_{\phi,m} + \delta^{mcc}_{\phi,m} + \epsilon_{\phi,m}
 $$
+
+Here, `c_0` corresponds to the priors' `base_log_phi`; `s_g` is the GDP-log slope; the `delta` terms correspond to the dispersion channel and MCC offsets; and `epsilon` is the merchant-level log-dispersion noise.
 
 and maps it to a positive dispersion:
 
 $$
-\phi_m = \exp(\log \phi_m)
+\phi_m = \exp(\ell_{\phi,m})
 $$
 
 Both `mu` and `phi` are then clipped to their configured corridors. The script uses these quantities to sample a zero-truncated NB-style count target, `y_nb`.
