@@ -154,23 +154,63 @@ This matters because a mixed lineage would make the branch surface analytically 
 
 ## Probability alignment checks
 
-The event `pi` values align with both the diagnostic cache and a direct recomputation from the active coefficient bundle.
+Before interpreting the branch outcomes, we need to know whether the `pi` written inside the event stream is the right `pi`.
 
-Against `hurdle_pi_probs`:
+This matters because `rng_event_hurdle_bernoulli` carries both:
+
+- the probability used for the branch decision: `pi`
+- the random draw that realises the branch decision: `u`
+
+If the event `pi` were stale, rounded incorrectly, produced from a different coefficient bundle, or joined to the wrong merchant design row, then the later `is_multi` analysis would be misleading. We would be analysing a branch stream without knowing whether its probability surface actually came from the active S1 model.
+
+So this check asks:
+
+```text
+Does the pi inside the event stream really come from the active hurdle coefficients
+applied to the current runtime design matrix?
+```
+
+There are two comparison surfaces.
+
+The first comparison is against `hurdle_pi_probs`. That file is the optional S0.7 diagnostic cache. It stores the same intended scored probability surface, but it is narrowed to float32 for storage. Because of that narrowing, we should expect tiny differences, not exact equality.
+
+Observed comparison:
 
 - max absolute event `pi` minus diagnostic `pi`: `2.98e-08`
 - mean absolute event `pi` minus diagnostic `pi`: `1.26e-08`
 
-That small difference is expected because the diagnostic table stores `logit` and `pi` as float32.
+This tells us the event probability and the diagnostic probability cache are effectively the same surface. The tiny gap is storage precision, not a meaningful modelling difference.
 
-Against direct recomputation from `hurdle_coefficients.yaml` and `hurdle_design_matrix`:
+The second comparison is stronger. I recomputed `pi` directly from:
+
+- the active `hurdle_coefficients.yaml`
+- the runtime `hurdle_design_matrix`
+
+That means rebuilding:
+
+```text
+eta_m = beta dot x_m
+pi_m = sigmoid(eta_m)
+```
+
+and then comparing that recomputed `pi_m` to the `pi` written in the event row.
+
+Observed comparison:
 
 - max absolute event `pi` minus recomputed `pi`: `2.22e-16`
 - mean absolute event `pi` minus recomputed `pi`: `1.09e-17`
 
-This is the stronger result. It says the event stream's probability field is not an independent or stale surface. It is effectively the active coefficient bundle applied to the current runtime design matrix.
+This is the key result. It says the event stream's probability field is not an independent or stale value. It is the active coefficient bundle applied to the current runtime merchant design surface.
 
-So the runtime chain is internally consistent:
+What would we have looked out for?
+
+- Large event-vs-diagnostic differences would suggest `hurdle_pi_probs` and the event stream were produced from different scoring surfaces, or that one of them had drifted.
+- Large event-vs-recomputed differences would be more serious. That would suggest a wrong coefficient bundle, wrong feature ordering, stale design matrix, bad channel/MCC/bucket mapping, or a runtime scoring bug.
+- Missing joins would suggest that the event stream no longer covered the same merchant universe as the design matrix or diagnostic probability table.
+
+None of those failure patterns appear here.
+
+The runtime chain is therefore internally consistent:
 
 ```text
 active beta + runtime X
@@ -178,6 +218,8 @@ active beta + runtime X
   == event pi
   ~= diagnostic pi cache
 ```
+
+So when we later interpret `is_multi`, we can treat it as a Bernoulli realisation of the active S1 scoring law, not as an unexplained or disconnected event field.
 
 ## RNG and decision accounting
 
