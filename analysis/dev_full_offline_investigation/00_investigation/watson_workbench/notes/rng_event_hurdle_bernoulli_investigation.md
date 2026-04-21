@@ -34,6 +34,36 @@ The contract describes it as Bernoulli draws per merchant for the hurdle decisio
 - branch outcome: `is_multi`
 - accounting fields: `draws`, `blocks`, `deterministic`
 
+The reason this stream uses a Bernoulli draw is that `S1` is answering a binary branch question:
+
+```text
+Does this merchant enter the multi-site path?
+```
+
+There are only two valid outcomes:
+
+```text
+is_multi = true
+is_multi = false
+```
+
+So the statistical object that fits the state is a Bernoulli trial:
+
+```text
+is_multi_m ~ Bernoulli(pi_m)
+```
+
+where:
+
+- `m` is the merchant
+- `pi_m` is the merchant's model-scored probability of being multi-site
+- `is_multi_m = true` means the merchant enters the multi-site branch
+- `is_multi_m = false` means the merchant remains on the single-site side
+
+This is why the stream is not categorical, Poisson, negative binomial, normal, or lognormal. Those would answer different statistical questions. A categorical draw would make sense if the state had more than two branch choices. A count distribution would make sense if the state were asking how many outlets the merchant has. A continuous distribution would make sense for a continuous quantity. But `S1` is only the yes/no gate.
+
+The count question comes later. Once `S1` has emitted `is_multi = true`, `S2` can ask how large the multi-site merchant should be. That is where the NB-count world becomes relevant. `S1` only decides whether the merchant crosses the hurdle at all.
+
 The core decision is:
 
 ```text
