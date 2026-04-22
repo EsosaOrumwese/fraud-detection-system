@@ -62,6 +62,28 @@ where:
 
 This is why the stream is not categorical, Poisson, negative binomial, normal, or lognormal. Those would answer different statistical questions. A categorical draw would make sense if the state had more than two branch choices. A count distribution would make sense if the state were asking how many outlets the merchant has. A continuous distribution would make sense for a continuous quantity. But `S1` is only the yes/no gate.
 
+It is also why this is called a Bernoulli event stream rather than a binomial event stream. A Bernoulli trial describes one yes/no outcome. That is the event-row grain here: one merchant, one probability, one draw, one `is_multi` decision.
+
+A binomial distribution would describe the number of successes across multiple trials with the same probability:
+
+```text
+Y ~ Binomial(n, p)
+```
+
+That is not the shape of this stream. The merchants do not all share one common `p`; each merchant has its own `pi_m` after the active coefficient bundle scores its runtime feature row. So the aggregate multi-site count is better read as a sum of merchant-specific Bernoulli outcomes:
+
+```text
+total_multi = sum(is_multi_m)
+```
+
+and its expected value is:
+
+```text
+expected_multi = sum(pi_m)
+```
+
+This distinction matters later when we compare the expected branch population to the realised branch population. We are not assuming one global binomial probability; we are respecting the merchant-level probability surface emitted by the hurdle model.
+
 The count question comes later. Once `S1` has emitted `is_multi = true`, `S2` can ask how large the multi-site merchant should be. That is where the NB-count world becomes relevant. `S1` only decides whether the merchant crosses the hurdle at all.
 
 The core decision is:
