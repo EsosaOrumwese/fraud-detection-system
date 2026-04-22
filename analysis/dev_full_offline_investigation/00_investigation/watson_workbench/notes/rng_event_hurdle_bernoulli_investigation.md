@@ -25,16 +25,16 @@ Its contract entry is:
 
 - [`docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml`](../../../../../docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml)
 
-The contract describes it as Bernoulli draws per merchant for the hurdle decision. In practical terms, each row carries:
+The contract describes it as the per-merchant Bernoulli decision stream for the hurdle gate. In practical terms, each row carries:
 
 - lineage keys: `seed`, `parameter_hash`, `manifest_fingerprint`, `run_id`
 - RNG identity: `module`, `substream_label`, before/after counters
 - branch probability: `pi`
-- random draw: `u`
-- branch outcome: `is_multi`
+- uniform draw: `u`
+- Bernoulli branch outcome: `is_multi`
 - accounting fields: `draws`, `blocks`, `deterministic`
 
-The reason this stream uses a Bernoulli draw is that `S1` is answering a binary branch question:
+The reason this stream realises a Bernoulli outcome is that `S1` is answering a binary branch question:
 
 ```text
 Does this merchant enter the multi-site path?
@@ -60,9 +60,9 @@ where:
 - `is_multi_m = true` means the merchant enters the multi-site branch
 - `is_multi_m = false` means the merchant remains on the single-site side
 
-This is why the stream is not categorical, Poisson, negative binomial, normal, or lognormal. Those would answer different statistical questions. A categorical draw would make sense if the state had more than two branch choices. A count distribution would make sense if the state were asking how many outlets the merchant has. A continuous distribution would make sense for a continuous quantity. But `S1` is only the yes/no gate.
+This is why the stream is not categorical, Poisson, negative binomial, normal, or lognormal. Those would answer different statistical questions. A categorical outcome would make sense if the state had more than two branch choices. A count distribution would make sense if the state were asking how many outlets the merchant has. A continuous distribution would make sense for a continuous quantity. But `S1` is only the yes/no gate.
 
-It is also why this is called a Bernoulli event stream rather than a binomial event stream. A Bernoulli trial describes one yes/no outcome. That is the event-row grain here: one merchant, one probability, one draw, one `is_multi` decision.
+It is also why this is called a Bernoulli event stream rather than a binomial event stream. A Bernoulli trial describes one yes/no outcome. That is the event-row grain here: one merchant, one probability, one uniform draw, one Bernoulli `is_multi` decision.
 
 A binomial distribution would describe the number of successes across multiple trials with the same probability:
 
@@ -129,7 +129,8 @@ hurdle_simulation.priors.yaml
   -> hurdle_coefficients.yaml
   -> hurdle_design_matrix as runtime X
   -> pi
-  -> keyed Bernoulli draw
+  -> keyed uniform draw
+  -> Bernoulli outcome
   -> rng_event_hurdle_bernoulli
 ```
 
@@ -301,7 +302,7 @@ A merchant with `pi = 0.73` contributes `0.73` expected multi-site merchants; a 
 - expected multi-site merchants: `5,829.39`
 - expected multi-site rate: `58.2939%`
 
-The second layer is the realised branch world after the Bernoulli draw. At that point the probability has been converted into an actual decision, so we count the emitted `is_multi = true` rows:
+The second layer is the realised branch world after the uniform draw has been thresholded into a Bernoulli outcome. At that point the probability has been converted into an actual decision, so we count the emitted `is_multi = true` rows:
 
 ```text
 realised_multi = count rows where is_multi == true
