@@ -266,16 +266,32 @@ The validation summary records `PASS`, with `rng_envelope`, `rng_trace_coverage`
 
 ## The branch world that was actually created
 
-Summing the event probabilities gives the expected number of multi-site merchants:
+The event stream lets us read the branch world in two layers.
+
+The first layer is the model-implied branch world before randomness is applied. Each merchant carries its own `pi`, so the expected number of multi-site merchants is not a row count yet. It is the sum of all merchant-level probabilities:
+
+```text
+expected_multi = sum(pi_m for every merchant m)
+```
+
+A merchant with `pi = 0.73` contributes `0.73` expected multi-site merchants; a merchant with `pi = 0.20` contributes `0.20`. Across the full 10,000-merchant stream, that summed probability surface gives:
 
 - expected multi-site merchants: `5,829.39`
 - expected multi-site rate: `58.2939%`
 
-The realised Bernoulli stream emits:
+The second layer is the realised branch world after the Bernoulli draw. At that point the probability has been converted into an actual decision, so we count the emitted `is_multi = true` rows:
+
+```text
+realised_multi = count rows where is_multi == true
+```
+
+For this stream, the realised event surface is:
 
 - realised multi-site merchants: `5,817`
 - realised multi-site rate: `58.1700%`
 - single-site merchants: `4,183`
+
+So `pi` tells us what the active model expected before the draw, while `is_multi` tells us what actually happened after the draw.
 
 The difference is small:
 
