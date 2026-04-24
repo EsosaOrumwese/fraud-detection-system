@@ -62,3 +62,29 @@ Tell me of a time or a situation where you had to showcase intermediate knowledg
 - The result was a monthly reporting pack and follow-up analysis that were accurate enough to use, clear enough to act on, and specific enough to direct attention to the right place.
 - SQL gave me the controlled reporting base. Excel gave me the structure to communicate the result properly. The analytical mindset was in separating the real theme from the noise: broad stability overall, with one segment needing closer review. And the data-quality work made the reporting trustworthy enough to support that conclusion.
 - My view of data quality is straightforward: if the grain, completeness, consistency, or reconciliation are wrong, then the trend interpretation is wrong, and the reporting stops being useful no matter how polished it looks. That is why I treat data quality as part of the analytical job itself, not as a final tidy-up step.
+
+---
+
+## Q3 - Reporting and presentation experience for varied audiences
+
+**Question**
+
+Tell me of a time where you showcased information or presented information with a high level of accuracy, where you had to use charts, graphs, reports, scorecards, tables, dashboards, and similar outputs. What kind of information were you presenting? Any challenges that you faced? How did you overcome those challenges? What kind of audiences were you presenting to? And did the audience themselves prove a challenge to you? How and why?
+
+**Situation**
+- A strong example came from a monthly performance-review cycle where I had to present operational performance information drawn from large reporting datasets to a mixed audience with different priorities.
+- The information I was presenting covered reporting volume, case-open rate, confirmed-outcome quality, and segment-level performance differences. It was not enough to present the numbers accurately. The challenge was to present them in a way that different audiences could all use without misreading the position.
+
+**Task**
+- My task was to turn the reporting into a set of accurate, decision-useful outputs using tables, charts, scorecard-style summaries, and dashboard-style views, then present the findings clearly enough that each audience could understand what mattered to them without losing the analytical truth underneath the numbers.
+
+**Action**
+- I built the reporting pack around a small number of stable measures and used different output types for different purposes. Tables carried the exact figures and current-versus-prior comparisons. Charts and graphs made movement easier to see at a glance. Scorecard-style summaries highlighted the key indicators that needed attention. The wider dashboard-style structure helped people move from overall position to segment-level detail without having to read everything line by line.
+- The information itself was operational performance information: overall reporting volume, case-open rate, confirmed-outcome quality, and comparative segment performance. In that cycle, overall volume increased from `73,652,566` to `81,360,532`, while case-open rate held at `9.63%` and confirmed-outcome quality stayed effectively flat at `19.86%` versus `19.87%`. The key issue sat in the `50+` segment, where case-open rate rose to `10.82%` against a `9.49%` peer average while outcome quality sat at `18.11%` against a `20.09%` peer average.
+- One challenge was accuracy under complexity. The audience only saw the final charts and summaries, but the work behind them had to be reconciled properly first. I dealt with that by making sure the reporting base was built at the correct grain, validating it before presentation, and only then moving into the presentation layer.
+- Another challenge was the audience mix itself. Different people wanted different things from the same information. Some wanted a fast headline view, some wanted exact figures, and some wanted to know whether the movement was large enough to justify action. That meant the audience was a challenge in the sense that one presentation style would not work equally well for everyone. I handled that by using layered outputs: clear summaries first, then the supporting tables and comparisons underneath, and by changing my verbal explanation depending on who was asking the question.
+
+**Result**
+- The result was that the reporting could be used confidently across different audiences without creating confusion about the real position.
+- People who needed a quick view could see the headline through the scorecard and chart structure. People who needed precision had the supporting tables. And people making follow-up decisions could see that the overall picture was broadly stable, but that one segment was creating disproportionate burden and needed closer review.
+- That example is the clearest evidence I have of presenting information with a high level of accuracy across varied output formats and for varied audiences. The main thing it reinforced for me is that good reporting is not just about being correct. It is about being correct, readable, and usable for the people who need to act on it.
