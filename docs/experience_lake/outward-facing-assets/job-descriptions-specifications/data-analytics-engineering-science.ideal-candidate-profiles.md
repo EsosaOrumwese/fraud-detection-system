@@ -3831,3 +3831,275 @@ The strongest-fit candidate would likely go beyond generic analytics claims and 
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is an operations-close manufacturing data analyst who can build trusted data foundations, deploy usable dashboards and `KPI`s into shop-floor workflows, troubleshoot and improve operational-data issues, and work across manufacturing, enablement, and `IT` teams to support digital transformation. They are useful because they combine practical technical fluency, operational understanding, and user-focused improvement in a way that helps data become part of how the factory runs.
+
+---
+
+## Ideal Candidate Profile - Data Analyst - (Engineering and Maintenance) - Virgin Atlantic
+
+Source role:
+- `Data Analyst – (Engineering and Maintenance)`
+- `Virgin Atlantic`
+- <https://careers.virginatlantic.com/search-and-apply/data-analyst-engineering-and-maintenance>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not just a dashboard builder and not just a data scientist looking for modelling freedom. The employer is looking for an operations-facing data analyst who can support a critical engineering and maintenance function with trusted data models, usable dashboards, stakeholder-led solutions, and clear decision-support insight.
+
+This person would likely present as someone who is comfortable moving between:
+- operational analysis and trend identification
+- data modelling and dashboard/report development
+- cross-functional project support
+- stakeholder requirement gathering and translation into data solutions
+- data quality, consistency, and governance
+- cloud-based analytical tooling and internal digital environments
+- clear communication to mixed technical and non-technical audiences
+
+They would sound like someone who can make data useful inside a live engineering operation rather than someone who only produces polished outputs after the fact.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in a commercial or operational environment where analysis supports real business processes. Their story would show that they can build and maintain data models, dashboards, and reports; work with stakeholders on practical requirements; support internal tools and workflow improvements; and maintain strong data-quality standards in a fast-moving, evolving technical environment.
+
+They would likely have experience that sounds like this:
+- analysing operational data to identify trends, issues, and opportunities
+- building and maintaining dashboards, reports, and decision-support data models
+- supporting cross-functional analytical or digital projects
+- working with `Power BI`, cloud-based tools, and ideally `SQL`, `Python`, or `R`
+- improving reporting workflows, internal tools, or user-focused data solutions
+- communicating technical findings clearly to non-technical audiences
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants strong engineering-operations decision support
+
+The ideal candidate would sound like someone who can work close to operational teams and help them understand performance and make better decisions. They would likely show that they can identify trends and opportunities from data in a way that supports action, not just description.
+
+The candidate's evidence would likely include:
+- operational trend and insight analysis
+- support for process improvement through data
+- delivery of decision-support outputs in business-critical environments
+- practical understanding of how analytical work supports day-to-day operations
+
+#### B. If the employer wants strong data-model and dashboard capability
+
+The ideal candidate would sound like someone who can build more than static reports. They would likely show that they can create and maintain user-focused data models and dashboards that are reliable, accessible, and aligned to business needs.
+
+The candidate's evidence would likely include:
+- development and maintenance of data models
+- dashboard and reporting delivery
+- user-focused analytical or digital solutions
+- reliable delivery of accessible insight
+
+#### C. If the employer wants cross-functional collaboration and solution shaping
+
+The ideal candidate would not work in isolation from the business. They would also show that they can work with stakeholders to understand what is needed, clarify requirements, and contribute analytical input to broader projects and internal tool development.
+
+The candidate's evidence would likely include:
+- requirements gathering with stakeholders
+- translation of business needs into data solutions
+- contribution to cross-functional projects
+- support for internal tools, workflows, or reporting improvements
+
+#### D. If the employer wants strong data-quality and governance discipline
+
+The ideal candidate would sound like someone who understands that operations depend on trusted information. They would likely show that they can maintain quality, consistency, and governance standards rather than focusing only on visible outputs.
+
+The candidate's evidence would likely include:
+- attention to data quality, accuracy, and consistency
+- governance-aware analytical delivery
+- maintenance of trusted reporting or analytical assets
+- track record of dependable, detail-oriented execution
+
+#### E. If the employer wants practical fluency with cloud-based analytical tools
+
+The ideal candidate would sound like someone who can work across modern analytical tooling without treating tool exposure as the same thing as delivery. They would likely show that they can use platforms such as `Power BI`, `Azure`, `Databricks`, or `Power Platform` to support operational analytics in practice.
+
+The candidate's evidence would likely include:
+- hands-on `Power BI` work
+- use of cloud-based platforms in analytics or reporting
+- some exposure to `SQL`, `Python`, or `R`
+- familiarity with internal data products, digital tools, or web-based applications
+
+#### F. If the employer wants strong communication and collaborative operating style
+
+The ideal candidate would sound like someone who can make technical outputs understandable and can work constructively across teams. They would likely show that they can communicate clearly, contribute to shared outcomes, and keep developing in an evolving data environment.
+
+The candidate's evidence would likely include:
+- communication to non-technical audiences
+- collaborative working across teams
+- shared delivery on analytical or digital outcomes
+- willingness to learn and build capability over time
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can analyse operational data to identify trends, opportunities, and process improvements that matter in a live engineering or maintenance environment.
+- I can build and maintain data models, dashboards, and reports that provide reliable, accessible insight for business decision making.
+- I work well with stakeholders to understand requirements and translate them into practical analytical or digital solutions.
+- I take data quality, consistency, and governance seriously so that outputs are trusted and usable.
+- I am comfortable using modern cloud-based analytical tools such as `Power BI`, `Azure`, `Databricks`, or similar, and I can work across a broad technical stack where needed.
+- I communicate technical findings clearly to non-technical audiences and contribute positively across cross-functional teams in an evolving data environment.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the role title is broad, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- operational or commercial analytics experience
+- strong dashboard, reporting, and data-modelling capability
+- stakeholder-led solution development
+- data-quality and governance discipline
+- communication of technical outputs to non-technical users
+- practical cloud-tool fluency
+- collaborative working in an evolving technical environment
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- direct experience in aviation, engineering, maintenance, logistics, or another operationally critical environment
+- support for internal digital tools or data products
+- cloud-platform experience with `Databricks`, `Power Platform`, `Power BI`, or `Azure`
+- hands-on use of `SQL`, `Python`, or `R` to support reporting or analytical delivery
+- examples of improving workflows, reporting access, or decision quality
+- evidence of operating comfortably with mixed technical and non-technical stakeholders
+- strong detail orientation in environments where data quality and reliability matter
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is an operations-facing data analyst who can build trusted data models and dashboards, support engineering and maintenance teams with clear decision-ready insight, work effectively across stakeholders and technical tools, and maintain strong quality and governance standards in a live airline environment. They are useful because they combine analytical delivery, operational relevance, cloud-tool fluency, and disciplined execution in a way that helps data improve how the operation runs.
+
+---
+
+## Ideal Candidate Profile - Data Analyst - Nando's UK & IRE
+
+Source role:
+- `Data Analyst`
+- `Nando's UK & IRE`
+- <https://www.linkedin.com/jobs/view/4402449424/>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a narrow reporting analyst and not a pure data engineer. The employer is looking for a full-stack data analyst who can work across modelling, transformation, dashboards, analytical scoping, governance, and communication, while helping the business move toward a more mature, self-serve, and predictive data environment.
+
+This person would likely present as someone who is comfortable moving between:
+- complex `SQL` modelling and transformation-layer work
+- collaboration with data engineers on pipelines
+- report and dashboard delivery in a cloud `BI` environment
+- translation of business problems into well-defined analytical work
+- data-quality testing, documentation, and governance
+- version-controlled team workflows and peer review
+- practical use of `AI` tools with judgment and governance awareness
+
+They would sound like someone who can operate across the full analytics stack while staying grounded in business value and trustworthy data practice.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in a modern cloud data environment where analysts do more than pull data for dashboards. Their story would show that they can write complex `SQL`, maintain transformation models, support pipeline work, deliver self-serve business insight, apply data-quality discipline, and communicate clearly with stakeholders across technical and commercial domains.
+
+They would likely have experience that sounds like this:
+- building and maintaining transformation-layer models in `Dataform`, `DBT`, or similar tools
+- writing complex `SQL` using `CTEs`, window functions, and advanced modelling patterns
+- building `Looker` or similar `BI` dashboards for self-serve business use
+- collaborating with data engineers on pipeline design, coding, and testing
+- documenting models, lineage, and definitions to a production standard
+- translating ambiguous business questions into well-scoped analytical work
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants strong modelling and transformation-layer capability
+
+The ideal candidate would sound like someone who can do more than query existing tables. They would likely show that they can shape reliable analytical data models and understand how those models sit inside the broader cloud pipeline.
+
+The candidate's evidence would likely include:
+- complex `SQL` modelling
+- transformation-tool experience such as `Dataform`, `DBT`, or similar
+- awareness of how models serve downstream pipelines and reporting
+- ability to create reliable analytical data structures
+
+#### B. If the employer wants an analyst who can work across the full data stack
+
+The ideal candidate would sound like someone who is comfortable moving from data transformation to dashboards to pipeline collaboration. They would likely show that they can contribute meaningfully across the stack rather than only consuming curated data.
+
+The candidate's evidence would likely include:
+- support for data-pipeline design and testing
+- building `BI` outputs from cloud-based models
+- use of `Git` and engineering-style workflows
+- cross-stack contribution rather than narrow tool ownership
+
+#### C. If the employer wants strong business-problem translation rather than order-taking
+
+The ideal candidate would not jump straight to building outputs. They would also show that they can understand the domain, interrogate the real question, and scope analytical work in a way that produces useful outcomes.
+
+The candidate's evidence would likely include:
+- asking why before what
+- translation of business requests into actionable work items
+- comfort with ambiguity
+- product-minded thinking about business objectives
+
+#### D. If the employer wants strong self-serve insight delivery
+
+The ideal candidate would sound like someone who can build dashboards and reports that the business can trust and use without constant analyst intervention. They would likely show that they can create reliable, actionable, self-serve insight for operational and commercial users.
+
+The candidate's evidence would likely include:
+- `Looker` or similar dashboard development
+- reliable self-serve reporting
+- support for operational or commercial decision making
+- clear communication of performance and insight
+
+#### E. If the employer wants production-standard governance, quality, and documentation
+
+The ideal candidate would sound like someone who treats quality and governance as core delivery work. They would likely show that they can test data, identify issues early, document models and lineage properly, and communicate limitations honestly.
+
+The candidate's evidence would likely include:
+- writing tests and applying data-quality techniques
+- production-standard documentation
+- governance-aware data management
+- peer review and contribution to team standards
+
+#### F. If the employer wants practical modern engineering discipline and thoughtful `AI` use
+
+The ideal candidate would sound like someone who works in a disciplined, modern way rather than treating analytics as ad hoc craftsmanship. They would likely show that they can use `Git`, code review, automation, and `AI` assistance productively while understanding where judgment and governance still matter.
+
+The candidate's evidence would likely include:
+- standard use of `Git`, branching, and pull requests
+- automation of manual data tasks
+- critical use of `AI`-assisted coding tools
+- awareness of responsible `AI` use and data-governance implications
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can write complex `SQL` and build reliable transformation-layer models that serve the business through trusted pipelines and reporting.
+- I can work across the full analytics stack, contributing to pipeline work, self-serve dashboards, and business-facing analysis rather than only consuming prepared data.
+- I take the time to understand the business problem and domain before defining the analytical answer, so the work stays useful and actionable.
+- I build dashboards and reports that are reliable, self-serve, and grounded in clearly documented definitions and lineage.
+- I apply strong data-quality, documentation, and governance discipline, including testing, peer review, and honest communication of limitations.
+- I use modern workflows such as `Git`, automation, and `AI`-assisted coding thoughtfully to improve speed and quality without compromising judgment.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is simple, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- strong complex-`SQL` capability
+- transformation-tool experience such as `Dataform`, `DBT`, or similar
+- reliable `BI` and self-serve dashboard delivery
+- collaboration with data engineers on pipelines
+- strong data-quality, governance, and documentation discipline
+- clear communication across technical and non-technical audiences
+- product-minded analytical scoping and comfort with ambiguity
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- direct experience in a modern cloud data stack
+- hands-on `Dataform`, `DBT`, or closely related transformation-layer work
+- strong `Looker` or equivalent self-serve `BI` delivery
+- use of `Git` and peer review as normal team practice
+- examples of automating manual data work
+- evidence of supporting predictive analytics maturity or `AI` exploration responsibly
+- ability to move between commercial and technical conversations without losing clarity
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a full-stack data analyst who can model and transform reliable cloud data, collaborate with data engineers on pipelines, deliver trusted self-serve insight through `BI`, and translate ambiguous business questions into well-scoped, governed analytical work. They are useful because they combine analytics-engineering depth, communication strength, and product-minded judgment in a way that helps the business build a more mature and reliable data environment.

@@ -3870,3 +3870,294 @@ This posting is a strong manufacturing analytics and digital-enablement role cen
 - cross-site standardisation of `KPI`s and reporting
 
 It is a useful evidence point because it shows a data-analyst role that sits very close to operations and digital implementation rather than only retrospective reporting. The employer wants someone who can connect data capture, technical integration, operational users, and continuous improvement in a manufacturing setting where trusted data is part of enabling the future factory.
+
+---
+
+## Data Analyst - (Engineering and Maintenance) - Virgin Atlantic
+
+Source:
+- `Virgin Atlantic Careers` - <https://careers.virginatlantic.com/search-and-apply/data-analyst-engineering-and-maintenance>
+
+Role family:
+- `Data Analyst`
+- engineering and maintenance operations analytics
+- operational reporting, data modelling, and governance
+- cloud-enabled analytical delivery in a critical operational function
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Data Analyst` within `Engineering & Maintenance`, where data directly impacts how the airline operates every day.
+
+The role is positioned as supporting one of the most operationally critical areas of the business. It combines data modelling, dashboard and report development, insight generation, process-improvement support, and reliable delivery of accessible information across Engineering & Maintenance. The role also explicitly contributes to projects that improve efficiency, strengthen data quality, and support the development of internal tools and workflows.
+
+This is therefore not a generic reporting role. It is an engineering-operations analytics role that combines operational decision support, stakeholder-facing solution development, data-quality and governance discipline, cloud-platform fluency, and contribution to digital tools and data products inside an airline maintenance environment.
+
+### Responsibilities Evidence
+
+#### 1. Operational analysis and insight generation
+
+- Analyse data to identify trends across `Engineering & Maintenance`.
+- Analyse data to identify insights across `Engineering & Maintenance`.
+- Analyse data to identify opportunities across `Engineering & Maintenance`.
+- Generate insights that help teams understand performance.
+- Generate insights that help teams improve processes.
+- Generate insights that help teams make better-informed decisions.
+
+#### 2. Data models, dashboards, and reporting solutions
+
+- Develop data models.
+- Build dashboards.
+- Build reports.
+- Build data models to support operational decision making.
+- Maintain dashboards.
+- Maintain reports.
+- Maintain data models.
+- Deliver reliable and accessible insight across `Engineering & Maintenance`.
+
+#### 3. Cross-functional analytical and digital-solution support
+
+- Support cross-functional projects by providing timely analytical input.
+- Support cross-functional projects by providing accurate analytical input.
+- Collaborate with stakeholders to understand requirements.
+- Translate stakeholder requirements into data solutions.
+- Contribute to the development of internal tools.
+- Contribute to the development of workflows.
+- Contribute to reporting improvements.
+- Support delivery of analytical or digital solutions.
+
+#### 4. Data quality, consistency, and governance
+
+- Ensure data quality.
+- Ensure data consistency.
+- Ensure adherence to governance standards.
+- Strengthen data quality across `Engineering & Maintenance`.
+- Maintain strong attention to detail in analytical delivery.
+
+#### 5. Communication and stakeholder-facing delivery
+
+- Present insights in a clear way for a range of audiences.
+- Present insights in an accessible way for a range of audiences.
+- Communicate technical outputs clearly to non-technical audiences.
+- Work with stakeholders to understand requirements.
+- Work collaboratively across teams and contribute to shared outcomes.
+
+#### 6. Tooling, cloud platforms, and evolving technical environment
+
+- Work across a range of analytical tools and technologies.
+- Work across a range of reporting tools and technologies.
+- Work across a range of data-science tools and technologies.
+- Use or have exposure to `SQL`, `Python`, `R`, or similar tools.
+- Work with cloud-based platforms and tools.
+- Work with platforms and tools such as `Databricks`, `Power Platform`, `Power BI`, and `Azure`.
+- Work with internal digital tools, data products, or web-based applications.
+- Build capability within a data-driven and evolving technical environment.
+
+### Person Specification Evidence
+
+#### 1. Relevant analytical and operational experience
+
+- Demonstrable experience in data analysis. Required.
+- Demonstrable experience in `BI` reporting. Required.
+- Demonstrable experience in data modelling. Required.
+- Demonstrable experience in digital solutions or related data-science work. Required.
+- Experience within a commercial or operational environment. Required.
+
+#### 2. Technical and platform capability
+
+- Broad technical aptitude. Required.
+- Experience working across a range of analytical, reporting, or data-science tools and technologies. Required.
+- Exposure to `SQL`, `Python`, `R`, or similar tools. Advantageous.
+- Experience working with cloud-based platforms and tools such as `Databricks`, `Power Platform`, `Power BI`, `Azure`, or similar. Essential.
+- Exposure to internal digital tools, data products, or web-based applications. Beneficial.
+
+#### 3. Delivery, insight, and communication capability
+
+- Evidence of building and maintaining data models, dashboards, reports, or user-focused data solutions that support business decision making. Required.
+- Proven ability to analyse data, identify trends, and translate findings into clear, actionable outputs. Required.
+- Experience working with stakeholders to understand requirements and support delivery of analytical or digital solutions. Required.
+- Ability to communicate technical outputs clearly to non-technical audiences. Required.
+
+#### 4. Quality, collaboration, and development mindset
+
+- Strong attention to detail, with a track record of ensuring data quality, accuracy, and consistency. Required.
+- Evidence of working collaboratively across teams and contributing to shared outcomes. Required.
+- Demonstrated willingness to learn, develop, and build capability within a data-driven and evolving technical environment. Required.
+
+### Additional Process and Environment Evidence
+
+- Role is `Permanent`.
+- Hours are `37.5` per week, Monday to Friday.
+- Role is hybrid, with `3` days a week at the `Virgin Atlantic Hangar`, Heathrow.
+- There is occasional travel to the `VHQ, Crawley` site.
+- Employer states that applications are reviewed on a first-come, first-served basis and may close early on high volume.
+- Role sits inside an airline `Engineering & Maintenance` environment, which the employer explicitly describes as operationally critical.
+
+### Hiring Signal Summary
+
+This posting is a strong engineering-operations analytics role centred on:
+- data modelling, dashboarding, and operational decision-support within airline engineering and maintenance
+- identification of trends, insights, and opportunities in a critical operational area
+- support for cross-functional analytical and digital-solution projects
+- strong data-quality, consistency, and governance discipline
+- stakeholder-facing requirements gathering and communication of accessible insights
+- practical use of cloud-based analytical tooling such as `Databricks`, `Power Platform`, `Power BI`, and `Azure`
+- contribution to internal tools, workflows, and reporting improvements in an evolving technical environment
+
+It is a useful evidence point because it shows a role where analysis is embedded into operational reliability and process improvement rather than being detached from delivery. The employer wants someone who can combine technical analytical capability, cloud-tool fluency, stakeholder translation, and governance-minded execution inside a live engineering and maintenance environment.
+
+---
+
+## Data Analyst - Nando's UK & IRE
+
+Source:
+- `LinkedIn Jobs` - <https://www.linkedin.com/jobs/view/4402449424/>
+
+Role family:
+- `Data Analyst`
+- analytics engineering and business intelligence
+- cloud data modelling and self-serve insight delivery
+- business-problem translation and data-product minded analysis
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Data Analyst` in the `Data and Analysis Team`, with remit to ensure people have access to the right information at the right time and that `Nando's` gets the best value from its data to achieve business goals.
+
+The role is explicitly broader than conventional reporting. It combines complex `SQL` modelling, support for pipeline design and testing, `Looker` reporting, business-problem translation, peer review, data-quality standards, documentation, automation, and active contribution to a more mature cloud data environment. The wider team context also emphasises a single source of accurate and timely data, increasing data maturity, predictive analytics, and exploration of `AI` in the business.
+
+This is therefore not a generic BI analyst role. It is a full-stack analytics role operating across transformation-layer modelling, self-serve insight delivery, governance and documentation, workflow automation, and business-facing analytical translation inside a modernising digital and data function.
+
+### Responsibilities Evidence
+
+#### 1. SQL modelling and transformation-layer ownership
+
+- Write `SQL` models in `Dataform`.
+- Maintain `SQL` models in `Dataform`.
+- Transform data across pipelines.
+- Serve reliable data across pipelines.
+- Write complex `SQL` to query, transform, and model data across the cloud data platform.
+- Work with window functions, `CTEs`, and complex data types.
+- Build and maintain data models in `Dataform` or a similar transformation tool.
+- Understand how transformation models fit into the broader pipeline.
+
+#### 2. Pipeline support and collaboration with data engineering
+
+- Support data engineers in the design of data pipelines.
+- Support data engineers in the building of data pipelines.
+- Support data engineers in the testing of data pipelines.
+- Contribute meaningfully to pipeline work rather than only consuming outputs.
+- Support data engineers in designing, coding, and testing data-processing pipelines.
+
+#### 3. BI, dashboards, and self-serve business insight
+
+- Build cloud-based reports and dashboards in `Looker` or a similar `BI` tool.
+- Iterate on cloud-based reports and dashboards.
+- Give support teams clear, actionable insight into performance.
+- Give restaurants clear, actionable insight into performance.
+- Build reports and dashboards that serve reliable, self-serve data to the business.
+
+#### 4. Business-problem translation and analytical scoping
+
+- Translate business questions into well-scoped analysis.
+- Understand the problem and domain before reaching for the answer.
+- Contribute to translation of business problems into well-defined, actionable work.
+- Contribute to translation of business requests into clearly scoped, actionable work items.
+- Understand the `why` behind requests before jumping to the `what`.
+- Work across a wide range of domains including financial and operational data, kitchen tech, and stock.
+
+#### 5. Communication and stakeholder-facing delivery
+
+- Communicate findings clearly to technical stakeholders.
+- Communicate findings clearly to non-technical stakeholders.
+- Choose the right medium for the audience.
+- Explain complex findings in plain language.
+- Tell the story behind the data.
+- Present findings to senior stakeholders.
+
+#### 6. Data quality, governance, documentation, and review culture
+
+- Peer review colleagues' work.
+- Contribute to data-quality standards.
+- Contribute to documentation.
+- Apply data-quality techniques.
+- Write tests.
+- Identify issues proactively.
+- Communicate data limitations clearly.
+- Document data models to a production standard.
+- Document definitions to a production standard.
+- Document lineage to a production standard.
+- Understand data-governance principles.
+- Champion good data-management practice within the team.
+
+#### 7. Workflow improvement, automation, and engineering practice
+
+- Identify opportunities to automate manual processes and data tasks.
+- Take the initiative to implement automation opportunities.
+- Use `Git` as standard practice.
+- Work with branching, pull requests, and code review.
+- Improve the speed and quality of work using `AI`-assisted coding tools such as `Claude`.
+- Use `AI` critically rather than blindly.
+- Work with awareness of responsible `AI` use and data-governance implications.
+
+#### 8. Statistical and analytical judgment
+
+- Apply relevant statistical methods to support analysis.
+- Understand when to use relevant statistical methods to support analysis.
+
+### Person Specification Evidence
+
+#### 1. Core technical and modelling capability
+
+- Proven experience writing complex `SQL`. Required.
+- Proven experience querying, transforming, and modelling data across a cloud data platform. Required.
+- Experience building and maintaining data models in `Dataform`, or similar tools such as `Snowflake` or `DBT`. Required.
+- Experience building reports and dashboards in `Looker` or a similar `BI` tool. Required.
+- Use of `Git` as standard practice including branching, pull requests, and code review. Required.
+
+#### 2. Data quality, documentation, and governance capability
+
+- Applying data-quality techniques. Required.
+- Writing tests. Required.
+- Identifying issues proactively. Required.
+- Communicating data limitations clearly. Required.
+- Documenting data models, definitions, and lineage to a production standard. Required.
+- Understanding data-governance principles and championing good data-management practice. Required.
+
+#### 3. Analytical and delivery capability
+
+- Applying and understanding when to use relevant statistical methods to support analysis. Required.
+- Supporting data engineers in designing, coding, and testing data-processing pipelines. Required.
+- Contributing to translation of business requests into clearly scoped, actionable work items. Required.
+- Building reports and dashboards that serve reliable, self-serve data to the business. Required.
+
+#### 4. Communication, mindset, and operating style
+
+- Clear communication with technical and non-technical stakeholders. Required.
+- Genuine intellectual curiosity. Required.
+- Comfort with ambiguity. Required.
+- Product mindset, understanding the business objective behind every piece of analysis. Required.
+- Proactive approach to improving processes, data quality, and ways of working. Required.
+- Collaborative team attitude, including peer review and knowledge sharing. Required.
+- Willingness to explore new tools and methods including `AI`. Required.
+
+### Additional Process and Environment Evidence
+
+- Role sits inside a rapidly grown `tech team`.
+- Team remit is to ensure the business has the right information at the right time.
+- Team's current focus includes creating a single source of accurate, timely data.
+- Wider team context explicitly includes increasing data maturity, advancing predictive analytic capability, and exploring the role of `AI` in the business.
+- Employer frames the role as working independently across the full data stack, while being supported by a collaborative team.
+- Domains explicitly include finance, operations, kitchen tech, and stock.
+- `Nando's` values section foregrounds `Pride`, `Passion`, `Courage`, `Integrity`, and `Family`.
+
+### Hiring Signal Summary
+
+This posting is a strong full-stack analytics and analytics-engineering role centred on:
+- complex `SQL` modelling and transformation-layer work in `Dataform`
+- collaboration with data engineering on pipeline design, build, and testing
+- self-serve `BI` delivery through `Looker` or similar tools
+- business-problem translation, domain understanding, and product-minded analytical scoping
+- data-quality testing, governance, documentation, and peer-review discipline
+- workflow automation and modern engineering practice using `Git`
+- thoughtful use of `AI`-assisted coding inside a governed data environment
+
+It is a useful evidence point because it shows a role where the employer wants far more than report production. They want someone who can work across modelling, transformation, pipeline collaboration, governance, and business-facing insight delivery in a way that helps build a more mature, reliable, and scalable data environment.
