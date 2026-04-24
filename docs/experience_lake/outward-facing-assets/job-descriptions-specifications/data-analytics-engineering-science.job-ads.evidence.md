@@ -3426,3 +3426,447 @@ This posting is a strong applied science and analytical decision-support role ce
 - `Python`, scientific computing, advanced analysis / visualisation tooling, and software-quality discipline
 
 It is a useful evidence point because it shows a role where the employer wants more than technical science capability. They want someone who can convert scientific expertise into decision-support outputs for high-stakes users, communicate credibly across technical and stakeholder settings, and work with enough computing and software-quality rigour to make the science operationally useful.
+
+---
+
+## Information Analyst - Band 5 x 3 - Gloucestershire Hospitals NHS Foundation Trust
+
+Source:
+- `NHS Jobs` - <https://www.jobs.nhs.uk/candidate/jobadvert/C9318-26-0301>
+- Job description and person specification provided by user
+
+Role family:
+- `Information Analyst`
+- divisional NHS business intelligence and performance analytics
+- operational intelligence, target compliance, and forecasting support
+- stakeholder-facing reporting and information service delivery
+
+### Job Purpose Evidence
+
+The employer frames this role as an `Information Analyst` within the `Business Intelligence Unit`, with three vacancies supporting either the `Surgery Division` or the `Medicine Division`.
+
+The role is positioned as a focused, high-quality specialist information service for the Trust and external stakeholders, including the `DoH`. The job description explicitly ties the post to business-intelligence software, database interrogation, statistical analysis, forecast modelling, activity planning, target compliance, benchmarking, and operational intelligence. It also emphasises daily to quarterly information flows, divisional support, and informing strategic decision making.
+
+This is therefore not a generic junior analyst role. It is a divisional `NHS` BI and performance-support role centred on converting complex operational and clinical data into validated intelligence, supporting managers and clinicians, maintaining information flows, and helping the Trust manage performance, planning, and efficiency.
+
+### Responsibilities Evidence
+
+#### 1. Specialist information provision and information-flow ownership
+
+- Provide a focused, high-quality specialist information service for the Trust.
+- Support the information requirements of the Trust.
+- Support the information requirements of outside agencies and stakeholders including the `DoH`.
+- Ensure daily information flows are met in accordance with Trust and external requirements.
+- Ensure weekly information flows are met in accordance with Trust and external requirements.
+- Ensure monthly information flows are met in accordance with Trust and external requirements.
+- Ensure quarterly information flows are met in accordance with Trust and external requirements.
+- Provide managers with timely and accurate information.
+- Support performance requirements through timely and accurate information.
+- Inform the strategic decision-making process through timely and accurate information.
+
+#### 2. BI, database interrogation, analysis, and forecasting
+
+- Use business-intelligence software.
+- Interrogate large volumes of highly complex data.
+- Use a variety of robust statistical methods.
+- Use a variety of robust analytical methods.
+- Turn complex data into intelligence.
+- Implement activity forecasting models for delegated information streams.
+- Adjust activity forecasting models for delegated information streams.
+- Make use of `SQL` and other information analysis or collection tools.
+- Undertake statistical analysis.
+- Undertake forecast modelling.
+- Undertake activity planning.
+- Support target compliance.
+
+#### 3. Performance management, benchmarking, and anomaly detection
+
+- Incorporate specified benchmarking information into analysis.
+- Use benchmarking information to inform management decision making.
+- Monitor key targets.
+- Inform relevant managers of anomalies and exceptions.
+- Instigate remedial corrective action when appropriate.
+- Proactively review and analyse data.
+- Interpret information produced within the department.
+- Highlight deviations from targets and trends.
+- Bring key issues to the attention of relevant managers with recommendations for possible action.
+- Provide professional support and advice on performance information to local divisional management teams.
+
+#### 4. Reporting, presentations, and ad hoc information support
+
+- Provide information requested by directors and senior managers on a regular basis.
+- Provide information requested by directors and senior managers on an ad hoc basis.
+- Present verbal reports.
+- Present written reports.
+- Present information with a high level of accuracy to a wide range of audiences.
+- Produce outputs such as charts, graphs, reports, scorecards, tables, and dashboards.
+- Report to the Divisional Information Manager on operational issues and achievement of agreed targets for delegated information streams.
+
+#### 5. Data quality, validation, governance, and risk awareness
+
+- Highlight any areas of concern with regard to data quality and accuracy.
+- Undertake appropriate action regarding data quality and accuracy concerns.
+- Update and adapt systems within the remit of the post to ensure the accuracy and validity of information at all times.
+- Apply robust and consistent validation processes to ensure accuracy of information requested by senior staff.
+- Report identified errors or poor-quality data where information-reporting accuracy may be affected.
+- Contribute to maintenance of good corporate and clinical governance arrangements.
+- Contribute to risk management by informing the Divisional Information Manager of any potential risk or breach of compliance.
+- Maintain confidentiality at all times.
+- Ensure compliance with the Data Protection Act.
+
+#### 6. Stakeholder engagement, negotiation, and expectation management
+
+- Work closely with clinicians and senior managers to understand their needs.
+- Develop effective reporting tools.
+- Deliver insights that support informed decision making.
+- Build positive relationships that help improve patient care.
+- Engage with senior staff at a professional level to identify management-information needs.
+- Negotiate deadlines.
+- Prioritise workload when there are conflicting deadlines.
+- Challenge and manage user expectations.
+- Work in partnership with other teams and external organisations.
+
+#### 7. Independent working, team contribution, and development support
+
+- Work as part of a team of analysts.
+- Work independently at times and manage own workload.
+- Take a proactive approach to prioritising and negotiating deadlines.
+- Support the development of other members within the team.
+- Share knowledge with other `Business Intelligence` team members.
+- Train more junior members of the team.
+- Embrace new skills and ways of working and positively influence junior team members.
+
+### Person Specification Evidence
+
+#### 1. Education and baseline capability
+
+- Bachelor's degree or equivalent educational level. Essential.
+- Degree-level education or equivalent `NHS` previous information-management experience. Required in job description context.
+
+#### 2. Core analytical, technical, and domain knowledge
+
+- Intermediate knowledge and highly skilled use of `MS Excel`. Essential.
+- Analytical mindset and ability to explain trends and themes in data. Essential.
+- Good understanding of the importance of data quality. Essential.
+- Firm understanding of `SQL` and ability to write queries. Desirable.
+- Basic knowledge and understanding of `NHS Data Dictionary` including datasets and data standards. Desirable.
+- Good understanding of patient pathways. Desirable.
+- Intermediate level of technical specialist knowledge of information systems. Required in job description context.
+
+#### 3. Reporting and communication capability
+
+- Ability and experience to present information with a high level of accuracy to a wide range of audiences both verbally and electronically. Essential.
+- Excellent communication skills. Essential.
+- Negotiating and influencing skills. Required in job description context.
+
+#### 4. Personal attributes and operating style
+
+- Ability to challenge and manage user expectations. Essential.
+- Excellent problem-solving skills in the development of advanced analytical methodologies. Essential.
+- Lead by example. Essential.
+- Ability to exercise own initiative and work independently to achieve objectives and deadlines. Essential.
+- Attention to detail. Essential.
+
+### Additional Process and Environment Evidence
+
+- There are `three` full-time vacancies: `two` supporting `Surgery` and `one` supporting `Medicine`.
+- Role sits in the `Business Intelligence Unit` within the `Corporate` division.
+- The Trust frames this as an exciting time to join the `GHFT BI` team.
+- Employer cites national recognition including `Health Tech Newspaper Award for Best Use of Data (2020)` and `AphA's Analytical Team of the Year`.
+- The Trust states it is progressing rapidly with its `Digital BI` strategy.
+- Future plans explicitly include expanding the use of machine learning and predictive analytics.
+- Hybrid working is available after a qualifying period, with `2-3` days per week on site.
+- Proposed interview date is during the week commencing `11th May 2026`.
+- Working relationships explicitly span clinicians, consultants, general managers, senior nurses, allied health professionals, coding and systems teams, audit staff, local trusts, `ICBs`, social services, patients, and the public.
+
+### Hiring Signal Summary
+
+This posting is a strong divisional `NHS` business-intelligence and performance role centred on:
+- high-quality information provision for internal and external stakeholders
+- interrogation of large, complex datasets using `BI` tools, `SQL`, and robust analytical methods
+- forecasting, activity planning, target compliance, benchmarking, and operational intelligence
+- proactive performance interpretation, anomaly detection, and recommendation of corrective action
+- strong data-quality, validation, governance, and confidentiality discipline
+- clinician and senior-manager engagement, expectation management, and decision-support reporting
+- team contribution inside a maturing `Digital BI` function with future-facing interest in predictive analytics
+
+It is a useful evidence point because it shows a Band 5 `NHS` information role that is broader and more operationally serious than routine reporting. The employer wants someone who can combine divisional stakeholder support, validated performance intelligence, planning and forecasting work, and practical relationship management inside a recognised `BI` team.
+
+---
+
+## Analyst - OFGEM
+
+Source:
+- `Civil Service Jobs` - <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=am9ibGlzdF92aWV3X3ZhYz0xOTkzNzY1Jm93bmVydHlwZT1mYWlyJnBhZ2VjbGFzcz1Kb2JzJm93bmVyPTUwNzAwMDAmcGFnZWFjdGlvbj12aWV3dmFjYnlqb2JsaXN0JnNlYXJjaHNvcnQ9c2NvcmUmc2VhcmNocGFnZT0yJnVzZXJzZWFyY2hjb250ZXh0PTE4NDcyNzcxMSZyZXFzaWc9MTc3Njc5NjEyNS1hOGQ4MTI4YzQxM2FmNTUwNmM5MTMyNzI5ZTQ4NGQ2ZjU1NGY3MGZj>
+- Role profile provided by user
+- Candidate pack provided by user
+
+Role family:
+- `Analyst`
+- regulatory analytics and market intelligence
+- consumer protection and competition monitoring
+- policy-support and regulatory decision analytics
+
+### Job Purpose Evidence
+
+The employer frames this role as an `Analyst` in `Ofgem`'s `Consumer Protection and Competition` directorate, deployed into either the `Consumer & Compliance Intelligence` team or the `Market Intelligence` team.
+
+The role is positioned at the heart of energy retail regulation. It combines regular monitoring and reporting on competition, consumer protection, supplier and market performance, and the impacts of retail energy policies and regulation. The role also explicitly supports pricing and consumer-protection decisions and is described as high-profile work that can inform senior regulatory and policy decisions.
+
+This is therefore not a generic analyst role. It is a public-interest regulatory analytics role operating across market monitoring, intelligence dissemination, policy support, regulatory outputs, stakeholder management, and rapid-response analytical work in a changing energy market.
+
+### Responsibilities Evidence
+
+#### 1. Monitoring, BAU analytics, and large-dataset handling
+
+- Contribute to the implementation of `BAU` activity to regularly monitor and analyse evidence.
+- Handle large data sets.
+- Run existing monitoring activity.
+- Issue new information requests to third parties.
+- Support monitoring and reporting on supplier consumer and market performance data.
+- Understand and work with reporting frameworks used to collect and analyse data from licensees.
+- Contribute to regular monitoring and reporting on competition indicators.
+- Contribute to regular monitoring and reporting on customer-protection indicators.
+
+#### 2. Intelligence production, dissemination, and regulatory outputs
+
+- Manage the internal dissemination of intelligence updates and insights.
+- Disseminate updates and insights for the benefit of seniors and other colleagues across `Ofgem`.
+- Contribute to analytical reports.
+- Contribute to briefings to seniors.
+- Contribute to regulatory decisions.
+- Support written deliverables for internal audiences.
+- Support written deliverables for external audiences.
+- Produce analysis insights that inform decision making across `Ofgem`.
+
+#### 3. Policy support, decision support, and rapid-response analysis
+
+- Support the assessment of the impacts of retail energy policies and regulation.
+- Support policy development.
+- Support other decision-making activity as required.
+- Co-ordinate delivery of unplanned data requests.
+- Deliver unplanned data requests often at pace.
+- Respond to unplanned data requests at pace.
+- Formulate pragmatic options under uncertainty.
+- Present actionable information to decision makers.
+
+#### 4. Stakeholder engagement and analytical scoping
+
+- Engage with internal stakeholders to scope analytical input.
+- Agree analytical input and evidence necessary for monitoring and policy purposes.
+- Engage with external stakeholders including other government departments.
+- Engage with external stakeholders including energy suppliers.
+- Engage with external stakeholders including consumer bodies.
+- Ensure timely provision of insights and analysis.
+- Ensure accurate provision of insights and analysis.
+- Build effective relationships with internal and external stakeholders.
+- Create space for constructive, open, and transparent engagement.
+
+#### 5. Market, consumer, and regulatory understanding
+
+- Understand the complexities of the energy retail market.
+- Understand licence conditions.
+- Understand consumer-protection issues.
+- Understand competition issues in the energy retail market.
+- Apply analytical work to benefits for consumers, communities, or society.
+
+#### 6. Tooling, efficiency improvement, and analytical technology use
+
+- Use data-management and manipulation tools to produce insightful analysis.
+- Use some or all of `Excel`, `Power BI`, and `Python/R`.
+- Seek opportunities to enhance the efficiency of data collection and analysis.
+- Seek opportunities to enhance the accuracy of data collection and analysis.
+- Use data-analysis tools and technology to improve analytical work.
+
+### Person Specification Evidence
+
+#### 1. Core analytical capability
+
+- Good analytical skills. Essential.
+- Proficiency in working with large volumes of data. Essential.
+- Ability to use data-analytical skills to work with uncertainty. Essential and lead criterion.
+- Ability to solve problems. Essential and lead criterion.
+- Ability to formulate pragmatic options. Essential and lead criterion.
+- Ability to present actionable information to decision makers. Essential and lead criterion.
+
+#### 2. Relevant sector and project experience
+
+- Experience of providing data-analytical input or assurance into consultancy, government, policy, regulatory, or energy-sector projects. Essential.
+- Experience on projects that deliver benefits for consumers, communities, or society. Essential.
+- Good sector knowledge including commercial understanding of the energy sector and/or consumer-related issues. Desirable.
+
+#### 3. Tooling and analytical production capability
+
+- Effective use of data-management and manipulation tools to produce insightful analysis. Essential.
+- Proficiency in some or all of `Excel`, `Power BI`, and `Python/R`. Essential.
+
+#### 4. Stakeholder and communication capability
+
+- Ability to build effective relationships with internal and external stakeholders. Essential.
+- Ability to create space for constructive, open, and transparent engagement. Essential.
+- Good written communication skills that effectively communicate analysis insights to non-expert audiences. Essential.
+- Good verbal communication skills that effectively communicate analysis insights to non-expert audiences. Essential.
+
+### Additional Process and Environment Evidence
+
+- There are `two` permanent positions.
+- Locations are `Cardiff`, `Glasgow`, or `London`.
+- Role sits in `Ofgem`'s `Analysis Profession`.
+- Candidate pack frames the work as protecting consumers today while helping build the decarbonised energy system of the future.
+- Candidate pack describes the role family as part of a wider `Analysis Profession` split into `Economics`, `Behavioural science and research`, `Regulatory finance and modelling`, and `Analysts`.
+- Candidate pack emphasises both qualitative and quantitative analysis and the ability to hypothesise to a world that does not yet exist.
+- Recruitment process includes a `1250` word supporting statement and an `Excel` test.
+- Role is `Band 2A`, equivalent to `HEO`.
+- Security clearance is `BPSS`, with a note that `SC` may be required at a future stage.
+- Hybrid working is available, with current minimum office attendance of `20%` over the month.
+- The advert and pack both sit inside a Civil Service and public-regulation environment with emphasis on honesty, fairness, openness, and conflicts-of-interest management.
+
+### Hiring Signal Summary
+
+This posting is a strong regulatory analytics and market-intelligence role centred on:
+- large-scale monitoring and analysis of supplier, consumer, and market performance data
+- competition and consumer-protection intelligence inside energy retail regulation
+- regulatory reporting, briefings, and decision-support outputs
+- fast turnaround on unplanned analytical requests under uncertainty
+- stakeholder engagement across policy, compliance, suppliers, consumer bodies, and government
+- practical use of `Excel`, `Power BI`, and `Python/R` to produce actionable analysis
+- public-interest orientation around consumers, pricing, fairness, and market development
+
+It is a useful evidence point because it shows a role where analysis is tightly coupled to regulation and public-interest decision making. The employer wants someone who can combine technical data handling, policy-support judgement, stakeholder credibility, and pace in a live market-monitoring environment rather than someone who only produces detached analytical outputs.
+
+---
+
+## Data Analyst - Manufacturing & Digital Enablement - Siemens Healthineers
+
+Source:
+- `Siemens Healthineers Careers` - <https://jobs.siemens.com/en_US/externaljobs/JobDetail/501864>
+
+Role family:
+- `Data Analyst`
+- manufacturing analytics and digital enablement
+- shop-floor operational data and KPI deployment
+- data-foundation and pipeline-adjacent operational support
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Data Analyst - Manufacturing & Digital Enablement` in a manufacturing enablement environment, focused on supporting operational performance and the factory of the future.
+
+The role is explicitly positioned at the intersection of manufacturing processes and data analytics. Rather than only analysing existing datasets, the postholder is expected to shape how operational data is captured from systems, sensors, and physical tools, ensure that it becomes reliable and trusted, and help embed dashboards, KPIs, and monitoring tools into day-to-day operational workflows.
+
+This is therefore not a generic dashboard role. It is an operations-close manufacturing analytics role combining data-collection design, pipeline and integration support, KPI deployment, troubleshooting, user adoption, documentation, and continuous improvement across manufacturing and supply-chain environments.
+
+### Responsibilities Evidence
+
+#### 1. Data capture design and trusted operational data foundations
+
+- Design data-collection approaches across manufacturing environments.
+- Design data-collection approaches across supply-chain environments.
+- Implement data-collection approaches across manufacturing environments.
+- Implement data-collection approaches across supply-chain environments.
+- Work with system-based data sources.
+- Work with physical data sources.
+- Help shape how data is collected in the first place.
+- Ensure operational data is reliable.
+- Ensure operational data is meaningful.
+- Ensure operational data is trusted.
+
+#### 2. Dashboard, KPI, and monitoring-solution deployment
+
+- Deploy analytics solutions into day-to-day operational workflows.
+- Integrate analytics solutions into day-to-day operational workflows.
+- Deploy dashboards into operational workflows.
+- Deploy KPIs into operational workflows.
+- Deploy monitoring tools into operational workflows.
+- Support deployment of performance dashboards.
+- Cover areas such as productivity, quality, yield, scrap, and schedule adherence.
+- Support standardisation of KPIs and reporting across sites.
+
+#### 3. Data pipelines, integration, and technical maintenance
+
+- Configure data pipelines.
+- Validate data pipelines.
+- Maintain data pipelines.
+- Ensure accuracy of operational data.
+- Ensure consistency of operational data.
+- Ensure availability of operational data.
+- Work with data integration and pipeline concepts.
+- Work with tools and platforms such as `Azure`, `SQL`, `APIs`, and `SAP` data structures.
+
+#### 4. Shop-floor support, adoption, and troubleshooting
+
+- Work directly with end users on the shop floor.
+- Work directly with enablement teams.
+- Support adoption of data tools.
+- Support training in the effective use of data tools.
+- Act as a first point of contact for troubleshooting data and analytics issues.
+- Escalate issues where required.
+- Gather feedback from users.
+- Continuously improve solutions to better support operational decision making.
+
+#### 5. Root-cause analysis, recommendations, and improvement
+
+- Perform root-cause analysis on data-related operational issues.
+- Translate findings into practical recommendations.
+- Turn practical insights into real improvements on the shop floor.
+- Support continuous improvement initiatives.
+- Better support operational decision making through improved solutions.
+
+#### 6. Documentation and standardisation
+
+- Maintain clear documentation for data flows.
+- Maintain clear documentation for `KPI` definitions.
+- Maintain clear documentation for user guidance.
+- Contribute to standardisation of `KPI`s and reporting across sites.
+
+### Person Specification Evidence
+
+#### 1. Environment and domain experience
+
+- Experience working with data and analytics in a manufacturing environment. Required.
+- Experience working with data and analytics in an industrial environment. Required.
+- Experience working with data and analytics in a supply-chain environment. Required.
+- Understanding of how operational data is generated on the shop floor. Required.
+- Understanding of how operational data can be used to improve performance. Required.
+
+#### 2. BI, integration, and platform capability
+
+- Hands-on experience with business-intelligence and visualisation tools such as `Power BI`. Required.
+- Familiarity with data integration and pipeline concepts. Required.
+- Familiarity with tools and platforms such as `Azure`, `SQL`, `APIs`, and `SAP` data structures. Required.
+
+#### 3. Insight translation and stakeholder capability
+
+- Ability to translate complex data into clear, practical insights for a range of stakeholders. Required.
+- Strong communication skills. Required.
+- Strong collaboration skills. Required.
+- Confidence working across technical and non-technical teams. Required.
+
+#### 4. Operating style and educational grounding
+
+- Structured mindset. Required.
+- Curious mindset. Required.
+- Improvement-focused mindset. Required.
+- Degree or equivalent experience in `Data Analytics`, `Industrial Engineering`, `Supply Chain`, or a related discipline. Required.
+
+### Additional Process and Environment Evidence
+
+- Role is `Full-time`, `Permanent`, and `Office/Site only`.
+- Locations are `Bicester - Oxfordshire` and `Oxford - Oxfordshire`.
+- Role sits inside `Siemens HC Ltd. MR Magnet Technology`.
+- Employer frames the role as being close to operations and the shop floor.
+- Employer explicitly links the role to future digital transformation initiatives, including advanced analytics and automation.
+- The team context is positioned as part of the operational backbone behind healthcare technology and better patient outcomes.
+- Role is an individual-contributor position working closely with manufacturing, enablement, and `IT` teams.
+
+### Hiring Signal Summary
+
+This posting is a strong manufacturing analytics and digital-enablement role centred on:
+- designing and improving operational data capture from systems, sensors, and physical tools
+- building trusted data foundations for manufacturing and supply-chain use cases
+- deploying dashboards, `KPI`s, and monitoring tools into operational workflows
+- pipeline-adjacent technical work across `Azure`, `SQL`, `APIs`, and `SAP` structures
+- supporting shop-floor adoption, training, troubleshooting, and continuous improvement
+- root-cause analysis and practical recommendation-making tied to operational performance
+- cross-site standardisation of `KPI`s and reporting
+
+It is a useful evidence point because it shows a data-analyst role that sits very close to operations and digital implementation rather than only retrospective reporting. The employer wants someone who can connect data capture, technical integration, operational users, and continuous improvement in a manufacturing setting where trusted data is part of enabling the future factory.

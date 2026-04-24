@@ -3420,3 +3420,414 @@ The strongest-fit candidate would likely go beyond generic science claims and sh
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is an applied scientist who can analyse environmental and climate-related data, model impacts and risks, work closely with users to shape relevant solutions, and communicate scientific outputs clearly in support of defence and security decision making. They are useful because they combine domain-science credibility, analytical computing strength, stakeholder translation, and delivery discipline in a way that makes the science operationally usable.
+
+---
+
+## Ideal Candidate Profile - Information Analyst - Band 5 x 3 - Gloucestershire Hospitals NHS Foundation Trust
+
+Source role:
+- `Information Analyst - Band 5 x 3`
+- `Gloucestershire Hospitals NHS Foundation Trust`
+- <https://www.jobs.nhs.uk/candidate/jobadvert/C9318-26-0301>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not just someone who can build reports when asked. The employer is looking for a divisional `NHS` BI analyst who can work closely with clinicians and senior managers, interrogate complex operational and clinical datasets, maintain reliable information flows, and provide performance intelligence that supports service delivery, planning, and target management.
+
+This person would likely present as someone who is comfortable moving between:
+- routine and ad hoc information provision
+- complex-data interrogation and validation
+- operational intelligence, benchmarking, and target monitoring
+- activity forecasting and planning support
+- stakeholder engagement, expectation management, and recommendation of action
+- governance, confidentiality, and risk awareness
+- team contribution within a developing `Digital BI` environment
+
+They would sound like someone who can provide a dependable BI service to a division rather than only producing isolated outputs.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has experience working with large healthcare datasets, performance information, or complex operational reporting requirements. Their story would show that they can use `Excel`, `BI` tools, and ideally `SQL` to analyse information, explain trends, support managers and clinicians with clear reporting, and maintain data quality under deadline pressure.
+
+They would likely have experience that sounds like this:
+- supporting operational or divisional stakeholders with regular and ad hoc information
+- interrogating complex data and turning it into useful intelligence
+- monitoring targets, identifying anomalies, and highlighting issues to decision makers
+- validating information and raising data-quality concerns
+- producing reports, scorecards, dashboards, graphs, and tables for mixed audiences
+- working independently while managing multiple deadlines and stakeholder requests
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants a strong divisional BI and information-service mindset
+
+The ideal candidate would sound like someone who understands that the role is about delivering a sustained, reliable service to operational stakeholders, not just doing one-off analysis. They would likely show that they can own information streams, keep reporting cycles running, and make information easy for users to access and act on.
+
+The candidate's evidence would likely include:
+- ownership of regular reporting or information flows
+- dependable delivery against weekly, monthly, or quarterly cycles
+- stakeholder-facing support for divisional or service management
+- consistent provision of timely and accurate information
+
+#### B. If the employer wants strong analytical, forecasting, and performance-management capability
+
+The ideal candidate would sound like someone who can do more than describe past activity. They would likely show that they can analyse trends, benchmark performance, monitor targets, support planning, and help managers understand anomalies, exceptions, and corrective actions.
+
+The candidate's evidence would likely include:
+- complex-data interrogation and interpretation
+- target monitoring and exception analysis
+- benchmarking or comparative performance analysis
+- forecasting, activity planning, or demand-related analytical work
+- recommendations that support management action
+
+#### C. If the employer wants strong data-quality and validation discipline
+
+The ideal candidate would sound like someone who understands that poor-quality information weakens decisions. They would likely show that they can validate data consistently, identify issues early, and escalate risks where reporting accuracy or compliance could be affected.
+
+The candidate's evidence would likely include:
+- robust validation of reporting outputs
+- identification and escalation of data-quality issues
+- adaptation of reporting systems or processes to improve accuracy
+- governance-minded handling of risks and compliance concerns
+
+#### D. If the employer wants confident stakeholder engagement and expectation management
+
+The ideal candidate would not be passive with users. They would also show that they can engage clinicians, senior managers, and other stakeholders professionally, clarify needs, negotiate priorities, and manage expectations when deadlines conflict or requests need refinement.
+
+The candidate's evidence would likely include:
+- requirements gathering with senior stakeholders
+- professional communication with clinical and managerial audiences
+- negotiation of priorities or deadlines
+- challenge of unrealistic expectations where needed
+- delivery of insights in a form decision makers can use
+
+#### E. If the employer wants strong reporting and presentation capability
+
+The ideal candidate would sound like someone who can present complex information clearly and accurately in multiple formats. They would likely show that they can explain trends and themes in data through dashboards, scorecards, charts, reports, and presentations for a wide range of audiences.
+
+The candidate's evidence would likely include:
+- high-accuracy reporting
+- dashboard, scorecard, or graph-based communication
+- written and verbal explanation of findings
+- reporting to clinicians, managers, or senior leaders
+
+#### F. If the employer wants an independent but collaborative team contributor
+
+The ideal candidate would sound like someone who can manage their own workload without constant direction while still contributing to team capability. They would likely show that they can work independently, support colleagues, share knowledge, and positively influence more junior team members.
+
+The candidate's evidence would likely include:
+- independent workload management
+- delivery under conflicting deadlines
+- collaboration with wider BI or information teams
+- support or training for colleagues
+- openness to new tools, methods, and ways of working
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can provide a dependable divisional BI service, owning recurring and ad hoc information streams and making sure outputs are timely, accurate, and useful.
+- I can interrogate large complex datasets, explain trends and themes clearly, and support performance, planning, and target management through practical intelligence.
+- I take data quality seriously and apply consistent validation, escalation, and governance discipline so that decision makers can trust the information they use.
+- I work well with clinicians and senior managers to understand what they need, manage expectations realistically, and deliver reporting that supports action.
+- I am comfortable presenting information through reports, dashboards, graphs, scorecards, and verbal updates to a wide range of audiences.
+- I can work independently under pressure while still contributing positively to the wider BI team and helping others develop.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the role is Band 5, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- solid BI and reporting discipline
+- confidence with complex healthcare or operational datasets
+- strong `Excel` capability and ideally some `SQL`
+- data-quality awareness and validation rigour
+- ability to explain trends and performance clearly
+- comfort working with clinicians and senior managers
+- ability to prioritise and negotiate under deadline pressure
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- direct `NHS` BI or acute-trust information experience
+- support for surgery, medicine, operational performance, or divisional management reporting
+- hands-on use of `SQL`, `BI` tools, and structured validation processes
+- activity forecasting, target-compliance, or benchmarking work
+- practical examples of challenging user expectations professionally
+- evidence of improving reporting tools, workflows, or information accessibility
+- comfort operating in a team that is becoming more digitally mature and increasingly interested in predictive analytics
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a dependable divisional BI analyst who can turn complex `NHS` data into validated, stakeholder-ready performance intelligence, support planning and target management, and work confidently with clinicians and senior managers to improve decision quality. They are useful because they combine operational reporting strength, analytical discipline, data-quality rigour, and professional stakeholder engagement inside a busy Trust environment.
+
+---
+
+## Ideal Candidate Profile - Analyst - OFGEM
+
+Source role:
+- `Analyst`
+- `OFGEM`
+- <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=am9ibGlzdF92aWV3X3ZhYz0xOTkzNzY1Jm93bmVydHlwZT1mYWlyJnBhZ2VjbGFzcz1Kb2JzJm93bmVyPTUwNzAwMDAmcGFnZWFjdGlvbj12aWV3dmFjYnlqb2JsaXN0JnNlYXJjaHNvcnQ9c2NvcmUmc2VhcmNocGFnZT0yJnVzZXJzZWFyY2hjb250ZXh0PTE4NDcyNzcxMSZyZXFzaWc9MTc3Njc5NjEyNS1hOGQ4MTI4YzQxM2FmNTUwNmM5MTMyNzI5ZTQ4NGQ2ZjU1NGY3MGZj>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not just a technically capable analyst and not just a policy generalist. The employer is looking for a regulatory analyst who can work with large and complex market data, support monitoring and reporting on competition and consumer protection, respond quickly to emerging requests, and translate analysis into evidence that shapes regulatory and policy decisions.
+
+This person would likely present as someone who is comfortable moving between:
+- large-scale data handling and monitoring activity
+- market and consumer-performance interpretation
+- policy-support and regulatory decision support
+- internal intelligence dissemination and briefing production
+- rapid-response analytical work under uncertainty
+- stakeholder engagement across policy, compliance, suppliers, consumer bodies, and government
+- public-interest analysis focused on consumers, fairness, and market outcomes
+
+They would sound like someone who can make analysis useful inside a regulator, not just technically correct in isolation.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked with complex data in a consultancy, government, regulatory, policy, energy, or adjacent public-interest environment. Their story would show that they can monitor and interpret performance data, support decision makers with pragmatic analysis, communicate clearly to non-expert audiences, and operate at pace when analytical requests arrive unexpectedly.
+
+They would likely have experience that sounds like this:
+- handling large datasets in support of monitoring, reporting, or regulatory work
+- providing analytical input or assurance into policy, regulatory, or public-interest projects
+- producing reports, briefings, or other written outputs for decision makers
+- working with `Excel`, `Power BI`, and ideally `Python` or `R`
+- collaborating with internal and external stakeholders around evidence needs
+- turning uncertainty into practical options and actionable recommendations
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants strong regulatory monitoring and market-intelligence capability
+
+The ideal candidate would sound like someone who can run and improve ongoing monitoring activity rather than only doing one-off analysis. They would likely show that they can interpret supplier, consumer, or market performance data in a way that supports ongoing oversight and market understanding.
+
+The candidate's evidence would likely include:
+- regular monitoring or reporting on performance indicators
+- use of large datasets to identify issues, trends, or emerging concerns
+- intelligence or insight dissemination across an organisation
+- familiarity with structured reporting frameworks or regulated data returns
+
+#### B. If the employer wants analytical support for policy and regulatory decisions
+
+The ideal candidate would sound like someone who can connect data work to real decisions. They would likely show that they can support policy development, contribute to regulatory outputs, and provide pragmatic options when evidence is incomplete or conditions are changing.
+
+The candidate's evidence would likely include:
+- analytical input into policy or regulatory work
+- assessment of impacts from interventions, policies, or rules
+- formulation of pragmatic options under uncertainty
+- presentation of actionable information to decision makers
+
+#### C. If the employer wants pace and responsiveness rather than slow-cycle analysis
+
+The ideal candidate would not need long lead times for everything. They would also show that they can coordinate and deliver unplanned requests at pace while keeping outputs clear, proportionate, and useful.
+
+The candidate's evidence would likely include:
+- response to ad hoc or urgent data requests
+- prioritisation under changing demands
+- collaboration with colleagues to deliver fast-turnaround outputs
+- ability to maintain quality while working quickly
+
+#### D. If the employer wants strong stakeholder engagement and open working relationships
+
+The ideal candidate would sound like someone who can work credibly with mixed stakeholders inside and outside the regulator. They would likely show that they can scope analytical needs, build trust, and engage constructively with policy teams, suppliers, consumer bodies, and government departments.
+
+The candidate's evidence would likely include:
+- relationship building with internal and external stakeholders
+- collaborative scoping of analytical requirements
+- open and transparent communication style
+- ability to work across organisational boundaries and interdependencies
+
+#### E. If the employer wants strong communication to non-expert audiences
+
+The ideal candidate would sound like someone who can write and speak clearly in a regulatory context. They would likely show that they can turn analytical findings into briefings, reports, and messages that make sense to non-specialists while preserving the important caveats.
+
+The candidate's evidence would likely include:
+- writing for senior or non-technical audiences
+- verbal explanation of analytical findings
+- briefing or report production
+- ability to make complex evidence accessible and decision-ready
+
+#### F. If the employer wants practical analytical tooling rather than tool-name inflation
+
+The ideal candidate would sound like someone who uses tools to get regulatory work done efficiently and accurately. They would likely show that they can manipulate data well, automate or streamline parts of analysis where useful, and work across spreadsheet, BI, and coding environments.
+
+The candidate's evidence would likely include:
+- strong `Excel` use
+- meaningful use of `Power BI`
+- some `Python` or `R` capability
+- practical improvement of analytical workflows or data handling
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can work with large and complex datasets to monitor markets, consumers, or regulated entities and turn the results into useful intelligence for decision makers.
+- I can support policy and regulatory work with pragmatic, evidence-based analysis, even when the context is uncertain or changing quickly.
+- I am comfortable producing briefings, reports, and other written outputs that explain analysis clearly to non-expert audiences.
+- I can build effective working relationships with policy, compliance, suppliers, consumer groups, and government stakeholders so that analytical work is well scoped and trusted.
+- I can respond to unplanned analytical requests at pace without losing clarity, usefulness, or proportion.
+- I use tools such as `Excel`, `Power BI`, and `Python/R` practically to improve analysis quality, efficiency, and insight generation.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is broad, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- strong analytical reasoning with large datasets
+- confidence working under uncertainty
+- regulatory, policy, consultancy, government, or energy-adjacent analytical experience
+- good written and verbal communication for non-expert audiences
+- stakeholder credibility across internal and external groups
+- practical tool use across spreadsheet, BI, and coding environments
+- willingness to work at pace on public-interest problems
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- direct work in regulation, government, utilities, energy, or consumer-protection analysis
+- monitoring or intelligence work in a live market environment
+- analytical support for policy design, regulatory decisions, or compliance activity
+- confident use of `Excel`, `Power BI`, and `Python` or `R`
+- work on pricing, competition, consumer harm, or market-performance questions
+- ability to manage both planned monitoring and unplanned requests
+- strong public-interest framing around benefits for consumers, communities, or society
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a regulatory analyst who can monitor complex market and consumer data, support policy and regulatory decisions with pragmatic evidence, communicate clearly across technical and non-technical audiences, and operate effectively in a fast-moving public-interest environment. They are useful because they combine analytical rigour, stakeholder credibility, pace, and decision-support judgement in a way that helps regulation stay evidence-based and responsive.
+
+---
+
+## Ideal Candidate Profile - Data Analyst - Manufacturing & Digital Enablement - Siemens Healthineers
+
+Source role:
+- `Data Analyst - Manufacturing & Digital Enablement`
+- `Siemens Healthineers`
+- <https://jobs.siemens.com/en_US/externaljobs/JobDetail/501864>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a remote-from-operations BI analyst and not just a data engineer focused on backend plumbing. The employer is looking for an operations-close manufacturing data analyst who can help shape how shop-floor and supply-chain data is captured, ensure that it is trusted and usable, and embed practical analytics tools into daily manufacturing workflows.
+
+This person would likely present as someone who is comfortable moving between:
+- manufacturing-process understanding and operational-data design
+- data integration and pipeline-oriented technical work
+- dashboard and `KPI` deployment into live workflows
+- troubleshooting and root-cause analysis on data-related operational issues
+- user adoption, training, and feedback loops on the shop floor
+- documentation, standardisation, and continuous improvement
+- collaboration across manufacturing, enablement, and `IT` teams
+
+They would sound like someone who can make operational data actually work in the factory rather than only reporting on it after the fact.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked with operational data in a manufacturing, industrial, or supply-chain environment and understands how data is generated in the real world by systems, sensors, tools, and people. Their story would show that they can deploy `Power BI` or similar tools, work with `SQL` and integration concepts, support data pipelines, and help operational users make better decisions from trusted data.
+
+They would likely have experience that sounds like this:
+- working with manufacturing or supply-chain data close to live operations
+- designing or improving data capture and operational-data structures
+- deploying dashboards, `KPI`s, or monitoring tools into business workflows
+- supporting data integration or pipeline concepts using `Azure`, `SQL`, `APIs`, or `SAP`
+- troubleshooting data issues with end users and technical teams
+- improving consistency, reliability, and usability of operational reporting
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants strong shop-floor and operational-data understanding
+
+The ideal candidate would sound like someone who understands that operational data quality starts at the point of generation. They would likely show that they can work with physical processes, system outputs, and user behaviours to improve how data is captured and interpreted.
+
+The candidate's evidence would likely include:
+- familiarity with shop-floor or industrial process data
+- design or improvement of data-capture approaches
+- understanding of how operational data is generated in practice
+- use of operational data to improve performance
+
+#### B. If the employer wants trusted data foundations rather than only reporting outputs
+
+The ideal candidate would sound like someone who knows that dashboards are only useful when the underlying data is reliable. They would likely show that they can configure and validate data flows, maintain quality, and make the operational-data foundation trustworthy.
+
+The candidate's evidence would likely include:
+- validation and maintenance of data pipelines or flows
+- focus on accuracy, consistency, and availability
+- documentation of data flows and `KPI` definitions
+- improvement of data trust and usability
+
+#### C. If the employer wants analytics embedded into operational workflows
+
+The ideal candidate would not stop at analysis delivery. They would also show that they can deploy dashboards and monitoring tools in a way that fits daily operational use, supports adoption, and helps teams act on the information.
+
+The candidate's evidence would likely include:
+- deployment of dashboards or `KPI` tools into day-to-day workflows
+- support for productivity, quality, yield, scrap, or adherence reporting
+- operational-user training and adoption support
+- gathering feedback and improving solutions after rollout
+
+#### D. If the employer wants practical technical fluency across BI and integration
+
+The ideal candidate would sound like someone who can bridge operational analytics and light technical integration. They would likely show that they can work with `Power BI`, `SQL`, `Azure`, `APIs`, or `SAP` structures without losing sight of operational outcomes.
+
+The candidate's evidence would likely include:
+- hands-on `Power BI` work
+- `SQL` use in operational-data contexts
+- familiarity with `Azure` and integration concepts
+- work with `API`-based or `SAP`-structured data sources
+
+#### E. If the employer wants strong problem solving and root-cause capability
+
+The ideal candidate would sound like someone who can investigate why operational-data issues are happening and convert those findings into practical next steps. They would likely show that they can troubleshoot effectively and recommend improvements that matter on the shop floor.
+
+The candidate's evidence would likely include:
+- root-cause analysis of data or reporting issues
+- first-line troubleshooting of analytics problems
+- escalation of technical issues when appropriate
+- translation of findings into practical operational recommendations
+
+#### F. If the employer wants cross-functional communication and continuous improvement
+
+The ideal candidate would sound like someone who can work comfortably with technical teams and operational users at the same time. They would likely show that they can communicate clearly, maintain documentation, standardise definitions, and improve solutions iteratively.
+
+The candidate's evidence would likely include:
+- collaboration across technical and non-technical teams
+- clear documentation and user guidance
+- `KPI` standardisation across teams or sites
+- structured, curious, improvement-focused working style
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can work close to manufacturing operations and help shape how data is captured, structured, and used so that it becomes trusted and useful on the shop floor.
+- I can deploy dashboards, `KPI`s, and monitoring tools into operational workflows and support adoption, training, and practical day-to-day use.
+- I understand data integration and pipeline concepts and can work across `Power BI`, `SQL`, `Azure`, `APIs`, and `SAP`-structured data where needed.
+- I can troubleshoot data and analytics issues, perform root-cause analysis, and turn findings into practical improvements for operational teams.
+- I document data flows and definitions clearly and help standardise reporting so that sites and teams are working from a more consistent foundation.
+- I combine technical fluency, operational understanding, and an improvement-focused mindset to support future digital transformation in manufacturing.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title is straightforward, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- manufacturing, industrial, or supply-chain data experience
+- strong `Power BI` or similar dashboarding capability
+- comfort with `SQL`, integration concepts, and pipeline-adjacent work
+- understanding of operational-data generation on the shop floor
+- ability to support end users and drive adoption
+- practical troubleshooting and continuous-improvement mindset
+- ability to translate data into clear operational recommendations
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analytics claims and show evidence of:
+- direct manufacturing, factory, or supply-chain analytics experience
+- work on sensor-, system-, or tool-generated operational data
+- deployment of performance dashboards tied to productivity, quality, yield, scrap, or adherence
+- practical familiarity with `Azure`, `SAP`, `APIs`, and operational data pipelines
+- examples of improving trust in operational data or standardising `KPI`s across sites
+- strong user-facing support for adoption and troubleshooting on the shop floor
+- contribution to digital-transformation or automation-readiness initiatives
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is an operations-close manufacturing data analyst who can build trusted data foundations, deploy usable dashboards and `KPI`s into shop-floor workflows, troubleshoot and improve operational-data issues, and work across manufacturing, enablement, and `IT` teams to support digital transformation. They are useful because they combine practical technical fluency, operational understanding, and user-focused improvement in a way that helps data become part of how the factory runs.
