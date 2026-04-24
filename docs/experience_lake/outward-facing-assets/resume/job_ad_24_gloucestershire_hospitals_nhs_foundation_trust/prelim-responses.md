@@ -114,3 +114,29 @@ Tell me of a time where you had to operate under pressure, where you had to chal
 - The result was that the reporting base was corrected before use and the monthly pack could be trusted. The rebuilt dataset stayed at `7,835,199` rows with one row per reporting record, passed `5/5` repeatable validation checks, and reconciled exactly across all four reporting bands.
 - More importantly, the review itself was protected. The people using the pack were able to work from an accurate view rather than a distorted one, and the pressure of the deadline did not turn into pressure to lower the standard.
 - That is the clearest example I have of how I operate under pressure: I work independently, diagnose the issue properly, challenge the unsafe route when necessary, manage expectations around what is genuinely fit to use, and keep the communication clear enough for people to understand why the correction matters.
+
+---
+
+## Q5 - Desirable NHS and technical knowledge
+
+**Question**
+
+What is the best experience you can draw on to demonstrate the desirable criteria around SQL, basic knowledge and understanding of NHS data dictionaries, datasets and data standards, and a good understanding of patient pathways or patient databases, even if you do not have direct NHS system experience?
+
+**Situation**
+- I do not have direct hands-on ownership of NHS patient databases, so I would keep that boundary clear.
+- The strongest truthful position is that I can demonstrate direct SQL capability and direct experience working with governed record-level datasets where correct field meaning, correct grain, consistent definitions, and careful joins determine whether reporting is trustworthy. That is the closest practical equivalent to the discipline needed when working with NHS datasets, data dictionaries, and pathway-based reporting.
+
+**Task**
+- In my own work, the task has been to query large datasets safely, understand what each field and record actually represents, preserve the correct reporting grain, and avoid producing reporting that looks plausible but is wrong because the underlying definitions or joins were misunderstood.
+- That is also how I would approach NHS data dictionaries and pathway-based datasets: understand the meaning of the dataset first, the definition of the fields second, the permitted joins and reporting grain third, and only then build the analysis or reporting.
+
+**Action**
+- On the direct technical side, I regularly use SQL to query, filter, aggregate, and reconcile large reporting datasets. A good example was the March 2026 reporting-protection work, where I had to identify why a case-linked reporting base was unsafe. The linked subset contained `7,835,199` reporting records but sat behind `20,581,909` raw event rows. I used SQL to inspect the grain of the source tables, identify the duplication risk, rebuild the base at one row per reporting record, and then reconcile it exactly across all four reporting bands.
+- The important part of that example is not just that I wrote the queries. It is that I had to understand what each table represented, what one row actually meant, and what would happen if I treated event-level data as though it was already reporting-level data. That is the same underlying discipline required in standards-led environments where the definition of a field or dataset cannot be guessed.
+- In terms of NHS-specific understanding, my position is basic but serious rather than direct operational ownership. I understand that NHS data dictionaries, datasets, and standards exist so that reporting is built on common definitions rather than local guesswork, and that patient-pathway reporting depends on knowing exactly where an event or activity sits in the journey rather than treating all records as interchangeable. I take that seriously because I have already seen in my own work how quickly reporting becomes unreliable when grain, classification, or definition quality is handled loosely.
+
+**Result**
+- So the strongest honest answer is that I can directly evidence SQL capability and the disciplined handling of governed record-level data, and I can show that I already work in the same definition-led way that NHS datasets and pathway-based reporting require.
+- I would not claim direct NHS patient-database ownership, but I can defend a good foundational understanding of why NHS data dictionaries, datasets, standards, and pathway definitions matter, and why an Information Analyst has to work carefully with them.
+- In practice, that means I would come into the role with strong query skills, a careful approach to field and dataset meaning, and the right mindset for learning local NHS dataset definitions and pathway logic quickly without treating them casually.
