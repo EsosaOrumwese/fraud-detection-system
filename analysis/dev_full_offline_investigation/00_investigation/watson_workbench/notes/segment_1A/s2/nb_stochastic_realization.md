@@ -68,6 +68,16 @@ where:
 - `G_{m,t}` = Gamma mixture draw for merchant `m` on attempt `t`
 - `\phi_m` = the deterministic dispersion parameter from `S2.2`
 
+Plainly stated, this first step does not decide the outlet count yet. It creates a **merchant-specific random multiplier** around the deterministic surface already fixed in `S2.2`.
+
+The easiest way to think about it is this:
+
+- `\mu_m` says where the merchant should sit on average
+- `\phi_m` says how tight or loose we want that merchant’s count world to be around that average
+- `G_{m,t}` is the attempt-level stochastic shock that realizes that looseness
+
+If `G_{m,t}` lands near `\phi_m`, the attempt stays close to the deterministic expectation. If it lands below or above `\phi_m`, the attempt intensity is pulled down or pushed up before the Poisson count is even drawn.
+
 Then:
 
 $$
@@ -79,6 +89,17 @@ where:
 - `\mu_m` = deterministic NB mean from `S2.2`
 - `\lambda_{m,t}` = Poisson intensity used on attempt `t`
 
+This is the bridge from the deterministic world into the stochastic one.
+
+`S2.2` already gave us a fixed merchant-level count posture through `\mu_m` and `\phi_m`. What this step does is convert that posture into an **attempt-specific intensity**. So `\lambda_{m,t}` is not a new independent policy surface. It is the deterministic NB law after it has been perturbed by the Gamma mixture for that particular attempt.
+
+That distinction matters:
+
+- `\mu_m` is the merchant’s governed average level
+- `\lambda_{m,t}` is the attempt-level rate the engine actually hands to the Poisson sampler
+
+So when we later inspect rejected attempts, accepted attempts, or draw budgets, we are reading the realized behavior of `\lambda`, not the raw deterministic `\mu` surface by itself.
+
 Then:
 
 $$
@@ -88,6 +109,12 @@ $$
 where:
 
 - `K_{m,t}` = proposed outlet count on attempt `t`
+
+This is the first point where a concrete count proposal exists.
+
+Up to here, the engine has only said: “given this merchant’s deterministic count law, and given this attempt’s Gamma shock, the count intensity for this attempt should be `\lambda_{m,t}`.” The Poisson draw is what turns that intensity into an actual integer proposal such as `0`, `1`, `7`, or `32`.
+
+So if the deterministic block answered “what size regime is this merchant in?”, the Poisson step answers “what count did this attempt actually propose?”
 
 The rejection rule is:
 
@@ -107,7 +134,22 @@ where:
 - `N_m` = final accepted outlet count persisted in `nb_final`
 - `r_m` = number of rejected attempts persisted as `nb_rejections`
 
+This acceptance rule is where the state stops being a generic NB sampler and becomes a **governed outlet-authoring process**.
+
+The engine is not willing to let a merchant that already entered the multi-site branch in `S1` leave `S2` with `0` or `1` outlets. So the first accepted count is not simply “the first Poisson outcome.” It is the first outcome consistent with the semantic promise of the branch:
+
+- `S1` said this merchant belongs to the multi-site path
+- `S2` therefore insists on an accepted count of at least `2`
+
+That is why `r_m` matters analytically. It is not only a technical retry counter. It measures how much effort the stochastic process needed before it produced a count consistent with the branch semantics.
+
 This matters analytically because it means `S2` is not merely “adding noise” to `\mu_m`. It is constructing a fully auditable attempt process whose component evidence is preserved in the run.
+
+Another way of saying the same thing is:
+
+- the deterministic block tells us the count world the engine intended
+- the stochastic block tells us how that intended world was actually realized attempt by attempt
+- the acceptance rule tells us which realized attempts are allowed to become authoritative
 
 ## A practical runtime caution discovered early
 
@@ -153,6 +195,14 @@ So the extra `17` component rows are not noise or duplication. They are the reje
 
 This is the first key stochastic result: the run does not contain missing attempts, duplicate finals, or merchants that somehow exit the state without a final accepted count. The attempt process closes exactly once per merchant.
 
+That closure is more important than it first looks.
+
+If this section had shown broken parity, then every downstream interpretation of `n_outlets` would be suspect, because we would not know whether the final count was actually backed by the component evidence the state claims to emit. Instead, the run gives us a clean one-to-one story:
+
+- each merchant enters the stochastic loop
+- each attempt leaves one Gamma event and one Poisson event
+- exactly one accepted count is finalized per merchant
+
 ## Component identities hold exactly
 
 After reconstructing attempt number within merchant from the counter order, the bridge identities all hold exactly:
@@ -169,6 +219,15 @@ It also clarifies the role of the three streams:
 - `gamma_component` records the first stochastic perturbation away from the deterministic mean surface
 - `poisson_component` records the concrete count proposal for that perturbed intensity
 - `nb_final` records the one accepted count that survives the retry loop
+
+That ordering is worth emphasizing because it is the real statistical anatomy of `S2`.
+
+If someone reads only `nb_final`, they can see the accepted world but not how it was reached. The component streams let us distinguish:
+
+- what the deterministic law expected
+- how the attempt-level mixture moved that expectation
+- what integer count the engine then proposed
+- whether the proposal was accepted immediately or required retry
 
 ## Counter discipline is clean
 
@@ -216,6 +275,10 @@ There is also a useful centering property visible in the output:
 
 This is exactly what we should expect if the Gamma layer is acting as a mean-preserving mixture around the deterministic dispersion surface rather than introducing a systematic bias.
 
+That last sentence is important enough to make explicit in plain language.
+
+The Gamma layer is not supposed to tilt the whole merchant population upward or downward. Its job is to create merchant-attempt variability around the deterministic count law. So seeing `gamma_value / phi` centered near `1` tells us that the mixture is behaving like a fluctuation layer, not like a hidden second policy that rewrites the mean surface behind our backs.
+
 ## The Poisson layer is where the runtime randomness really lives
 
 The Poisson side is much more variable.
@@ -235,6 +298,13 @@ The Poisson draw budgets show where most of the stochastic cost sits:
 - max draws per Poisson event: `125`
 
 Compared with the Gamma layer, the Poisson layer is clearly the dominant consumer of stochastic work in `S2`. That is operationally important because it means runtime variability in the NB count state is overwhelmingly driven by the count-authoring step itself, not by the Gamma mixture pre-step and not by finalisation.
+
+It is also analytically important.
+
+When we later talk about realized outlet-count spread, most of that visible spread is not coming from wild instability in the Gamma component. It is coming from the fact that once an attempt intensity is set, the integer count-authoring step still has to realize a Poisson outcome. So the Poisson layer is both:
+
+- the main runtime cost center in `S2`
+- the main source of visible count randomness in the authored world
 
 ## What rejected attempts look like in the run
 
@@ -266,6 +336,10 @@ The Gamma layer reflects the same story:
 
 So rejected attempts are not some exotic pathology. They are simply the low-intensity tail of the same governed mixture process.
 
+That is the right way to read the rejection loop in this run.
+
+The retries are not telling us that the sampler is unstable or that the branch is incoherent. They are telling us that for a very small subset of merchants, one realized attempt landed low enough that the multi-site branch promise was not yet satisfied. The engine then did exactly what the contract says it should do: sample again until the branch semantics were respected.
+
 ## The realized count world remains tied to the deterministic surface
 
 One of the questions I wanted to settle here was whether the stochastic realization meaningfully preserves the deterministic NB world we reconstructed in the previous note.
@@ -280,6 +354,15 @@ At the population level:
 
 So the realized world stays very close to the deterministic expectation once the acceptance rule is accounted for.
 
+That “once the acceptance rule is accounted for” part matters.
+
+If we compared realized `n_outlets` only to raw `\mu`, we would be mixing two different objects:
+
+- `\mu` is the unconditional NB mean before the `K \ge 2` acceptance rule is enforced
+- realized `n_outlets` is the accepted world after low-count outcomes have been screened out
+
+So the cleaner comparison is to the **conditional accepted expectation**, not to raw `\mu` alone. That is why the close match here is meaningful: it says the realized accepted world still sits where the governed law said it should sit after the branch rule is respected.
+
 At the merchant level, there is still real spread:
 
 - `corr(mu, n_outlets) = 0.819`
@@ -290,6 +373,13 @@ At the merchant level, there is still real spread:
 This is exactly the kind of result we want to see from a governed stochastic authoring process.
 
 The deterministic law is not being erased; higher-`mu` merchants still tend to realize higher outlet counts. But the state is also not collapsing into a fake deterministic copy of `\mu`. The accepted world retains substantial merchant-level stochastic variation around that deterministic scaffold.
+
+That is the balance we were hoping to see.
+
+If the realized world had hugged `\mu` too tightly, `S2` would look cosmetically stochastic but practically deterministic. If it had drifted too far away, then the deterministic NB construction from the previous note would lose explanatory power. Instead, the run shows a middle position:
+
+- deterministic structure still explains a large share of the outlet-count world
+- stochastic realization still matters enough to make merchants with similar `\mu` land at different accepted counts
 
 ## Where retry risk actually lives
 
@@ -318,6 +408,10 @@ When merchants are grouped by modeled acceptance decile, the retries are almost 
 - every decile above the fourth is clean in this run
 
 This is the right stochastic shape. The retry loop is not randomly scattered across the world. It mostly activates where the model itself says the chance of a low-count outcome is materially less suppressed.
+
+That is exactly the kind of alignment we want between modeled risk and realized retries.
+
+If retries were spread uniformly across all acceptance deciles, then the modeled `\alpha_m` surface would not be telling us much about actual branch difficulty. Instead, the run shows that the retry mechanism is concentrated where the model itself says acceptance should be least automatic. So the retry evidence is not fighting the law; it is reinforcing it.
 
 It is also worth noting what this does **not** mean. A merchant showing one realized retry is not automatically “wrong” or “problematic.” With only `17` total rejections in the run, merchant-level retry outcomes are still noisy realizations. The stronger reading is run-level and surface-level: the retry behavior stays small and is concentrated where the acceptance law is weakest.
 
