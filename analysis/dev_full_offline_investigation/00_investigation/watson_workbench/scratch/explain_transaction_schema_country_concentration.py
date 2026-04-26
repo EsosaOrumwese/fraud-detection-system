@@ -9,7 +9,7 @@ import pandas as pd
 ROOT = Path(r"c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system")
 WORKBENCH = ROOT / "analysis/dev_full_offline_investigation/00_investigation/watson_workbench"
 EXPORTS = WORKBENCH / "exports" / "transaction_schema_merchant_ids"
-NOTES = WORKBENCH / "notes"
+NOTES = WORKBENCH / "notes" / "segment_1A" / "s0"
 EXPORTS.mkdir(parents=True, exist_ok=True)
 NOTES.mkdir(parents=True, exist_ok=True)
 

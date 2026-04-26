@@ -9,7 +9,7 @@ import pandas as pd
 ROOT = Path(r"c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system")
 WORKBENCH = ROOT / "analysis/dev_full_offline_investigation/00_investigation/watson_workbench"
 EXPORTS = WORKBENCH / "exports" / "transaction_schema_merchant_ids"
-NOTES = WORKBENCH / "notes"
+NOTES = WORKBENCH / "notes" / "segment_1A" / "s0"
 EXPORTS.mkdir(parents=True, exist_ok=True)
 NOTES.mkdir(parents=True, exist_ok=True)
 
@@ -17,7 +17,7 @@ MERCHANT_PATH = ROOT / "reference/layer1/transaction_schema_merchant_ids/2026-01
 CHANNEL_POLICY_PATH = ROOT / "config/layer1/1A/policy/channel_policy.1A.yaml"
 CONCENTRATION_EXPLANATION_PATH = (
     ROOT
-    / "analysis/dev_full_offline_investigation/00_investigation/watson_workbench/notes/transaction_schema_country_concentration_explanation.md"
+    / "analysis/dev_full_offline_investigation/00_investigation/watson_workbench/notes/segment_1A/s0/transaction_schema_country_concentration_explanation.md"
 )
 RESIDUAL_EFFECT_PATH = (
     EXPORTS / "transaction_schema_country_concentration_residual_effect.csv"
