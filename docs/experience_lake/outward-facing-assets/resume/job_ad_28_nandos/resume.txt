@@ -1,0 +1,50 @@
+Esosa Orumwese
+Data Analyst | SQL Modelling, Transformation & Self-Serve BI
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Analyst with experience working across SQL modelling, transformation, self-serve reporting, data quality, and business-facing analytical delivery in a cloud-based environment. Strong in SQL, Python, Power BI, Tableau, DAX, Azure Data Lake, Azure Data Factory, Databricks, SQL Server, Oracle, Git, and API-aware workflows, with experience building Dataform / DBT-style transformation logic, turning ambiguous business questions into scoped analytical work, documenting logic and definitions clearly, and improving ways of working through automation and disciplined delivery.
+
+CORE SKILLS
+SQL Modelling & Transformation: Complex SQL, CTEs, window functions, transformation-layer modelling, Dataform / DBT-style logic, reporting-ready data structures, downstream data support
+BI & Self-Serve Reporting: Power BI, Tableau, dashboard development, self-serve reporting, KPI views, accessible business insight, Looker-style delivery
+Pipeline Collaboration: Cloud data workflows, Azure Data Lake, Azure Data Factory, Databricks, API-aware structures, pipeline-adjacent analytical work, data-engineer collaboration
+Business Translation & Communication: Requirement scoping, problem framing, business-focused analysis, technical and non-technical communication, stakeholder-ready outputs
+Data Quality & Governance: Validation, reconciliation, testing discipline, definitions, lineage, documentation, data-governance awareness
+Engineering Workflow & Automation: Git, branching, pull requests, peer review, reviewable changes, reusable analytical logic, process automation, responsible AI-assisted coding
+
+RELEVANT EXPERIENCE
+
+Data Analyst & Analytics Engineer
+AWS-hosted Fraud Decisioning Platform — Exeter, UK | May 2025 - Present
+
+- Wrote and maintained complex SQL transformations across cloud-based datasets, using CTEs, window functions, controlled joins, and layered logic to produce trusted reporting-ready tables rather than only querying finished outputs.
+- Built transformation-layer analytical outputs that fed downstream dashboards, KPI views, recurring monitoring, and decision-support reporting across live operational workflows.
+- Worked close to pipeline-adjacent analytical delivery and data-engineer-facing structures, refining data shapes, validation logic, and shared reporting inputs so downstream outputs remained accurate and reliable.
+- Built and iterated self-serve dashboard and reporting outputs in BI tools so business and operations users could work directly from trusted views rather than depending on ad hoc extracts.
+- Translated ambiguous business questions into scoped analytical work by clarifying the underlying operational objective before deciding the SQL, reporting, or analysis needed.
+- Applied data-quality checks, reconciliation, and controlled reporting logic so issues were identified early and data limitations could be explained clearly.
+- Documented definitions, assumptions, transformation logic, and output boundaries so shared data products were easier to trust, reuse, and maintain.
+- Used Git-based workflows, branching, and reviewable changes to keep SQL and Python updates traceable and easier to maintain across evolving analytical work.
+- Identified manual analytical steps that could be automated and used AI-assisted coding tools critically to improve speed while still checking logic, outputs, and data risk carefully.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+ADDITIONAL EXPERIENCE
+
+Crew Member
+Five Guys — Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-moving customer and operations environment where performance, stock flow, service consistency, and clear communication matter every day.
+- Adapt quickly to changing priorities while keeping outputs accurate and dependable for colleagues and customers.
+- Support teammates through practical handovers, teamwork, and steady execution during busy periods.
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a technically demanding operational environment where accurate readings, reliable interpretation, and disciplined escalation directly affected delivery.
+- Monitored equipment readings, identified irregular operating conditions early, and supported corrective action through structured evidence and communication.
+- Worked with field teams in a live environment where data, interpretation, and practical decision-making had to align closely.
