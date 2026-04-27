@@ -74,16 +74,25 @@ Question:
 STAR
 
 Situation:
-- 
+- My closest direct analogue comes from analytical work on the fraud decisioning platform, where the consequences of a poor analytical recommendation were not only internal. They affected customers going through unnecessary review, the business carrying avoidable investigation burden, and the overall quality of fraud-control decisions being made.
+- In one March 2026 strategy review, I was looking at whether an inherited broad fraud-selection posture was creating more operational burden than it justified. Although this was not a government or energy-sector project, it was still a piece of analytical work with a clear public-interest-style dimension: protecting customers and the business from fraud, while also avoiding unnecessary intervention and wasted resource.
 
 Task:
-- 
+- My task was to provide analytical input that could support a proportionate control decision rather than a purely technical comparison.
+- That meant I needed to assess not just whether one posture caught more or less, but whether the resulting trade-off was fair, efficient, and defensible in terms of customer impact, operational burden, and control effectiveness.
 
 Action:
-- 
+- I structured the work as an assurance-style comparison between a broader inherited posture and a tighter alternative. Using the governed analytical environment, I compared the review volume created by each posture, the downstream case-handling burden it generated, and the concentration of confirmed fraud inside the reviewed population.
+- I treated the exercise as more than internal performance tuning. I focused on the effect the rule posture would have on people and outcomes:
+- for customers, whether too many legitimate transactions or cases were being pulled into unnecessary review;
+- for operational teams, whether analyst effort was being consumed on weak-return activity;
+- for the wider business, whether the control posture was proportionate and effective rather than simply broad.
+- I then translated the result into a decision-facing recommendation. I made it clear that the question was not “which rule is mathematically best?” but “which posture gives the most sensible balance between protection, review burden, and confirmed-value return?”
 
 Result:
-- 
+- The tighter posture reduced selected review volume by `511,500` flows and reduced downstream case-handling activity by `1,185,849` events, while improving confirmed fraud yield from `12.06%` to `12.37%` and still retaining `89.53%` of the positives found by the broader posture.
+- The benefit of that analysis was broader than an internal metric movement. It showed that the business could take a more proportionate approach: reduce avoidable review burden, use analyst time more effectively, and still protect customers and the firm with a cleaner, more focused control population.
+- That is the experience I would use for this criterion because it is the closest truthful equivalent to policy or regulatory-style analytical input. I am not claiming direct government, regulatory, or energy-sector delivery. What I can defend is experience of producing analytical input that had to balance competing interests, support proportionate decision making, and deliver benefits that mattered beyond the analysis itself.
 
 ## Q3 - Tools and Insightful Analysis
 
@@ -93,16 +102,23 @@ Question:
 STAR
 
 Situation:
-- 
+- A good example came from a period where I needed to assess operational performance and review-burden patterns across the fraud decisioning workflow, then turn that into something both analytically defensible and easy for stakeholders to use.
+- The need was not just to produce numbers. Stakeholders needed to understand where workload was building, how quality and output concentration were shifting, and whether the current review posture was creating unnecessary downstream burden. That meant I had to use different tools for different parts of the analytical job rather than forcing everything through one tool.
 
 Task:
-- 
+- My task was to take governed operational data, analyse it properly, validate what it was saying, and then present the result in formats that were useful both for analytical checking and for stakeholder-facing monitoring.
+- In practice, that meant using tools such as Python, Excel, and Power BI where each one had a clear role in the delivery chain.
 
 Action:
-- 
+- I used Python where deeper analytical handling was needed. That included structuring the comparison logic, checking performance distributions, testing review-burden differences between alternative postures, and validating that the analytical summaries I was producing were internally coherent before they were shown more widely. Python was the right tool there because the work involved repeatable logic, larger-scale manipulation, and more careful analytical checking than a spreadsheet alone would support well.
+- I used Excel for controlled review, comparison, and stakeholder-friendly tabulation. Once the comparison outputs were stable, Excel was useful for laying out the figures in a form that made month-on-month movement, posture differences, and operational trade-offs easier to inspect quickly. It was also useful for sense-checking figures with a presentation format that operational readers could follow without needing to understand the underlying analytical code.
+- I used Power BI where the goal was recurring monitoring and accessible insight rather than one-off analytical checking. I built dashboard and KPI views that allowed users to track workload, throughput, quality, and exception movement directly. Power BI was the right tool for this because it allowed the same governed outputs to become something operational users could return to repeatedly rather than request manually each time.
+- The important point is that I was not using tools for their own sake. Python handled repeatable analytical logic and validation, Excel handled review and structured presentation, and Power BI handled monitoring and stakeholder accessibility. That combination is what made the analysis both insightful and usable.
 
 Result:
-- 
+- The result was not just a finished analysis, but a usable decision-support chain. I was able to produce deeper analytical comparisons in Python, review and organise them clearly in Excel, and expose the resulting insight through Power BI views that made ongoing monitoring easier for stakeholders.
+- In one strategy comparison, that tool chain helped surface a tighter posture that reduced selected review volume by `511,500` flows and downstream case-handling activity by `1,185,849` events while improving confirmed fraud yield from `12.06%` to `12.37%`.
+- More broadly, it showed that I can use data-management and manipulation tools effectively because I understand what each tool is for, when it is the right tool, and how to combine them so the output is not just technically correct, but actually insightful and usable.
 
 ## Q4 - Stakeholder Relationships and Open Engagement
 
