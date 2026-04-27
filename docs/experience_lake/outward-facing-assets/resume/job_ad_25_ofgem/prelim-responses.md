@@ -40,7 +40,7 @@ STAR
 Situation:
 - A strong example came from a March 2026 fraud-strategy review where I was asked to assess whether an inherited broad transaction-selection posture was still the right operational choice for the platform, or whether a tighter amount-based posture would give a better balance between control strength and review burden.
 - The data volume was not small. I was working across a governed cloud-based analytical environment over millions of transaction-flow records and their linked downstream case activity. In the comparison window, the broader posture selected `4,018,508` flows for review, while the tighter posture selected `3,507,008`. I also had to account for linked downstream case events, where the operational effect of a rule change becomes much more visible than it does at simple selection level.
-- The uncertainty was real. The decision makers did not simply want “the rule with the better percentage”. They needed to know whether reducing review volume would still retain enough fraud capture to remain commercially and operationally sensible, or whether the broader posture’s wider net was still worth the extra handling burden.
+- The uncertainty was real. The decision need was not simply “which rule has the better percentage”. The analytical demand was to determine whether reducing review volume would still retain enough fraud capture to remain commercially and operationally sensible, or whether the broader posture’s wider net was still worth the extra handling burden.
 
 Task:
 - My task was to work through that uncertainty and give a recommendation that was analytically sound, operationally credible, and usable for decision making.
@@ -57,13 +57,13 @@ Action:
 - I then evaluated the competing options. The broad posture had the advantage of wider capture. The tighter posture had the advantage of being more selective. Rather than present one as automatically right, I framed them as two pragmatic options:
 - keep the broader posture if the priority was maximum capture and the business was willing to accept higher review and case-handling burden;
 - move to the tighter posture if the priority was a cleaner review population, lower operational burden, and better confirmed-fraud concentration, while accepting some loss of broader capture.
-- To make that judgement usable, I translated the technical comparison into operational terms. I did not leave the output as a rule table. I set out what the numbers meant for the people making the decision: how many fewer transactions would enter review, how much downstream case activity would be avoided, what would happen to confirmed fraud yield, and what capture would be given up in exchange.
+- To make that judgement usable, I translated the technical comparison into operational terms. I did not leave the output as a rule table. I set out what the numbers meant for the decision itself: how many fewer transactions would enter review, how much downstream case activity would be avoided, what would happen to confirmed fraud yield, and what capture would be given up in exchange.
 
 Result:
 - The tighter posture reduced selected review volume by `511,500` flows, from `4,018,508` to `3,507,008`, which was a `12.73%` reduction in review burden.
 - It also reduced downstream case-handling activity by `1,185,849` events, a `12.38%` reduction, which mattered because this is where operational cost and analyst effort become much more tangible.
 - At the same time, confirmed fraud yield improved from `12.06%` to `12.37%`, and the tighter posture still retained `89.53%` of the positives found by the broader posture.
-- That gave decision makers a grounded and pragmatic choice rather than a vague recommendation. The analysis showed that the tighter posture was not “universally better”; it was better if the business wanted a smaller, cleaner, more efficient review population with lower downstream handling burden. The broad posture remained defensible only if the business explicitly preferred wider capture over operational efficiency.
+- That gave the decision a grounded and pragmatic basis rather than a vague recommendation. The analysis showed that the tighter posture was not “universally better”; it was better if the business wanted a smaller, cleaner, more efficient review population with lower downstream handling burden. The broad posture remained defensible only if the business explicitly preferred wider capture over operational efficiency.
 - This is the example I would use to demonstrate the lead criterion because it shows the full chain they are asking for: I worked with a genuinely large dataset, handled uncertainty rather than pretending it away, solved a real operational problem, formulated pragmatic options with explicit trade-offs, and presented actionable information that decision makers could use immediately.
 
 ## Q2 - Analytical Input into Public-Interest / Regulatory-Style Work
@@ -103,7 +103,7 @@ STAR
 
 Situation:
 - A good example came from a period where I needed to assess operational performance and review-burden patterns across the fraud decisioning workflow, then turn that into something both analytically defensible and easy for stakeholders to use.
-- The need was not just to produce numbers. Stakeholders needed to understand where workload was building, how quality and output concentration were shifting, and whether the current review posture was creating unnecessary downstream burden. That meant I had to use different tools for different parts of the analytical job rather than forcing everything through one tool.
+- The need was not just to produce numbers. The analytical demand was to show where workload was building, how quality and output concentration were shifting, and whether the current review posture was creating unnecessary downstream burden. That meant I had to use different tools for different parts of the analytical job rather than forcing everything through one tool.
 
 Task:
 - My task was to take governed operational data, analyse it properly, validate what it was saying, and then present the result in formats that were useful both for analytical checking and for stakeholder-facing monitoring.
@@ -112,11 +112,12 @@ Task:
 Action:
 - I used Python where deeper analytical handling was needed. That included structuring the comparison logic, checking performance distributions, testing review-burden differences between alternative postures, and validating that the analytical summaries I was producing were internally coherent before they were shown more widely. Python was the right tool there because the work involved repeatable logic, larger-scale manipulation, and more careful analytical checking than a spreadsheet alone would support well.
 - I used Excel for controlled review, comparison, and stakeholder-friendly tabulation. Once the comparison outputs were stable, Excel was useful for laying out the figures in a form that made month-on-month movement, posture differences, and operational trade-offs easier to inspect quickly. It was also useful for sense-checking figures with a presentation format that operational readers could follow without needing to understand the underlying analytical code.
-- I used Power BI where the goal was recurring monitoring and accessible insight rather than one-off analytical checking. I built dashboard and KPI views that allowed users to track workload, throughput, quality, and exception movement directly. Power BI was the right tool for this because it allowed the same governed outputs to become something operational users could return to repeatedly rather than request manually each time.
+- I used Power BI where the goal was recurring monitoring and accessible insight rather than one-off analytical checking. I built dashboard and KPI views that made workload, throughput, quality, and exception movement directly visible within the governed reporting layer. Power BI was the right tool for this because it allowed the same outputs to become something that could be revisited repeatedly rather than rebuilt manually each time.
 - The important point is that I was not using tools for their own sake. Python handled repeatable analytical logic and validation, Excel handled review and structured presentation, and Power BI handled monitoring and stakeholder accessibility. That combination is what made the analysis both insightful and usable.
 
 Result:
 - The result was not just a finished analysis, but a usable decision-support chain. I was able to produce deeper analytical comparisons in Python, review and organise them clearly in Excel, and expose the resulting insight through Power BI views that made ongoing monitoring easier for stakeholders.
+- The result was not just a finished analysis, but a usable decision-support chain. I was able to produce deeper analytical comparisons in Python, review and organise them clearly in Excel, and expose the resulting insight through Power BI views that made ongoing monitoring easier and more repeatable.
 - In one strategy comparison, that tool chain helped surface a tighter posture that reduced selected review volume by `511,500` flows and downstream case-handling activity by `1,185,849` events while improving confirmed fraud yield from `12.06%` to `12.37%`.
 - More broadly, it showed that I can use data-management and manipulation tools effectively because I understand what each tool is for, when it is the right tool, and how to combine them so the output is not just technically correct, but actually insightful and usable.
 
@@ -128,16 +129,24 @@ Question:
 STAR
 
 Situation:
-- 
+- My strongest honest example for this criterion comes from the fraud decisioning platform, where the analytical work had to satisfy internal operational demands around performance understanding, workload movement, and the effect of control changes.
+- The relationship challenge was not senior client management in the formal sense. It was making the analytical output clear, transparent, and challenge-ready enough that the operating need could be met constructively rather than through opaque reporting.
+- A good instance of this came during a reporting and review cycle where the demand was to understand whether a changing fraud-selection posture was improving the operating picture or simply moving burden elsewhere in the workflow.
 
 Task:
-- 
+- My task was to meet that demand with analysis that was clear enough to be questioned openly, transparent enough to be trusted, and structured enough to support constructive engagement around trade-offs and uncertainty.
+- In practice, that meant I had to do more than send numbers. I had to make it obvious what the outputs were saying, what they were not saying, and where the real trade-offs sat.
 
 Action:
-- 
+- I approached the relationship side of the work by being explicit, responsive, and transparent. I did not hide assumptions or make the reporting look more certain than it was. Where a figure depended on a particular rule definition, reporting cut, or analytical boundary, I stated that clearly.
+- I also made space for challenge. I treated the central question, whether a tighter posture was truly improving outcomes or just reducing visible workload, as a valid analytical concern and answered it by separating the measures clearly: review volume, downstream case-handling burden, confirmed fraud concentration, and retained positives.
+- The relationship-building part, in this context, was in how I shaped the output so it could be engaged with openly. I did not force everything into one headline number. I structured the analysis so the different concerns inside the operating demand could be seen separately and discussed transparently.
+- That approach helped create constructive engagement because the output was not something opaque that had to be accepted on trust. It showed enough of its reasoning that the trade-offs could be questioned and understood.
 
 Result:
-- 
+- The result was that the analytical output became something that could be engaged with openly rather than something that simply asserted a conclusion. The trade-offs were visible, the limits were clearer, and the decision basis was more transparent.
+- That is the strongest honest way to frame this criterion from the platform: not by claiming live stakeholder-management experience I cannot defend, but by showing that the work was shaped to support constructive, open, and transparent engagement around a real operating demand.
+- My direct external-stakeholder evidence is more limited, so I would keep that boundary clear in the final statement. The core behaviour OFGEM is looking for, analytical work that creates space for open and transparent engagement, is something I can still defend from this example.
 
 ## Q5 - Written and Verbal Communication to Non-Experts
 
