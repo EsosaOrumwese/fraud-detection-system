@@ -141,16 +141,23 @@ Question:
 STAR
 
 Situation:
-- 
+- A good example came from the same March 2026 fraud-strategy review, where the analytical output had to do more than prove a technical point. The comparison between a broader and a tighter posture only became useful once it was translated into plain operational meaning.
+- The raw result was not hard to calculate, but it was easy to misread. A non-expert reader could look at a slightly better fraud yield and assume the tighter posture was automatically better, or look at wider capture and assume the broader posture was automatically safer. The real issue was that neither reading was sufficient on its own.
 
 Task:
-- 
+- The task was to communicate the analysis in a way that made the trade-offs understandable without flattening them into a misleading headline.
+- That meant the written version had to be structured clearly enough to stand on its own, and the verbal version had to make the same comparison understandable without relying on technical shorthand.
 
 Action:
-- 
+- In writing, the comparison was framed around operational consequence rather than technical labels. Instead of leading with rule logic, the written output set out four plain questions: how many flows entered review, how much downstream case activity followed, how concentrated confirmed fraud was inside the reviewed population, and how much of the broader posture’s positives would be retained if the tighter option was chosen.
+- The numbers were then placed directly against those questions. The tighter posture reduced selected review volume by `511,500` flows and downstream case-handling activity by `1,185,849` events, while improving confirmed fraud yield from `12.06%` to `12.37%` and retaining `89.53%` of the positives found by the broader posture.
+- In verbal explanation, the same result was simplified further. The point was made as a choice, not a formula: the tighter posture created a smaller and cleaner review population with less downstream work, but it did not preserve every positive that the broader posture would have sent forward. That verbal framing mattered because it kept the trade-off honest and understandable.
+- The communication worked because it avoided two common failures at once: it did not drown the audience in technical language, and it did not oversimplify the decision into a false “better/worse” answer.
 
 Result:
-- 
+- The result was that the analysis became usable beyond the technical layer. The comparison could be read and discussed in terms of operational consequence, not just model or rule behaviour.
+- The written version gave a non-expert reader enough structure to follow the logic independently, while the verbal explanation reduced it to a clear decision choice without losing the cost of the trade-off.
+- That is the strongest honest example I would use for this criterion because the value was not just that the numbers were correct, but that the meaning of those numbers could be understood and acted on without needing technical background.
 
 ## Q6 - Desirable Sector Knowledge
 
@@ -160,13 +167,25 @@ Question:
 STAR
 
 Situation:
-- 
+- My closest relevant fit for this desirable criterion comes from two adjacent strands rather than one direct energy-retail example.
+- The first is energy-adjacent operational experience from South Western Technologies & Oilfield Services, where I worked in completions-related field activity inside an oil and gas environment. That gave me exposure to a live energy-linked operating context where technical readings, equipment conditions, safe delivery, and disciplined escalation mattered.
+- The second is analytical work from the fraud decisioning platform, where the central judgement often involved proportionality: whether an intervention was justified, whether it imposed unnecessary burden, and whether it protected the business and its customers sensibly.
 
 Task:
-- 
+- The task in answering this criterion honestly is to separate what is genuinely sector-adjacent from what is genuinely transferable analytical judgement.
+- I would not claim direct retail-energy market knowledge, pricing-policy knowledge, or licence-condition expertise that I do not have. What I can claim is energy-sector adjacency from oilfield services, and strong transferable judgement from analytical work where customer impact, operational burden, and proportionate decision making had to be balanced carefully.
 
 Action:
-- 
+- I would frame South Western as the sector-adjacent part. In completions work, the environment was energy-linked, operationally critical, and intolerant of careless interpretation. Pressure, temperature, equipment condition, and handover quality all had real consequences, so disciplined reading of information and proportionate response mattered.
+- I would frame the fraud platform as the transferable analytical part. That work required:
+- monitoring large datasets to understand performance and emerging issues;
+- assessing whether a broad intervention was justified or whether it was creating unnecessary burden;
+- balancing protection against efficiency;
+- making trade-offs explicit instead of hiding them inside one attractive metric;
+- reducing the comparison to a recommendation that was more proportionate and more usable.
+- Taken together, that gives me an honest answer: I do not come with direct retail-energy regulation knowledge, but I do come with energy-adjacent operational exposure and strong analytical judgement around proportionality, burden, protection, and decision support under uncertainty.
 
 Result:
-- 
+- The result is a more balanced and defensible desirable-criterion answer.
+- The South Western experience gives me genuine energy-sector adjacency, while the fraud-platform work gives me the stronger analytical transfer on consumer-impact trade-offs, uncertainty, and proportionate recommendations.
+- So the final position would be honest and useful: not “I already know the retail energy market,” but “I bring energy-adjacent operational exposure plus strong transferable analytical judgement that is relevant to OFGEM’s consumer-protection and market-monitoring environment.”
