@@ -1,0 +1,3 @@
+is_virtual,rows,row_share,merchants,sites,edges,edge_null_rows
+False,216136107,0.9131545908831089,3893,78516,0,216136107
+True,20555587,0.0868454091168911,157,0,3005,0

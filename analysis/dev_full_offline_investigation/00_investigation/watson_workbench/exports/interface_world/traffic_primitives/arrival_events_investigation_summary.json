@@ -1,0 +1,207 @@
+{
+  "parquet_files": 1302,
+  "profile": {
+    "rows": 236691694,
+    "merchants": 4050,
+    "sites": 78516,
+    "edges": 3005,
+    "zones": 339,
+    "channels": 2,
+    "bucket_indexes": 2160,
+    "primary_timezones": 281,
+    "settlement_timezones": 227,
+    "operational_timezones": 281,
+    "virtual_rows": 20555587,
+    "physical_rows": 216136107,
+    "edge_null_rows": 216136107,
+    "site_null_rows": 20555587,
+    "min_ts_utc": "2026-01-01T00:00:00.001940Z",
+    "max_ts_utc": "2026-03-31T23:59:59.944516Z",
+    "min_bucket_index": 0,
+    "max_bucket_index": 2159
+  },
+  "identity_rows": [
+    {
+      "seed": 42,
+      "manifest_fingerprint": "76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460",
+      "parameter_hash": "0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00",
+      "scenario_id": "baseline_v1",
+      "rows": 236691694,
+      "merchants": 4050,
+      "sites": 78516,
+      "edges": 3005,
+      "zones": 339,
+      "channel_groups": 2,
+      "routing_universe_hashes": 1,
+      "spec_versions": 1,
+      "min_ts_utc": "2026-01-01T00:00:00.001940Z",
+      "max_ts_utc": "2026-03-31T23:59:59.944516Z",
+      "min_bucket_index": 0,
+      "max_bucket_index": 2159
+    }
+  ],
+  "channel_summary": [
+    {
+      "channel_group": "card_present",
+      "rows": 157117536,
+      "row_share": 0.6638067155833529,
+      "merchants": 3261,
+      "sites": 68780,
+      "edges": 537
+    },
+    {
+      "channel_group": "card_not_present",
+      "rows": 79574158,
+      "row_share": 0.3361932844166471,
+      "merchants": 789,
+      "sites": 9736,
+      "edges": 2468
+    }
+  ],
+  "virtual_summary": [
+    {
+      "is_virtual": false,
+      "rows": 216136107,
+      "row_share": 0.9131545908831089,
+      "merchants": 3893,
+      "sites": 78516,
+      "edges": 0,
+      "edge_null_rows": 216136107
+    },
+    {
+      "is_virtual": true,
+      "rows": 20555587,
+      "row_share": 0.0868454091168911,
+      "merchants": 157,
+      "sites": 0,
+      "edges": 3005,
+      "edge_null_rows": 0
+    }
+  ],
+  "month_summary": [
+    {
+      "utc_month": "2026-01",
+      "rows": 81678596,
+      "merchants": 4050,
+      "active_days": 31
+    },
+    {
+      "utc_month": "2026-02",
+      "rows": 73652566,
+      "merchants": 4050,
+      "active_days": 28
+    },
+    {
+      "utc_month": "2026-03",
+      "rows": 81360532,
+      "merchants": 4050,
+      "active_days": 31
+    }
+  ],
+  "daily_stats": {
+    "days": 90.0,
+    "min_daily_rows": 2472304.0,
+    "p25_daily_rows": 2578973.75,
+    "mean_daily_rows": 2629907.711111111,
+    "median_daily_rows": 2626903.0,
+    "p75_daily_rows": 2656526.75,
+    "max_daily_rows": 2887820.0,
+    "stddev_daily_rows": 82931.9414483196
+  },
+  "merchant_volume_stats": {
+    "merchants": 4050.0,
+    "min_rows_per_merchant": 1842.0,
+    "p05_rows_per_merchant": 3935.4000000000005,
+    "p25_rows_per_merchant": 17176.0,
+    "mean_rows_per_merchant": 58442.39358024691,
+    "median_rows_per_merchant": 35671.0,
+    "p75_rows_per_merchant": 69228.0,
+    "p95_rows_per_merchant": 189747.84999999966,
+    "max_rows_per_merchant": 841654.0,
+    "sequence_span_mismatch_merchants": 0.0,
+    "multi_channel_merchants": 0.0,
+    "multi_zone_merchants": 4050.0
+  },
+  "top_zones": [
+    {
+      "zone_representation": "Europe/Paris",
+      "rows": 18850372,
+      "row_share": 0.07964103717133394,
+      "merchants": 2011,
+      "sites": 33785,
+      "edges": 1214
+    },
+    {
+      "zone_representation": "Europe/Berlin",
+      "rows": 12651836,
+      "row_share": 0.053452809374882414,
+      "merchants": 2046,
+      "sites": 37876,
+      "edges": 1365
+    },
+    {
+      "zone_representation": "Europe/Oslo",
+      "rows": 12011938,
+      "row_share": 0.050749300902802275,
+      "merchants": 313,
+      "sites": 6146,
+      "edges": 264
+    },
+    {
+      "zone_representation": "Europe/Luxembourg",
+      "rows": 11168076,
+      "row_share": 0.04718406383960393,
+      "merchants": 1707,
+      "sites": 25376,
+      "edges": 934
+    },
+    {
+      "zone_representation": "Europe/Zurich",
+      "rows": 10006135,
+      "row_share": 0.0422749731133362,
+      "merchants": 1818,
+      "sites": 26585,
+      "edges": 1122
+    },
+    {
+      "zone_representation": "Africa/Accra",
+      "rows": 8764162,
+      "row_share": 0.03702775476354485,
+      "merchants": 143,
+      "sites": 2763,
+      "edges": 178
+    },
+    {
+      "zone_representation": "Europe/Monaco",
+      "rows": 5208486,
+      "row_share": 0.02200536027259157,
+      "merchants": 1131,
+      "sites": 14049,
+      "edges": 416
+    },
+    {
+      "zone_representation": "Europe/Brussels",
+      "rows": 4918288,
+      "row_share": 0.020779301195081226,
+      "merchants": 1750,
+      "sites": 25919,
+      "edges": 959
+    },
+    {
+      "zone_representation": "Europe/Vienna",
+      "rows": 4691009,
+      "row_share": 0.019819068936149487,
+      "merchants": 1478,
+      "sites": 23666,
+      "edges": 793
+    },
+    {
+      "zone_representation": "Europe/Helsinki",
+      "rows": 4563728,
+      "row_share": 0.019281318760598333,
+      "merchants": 313,
+      "sites": 5991,
+      "edges": 259
+    }
+  ]
+}
