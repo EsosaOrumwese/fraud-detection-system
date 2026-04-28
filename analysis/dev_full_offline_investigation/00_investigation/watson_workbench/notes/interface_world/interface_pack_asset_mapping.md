@@ -1,24 +1,6 @@
-# Interface-World Mapping: Correcting the Black-Box Boundary
+# Interface-World Mapping: The Downstream Operating Estate
 
-## Why this note had to be corrected
-
-The first version of this mapping crossed the wrong boundary.
-
-It treated the Data Engine as a black box only in the sense that the code and state logic were hidden, but it still admitted a large amount of world-building output into the downstream analytical estate. That was too broad. It pulled in surfaces from `1A` through `3B`, plus `5A` and `6A`, as if those were normal downstream-facing analytical assets.
-
-That is not the operating posture we want.
-
-For the role we are now embodying, the correct question is not:
-
-> what engine-visible outputs happen to exist under the pinned run tree?
-
-The correct question is:
-
-> what governed operating data estate has the interface pack actually handed to a downstream platform team, assuming the engine itself remains sealed?
-
-Once that question is asked properly, the boundary narrows sharply.
-
-## The corrected black-box posture
+## Black-box posture
 
 The binding interface-pack docs are clear about the boundary:
 
@@ -51,18 +33,18 @@ Pinned run:
 
 - [`runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1`](../../../../../../runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1)
 
-Support script and corrected exports:
+Support script and exports:
 
 - [`analysis/dev_full_offline_investigation/00_investigation/watson_workbench/scratch/map_interface_world_outputs.py`](../../scratch/map_interface_world_outputs.py)
 - [`analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/interface_world/interface_downstream_estate_inventory.csv`](../../exports/interface_world/interface_downstream_estate_inventory.csv)
 - [`analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/interface_world/interface_downstream_estate_present_only.csv`](../../exports/interface_world/interface_downstream_estate_present_only.csv)
 - [`analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/interface_world/interface_downstream_estate_summary.json`](../../exports/interface_world/interface_downstream_estate_summary.json)
 
-## What the corrected downstream estate actually contains
+## What the downstream estate actually contains
 
-Once the black-box boundary is respected, the downstream operating estate collapses to a much smaller set of named interface surfaces.
+Under this black-box posture, the downstream operating estate resolves into a small set of named interface surfaces.
 
-In the pinned run, the corrected downstream estate contains exactly `17` present outputs:
+In the pinned run, the downstream estate contains exactly `17` present outputs:
 
 - `1` traffic primitive
 - `2` behavioural streams
@@ -74,8 +56,6 @@ By segment, that becomes:
 
 - `5B`: `4` outputs
 - `6B`: `13` outputs
-
-That is the first major correction.
 
 The analytical estate we have actually been handed is **not** the whole run-visible interface world. It is a narrow `5B` / `6B` operating slice, plus the gate artefacts that authorize reads from that slice.
 
@@ -101,7 +81,7 @@ It is not outlet construction data. It is not merchant-authoring authority. It i
 
 That is the downstream-facing world we should now investigate.
 
-## Corrected mapping by interface role
+## Mapping by interface role
 
 ### 1. Traffic primitive
 
@@ -148,7 +128,7 @@ There are four behavioural-context surfaces:
 
 These are not traffic. They are the join surfaces needed to interpret or enrich the behavioural streams.
 
-This is the second major correction to the earlier broad note: the downstream platform does not need the deep world-building datasets in order to contextualize traffic. The interface pack already gives it a constrained context layer whose job is exactly that.
+The downstream platform does not need deep world-building datasets in order to contextualize traffic. The interface pack already gives it a constrained context layer whose job is exactly that.
 
 Within this group, the time-safety split matters:
 
@@ -191,7 +171,7 @@ This is where the platform moves from “what traffic is moving now?” to “wh
 
 ### 5. Gate artefacts
 
-There are six read-authorizing gate artefacts in the corrected downstream estate:
+There are six read-authorizing gate artefacts in the downstream estate:
 
 - `validation_bundle_5B`
 - `validation_bundle_index_5B`
@@ -212,7 +192,7 @@ They belong to governance and read authorization, not to traffic or truth themse
 
 ## What is available to what part of the live platform?
 
-With the corrected boundary, the practical platform map becomes much cleaner.
+Within this boundary, the practical platform map becomes much cleaner.
 
 | Live platform area | Downstream-facing surfaces that matter | Important caution |
 |---|---|---|
@@ -248,11 +228,7 @@ To keep the posture honest, it is important to say what we are **not** including
 
 Those surfaces may still be useful to a builder trying to understand the platform. But if we are acting as a downstream analytical team handed the governed operating estate, those surfaces are still inside the black box and should not structure our first investigation.
 
-## What this correction changes for the notebook
-
-The notebook anchor must now be read with a much stricter lens.
-
-We are no longer mapping “all present interface outputs” to platform areas.
+## What this establishes for the notebook
 
 We are mapping the **received downstream operating estate**:
 
@@ -265,8 +241,6 @@ We are mapping the **received downstream operating estate**:
 That narrower framing is the right starting point for the next analytical move.
 
 ## Final working conclusion
-
-The corrected black-box mapping says this:
 
 The downstream analytical team has **not** been handed the engine’s world-building datasets. It has been handed a thin behavioural operating estate centered on `5B` and `6B`, plus the gate artefacts required to trust those surfaces.
 
