@@ -1,0 +1,62 @@
+{
+  "downstream_catalogue_outputs_total": 17,
+  "downstream_present_outputs_total": 17,
+  "downstream_missing_outputs_total": 0,
+  "present_breakdown_by_role": {
+    "behavioural_context": 4,
+    "behavioural_streams": 2,
+    "gate_artifacts": 6,
+    "traffic_primitives": 1,
+    "truth_products": 4
+  },
+  "present_breakdown_by_segment": {
+    "5B": 4,
+    "6B": 13
+  },
+  "front_door_outputs_present": [
+    "arrival_events_5B",
+    "s1_arrival_entities_6B",
+    "s1_session_index_6B",
+    "s2_event_stream_baseline_6B",
+    "s2_flow_anchor_baseline_6B",
+    "s3_event_stream_with_fraud_6B",
+    "s3_flow_anchor_with_fraud_6B"
+  ],
+  "truth_products_present": [
+    "s4_case_timeline_6B",
+    "s4_event_labels_6B",
+    "s4_flow_bank_view_6B",
+    "s4_flow_truth_labels_6B"
+  ],
+  "read_authorizers_present": [
+    "validation_bundle_5B",
+    "validation_bundle_6B",
+    "validation_bundle_index_5B",
+    "validation_bundle_index_6B",
+    "validation_passed_flag_5B",
+    "validation_passed_flag_6B"
+  ],
+  "rtdl_time_safe_surfaces_present": [
+    "arrival_events_5B",
+    "s1_arrival_entities_6B",
+    "s2_flow_anchor_baseline_6B",
+    "s3_flow_anchor_with_fraud_6B"
+  ],
+  "batch_only_surfaces_present": [
+    "s1_session_index_6B",
+    "s4_case_timeline_6B",
+    "s4_event_labels_6B",
+    "s4_flow_bank_view_6B",
+    "s4_flow_truth_labels_6B"
+  ],
+  "explicitly_out_of_bounds_segments_for_black_box_analysis": [
+    "1A",
+    "1B",
+    "2A",
+    "2B",
+    "3A",
+    "3B",
+    "5A",
+    "6A"
+  ]
+}
