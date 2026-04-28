@@ -1,0 +1,453 @@
+{
+  "file_counts": {
+    "baseline": 1302,
+    "with_fraud": 1
+  },
+  "baseline": {
+    "schema_columns": [
+      "flow_id",
+      "event_seq",
+      "event_type",
+      "ts_utc",
+      "amount",
+      "seed",
+      "manifest_fingerprint",
+      "parameter_hash",
+      "scenario_id"
+    ],
+    "profile": {
+      "rows": 473383388,
+      "approx_flows": 244190267,
+      "event_types": 2,
+      "min_event_seq": 0,
+      "max_event_seq": 1,
+      "distinct_event_seq": 2,
+      "seeds": 1,
+      "manifest_fingerprints": 1,
+      "parameter_hashes": 1,
+      "scenarios": 1,
+      "min_ts_utc": "2026-01-01T00:00:00.001940Z",
+      "max_ts_utc": "2026-04-01T00:01:41.104298Z",
+      "min_amount": 0.04,
+      "p05_amount": 2.0233739680962044,
+      "p25_amount": 7.419123705037369,
+      "mean_amount": 24.312742096890343,
+      "median_amount": 14.991536951660194,
+      "p75_amount": 29.99114100581494,
+      "p95_amount": 99.44337472002096,
+      "max_amount": 3401.78,
+      "total_amount": 11509248225.396175
+    },
+    "event_type_summary": [
+      {
+        "event_type": "AUTH_REQUEST",
+        "rows": 236691694,
+        "approx_flows": 244190267,
+        "row_share": 0.5,
+        "min_amount": 0.04,
+        "mean_amount": 24.312742096536688,
+        "median_amount": 14.99,
+        "max_amount": 3401.78
+      },
+      {
+        "event_type": "AUTH_RESPONSE",
+        "rows": 236691694,
+        "approx_flows": 244190267,
+        "row_share": 0.5,
+        "min_amount": 0.04,
+        "mean_amount": 24.312742096536688,
+        "median_amount": 14.99,
+        "max_amount": 3401.78
+      }
+    ],
+    "month_summary": [
+      {
+        "utc_month": "2026-01",
+        "rows": 163357039,
+        "approx_flows": 77849429,
+        "total_amount": 3972670304.3607483
+      },
+      {
+        "utc_month": "2026-02",
+        "rows": 147305153,
+        "approx_flows": 83592958,
+        "total_amount": 3580944023.4518476
+      },
+      {
+        "utc_month": "2026-03",
+        "rows": 162721045,
+        "approx_flows": 71504687,
+        "total_amount": 3955630485.5184608
+      },
+      {
+        "utc_month": "2026-04",
+        "rows": 151,
+        "approx_flows": 162,
+        "total_amount": 3411.7300000000005
+      }
+    ],
+    "daily_stats": {
+      "days": 91.0,
+      "min_daily_rows": 151.0,
+      "p25_daily_rows": 5147070.5,
+      "mean_daily_rows": 5202015.252747253,
+      "median_daily_rows": 5252478.0,
+      "p75_daily_rows": 5312156.5,
+      "max_daily_rows": 5775651.0,
+      "stddev_daily_rows": 575503.0765847022
+    },
+    "nulls": [
+      {
+        "column": "flow_id",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "event_seq",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "event_type",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "ts_utc",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "amount",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "seed",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "manifest_fingerprint",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "parameter_hash",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "scenario_id",
+        "null_count": 0,
+        "null_pct": 0.0
+      }
+    ]
+  },
+  "with_fraud": {
+    "schema_columns": [
+      "flow_id",
+      "event_seq",
+      "event_type",
+      "ts_utc",
+      "amount",
+      "seed",
+      "manifest_fingerprint",
+      "parameter_hash",
+      "scenario_id",
+      "fraud_flag",
+      "campaign_id"
+    ],
+    "profile": {
+      "rows": 473383388,
+      "approx_flows": 244190267,
+      "event_types": 2,
+      "min_event_seq": 0,
+      "max_event_seq": 1,
+      "distinct_event_seq": 2,
+      "seeds": 1,
+      "manifest_fingerprints": 1,
+      "parameter_hashes": 1,
+      "scenarios": 1,
+      "min_ts_utc": "2026-01-01T00:00:00.001940Z",
+      "max_ts_utc": "2026-04-01T00:01:41.104298Z",
+      "min_amount": 0.04,
+      "p05_amount": 2.0232795029125072,
+      "p25_amount": 7.424251498204083,
+      "mean_amount": 24.313666392731097,
+      "median_amount": 14.995169257344703,
+      "p75_amount": 29.98368016392511,
+      "p95_amount": 99.71227231273426,
+      "max_amount": 3401.78,
+      "total_amount": 11509685771.692785
+    },
+    "event_type_summary": [
+      {
+        "event_type": "AUTH_REQUEST",
+        "rows": 236691694,
+        "approx_flows": 244190267,
+        "row_share": 0.5,
+        "min_amount": 0.04,
+        "mean_amount": 24.313666392373193,
+        "median_amount": 14.99,
+        "max_amount": 3401.78
+      },
+      {
+        "event_type": "AUTH_RESPONSE",
+        "rows": 236691694,
+        "approx_flows": 244190267,
+        "row_share": 0.5,
+        "min_amount": 0.04,
+        "mean_amount": 24.31366639237374,
+        "median_amount": 14.99,
+        "max_amount": 3401.78
+      }
+    ],
+    "month_summary": [
+      {
+        "utc_month": "2026-01",
+        "rows": 163357039,
+        "approx_flows": 77849429,
+        "total_amount": 3972813833.5412464
+      },
+      {
+        "utc_month": "2026-02",
+        "rows": 147305153,
+        "approx_flows": 83592958,
+        "total_amount": 3581082174.70166
+      },
+      {
+        "utc_month": "2026-03",
+        "rows": 162721045,
+        "approx_flows": 71504687,
+        "total_amount": 3955786351.382931
+      },
+      {
+        "utc_month": "2026-04",
+        "rows": 151,
+        "approx_flows": 162,
+        "total_amount": 3411.73
+      }
+    ],
+    "daily_stats": {
+      "days": 91.0,
+      "min_daily_rows": 151.0,
+      "p25_daily_rows": 5147070.5,
+      "mean_daily_rows": 5202015.252747253,
+      "median_daily_rows": 5252478.0,
+      "p75_daily_rows": 5312156.5,
+      "max_daily_rows": 5775651.0,
+      "stddev_daily_rows": 575503.0765847022
+    },
+    "nulls": [
+      {
+        "column": "flow_id",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "event_seq",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "event_type",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "ts_utc",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "amount",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "seed",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "manifest_fingerprint",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "parameter_hash",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "scenario_id",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "fraud_flag",
+        "null_count": 0,
+        "null_pct": 0.0
+      },
+      {
+        "column": "campaign_id",
+        "null_count": 473369124,
+        "null_pct": 0.9999698679751728
+      }
+    ]
+  },
+  "overlay_summary": [
+    {
+      "fraud_flag": false,
+      "rows": 473369124,
+      "approx_flows": 244190267,
+      "campaigns": 0,
+      "row_share": 0.9999698679751728,
+      "min_amount": 0.04,
+      "mean_amount": 24.312748850679522,
+      "median_amount": 14.99,
+      "max_amount": 3401.78,
+      "min_ts_utc": "2026-01-01T00:00:00.001940Z",
+      "max_ts_utc": "2026-04-01T00:01:41.104298Z"
+    },
+    {
+      "fraud_flag": true,
+      "rows": 14264,
+      "approx_flows": 7208,
+      "campaigns": 6,
+      "row_share": 3.0132024827199892e-05,
+      "min_amount": 1.1766703515,
+      "mean_amount": 54.7634755095689,
+      "median_amount": 31.751361953500002,
+      "max_amount": 729.73435493,
+      "min_ts_utc": "2026-01-01T00:23:41.366311Z",
+      "max_ts_utc": "2026-03-31T23:45:32.472554Z"
+    }
+  ],
+  "campaign_summary": [
+    {
+      "campaign_id": "d6c74673999a314c07427c5419ff09aaed9de61f0dbc4c5b7e4c38857c0b1009",
+      "rows": 4556,
+      "flows": 2278,
+      "event_types": 2,
+      "min_ts_utc": "2026-01-01T00:23:41.366311Z",
+      "max_ts_utc": "2026-03-31T23:36:05.824888Z",
+      "min_amount": 1.1766703515,
+      "mean_amount": 54.29762210270283,
+      "median_amount": 31.628420792500002,
+      "max_amount": 616.98302757
+    },
+    {
+      "campaign_id": "1ce7c61781eec126f37ef35563ccf55788fa452cb563caaa42820588ec00e0c5",
+      "rows": 3844,
+      "flows": 1922,
+      "event_types": 2,
+      "min_ts_utc": "2026-01-01T02:08:15.486034Z",
+      "max_ts_utc": "2026-03-31T20:17:31.973669Z",
+      "min_amount": 1.2126429454999998,
+      "mean_amount": 54.63523407274323,
+      "median_amount": 31.3444102755,
+      "max_amount": 635.1353570800001
+    },
+    {
+      "campaign_id": "38ac565c472cd04344ce504af402f30265a6a18d6b9c057a723f92b17a38ab48",
+      "rows": 2446,
+      "flows": 1223,
+      "event_types": 2,
+      "min_ts_utc": "2026-01-01T01:48:37.332681Z",
+      "max_ts_utc": "2026-03-31T22:24:35.740197Z",
+      "min_amount": 1.3962633544999998,
+      "mean_amount": 55.549541179656586,
+      "median_amount": 32.3565298525,
+      "max_amount": 729.73435493
+    },
+    {
+      "campaign_id": "c8941125636cb1445cb99ecc262f48964c0bb3c504e14c12f0f1d56b7a56b616",
+      "rows": 2416,
+      "flows": 1208,
+      "event_types": 2,
+      "min_ts_utc": "2026-01-01T01:21:20.958824Z",
+      "max_ts_utc": "2026-03-31T23:27:17.973755Z",
+      "min_amount": 1.5362721885,
+      "mean_amount": 54.82123393426737,
+      "median_amount": 31.881773476,
+      "max_amount": 725.498330676
+    },
+    {
+      "campaign_id": "2edf7727b56e46c46c2a20be6dcf8bf3904e0660211545e446579e127b47c2aa",
+      "rows": 550,
+      "flows": 275,
+      "event_types": 2,
+      "min_ts_utc": "2026-01-01T01:21:48.171850Z",
+      "max_ts_utc": "2026-03-31T15:33:06.257587Z",
+      "min_amount": 1.9673059769999999,
+      "mean_amount": 53.71190791070364,
+      "median_amount": 31.311710521000006,
+      "max_amount": 427.20920849250007
+    },
+    {
+      "campaign_id": "e77e4a300b573f73062a702459e9da3d8cc18dbf87a058642ddd116842ff1fdd",
+      "rows": 452,
+      "flows": 226,
+      "event_types": 2,
+      "min_ts_utc": "2026-01-01T17:26:46.469740Z",
+      "max_ts_utc": "2026-03-31T23:45:32.472554Z",
+      "min_amount": 1.3133946,
+      "mean_amount": 57.26677064476771,
+      "median_amount": 32.806696231749996,
+      "max_amount": 378.7841709225001
+    }
+  ],
+  "fraud_flow_shape": [
+    {
+      "fraud_flow": true,
+      "flows": 7132,
+      "min_events_per_flow": 2,
+      "median_events_per_flow": 2.0,
+      "max_events_per_flow": 2,
+      "nonstandard_flow_shapes": 0
+    }
+  ],
+  "baseline_sequence_balance": [
+    {
+      "event_seq": 0,
+      "event_type": "AUTH_REQUEST",
+      "rows": 236691694,
+      "approx_flows": 244190267
+    },
+    {
+      "event_seq": 1,
+      "event_type": "AUTH_RESPONSE",
+      "rows": 236691694,
+      "approx_flows": 244190267
+    }
+  ],
+  "key_fingerprint": [
+    {
+      "stream_name": "baseline",
+      "rows": 473383388,
+      "approx_flows": 244190267,
+      "key_hash_sum": 4.365982797643315e+27
+    },
+    {
+      "stream_name": "with_fraud",
+      "rows": 473383388,
+      "approx_flows": 244190267,
+      "key_hash_sum": 4.365982797643315e+27
+    }
+  ],
+  "fraud_rows_vs_baseline": [
+    {
+      "fraud_rows": 14264,
+      "matched_baseline_rows": 14264,
+      "missing_baseline_rows": 0,
+      "same_event_type_rows": 14264,
+      "same_ts_rows": 14264,
+      "same_amount_rows": 0,
+      "mean_amount_delta": 30.674866423758473,
+      "min_amount_delta": 0.08264294549999995,
+      "max_amount_delta": 497.128330676
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+column,null_count,null_pct
+flow_id,0,0.0
+event_seq,0,0.0
+event_type,0,0.0
+ts_utc,0,0.0
+amount,0,0.0
+seed,0,0.0
+manifest_fingerprint,0,0.0
+parameter_hash,0,0.0
+scenario_id,0,0.0
+fraud_flag,0,0.0
+campaign_id,473369124,0.9999698679751728

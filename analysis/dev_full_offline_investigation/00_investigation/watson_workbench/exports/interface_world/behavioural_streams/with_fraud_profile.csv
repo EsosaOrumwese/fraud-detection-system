@@ -1,0 +1,2 @@
+rows,approx_flows,event_types,min_event_seq,max_event_seq,distinct_event_seq,seeds,manifest_fingerprints,parameter_hashes,scenarios,min_ts_utc,max_ts_utc,min_amount,p05_amount,p25_amount,mean_amount,median_amount,p75_amount,p95_amount,max_amount,total_amount
+473383388,244190267,2,0,1,2,1,1,1,1,2026-01-01T00:00:00.001940Z,2026-04-01T00:01:41.104298Z,0.04,2.0232795029125072,7.424251498204083,24.313666392731097,14.995169257344703,29.98368016392511,99.71227231273426,3401.78,11509685771.692785

@@ -1,0 +1,3 @@
+event_type,rows,approx_flows,row_share,min_amount,mean_amount,median_amount,max_amount
+AUTH_REQUEST,236691694,244190267,0.5,0.04,24.312742096536688,14.99,3401.78
+AUTH_RESPONSE,236691694,244190267,0.5,0.04,24.312742096536688,14.99,3401.78

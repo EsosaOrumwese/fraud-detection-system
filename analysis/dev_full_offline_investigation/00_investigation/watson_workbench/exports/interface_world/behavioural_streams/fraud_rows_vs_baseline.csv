@@ -1,0 +1,2 @@
+fraud_rows,matched_baseline_rows,missing_baseline_rows,same_event_type_rows,same_ts_rows,same_amount_rows,mean_amount_delta,min_amount_delta,max_amount_delta
+14264,14264,0,14264,14264,0,30.674866423758473,0.08264294549999995,497.128330676
