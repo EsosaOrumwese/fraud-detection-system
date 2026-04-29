@@ -78,6 +78,10 @@ The row count is large enough that this should be treated as a warehouse-style a
 
 ## Grain and identity
 
+Branch investigation:
+
+- [`branches/arrival_events_grain_and_identity.md`](branches/arrival_events_grain_and_identity.md)
+
 The observed grain matches the declared primary key:
 
 `seed + manifest_fingerprint + scenario_id + merchant_id + arrival_seq`
