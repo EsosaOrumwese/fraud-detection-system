@@ -1,0 +1,14 @@
+column,null_count,null_pct
+session_id,0,0.0
+arrival_count,0,0.0
+session_start_utc,0,0.0
+session_end_utc,0,0.0
+seed,0,0.0
+manifest_fingerprint,0,0.0
+scenario_id,0,0.0
+party_id,0,0.0
+device_id,0,0.0
+account_id,0,0.0
+instrument_id,0,0.0
+merchant_id,0,0.0
+parameter_hash,0,0.0

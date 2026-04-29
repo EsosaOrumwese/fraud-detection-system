@@ -1,0 +1,15 @@
+column,null_count,null_pct
+flow_id,0,0.0
+arrival_seq,0,0.0
+merchant_id,0,0.0
+party_id,0,0.0
+account_id,0,0.0
+instrument_id,0,0.0
+device_id,0,0.0
+ip_id,0,0.0
+ts_utc,0,0.0
+amount,0,0.0
+seed,0,0.0
+manifest_fingerprint,0,0.0
+parameter_hash,0,0.0
+scenario_id,0,0.0
