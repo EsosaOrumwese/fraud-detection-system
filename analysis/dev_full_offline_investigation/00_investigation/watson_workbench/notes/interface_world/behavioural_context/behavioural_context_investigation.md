@@ -2,7 +2,7 @@
 
 ## What these surfaces are
 
-The behavioural-context datasets are the join surfaces that make the thin behavioural streams interpretable.
+The behavioural-context datasets are the join surfaces that make the thin behavioural streams interpretable. In the live AWS-hosted Fraud Decisioning Platform framing, this is the enrichment layer that lets admitted event rows become usable for RTDL, feature materialization, entity analysis, replay, and case review.
 
 The interface pack exposes four of them:
 
@@ -11,7 +11,7 @@ The interface pack exposes four of them:
 - `s2_flow_anchor_baseline_6B`
 - `s3_flow_anchor_with_fraud_6B`
 
-They are not traffic. They are the context layer around traffic.
+They are not traffic. They are the context layer around traffic. The platform should not emit these surfaces as the business stream; it should use them as governed projections or offline reads depending on time-safety.
 
 The behavioural streams carry the event grammar: `flow_id`, `event_seq`, `event_type`, `ts_utc`, `amount`, and, after overlay, fraud fields. The context surfaces attach the event stream back to merchants, arrivals, parties, accounts, instruments, devices, IPs, sessions, and flow anchors.
 
@@ -20,6 +20,8 @@ So the analytical role of this group is different from the behavioural streams:
 - streams tell us what event rows move through the platform
 - context tells us who and what those event rows are attached to
 - truth products later tell us what became true about those event rows or flows
+
+So the analysis of these columns is grounded in how a fraud platform would use them. `party_id`, `account_id`, `instrument_id`, `device_id`, and `ip_id` are not abstract IDs; they are the identity graph available for entity risk, network-style analysis, replay, case review, and feature construction. `session_end_utc` and `arrival_count` are not harmless columns; they mark a batch-only surface that must be kept out of live decision-time features.
 
 ## References and evidence
 
@@ -62,6 +64,8 @@ The contract also states the time-safety distinction:
 
 That means the context layer has both live-context and offline-context components. We should not flatten them into one kind of feature surface.
 
+Operationally, the split is the point of the contract. `s1_arrival_entities_6B` and the flow anchors can be projected into the real-time path because they describe the current arrival/flow. `s1_session_index_6B` is useful after the fact because it describes a completed session. If we ignore that distinction, we would accidentally let future knowledge leak into a live fraud decision.
+
 ## Physical shape of the context layer
 
 The pinned run contains:
@@ -79,6 +83,8 @@ This is the basic shape of the behavioural operating world:
 - flow anchors have the same row count as the flow count
 - behavioural streams have twice that row count because each flow becomes request and response events
 - session context compresses arrivals into sessions, but not by very much because most sessions have one or two arrivals
+
+For the operating platform, this means a streamed event does not carry all its meaning alone. The row counts show the supporting context architecture: one arrival context row, one flow anchor row, and two event rows per flow, plus a separate offline session view.
 
 ## Arrival entity context
 
@@ -108,7 +114,7 @@ The session estimate here is an approximate distinct read from the arrival-entit
 
 This surface is the first point where the stream world starts to look like a fraud platform rather than just merchant traffic. It introduces the customer/account/device/IP identity space that later analytics and case investigation will need.
 
-The important read is that the entity world is much wider than the merchant world. There are only `4,050` merchants, but millions of parties, accounts, instruments, devices, and IPs. That means a downstream investigation cannot stay merchant-only for long. The fraud platform's context layer is designed to support entity-level and network-style questions.
+The important read is that the entity world is much wider than the merchant world. There are only `4,050` merchants, but millions of parties, accounts, instruments, devices, and IPs. That means a downstream investigation cannot stay merchant-only for long. The fraud platform's context layer is designed to support entity-level and network-style questions: account exposure, device reuse, IP concentration, instrument behaviour, and party-level risk are all made possible by this surface.
 
 ## Session index
 
@@ -134,7 +140,7 @@ Session arrival-count shape:
 
 The session surface is internally coherent: summing `arrival_count` exactly reconstructs the `236,691,694` arrival rows.
 
-But it is not live-safe. The session index contains `session_end_utc` and `arrival_count`, which require knowledge of the full session. So this surface is valuable for offline analytics, behavioural reconstruction, and case review, but it must not be used as if it were available at event time.
+But it is not live-safe. The session index contains `session_end_utc` and `arrival_count`, which require knowledge of the full session. So this surface is valuable for offline analytics, behavioural reconstruction, and case review, but it must not be used as if it were available at event time. In platform terms, it belongs with offline learning/evaluation and case reconstruction, not the hot RTDL path.
 
 The statistical read is that the platform mostly sees short sessions. Over three quarters of sessions contain one arrival, and about `95.83%` contain one or two arrivals. That means session-level aggregation exists, but most sessions are not long behavioural chains.
 
@@ -160,7 +166,7 @@ Observed profile:
 
 This surface is the bridge between event stream and context. The baseline event stream has two rows per flow, but this anchor has one row per flow. So when we want flow-level context, this is the surface to join to.
 
-It also explains why the event stream is intentionally thin. The stream carries event movement; the anchor carries the flow's entity and amount context.
+It also explains why the event stream is intentionally thin. The stream carries event movement; the anchor carries the flow's entity and amount context. In a production service, this is the sort of surface that would be indexed or projected for fast context lookup rather than copied wholesale into each streamed event.
 
 ## Post-overlay flow anchor
 
@@ -184,6 +190,8 @@ Fraud overlay at anchor grain:
 | `true` | `7,132` | `6` | `0.003013%` | `54.76` | about `31.72` |
 
 The post-overlay anchor confirms the behavioural-stream finding at the right grain: there are `7,132` fraud flows, and the behavioural stream represents them as `14,264` fraud event rows.
+
+Operationally, this anchor is the flow-grain context counterpart of the post-overlay stream. It is where a live or replayed event can recover the post-overlay flow amount, entity attachments, and campaign marker without confusing event rows with flow rows.
 
 The campaign distribution is:
 

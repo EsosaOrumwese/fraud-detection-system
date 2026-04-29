@@ -21,6 +21,20 @@ So for this investigation, the following are treated as **inside the black box**
 
 Those surfaces may exist in the run tree. They may even be highly informative to the builder. But for the downstream analytical posture we are now adopting, they are not part of the received operating data world.
 
+## Operating-platform posture
+
+For the rest of the interface-world investigation, we are treating the pinned run as an extract from a live AWS-hosted Fraud Decisioning Platform operated by a financial institution.
+
+That means these notes are not only cataloguing datasets. Each surface is read in terms of its place in the operating platform:
+
+- what part of the platform would emit or expose it
+- whether it is streamed as business traffic or held as a join/context surface
+- whether it is live-safe for real-time decisioning or only available after the fact
+- which other surfaces it needs to be interpreted correctly
+- what role it plays for analytics, data science, case review, learning, evaluation, or audit
+
+The production-readiness posture matters here because the platform does not batch-absorb the whole oracle store per event. The behavioural streams are the live-moving traffic body, while context and truth surfaces are consumed through governed joins, preloaded projections, offline reads, or case/label workflows depending on time-safety. So the analysis must keep the operational distinction between streamed traffic, live context, offline labels, and case history intact.
+
 ## Authority and support artefacts
 
 Primary boundary references:

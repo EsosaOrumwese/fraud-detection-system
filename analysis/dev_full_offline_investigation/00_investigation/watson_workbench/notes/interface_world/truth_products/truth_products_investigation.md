@@ -2,7 +2,7 @@
 
 ## What these surfaces are
 
-The `s4_*` truth products are the offline judgement layer of the interface world.
+The `s4_*` truth products are the offline judgement layer of the interface world. In the live AWS-hosted Fraud Decisioning Platform framing, they are the surfaces produced after traffic has moved through the platform and later label/case processes have decided what the institution believes, acts on, disputes, charges back, or uses for learning.
 
 The interface pack exposes four truth-product datasets:
 
@@ -14,6 +14,8 @@ The interface pack exposes four truth-product datasets:
 They are not traffic and they are not live decision inputs. They are the surfaces that tell us what became true about the post-overlay flow world after labelling, institutional judgement, and case lifecycle construction.
 
 That distinction matters because the behavioural streams and context surfaces tell us what happened in the operating platform, while the truth products tell us how the platform can later learn from, evaluate, audit, and reconstruct those flows.
+
+So the analysis reads `is_fraud_truth`, `fraud_label`, `is_fraud_bank_view`, `bank_label`, and case events as operating outcomes of a fraud platform. Ground truth, bank view, event labels, and case timelines are related but not interchangeable. This is the layer that lets analytics ask whether the platform's live behaviour, institutional handling, and eventual supervised truth agree or diverge.
 
 ## References and evidence
 
@@ -57,6 +59,8 @@ This gives us three analytical objects, not one:
 - ground truth: what the synthetic truth process says the flow really is
 - bank view: what the institution sees or acts on
 - case lifecycle: the post-decision operational trail
+
+Operationally, this is the boundary between live decisioning and offline judgement. The Event Bus/RTDL path may later be evaluated against these products, but it must not consume them while making the original decision. `is_fraud_truth` is a supervised-learning/evaluation target. `is_fraud_bank_view` is the institution's action-facing view. `case_event_type` is the operational case trail. Treating them as one generic fraud flag would erase the very disagreement the platform is designed to expose.
 
 ## Physical shape
 
@@ -103,7 +107,7 @@ The reconciliation against the post-overlay anchor is:
 
 This is an important investigative finding. `fraud_flag` in the post-overlay anchor is not the same thing as `is_fraud_truth` in the truth product. The anchor flag marks the explicit overlay/campaign surface. The truth product expands the judgement space into `ABUSE` and `FRAUD`, with `ABUSE` being the dominant positive class.
 
-That means downstream analysis should not use `fraud_flag` as the final label. It is an upstream context marker. The final supervised label surface is `s4_flow_truth_labels_6B`.
+That means downstream analysis should not use `fraud_flag` as the final label. It is an upstream context marker. The final supervised label surface is `s4_flow_truth_labels_6B`. For model training, evaluation, and labelled analytics, this surface is the flow-grain target; the overlay flag is explanatory context.
 
 ## Bank view
 
@@ -124,7 +128,7 @@ The bank sees more positive flows than the truth surface declares:
 - truth-positive flows: `5,940,539`
 - bank-positive flows: `11,645,119`
 
-So the bank view is not a clean mirror of ground truth. It is a second judgement layer, which is exactly what we would expect in a fraud platform: an institution can act on suspicious or disputed flows even when the underlying truth label says otherwise, and it can also miss true-positive flows.
+So the bank view is not a clean mirror of ground truth. It is a second judgement layer, which is exactly what we would expect in a fraud platform: an institution can act on suspicious or disputed flows even when the underlying truth label says otherwise, and it can also miss true-positive flows. This is the surface we would use to study operational action quality, not the one we would blindly substitute for ground truth.
 
 ## Truth versus bank view
 
@@ -149,7 +153,7 @@ The bank view has low agreement with truth positives if read as a classifier:
 - precision against truth: about `12.08%`
 - recall against truth: about `23.68%`
 
-This should not immediately be read as a defect. At this stage, the bank view is an institutional action surface, not necessarily a model score. The point is that the interface pack preserves the difference between what is true, what the institution acts on, and what later becomes a case. That difference is exactly where supervision, model evaluation, operational review, and stakeholder reporting can begin.
+This should not immediately be read as a defect. At this stage, the bank view is an institutional action surface, not necessarily a model score. The point is that the interface pack preserves the difference between what is true, what the institution acts on, and what later becomes a case. That difference is exactly where supervision, model evaluation, operational review, loss analysis, false-positive review, and stakeholder reporting can begin.
 
 ## Event labels
 
@@ -171,6 +175,8 @@ By event sequence:
 | `1` | `236,691,694` | `5,940,539` | `11,645,119` |
 
 This is the event-level duplication of the flow-level judgement. Each labelled flow appears on both authorization events. That is why the event-level positive counts are exactly twice the flow-level positive counts.
+
+Operationally, this surface is useful when an event-stream consumer, replay job, or event-level evaluator needs labels at the same grain as the stream. It should not be used to count unique fraudulent flows without collapsing back to `flow_id`.
 
 The key reconciliation is also exact:
 
@@ -240,7 +246,7 @@ This confirms that case creation is not simply "all and only truth-positive flow
 - true-positive flows that progress into chargeback/write-off outcomes
 - legit flows that still enter the case lifecycle
 
-So the case timeline is not just a label table. It is the operational trace of institutional handling.
+So the case timeline is not just a label table. It is the operational trace of institutional handling. It belongs to case operations, dispute/chargeback analysis, customer-impact review, and audit reconstruction, not to the original real-time decision payload.
 
 ## Leads exposed by this investigation
 

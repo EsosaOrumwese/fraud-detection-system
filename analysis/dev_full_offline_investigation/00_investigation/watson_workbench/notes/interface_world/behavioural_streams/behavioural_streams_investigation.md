@@ -2,16 +2,18 @@
 
 ## What these surfaces are
 
-The behavioural streams are the first surfaces in the downstream estate that should be read as platform traffic.
+The behavioural streams are the first surfaces in the downstream estate that should be read as platform traffic. In the live AWS-hosted Fraud Decisioning Platform framing, these are the transaction-like event rows that a World Streamer / ingestion boundary would publish, the Ingestion Gate would admit, and the Event Bus / RTDL path would move through the service.
 
 The interface contract names two of them:
 
 - `s2_event_stream_baseline_6B`
 - `s3_event_stream_with_fraud_6B`
 
-The baseline stream is the production-shaped behavioural stream before fraud overlay. The post-overlay stream carries the same traffic world after synthetic fraud and abuse behaviour have been injected. In platform terms, these are the surfaces eligible for ingestion, event-bus handling, and feature-plane consumption.
+The baseline stream is the production-shaped behavioural stream before fraud overlay. The post-overlay stream carries the same traffic world after synthetic fraud and abuse behaviour have been injected. In platform terms, these are the surfaces eligible for ingestion, event-bus handling, RTDL context enrichment, online feature consumption, and later comparison against offline labels.
 
 That is the main difference from `arrival_events_5B`. The arrival primitive is a time-safe skeleton and join surface. These behavioural streams are the traffic body the platform would actually move through downstream systems.
+
+So these reports should not read the streams as static parquet tables only. The columns are interpreted as a streaming event contract: `flow_id` binds the event to flow context, `event_seq` and `event_type` define the request/response grammar, `ts_utc` defines event time, `amount` carries the economic signal, and post-overlay fraud fields mark the campaign-modified stream state before final truth is applied.
 
 ## References and evidence
 
@@ -48,6 +50,8 @@ The interface contract also makes two important statements:
 
 So the stream rows are intentionally thin. They are not expected to carry the full merchant, arrival, entity, session, or truth context. That context lives in the neighbouring behavioural-context surfaces and is joined by the platform.
 
+Operationally, this is the core streaming contract. The platform should move these events, not batch-absorb every context surface into each payload. `flow_id` is the event-to-flow handle, `event_seq` gives the request/response order, `event_type` tells the RTDL path which authorization phase it is seeing, `ts_utc` controls event-time ordering, and `amount` is the economic signal available on the stream. Context, labels, and case outcomes are intentionally outside the row and must be attached through governed joins or offline workflows.
+
 ## Physical shape of the two streams
 
 The two streams have the same row count:
@@ -69,7 +73,7 @@ Otherwise, its core stream body has the same traffic shape as the baseline strea
 - same event sequence range
 - same key fingerprint over `flow_id + event_seq`
 
-This is the first major finding: the fraud overlay does not appear as an extra traffic stream with additional rows. It appears as an overlay on the same event-key universe.
+This is the first major finding: the fraud overlay does not appear as an extra traffic stream with additional rows. It appears as an overlay on the same event-key universe. For a live ingestion path, that means the post-overlay stream preserves throughput shape while changing selected event attributes; it is not a second population of synthetic traffic appended on top.
 
 ## Event grammar
 
@@ -96,6 +100,8 @@ The platform-facing traffic stream is therefore not one row per arrival. It is o
 - flow-level analysis must collapse `AUTH_REQUEST` and `AUTH_RESPONSE`
 - labels may exist at event level or flow level, and those grains must not be confused
 
+It also matters operationally: RTDL and downstream consumers see event rows, while most fraud judgement and case surfaces are easier to reason about at flow grain. Any metric that mixes these grains can double-count the operating burden or label rate.
+
 ## Time coverage and the April spillover
 
 Both behavioural streams span:
@@ -116,7 +122,7 @@ The monthly event-row counts are:
 
 The April presence is small: only `151` rows. The most plausible reading is stream lifecycle rather than extract leakage. The arrival skeleton ends at the end of March, but a two-event stream can still place a small number of response-side events just after midnight on April 1.
 
-This is a useful platform lesson: the traffic stream has event lifecycle semantics, not just arrival-date semantics. If we later define reporting periods, we need to decide whether the boundary is based on arrival time, event time, flow start, or flow completion.
+This is a useful platform lesson: the traffic stream has event lifecycle semantics, not just arrival-date semantics. If we later define reporting periods, we need to decide whether the boundary is based on arrival time, event time, flow start, or flow completion. A live platform can admit an arrival in one period and complete a response just outside the period boundary.
 
 ## Amount surface
 
@@ -219,7 +225,7 @@ The amount deltas are:
 
 So the overlay is not creating a new timing universe and it is not changing the event grammar. It is selecting existing event keys, preserving their position in the stream, and changing the economic value carried by those fraud-marked events.
 
-That is an important investigative finding because it tells us how to compare baseline and post-overlay traffic. The right comparison is not “did new events appear?” The right comparison is “which existing event keys were marked and economically altered?”
+That is an important investigative finding because it tells us how to compare baseline and post-overlay traffic. The right comparison is not “did new events appear?” The right comparison is “which existing event keys were marked and economically altered?” In the service story, the fraud overlay changes what selected transactions look like to downstream decisioning and learning; it does not change the event-bus grammar.
 
 ## Null and completeness read
 
