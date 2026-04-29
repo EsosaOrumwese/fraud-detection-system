@@ -1,0 +1,10 @@
+column_name,column_type,null,key,default,extra
+case_id,BIGINT,YES,,,
+case_event_seq,BIGINT,YES,,,
+flow_id,BIGINT,YES,,,
+case_event_type,VARCHAR,YES,,,
+ts_utc,VARCHAR,YES,,,
+seed,BIGINT,YES,,,
+manifest_fingerprint,VARCHAR,YES,,,
+parameter_hash,VARCHAR,YES,,,
+scenario_id,VARCHAR,YES,,,

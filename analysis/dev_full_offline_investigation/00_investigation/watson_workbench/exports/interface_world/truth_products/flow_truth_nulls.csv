@@ -1,0 +1,8 @@
+column,null_count,null_pct
+flow_id,0,0.0
+is_fraud_truth,0,0.0
+fraud_label,0,0.0
+seed,0,0.0
+manifest_fingerprint,0,0.0
+parameter_hash,0,0.0
+scenario_id,0,0.0

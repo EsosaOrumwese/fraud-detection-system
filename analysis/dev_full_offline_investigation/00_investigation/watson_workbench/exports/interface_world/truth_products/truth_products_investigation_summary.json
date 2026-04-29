@@ -1,0 +1,267 @@
+{
+  "file_counts": {
+    "flow_truth": 1302,
+    "flow_bank": 1302,
+    "event_labels": 1,
+    "case_timeline": 1302,
+    "fraud_anchor": 1302,
+    "fraud_stream": 1
+  },
+  "profiles": {
+    "flow_truth": [
+      {
+        "rows": 236691694,
+        "flows": 236691694,
+        "truth_positive_flows": 5940539,
+        "truth_negative_flows": 230751155,
+        "non_null_truth_labels": 3,
+        "fraud_label_null_rows": 0,
+        "seeds": 1,
+        "manifest_fingerprints": 1,
+        "parameter_hashes": 1,
+        "scenarios": 1,
+        "flow_key_hash_sum": 2.1829831304345067e+27
+      }
+    ],
+    "flow_bank": [
+      {
+        "rows": 236691694,
+        "flows": 236691694,
+        "bank_positive_flows": 11645119,
+        "bank_negative_flows": 225046575,
+        "non_null_bank_labels": 5,
+        "bank_label_null_rows": 0,
+        "seeds": 1,
+        "manifest_fingerprints": 1,
+        "parameter_hashes": 1,
+        "scenarios": 1,
+        "flow_key_hash_sum": 2.1829831304345067e+27
+      }
+    ],
+    "event_labels": [
+      {
+        "rows": 473383388,
+        "flows": 236691694,
+        "event_seq_values": 2,
+        "min_event_seq": 0,
+        "max_event_seq": 1,
+        "truth_positive_event_rows": 11881078,
+        "bank_positive_event_rows": 23290238,
+        "seeds": 1,
+        "manifest_fingerprints": 1,
+        "parameter_hashes": 1,
+        "scenarios": 1,
+        "event_key_hash_sum": 4.365982797643315e+27
+      }
+    ],
+    "case_timeline": [
+      {
+        "rows": 59775740,
+        "cases": 22752610,
+        "flows": 22752610,
+        "event_types": 6,
+        "min_case_event_seq": 0,
+        "max_case_event_seq": 5,
+        "seeds": 1,
+        "manifest_fingerprints": 1,
+        "parameter_hashes": 1,
+        "scenarios": 1,
+        "min_ts_utc": "2026-01-01T00:00:00.694988Z",
+        "max_ts_utc": "2026-08-13T08:47:09.708142Z",
+        "case_event_key_hash_sum": 5.513700603122238e+26
+      }
+    ]
+  },
+  "label_summaries": {
+    "flow_truth": [
+      {
+        "is_fraud_truth": false,
+        "fraud_label": "LEGIT",
+        "flows": 230751155,
+        "flow_share": 0.9749017851044659
+      },
+      {
+        "is_fraud_truth": true,
+        "fraud_label": "ABUSE",
+        "flows": 5938116,
+        "flow_share": 0.02508797794991488
+      },
+      {
+        "is_fraud_truth": true,
+        "fraud_label": "FRAUD",
+        "flows": 2423,
+        "flow_share": 1.0236945619223968e-05
+      }
+    ],
+    "flow_bank": [
+      {
+        "is_fraud_bank_view": false,
+        "bank_label": "BANK_CONFIRMED_LEGIT",
+        "flows": 220401202,
+        "flow_share": 0.9311742134897222
+      },
+      {
+        "is_fraud_bank_view": true,
+        "bank_label": "BANK_CONFIRMED_FRAUD",
+        "flows": 10503772,
+        "flow_share": 0.04437744232799314
+      },
+      {
+        "is_fraud_bank_view": false,
+        "bank_label": "NO_CASE_OPENED",
+        "flows": 2424522,
+        "flow_share": 0.01024337592513914
+      },
+      {
+        "is_fraud_bank_view": false,
+        "bank_label": "CUSTOMER_DISPUTE_REJECTED",
+        "flows": 2220851,
+        "flow_share": 0.00938288523128319
+      },
+      {
+        "is_fraud_bank_view": true,
+        "bank_label": "CHARGEBACK_WRITTEN_OFF",
+        "flows": 1141347,
+        "flow_share": 0.0048220830258623275
+      }
+    ],
+    "flow_truth_bank_confusion": [
+      {
+        "is_fraud_truth": false,
+        "is_fraud_bank_view": false,
+        "flows": 220512654,
+        "flow_share": 0.9316450876387745
+      },
+      {
+        "is_fraud_truth": false,
+        "is_fraud_bank_view": true,
+        "flows": 10238501,
+        "flow_share": 0.043256697465691385
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": false,
+        "flows": 4533921,
+        "flow_share": 0.019155387007370017
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": true,
+        "flows": 1406618,
+        "flow_share": 0.005942827888164086
+      }
+    ],
+    "event_truth_bank_confusion": [
+      {
+        "is_fraud_truth": false,
+        "is_fraud_bank_view": false,
+        "event_rows": 441025308,
+        "row_share": 0.9316450876387745
+      },
+      {
+        "is_fraud_truth": false,
+        "is_fraud_bank_view": true,
+        "event_rows": 20477002,
+        "row_share": 0.043256697465691385
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": false,
+        "event_rows": 9067842,
+        "row_share": 0.019155387007370017
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": true,
+        "event_rows": 2813236,
+        "row_share": 0.005942827888164086
+      }
+    ],
+    "case_truth_bank_reconciliation": [
+      {
+        "is_fraud_truth": false,
+        "is_fraud_bank_view": true,
+        "fraud_label": "LEGIT",
+        "bank_label": "BANK_CONFIRMED_FRAUD",
+        "case_flows": 10232664
+      },
+      {
+        "is_fraud_truth": false,
+        "is_fraud_bank_view": false,
+        "fraud_label": "LEGIT",
+        "bank_label": "BANK_CONFIRMED_LEGIT",
+        "case_flows": 7880840
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": false,
+        "fraud_label": "ABUSE",
+        "bank_label": "CUSTOMER_DISPUTE_REJECTED",
+        "case_flows": 2109342
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": true,
+        "fraud_label": "ABUSE",
+        "bank_label": "CHARGEBACK_WRITTEN_OFF",
+        "case_flows": 1135282
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": false,
+        "fraud_label": "ABUSE",
+        "bank_label": "NO_CASE_OPENED",
+        "case_flows": 1005731
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": true,
+        "fraud_label": "ABUSE",
+        "bank_label": "BANK_CONFIRMED_FRAUD",
+        "case_flows": 269918
+      },
+      {
+        "is_fraud_truth": false,
+        "is_fraud_bank_view": false,
+        "fraud_label": "LEGIT",
+        "bank_label": "CUSTOMER_DISPUTE_REJECTED",
+        "case_flows": 111452
+      },
+      {
+        "is_fraud_truth": false,
+        "is_fraud_bank_view": true,
+        "fraud_label": "LEGIT",
+        "bank_label": "CHARGEBACK_WRITTEN_OFF",
+        "case_flows": 5837
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": true,
+        "fraud_label": "FRAUD",
+        "bank_label": "BANK_CONFIRMED_FRAUD",
+        "case_flows": 1190
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": true,
+        "fraud_label": "FRAUD",
+        "bank_label": "CHARGEBACK_WRITTEN_OFF",
+        "case_flows": 228
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": false,
+        "fraud_label": "FRAUD",
+        "bank_label": "NO_CASE_OPENED",
+        "case_flows": 69
+      },
+      {
+        "is_fraud_truth": true,
+        "is_fraud_bank_view": false,
+        "fraud_label": "FRAUD",
+        "bank_label": "CUSTOMER_DISPUTE_REJECTED",
+        "case_flows": 57
+      }
+    ]
+  }
+}

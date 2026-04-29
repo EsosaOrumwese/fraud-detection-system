@@ -1,0 +1,10 @@
+column,null_count,null_pct
+case_id,0,0.0
+case_event_seq,0,0.0
+flow_id,0,0.0
+case_event_type,0,0.0
+ts_utc,0,0.0
+seed,0,0.0
+manifest_fingerprint,0,0.0
+parameter_hash,0,0.0
+scenario_id,0,0.0

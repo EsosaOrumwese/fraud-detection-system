@@ -1,0 +1,6 @@
+surface,rows,key_type,key_hash_sum
+s3_flow_anchor_with_fraud_6B,236691694.0,flow_id,2182983130434506747667634086
+s4_flow_truth_labels_6B,236691694.0,flow_id,2.1829831304345067e+27
+s4_flow_bank_view_6B,236691694.0,flow_id,2.1829831304345067e+27
+s3_event_stream_with_fraud_6B,473383388.0,"flow_id,event_seq",4.365982797643315e+27
+s4_event_labels_6B,473383388.0,"flow_id,event_seq",4.365982797643315e+27
