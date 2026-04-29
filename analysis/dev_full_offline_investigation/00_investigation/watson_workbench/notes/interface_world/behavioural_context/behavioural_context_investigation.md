@@ -2,7 +2,7 @@
 
 ## What these surfaces are
 
-The behavioural-context datasets are the join surfaces that make the thin behavioural streams interpretable. In the live AWS-hosted Fraud Decisioning Platform framing, this is the enrichment layer that lets admitted event rows become usable for RTDL, feature materialization, entity analysis, replay, and case review.
+The behavioural-context datasets are the context topic/surface families that make the thin behavioural streams interpretable. In the live AWS-hosted Fraud Decisioning Platform framing, this is the enrichment layer exposed through the run's source-of-stream/context estate and consumed as topics, indexes, projections, or offline reads so admitted event rows become usable for RTDL, feature materialization, entity analysis, replay, and case review.
 
 The interface pack exposes four of them:
 
@@ -11,7 +11,7 @@ The interface pack exposes four of them:
 - `s2_flow_anchor_baseline_6B`
 - `s3_flow_anchor_with_fraud_6B`
 
-They are not traffic. They are the context layer around traffic. The platform should not emit these surfaces as the business stream; it should use them as governed projections or offline reads depending on time-safety.
+They are not traffic. They are the context layer around traffic. The platform should not collapse these surfaces into the business stream; it should move or project them as context topic families and offline reads depending on time-safety.
 
 The behavioural streams carry the event grammar: `flow_id`, `event_seq`, `event_type`, `ts_utc`, `amount`, and, after overlay, fraud fields. The context surfaces attach the event stream back to merchants, arrivals, parties, accounts, instruments, devices, IPs, sessions, and flow anchors.
 
@@ -30,6 +30,8 @@ Contract references:
 - [`docs/model_spec/data-engine/interface_pack/data_engine_interface.md`](../../../../../../../docs/model_spec/data-engine/interface_pack/data_engine_interface.md)
 - [`docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`](../../../../../../../docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml)
 - [`docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml`](../../../../../../../docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml)
+- [`docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`](../../../../../../../docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md)
+- [`docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.md`](../../../../../../../docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.md)
 
 Pinned data surfaces:
 
@@ -64,7 +66,7 @@ The contract also states the time-safety distinction:
 
 That means the context layer has both live-context and offline-context components. We should not flatten them into one kind of feature surface.
 
-Operationally, the split is the point of the contract. `s1_arrival_entities_6B` and the flow anchors can be projected into the real-time path because they describe the current arrival/flow. `s1_session_index_6B` is useful after the fact because it describes a completed session. If we ignore that distinction, we would accidentally let future knowledge leak into a live fraud decision.
+Operationally, the split is the point of the contract. `s1_arrival_entities_6B` and the flow anchors can participate in the real-time path as context topics/projections because they describe the current arrival/flow. `s1_session_index_6B` is useful after the fact because it describes a completed session. If we ignore that distinction, we would accidentally let future knowledge leak into a live fraud decision.
 
 ## Physical shape of the context layer
 
@@ -84,7 +86,7 @@ This is the basic shape of the behavioural operating world:
 - behavioural streams have twice that row count because each flow becomes request and response events
 - session context compresses arrivals into sessions, but not by very much because most sessions have one or two arrivals
 
-For the operating platform, this means a streamed event does not carry all its meaning alone. The row counts show the supporting context architecture: one arrival context row, one flow anchor row, and two event rows per flow, plus a separate offline session view.
+For the operating platform, this means a streamed event does not carry all its meaning alone. The row counts show the supporting context architecture: one arrival context row, one flow anchor row, and two event rows per flow, plus a separate offline session view. These are companion surfaces in the run's source-of-stream estate, not a staged sequence where context arrives only after traffic has already moved.
 
 ## Arrival entity context
 

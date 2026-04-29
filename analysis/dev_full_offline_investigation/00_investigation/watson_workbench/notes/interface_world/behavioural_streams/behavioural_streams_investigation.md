@@ -2,18 +2,18 @@
 
 ## What these surfaces are
 
-The behavioural streams are the first surfaces in the downstream estate that should be read as platform traffic. In the live AWS-hosted Fraud Decisioning Platform framing, these are the transaction-like event rows that a World Streamer / ingestion boundary would publish, the Ingestion Gate would admit, and the Event Bus / RTDL path would move through the service.
+The behavioural streams are the downstream estate surfaces that should be read as platform traffic. In the live AWS-hosted Fraud Decisioning Platform framing, these are the transaction-like event rows that WSP publishes from Oracle Store / stream-view, the Ingestion Gate admits, and the Event Bus / RTDL path moves through the service.
 
 The interface contract names two of them:
 
 - `s2_event_stream_baseline_6B`
 - `s3_event_stream_with_fraud_6B`
 
-The baseline stream is the production-shaped behavioural stream before fraud overlay. The post-overlay stream carries the same traffic world after synthetic fraud and abuse behaviour have been injected. In platform terms, these are the surfaces eligible for ingestion, event-bus handling, RTDL context enrichment, online feature consumption, and later comparison against offline labels.
+The baseline stream is the production-shaped behavioural stream before fraud overlay. The post-overlay stream carries the same traffic world after synthetic fraud and abuse behaviour have been injected. In platform terms, these are traffic topic families eligible for ingestion, event-bus handling, RTDL context enrichment, online feature consumption, and later comparison against offline labels.
 
-That is the main difference from `arrival_events_5B`. The arrival primitive is a time-safe skeleton and join surface. These behavioural streams are the traffic body the platform would actually move through downstream systems.
+That is the main difference from `arrival_events_5B`. The arrival primitive is a time-safe context surface/topic. These behavioural streams are the traffic body the platform moves through downstream systems.
 
-So these reports should not read the streams as static parquet tables only. The columns are interpreted as a streaming event contract: `flow_id` binds the event to flow context, `event_seq` and `event_type` define the request/response grammar, `ts_utc` defines event time, `amount` carries the economic signal, and post-overlay fraud fields mark the campaign-modified stream state before final truth is applied.
+So these reports should not read the streams as static parquet tables only. The columns are interpreted as a streaming event contract: `flow_id` binds the event to flow context, `event_seq` and `event_type` define the request/response grammar, `ts_utc` defines event time for ordering, `amount` carries the economic signal, and post-overlay fraud fields mark the campaign-modified stream state before final truth is applied.
 
 ## References and evidence
 
@@ -22,6 +22,8 @@ Contract references:
 - [`docs/model_spec/data-engine/interface_pack/data_engine_interface.md`](../../../../../../../docs/model_spec/data-engine/interface_pack/data_engine_interface.md)
 - [`docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`](../../../../../../../docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml)
 - [`docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml`](../../../../../../../docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml)
+- [`docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`](../../../../../../../docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md)
+- [`docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.md`](../../../../../../../docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.md)
 
 Pinned data surfaces:
 
@@ -50,7 +52,7 @@ The interface contract also makes two important statements:
 
 So the stream rows are intentionally thin. They are not expected to carry the full merchant, arrival, entity, session, or truth context. That context lives in the neighbouring behavioural-context surfaces and is joined by the platform.
 
-Operationally, this is the core streaming contract. The platform should move these events, not batch-absorb every context surface into each payload. `flow_id` is the event-to-flow handle, `event_seq` gives the request/response order, `event_type` tells the RTDL path which authorization phase it is seeing, `ts_utc` controls event-time ordering, and `amount` is the economic signal available on the stream. Context, labels, and case outcomes are intentionally outside the row and must be attached through governed joins or offline workflows.
+Operationally, this is the core traffic contract. The platform should move these events as traffic while also publishing/maintaining separate context topic families; it should not batch-absorb every context surface into each payload. `flow_id` is the event-to-flow handle, `event_seq` gives the request/response order, `event_type` tells the RTDL path which authorization phase it is seeing, `ts_utc` controls event-time ordering, and `amount` is the economic signal available on the stream. Context, labels, and case outcomes are intentionally outside the row and must be attached through governed joins, projections, or offline workflows.
 
 ## Physical shape of the two streams
 

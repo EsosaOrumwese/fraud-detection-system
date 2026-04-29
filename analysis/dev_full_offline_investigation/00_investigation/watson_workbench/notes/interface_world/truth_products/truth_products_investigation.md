@@ -2,7 +2,7 @@
 
 ## What these surfaces are
 
-The `s4_*` truth products are the offline judgement layer of the interface world. In the live AWS-hosted Fraud Decisioning Platform framing, they are the surfaces produced after traffic has moved through the platform and later label/case processes have decided what the institution believes, acts on, disputes, charges back, or uses for learning.
+The `s4_*` truth products are the offline judgement layer of the interface world. In the live AWS-hosted Fraud Decisioning Platform framing, they correspond to the post-decision truth boundary: the surfaces used after traffic and context have moved through the operating path to evaluate what is true, what the institution sees or acts on, what becomes case history, and what can be used for learning.
 
 The interface pack exposes four truth-product datasets:
 
@@ -25,6 +25,8 @@ Contract references:
 - [`docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`](../../../../../../../docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml)
 - [`docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml`](../../../../../../../docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml)
 - [`docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml`](../../../../../../../docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml)
+- [`docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`](../../../../../../../docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md)
+- [`docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.md`](../../../../../../../docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.md)
 
 Pinned data surfaces:
 
@@ -56,7 +58,7 @@ The join map is also specific:
 
 This gives us three analytical objects, not one:
 
-- ground truth: what the synthetic truth process says the flow really is
+- ground truth: what the sealed truth authority says the flow really is
 - bank view: what the institution sees or acts on
 - case lifecycle: the post-decision operational trail
 

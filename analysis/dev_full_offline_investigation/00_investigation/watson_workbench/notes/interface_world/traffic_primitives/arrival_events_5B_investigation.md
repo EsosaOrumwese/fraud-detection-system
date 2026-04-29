@@ -2,18 +2,18 @@
 
 ## What this surface is
 
-`arrival_events_5B` is the only traffic primitive in the downstream interface estate. In the live AWS-hosted Fraud Decisioning Platform framing, it is the earliest arrival skeleton the platform receives from the black-box data supplier before richer transaction-flow streams, entity context, labels, and case products exist.
+`arrival_events_5B` is the only traffic primitive in the downstream interface estate. In the live AWS-hosted Fraud Decisioning Platform framing, it is the arrival-context primitive available from Oracle Store / stream-view and published as part of the platform's source-of-stream topic family.
 
-It is event-like, but the interface contract is explicit that it is **not** the canonical business traffic stream emitted to the platform bus. The real-time service should not treat this as the transaction stream a model scores. It is a time-safe join and routing surface: it tells the platform where, when, and through which physical/virtual route an arrival entered the operating world so later behavioural streams and context surfaces can attach to it.
+It is event-like, but the interface contract is explicit that it is **not** the canonical business traffic stream emitted as the transaction body. The real-time service should not treat this as the transaction stream a model scores. It is a time-safe context topic/surface: it tells the platform where, when, and through which physical/virtual route an arrival entered the operating world so behavioural streams and entity/flow context can be joined consistently.
 
 That gives it a specific analytical role:
 
-- it tells us the shape of arrival activity before we inspect the canonical behavioural streams
+- it tells us the shape of arrival activity that accompanies the canonical behavioural streams
 - it gives us the first exposed time axis of the operating world
 - it exposes the arrival-level merchant, routing, zone, channel, site, and virtual-edge structure
 - it should be read as time-safe context, not as final truth or fraud-labelled traffic
 
-So when we inspect its columns and counts, we are reading them as the first exposed pulse of a financial-institution fraud platform: merchant arrivals, local-time representations, physical-site versus virtual-edge routing, and channel structure. The questions it raises are operational questions about incoming traffic shape, not engine-state questions about how the world was authored internally.
+So when we inspect its columns and counts, we are reading them as the arrival/routing context of a financial-institution fraud platform: merchant arrivals, local-time representations, physical-site versus virtual-edge routing, and channel structure. The questions it raises are operational questions about traffic context, not engine-state questions about how the world was authored internally.
 
 ## References and evidence
 
@@ -22,6 +22,8 @@ Contract references:
 - [`docs/model_spec/data-engine/interface_pack/data_engine_interface.md`](../../../../../../../docs/model_spec/data-engine/interface_pack/data_engine_interface.md)
 - [`docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`](../../../../../../../docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml)
 - [`docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml`](../../../../../../../docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml)
+- [`docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`](../../../../../../../docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md)
+- [`docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.md`](../../../../../../../docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.md)
 
 Pinned data surface:
 
@@ -53,9 +55,9 @@ The dataset dictionary adds the operational meaning:
 - it is ordered by scenario, merchant, timestamp, and arrival sequence
 - it is PII-bearing
 
-Operationally, this means the surface is received at the platform boundary but should be consumed as context, not as a live bus payload. `merchant_id` and `arrival_seq` form the arrival identity that later `6B` surfaces use. `ts_utc` and the local timestamp/timezone fields describe how the platform can reason about event time versus local operating time. `site_id`, `edge_id`, `is_virtual`, `channel_group`, and `zone_representation` describe routing/channel context. None of these fields is a decision, label, case outcome, or model target.
+Operationally, this means the surface belongs to the platform's context stream/view, not to the scored transaction body. `merchant_id` and `arrival_seq` form the arrival identity that `6B` surfaces use. `ts_utc` and the local timestamp/timezone fields describe how the platform can reason about event time versus local operating time. `site_id`, `edge_id`, `is_virtual`, `channel_group`, and `zone_representation` describe routing/channel context. None of these fields is a decision, label, case outcome, or model target.
 
-The important posture is that this is not a business stream yet. It is the exposed arrival skeleton that later platform layers can join to, enrich, and turn into richer behavioural traffic.
+The important posture is that this is not the business transaction stream. It is the arrival-context family that WSP/platform consumers can publish or join alongside traffic according to the run's stream-view and topic contracts.
 
 ## Physical shape of the data
 
@@ -70,7 +72,7 @@ The pinned run contains:
 - one routing universe hash
 - one `s4_spec_version`: `1.0.0`
 
-This is a clean single-run, single-scenario surface. There is no mixed scenario or mixed lineage problem inside this primitive, which matters because a live platform would rely on the identity tuple to preload or address context safely rather than infer meaning from file names or row order.
+This is a clean single-run, single-scenario surface. There is no mixed scenario or mixed lineage problem inside this primitive, which matters because a live platform relies on run identity and source/topic contracts to publish and join context safely rather than infer meaning from file names or row order.
 
 The row count is large enough that this should be treated as a warehouse-style analytical surface. The workbench analysis uses DuckDB aggregates and exports small summaries rather than loading the data into memory.
 
@@ -96,7 +98,7 @@ The merchant sequence check is clean:
 - every merchant begins at `arrival_seq = 1`
 - each merchant's maximum arrival sequence equals its row count
 
-That matters because `arrival_seq` is not just a loose row number. It behaves as a stable per-merchant arrival clock that can support later joins into `6B`. In platform terms, it is the join handle that lets a thin flow/event row recover its arrival-routing context without scanning the wider oracle store at decision time.
+That matters because `arrival_seq` is not just a loose row number. It behaves as a stable per-merchant arrival clock that can support joins into `6B`. In platform terms, it is the join handle that lets a thin flow/event row recover its arrival-routing context without scanning the wider Oracle Store at decision time.
 
 ## Time coverage
 
@@ -122,7 +124,7 @@ Daily volume is stable at the broad level:
 - maximum daily rows: `2,887,820`
 - daily standard deviation: `82,932`
 
-The month pattern mostly reflects calendar length. January and March are close to each other, while February is lower because it has fewer days. That tells us the arrival skeleton is a continuous operating surface rather than a partial extract with obvious month-level dropouts. For the assumed live service, this makes it usable as a three-month operating baseline for later traffic, label, and case-rate interpretation.
+The month pattern mostly reflects calendar length. January and March are close to each other, while February is lower because it has fewer days. That tells us the arrival-context surface is continuous rather than a partial extract with obvious month-level dropouts. For the assumed live service, this makes it usable as a three-month operating context baseline for traffic, label, and case-rate interpretation.
 
 ## Channel structure
 
@@ -157,7 +159,7 @@ This explains the apparent nulls:
 
 So the column-null profile is structurally meaningful. It separates physical site arrivals from virtual edge arrivals. It should not be treated as a data-quality defect.
 
-Analytically, this is one of the most important facts exposed by the primitive. Before we inspect canonical traffic, we already know that the incoming behavioural world is not a single homogeneous arrival stream. It has a large physical-site majority and a smaller, distinct virtual-edge lane. Operationally, this is a routing split the platform would need to preserve when enriching traffic, building features, or comparing case rates across physical and virtual channels.
+Analytically, this is one of the most important facts exposed by the primitive. Alongside canonical traffic, the arrival context tells us that the behavioural world is not a single homogeneous route. It has a large physical-site majority and a smaller, distinct virtual-edge lane. Operationally, this is a routing split the platform would need to preserve when enriching traffic, building features, or comparing case rates across physical and virtual channels.
 
 ## Merchant activity distribution
 
@@ -236,7 +238,7 @@ The only nulls are the structurally expected split between `site_id` and `edge_i
 - `site_id` null rows: `20,555,587`, exactly the virtual row count
 - `edge_id` null rows: `216,136,107`, exactly the physical row count
 
-So the primitive is usable as a stable timing/routing skeleton. The main caution is not completeness; it is interpretation. The fields are complete enough for governed joins and operating-time analysis, but they must not be promoted into claims about fraud, bank action, or customer outcome before the `6B` context and `s4_*` truth layers are attached.
+So the primitive is usable as a stable timing/routing context surface. The main caution is not completeness; it is interpretation. The fields are complete enough for governed joins and operating-time analysis, but they must not be promoted into claims about fraud, bank action, or customer outcome without the `6B` context and `s4_*` truth layers.
 
 ## Leads exposed by this investigation
 
@@ -252,13 +254,13 @@ The traffic primitive leaves several trails worth carrying forward:
 
 5. Time coverage is complete across January to March. The primitive looks like a full operating extract rather than an obviously gapped period.
 
-6. The primitive is time-safe as a join surface, but it is not the canonical traffic stream. The next layer to inspect should show how this skeleton becomes or supports `6B` behavioural traffic.
+6. The primitive is time-safe as a join surface, but it is not the canonical traffic stream. The next layer to inspect should show how this arrival context lines up with `6B` behavioural traffic and context.
 
 ## Working conclusion
 
-`arrival_events_5B` gives us the first exposed pulse of the platform: a large, continuous, three-month arrival skeleton with clean lineage, stable keys, complete timestamps, and a meaningful split between physical-site and virtual-edge routing.
+`arrival_events_5B` gives us the arrival-context pulse of the platform: a large, continuous, three-month context surface with clean lineage, stable keys, complete timestamps, and a meaningful split between physical-site and virtual-edge routing.
 
-It does not answer fraud questions yet. Its job is earlier than that. It tells us what the platform is receiving as arrival structure before canonical behavioural traffic and offline truth enter the picture. In the live-service story, it is the context scaffold behind traffic, not the business transaction stream itself.
+It does not answer fraud questions by itself. It tells us what arrival/routing context accompanies platform traffic before offline truth and case history are considered. In the live-service story, it is a context family behind traffic, not the business transaction stream itself.
 
 For the next investigation, the natural move is to inspect how this primitive is carried into the `6B` behavioural context and streams:
 

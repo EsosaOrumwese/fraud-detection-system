@@ -23,7 +23,7 @@ Those surfaces may exist in the run tree. They may even be highly informative to
 
 ## Operating-platform posture
 
-For the rest of the interface-world investigation, we are treating the pinned run as an extract from a live AWS-hosted Fraud Decisioning Platform operated by a financial institution.
+For the rest of the interface-world investigation, we are treating the pinned run as the data estate behind a live AWS-hosted Fraud Decisioning Platform operated by a financial institution.
 
 That means these notes are not only cataloguing datasets. Each surface is read in terms of its place in the operating platform:
 
@@ -33,7 +33,7 @@ That means these notes are not only cataloguing datasets. Each surface is read i
 - which other surfaces it needs to be interpreted correctly
 - what role it plays for analytics, data science, case review, learning, evaluation, or audit
 
-The production-readiness posture matters here because the platform does not batch-absorb the whole oracle store per event. The behavioural streams are the live-moving traffic body, while context and truth surfaces are consumed through governed joins, preloaded projections, offline reads, or case/label workflows depending on time-safety. So the analysis must keep the operational distinction between streamed traffic, live context, offline labels, and case history intact.
+The production-readiness posture matters here because the platform does not batch-absorb the whole Oracle Store per event. Oracle Store is the warm source-of-stream S3 zone; WSP streams run-pinned topic families from that source into the platform. Traffic and context topics move through the live operating run according to their event-time/order contract, while truth and case/label products belong to post-decision or offline authority. So the analysis must keep the operational distinction between streamed traffic, streamed/joined context, offline labels, and case history intact.
 
 ## Authority and support artefacts
 
@@ -42,6 +42,9 @@ Primary boundary references:
 - [`docs/model_spec/data-engine/interface_pack/data_engine_interface.md`](../../../../../../docs/model_spec/data-engine/interface_pack/data_engine_interface.md)
 - [`docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`](../../../../../../docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml)
 - [`docs/model_spec/data-engine/interface_pack/README.md`](../../../../../../docs/model_spec/data-engine/interface_pack/README.md)
+- [`docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`](../../../../../../docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md)
+- [`docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.md`](../../../../../../docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.md)
+- [`docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.plan.md`](../../../../../../docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/proving_plane/platform.production_readiness.plan.md)
 
 Pinned run:
 
@@ -73,11 +76,11 @@ By segment, that becomes:
 
 The analytical estate we have actually been handed is **not** the whole run-visible interface world. It is a narrow `5B` / `6B` operating slice, plus the gate artefacts that authorize reads from that slice.
 
-## The true front door of the live platform
+## The exposed source-of-stream estate
 
-The interface-pack contract already names the live-facing event and join world.
+The interface-pack contract and the dev_full run process separate the Oracle Store source-of-stream estate from engine internals. WSP reads the stream-view/source roots for a run and publishes the relevant topic families into the platform. This is not a staged handoff where one dataset arrives, then another arrives later as a separate batch. It is a topic-family operating model.
 
-The exposed front door is:
+The exposed source-of-stream estate is:
 
 - `arrival_events_5B`
 - `s1_arrival_entities_6B`
@@ -89,7 +92,7 @@ The exposed front door is:
 
 This is the operationally meaningful answer to the question:
 
-> what surfaces would a downstream platform team actually see at the behavioural edge?
+> what source surfaces and topic families would the platform operate from at the behavioural edge?
 
 It is not outlet construction data. It is not merchant-authoring authority. It is not site synthesis or entity-world construction. It is this much thinner event-plus-context estate.
 
@@ -103,15 +106,15 @@ There is one traffic primitive:
 
 - `arrival_events_5B`
 
-This is the earliest exposed arrival skeleton. It is event-like, but the interface contract is explicit that it is **not** emitted to the platform traffic bus as canonical traffic by default.
+This is the exposed arrival context primitive. It is event-like, but the interface contract is explicit that it is **not** the canonical business-traffic stream.
 
 So its role is:
 
-- upstream arrival skeleton
-- join surface
-- routing/timezone-aware pre-traffic context
+- arrival context topic/surface
+- join surface for arrival-key, routing, and timezone context
+- event-time companion to richer traffic/context topics
 
-It matters because it gives the downstream platform a thin upstream behavioural seed without exposing the entire engine-authoring machinery that produced it.
+It matters because it gives the platform arrival/routing context without exposing the engine-authoring machinery that produced the world. It should not be read as "arrives first before other datasets exist"; it is one context family in the streamable operating estate.
 
 ### 2. Behavioural streams
 
@@ -129,7 +132,7 @@ They matter because they are the streams eligible for:
 - downstream feature-plane consumption
 - transaction-style behavioural analysis
 
-This is the place where the platform stops looking at upstream arrival skeletons and starts seeing production-shaped behavioural traffic.
+These are the production-shaped behavioural traffic topics. They do not wait for the arrival context to complete as a separate batch; they are interpreted alongside the relevant context surfaces through declared keys and time-safety rules.
 
 ### 3. Behavioural context
 
@@ -142,7 +145,7 @@ There are four behavioural-context surfaces:
 
 These are not traffic. They are the join surfaces needed to interpret or enrich the behavioural streams.
 
-The downstream platform does not need deep world-building datasets in order to contextualize traffic. The interface pack already gives it a constrained context layer whose job is exactly that.
+The downstream platform does not need deep world-building datasets in order to contextualize traffic. The interface pack already gives it constrained context families whose job is exactly that.
 
 Within this group, the time-safety split matters:
 
@@ -181,7 +184,7 @@ They do belong to:
 - investigative reconstruction
 - post-hoc analytics
 
-This is where the platform moves from “what traffic is moving now?” to “what became true about that traffic later?”
+This is where the platform moves from “what traffic/context was moving through the operating run?” to “what became true about that traffic later?”
 
 ### 5. Gate artefacts
 
@@ -210,18 +213,19 @@ Within this boundary, the practical platform map becomes much cleaner.
 
 | Live platform area | Downstream-facing surfaces that matter | Important caution |
 |---|---|---|
-| Ingestion / Event Bus | `s2_event_stream_baseline_6B`, `s3_event_stream_with_fraud_6B` | only authoritative after relevant validation PASS |
-| RTDL / feature enrichment | `arrival_events_5B`, `s1_arrival_entities_6B`, `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B` | `s1_session_index_6B` is not live-safe |
+| WSP / source-of-stream publication | `s2_event_stream_baseline_6B`, `s3_event_stream_with_fraud_6B`, `arrival_events_5B`, `s1_arrival_entities_6B`, selected flow-anchor context | stream-view/source roots are pinned for the run; topic families move under run identity |
+| Ingestion / Event Bus | behavioural traffic topics and context topics such as `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.fraud.v1` | only authoritative after relevant validation PASS and topic readiness |
+| RTDL / feature enrichment | `arrival_events_5B`, `s1_arrival_entities_6B`, `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B` | consumed as context/projections; `s1_session_index_6B` is not live-safe |
 | Offline analytics / DS | all front-door streams and context plus `s4_*` truth products | must respect live-safe vs offline-only distinction |
 | Case management / fraud ops | `s4_case_timeline_6B`, `s4_event_labels_6B`, `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B` | these are post-hoc truth surfaces, not live traffic |
 | Governance / access control | `validation_bundle_*`, `validation_bundle_index_*`, `validation_passed_flag_*` | no authoritative read without PASS |
 
 This is the operating answer to the user’s question about what is available to what.
 
-The platform is not handed one flat pile of data. It is handed:
+The platform is not handed one flat pile of data, and it does not receive one dataset completely before the next. It operates from:
 
-- thin live traffic
-- thin live context
+- thin streamed traffic
+- streamed/joined context topic families
 - offline truth
 - read-authorizing validation evidence
 
