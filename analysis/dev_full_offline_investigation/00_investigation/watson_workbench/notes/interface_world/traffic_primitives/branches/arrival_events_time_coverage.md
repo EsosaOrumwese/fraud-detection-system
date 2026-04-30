@@ -193,3 +193,21 @@ The correct conclusion is not "traffic is uniform." The correct conclusion is th
 3. The one-day `4,049` merchant participation exception on `2026-03-22` should be kept in mind if a later analysis requires strict merchant-by-day completeness.
 
 4. When truth products and case timelines are inspected, we should verify whether their effective time coverage aligns with this arrival-context denominator or extends beyond it.
+
+## Appendix: visual evidence
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/01_horizon_daily_coverage.png" alt="Daily coverage across the January-March operating horizon" width="780">
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/02_monthly_raw_vs_daily_normalized.png" alt="Raw monthly rows versus rows per active day" width="780">
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/03_daily_volume_stability.png" alt="Daily arrival volume stability" width="780">
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/04_daily_volume_distribution_and_range.png" alt="Daily volume distribution and range" width="780">
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/05_daily_merchant_and_channel_presence.png" alt="Daily merchant and channel presence" width="780">
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/06_weekday_operating_shape.png" alt="Weekday operating shape in daily arrival volume" width="780">
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/07_bucket_grid_coverage_and_intensity.png" alt="Hourly bucket grid coverage and arrival intensity" width="780">
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/08_utc_hour_profile.png" alt="UTC hour profile" width="780">
