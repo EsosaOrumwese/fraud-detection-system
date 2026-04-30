@@ -217,3 +217,87 @@ For platform-load questions, row grain is appropriate. For merchant-behaviour qu
 4. The `site_id` / `edge_id` split should be investigated as a route-identity branch because it changes the meaning of nulls and separates physical from virtual operating lanes.
 
 5. `zone_representation` should not be treated as merchant-home identity. It is arrival/routing context and needs its own branch before any geographical claim is made.
+
+## Appendix: visual evidence and assessment
+
+This appendix holds the visual evidence behind the branch. Each figure is read as evidence for a specific part of the grain argument: what one row represents, how the time and sequence fields behave, and why row-weighted analysis must be handled carefully.
+
+### A1. Arrival grain versus actor and context counts
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/grain_and_identity/figures/01_grain_scale_observations_vs_context.png" alt="Arrival surface grain: observation volume vs actor and context counts" width="780">
+
+This figure sets the scale of the surface. The arrival table contains `236.7M` rows, but those rows are distributed across a much smaller set of operating actors and context objects: `4.0K` merchants, `2.2K` bucket indexes, `78.5K` physical sites, and `3.0K` virtual edges.
+
+That separation is the first evidence that `arrival_events_5B` is an observation ledger, not an entity catalog. The large number is the number of arrival observations, not the number of merchants. A merchant can therefore appear many times, and a row-level summary will naturally describe arrival exposure rather than the typical merchant.
+
+The y-axis is logarithmic because the counts live on very different scales. Without that scale transformation, the actor and context counts would visually collapse under the arrival row count. The chart is not saying that rows, merchants, sites, edges, and buckets are equivalent objects. It is showing that the observation grain is much denser than the entity and context grains, which is why the rest of the investigation has to keep grain explicit.
+
+### A2. Bucket index as complete time-grid authority
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/grain_and_identity/figures/02_bucket_index_coverage_and_traffic.png" alt="Bucket index coverage and traffic intensity" width="780">
+
+This figure has two readings: coverage and intensity.
+
+The top strip confirms that all `2,160` bucket indexes are present. Since the operating horizon spans 90 UTC days, and `90 * 24 = 2,160`, the observed `bucket_index` behaves as an hourly UTC horizon coordinate in this run. The field is therefore not an arbitrary integer and not a sparse category; it is a complete time-grid index for the arrival surface.
+
+The lower panel turns that grid into an operating view by counting arrival rows inside each bucket. The repeated peaks and troughs show that the arrival surface carries temporal rhythm. This branch does not yet explain the cause of that rhythm; it only establishes that `bucket_index` is the field that lets us inspect traffic intensity over the sealed horizon.
+
+That distinction matters for analysis. `bucket_index` tells us where an arrival sits in the operating horizon. It does not identify the arrival. Many merchants and many arrivals can share the same bucket, so the field is useful for time-window analysis, replay framing, and later feature construction, but it must be combined with the declared key when the question is row identity.
+
+### A3. Merchant arrival-volume distribution
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/grain_and_identity/figures/03_merchant_arrival_volume_distribution.png" alt="Merchant arrival-volume distribution" width="780">
+
+This figure turns the grain warning into a distributional fact.
+
+Merchant arrival volume is not evenly distributed. The median merchant has about `35.7K` arrivals, while the mean is about `58.4K`. Because the mean is higher than the median, the average is being pulled upward by merchants above the center of the distribution. The p95 merchant has about `189.7K` arrivals, and the maximum merchant reaches about `841.7K`, which shows that the upper tail extends far beyond the central merchant experience.
+
+The implication is that "average merchant" and "typical merchant" are not interchangeable here. The typical merchant is better represented by the median, while the mean is influenced by high-volume merchants. Any rate or average computed at row grain will inherit that exposure pattern, because merchants with more arrivals contribute more rows to the calculation.
+
+The x-axis is log-scaled because merchant volumes span a wide range. This is not a cosmetic choice; it lets the lower, middle, and upper parts of the distribution remain visible at the same time. The shape is the statistical basis for the branch's caution: if we summarize at row grain, we are summarizing the arrival surface; if we want a merchant-level statement, we need a merchant-weighted view.
+
+### A4. Ranked merchant contribution to total arrivals
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/grain_and_identity/figures/04_ranked_merchants_cumulative_arrival_share.png" alt="Ranked merchants cumulative arrival share" width="780">
+
+This figure answers a stronger question than the histogram. The histogram shows that merchant volumes vary; the ranked contribution curve shows how much that variation matters to total row-level exposure.
+
+The dashed diagonal is the equal-contribution reference. If every merchant contributed the same number of arrivals, the top `10%` of merchants would contribute `10%` of arrivals, the top `20%` would contribute `20%`, and so on. The observed curve rises well above that reference. The top `1%` of merchants contribute about `9.7%` of arrivals, the top `5%` contribute about `27.3%`, the top `10%` contribute about `40.4%`, and the top `20%` contribute about `57.4%`.
+
+This is the evidence behind the statement that row-level analysis will be shaped by merchant-volume inequality unless we control the grain. The claim is not that one merchant owns the surface. The claim is that the highest-volume merchants carry much more influence in row-weighted summaries than they would carry in a merchant-weighted view.
+
+That weighting is valid when the question is platform load, exposure, queue pressure, or total operating volume, because large merchants genuinely produce more arrivals. It becomes misleading when the question is about a typical merchant, because the calculation then answers a different question: what the typical arrival looks like, not what the typical merchant looks like.
+
+The practical rule is that every later rate, share, or average needs a declared grain. The same source data can support both arrival-weighted and merchant-weighted analysis, but those are different analytical claims.
+
+### A5. Merchant-local sequence validation
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/grain_and_identity/figures/05_arrival_seq_matches_merchant_row_count.png" alt="Merchant-local sequence check" width="720">
+
+Each point is a merchant. The x-axis is the number of arrival rows for that merchant, and the y-axis is the maximum `arrival_seq` observed for that merchant. The points sit on the equality line, which means each merchant's maximum sequence value matches its row count. Combined with the evidence that every merchant starts at `arrival_seq = 1`, this supports the branch claim that `arrival_seq` is a clean merchant-local ledger counter.
+
+The operational inference is join-safety. If this relationship were broken, downstream joins using `merchant_id + arrival_seq` could duplicate, miss, or misattribute arrival context. In this run, the sequence evidence supports using the declared grain as arrival-context authority.
+
+### A6. `arrival_seq` as merchant-local identity, not shared chronology
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/grain_and_identity/figures/06_selected_merchants_arrival_seq_vs_bucket.png" alt="Selected merchants arrival sequence against bucket index" width="780">
+
+This figure corrects an easy interpretation error. The previous figure shows that `arrival_seq` is clean as a merchant-local counter. It does not mean that `arrival_seq` is a platform-wide clock.
+
+All three panels sit over the same `bucket_index` horizon, but the sequence scales are very different. The low-volume merchant remains in the low thousands. The median-volume merchant reaches tens of thousands. The high-volume merchant reaches hundreds of thousands. Therefore, the same sequence value does not mean the same calendar moment for different merchants.
+
+The practical reading is that `arrival_seq` is a merchant's own counter, not the platform's clock. Merchant A reaching sequence `10,000` and Merchant B reaching sequence `10,000` are not equivalent business moments unless we also inspect their timestamps or bucket positions. If we need chronology, we must use `ts_utc`, `bucket_index`, or derived time windows. If we need merchant-local ledger position, `arrival_seq` is the right field.
+
+The scattered pattern also reinforces why `bucket_index` deserves its own later branch. The relationship between merchant-local sequence accumulation and horizon bucket rhythm is not uniform across merchants. That difference is not a defect; it is a consequence of merchants having different arrival intensities.
+
+### A7. Context fields change the reading of the same arrival grain
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/grain_and_identity/figures/07_channel_and_route_context_at_arrival_grain.png" alt="Channel and route context at arrival grain" width="780">
+
+This figure shows that once the grain is fixed, context still changes the meaning of what we are counting.
+
+On the channel side, card-present accounts for a larger share of arrival rows than card-not-present, but it accounts for an even larger share of merchants. That means channel context has two separate readings: exposure and participation. Exposure asks how many arrivals the platform sees through each lane. Participation asks how many merchants operate in each lane. These are related but not identical questions.
+
+On the route side, physical rows dominate both row share and merchant participation, while the virtual lane remains structurally present. This matters because the physical/virtual split changes how route columns should be interpreted. `site_id` belongs naturally to physical route context, while `edge_id` belongs naturally to virtual route context. A null in one of those fields may therefore be structural, not evidence of missing or bad data.
+
+The broader inference is that grain tells us what one row is, but context tells us how that row should be read. `arrival_events_5B` is one arrival-context ledger, but the same row can carry time meaning, route meaning, channel meaning, timezone meaning, and lineage meaning. Later analysis should preserve those meanings instead of flattening every column into a generic feature.
