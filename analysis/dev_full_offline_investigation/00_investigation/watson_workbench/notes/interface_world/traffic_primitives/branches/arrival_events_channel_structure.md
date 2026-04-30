@@ -90,7 +90,21 @@ That matters for later fraud and case analysis. If a future chart shows card-not
 
 ## Channel and route mode are related, but not identical
 
-`channel_group` and `is_virtual` are not the same field, and the data proves they should not be collapsed into one another.
+Before reading the channel-route table, the terms need to be pinned down in operating language.
+
+`channel_group` is the payment-acceptance lane attached to the merchant's arrival context:
+
+- `card_present` means the merchant is operating in a card-present acceptance lane: the payment interaction is treated as in-person / point-of-interaction commerce where the card or card credential is presented at the merchant's acceptance point.
+- `card_not_present` means the merchant is operating in a remote or non-face-to-face acceptance lane: the card credential is used without the cardholder/card being physically present at a point-of-sale interaction. It does **not** mean "no card details are used." It means the credential is submitted or used through a remote/digital acceptance context rather than a physical-presentment context.
+
+Because every merchant has exactly one observed channel in this primitive, these labels should be read as merchant operating lanes in `arrival_events_5B`, not as proof that each individual arrival row captured a customer choosing a physical card, phone wallet, manual entry, or any other specific payment instrument.
+
+`is_virtual` is different. It describes the routing endpoint used by the arrival-context fabric:
+
+- `is_virtual = false` means the arrival is routed to a physical merchant site, so `site_id` is populated and `edge_id` is null.
+- `is_virtual = true` means the arrival is routed to a virtual edge, so `edge_id` is populated and `site_id` is null.
+
+So `channel_group` tells us the merchant's acceptance lane, while `is_virtual` tells us whether the arrival was routed through a physical site or a virtual edge. These are related operating concepts, but they are not the same field, and the data proves they should not be collapsed into one another.
 
 | Channel | Route mode | Rows | Share within channel | Share within route mode | Merchants | Sites | Edges |
 |---|---|---:|---:|---:|---:|---:|---:|
@@ -103,7 +117,7 @@ The card-present lane is overwhelmingly physical: `97.80%` of its rows are physi
 
 The card-not-present lane is still mostly physical by row count, but it carries a much larger virtual component: `21.49%` of card-not-present rows are virtual. Card-not-present also holds `83.21%` of all virtual rows and `82.13%` of all virtual edges.
 
-This is the important nuance. Card-not-present is not equivalent to virtual routing, because most card-not-present rows are still physical in this surface. But virtual routing is heavily concentrated inside card-not-present. So the right interpretation is:
+This is the important nuance. Card-not-present is not equivalent to virtual routing, because most card-not-present rows are still physically routed in this surface. That can happen because "remote/card-not-present acceptance lane" and "physical route endpoint" are not logically contradictory in this interface view: one describes acceptance context, the other describes the route object attached to the arrival. But virtual routing is still heavily concentrated inside card-not-present. So the right interpretation is:
 
 > Channel is a merchant-stable operating lane; virtual route mode is a routing context; the two interact strongly but are not interchangeable.
 
@@ -177,3 +191,73 @@ So channel should be carried forward as a first-class segmentation field, but no
 4. Daily channel shares are stable but not flat. If later fraud or case rates vary by date, channel mix should be checked as a possible denominator effect before interpreting the movement as a risk change.
 
 5. The small set of card-present virtual merchants is unusual enough to preserve as a later check. It may be legitimate platform routing context, but it should not be silently absorbed into the ordinary physical card-present story.
+
+## Appendix: visual evidence and assessment
+
+This appendix holds the visual evidence behind the channel-structure branch. The figures are not meant to prove a fraud claim. They are meant to make the channel structure visible: whether channel behaves as merchant identity or event variation, how row exposure differs from merchant participation, how route mode intersects with channel, and how stable the channel lanes are across the operating window.
+
+### A1. Channel identity and denominator split
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/channel_structure/figures/01_channel_identity_and_denominators.png" alt="Channel identity and denominator split" width="780">
+
+This figure combines two checks that need to be read together.
+
+The left panel validates the channel-stability claim at merchant grain. All `4,050` merchants sit in the "exactly one" channel-count bucket. That means the surface does not show merchants moving between `card_present` and `card_not_present` inside the three-month arrival-context extract. At this grain, channel is therefore not behaving like a row-by-row transaction attribute. It is behaving like a stable merchant operating lane.
+
+The right panel shows why that stable channel assignment still needs denominator discipline. `card_present` contains `80.5%` of merchants but `66.4%` of arrival rows. `card_not_present` contains only `19.5%` of merchants but `33.6%` of arrival rows. So the two channels can be described in two correct but different ways: card-present is the broader merchant-participation lane, while card-not-present carries more arrival exposure than its merchant share would suggest.
+
+The figure proves that channel is stable per merchant in this primitive and that row share and merchant share diverge. It does not prove anything about fraud risk, customer behaviour, approval rate, or case burden. Those require later behavioural, truth, and case surfaces. The immediate lesson is that a channel-level statistic must declare its denominator: arrival-weighted and merchant-weighted statements are not interchangeable.
+
+### A2. Merchant exposure distribution by channel
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/channel_structure/figures/02_merchant_exposure_distribution_by_channel.png" alt="Merchant exposure distribution by channel" width="780">
+
+This figure moves from channel totals into the merchant-level distribution inside each channel. That is necessary because total row share alone cannot tell us whether card-not-present has more exposure because of many small merchants, a few extreme merchants, or a generally heavier merchant population.
+
+The boxplot shows that the card-not-present distribution is shifted to the right of card-present. The median card-not-present merchant has about `66.7K` rows over the 90-day window, while the median card-present merchant has about `32.2K`. The quantile panel makes the same point across the distribution: card-not-present is higher at p05, p25, median, p75, and p95. The p95 comparison is especially important: `308.3K` rows for card-not-present versus `144.1K` for card-present. This is not only a top-end anomaly; the heavier exposure appears across the merchant distribution.
+
+The log scale is doing analytical work here. Merchant row counts span from low thousands into hundreds of thousands, so a linear scale would compress the lower and middle ranges and make the distribution harder to read. The log scale lets the center and the tail remain visible together.
+
+This figure supports the branch claim that card-not-present merchants are materially more arrival-dense. It does not explain why they are denser. The cause could be merchant mix, operating model, route structure, synthetic world policy, or something that only becomes visible when we inspect the behavioural streams. For later fraud analysis, the caution is direct: if card-not-present shows more labels or cases in raw counts, the first check should be exposure-normalized rates, not immediate risk interpretation.
+
+### A3. Channel and route-mode interaction
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/channel_structure/figures/03_channel_route_mode_interaction.png" alt="Channel and route-mode interaction" width="780">
+
+This figure addresses a common misread: treating `card_not_present` and `virtual` as if they mean the same thing.
+
+In this branch, `card_not_present` is the merchant's remote/non-face-to-face acceptance lane. It does not mean the transaction has no card details; it means the card credential is used without physical-presentment context. `virtual` is different: it means the arrival was routed through a virtual edge rather than a physical `site_id`. One is an acceptance lane, the other is a routing endpoint.
+
+The left panel shows route composition within each channel. Card-present is almost entirely physical: `97.8%` physical and `2.2%` virtual. Card-not-present is still mostly physical, but with a much larger virtual component: `78.5%` physical and `21.5%` virtual. That means virtual routing is not absent from card-present, and physical routing is not absent from card-not-present. The fields are related, but they are not substitutes for one another.
+
+The right panel flips the denominator and asks where all virtual evidence sits. Here the concentration becomes sharp: card-not-present carries `83.2%` of virtual rows and `82.1%` of virtual edges. So card-not-present is not equivalent to virtual routing, but virtual routing is overwhelmingly concentrated inside card-not-present.
+
+This is the statistical reason the branch separates channel from route mode. If we collapse the two fields, we lose the ability to tell whether a later fraud or case pattern is a channel effect, a virtual-routing effect, or the intersection of the two. If we keep them separate, later analysis can compare physical card-present, virtual card-present, physical card-not-present, and virtual card-not-present as distinct operating contexts.
+
+The figure proves concentration and interaction. It does not prove causal risk. It also does not prove that virtual card-present is wrong; the `2.2%` card-present virtual slice may be a legitimate routing lane. It simply flags that this slice should not be silently treated as ordinary physical card-present traffic.
+
+### A4. Daily channel share and merchant presence
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/channel_structure/figures/04_daily_channel_share_and_presence.png" alt="Daily channel share and merchant presence" width="780">
+
+This figure checks whether the channel structure is persistent through time or produced by a temporary coverage issue.
+
+The upper panel shows daily row share for both channel lanes. Both lines are present across the full January-March window. Card-present remains the larger daily share, while card-not-present remains the smaller daily share. The movement is bounded rather than chaotic: card-present sits roughly in the low-60s to high-60s percent range, while card-not-present mirrors it in the low-30s to high-30s range. The repeated movement shows that the channel mix is not perfectly flat, but the levels remain structurally stable.
+
+The lower panel checks merchant participation by day. Card-not-present has `789` active merchants every day, while card-present is essentially constant at `3,261`, with one day at `3,260`. This matters because a daily shift in row share could otherwise be mistaken for changing merchant coverage. Here, the daily merchant base is stable; the daily row-share movement is more likely about traffic intensity within the stable channel lanes than about channels appearing or disappearing.
+
+The figure proves that both channel lanes are continuously represented across the full operating window. It does not prove daily risk stability. A stable channel denominator can still have changing fraud rates or case rates later. The correct use of this evidence is denominator control: if later metrics move by date, channel mix should be checked as one possible exposure factor, but not assumed to be the explanation by itself.
+
+### A5. Channel operating footprint across different counted objects
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/channel_structure/figures/05_channel_operating_footprint.png" alt="Channel operating footprint across counted objects" width="780">
+
+This figure broadens the denominator question beyond rows and merchants. It asks how much of each operating footprint belongs to each channel: arrival rows, merchants, physical sites, virtual edges, zones, and operational timezones.
+
+The first three rows show the physical-world skew toward card-present. Card-present has `66.4%` of arrival rows, `80.5%` of merchants, and `87.6%` of physical sites. This makes sense with the earlier route-mode evidence: card-present is the broad physical-site lane of the arrival surface.
+
+The virtual-edge row reverses the pattern. Card-not-present holds `82.1%` of virtual edges, while card-present holds only `17.9%`. This reversal is important because it shows that the operating footprint depends on what is being counted. If we count merchants, card-present dominates. If we count virtual-edge identity, card-not-present dominates. A single "channel share" is therefore incomplete unless the counted object is named.
+
+The last two rows add another nuance. Zones and operational timezones are nearly balanced across the two channels, despite the strong merchant/site skew toward card-present and the virtual-edge skew toward card-not-present. That means card-not-present is not geographically or timezone-trivial just because it has fewer merchants. It has broad context coverage, even though its merchant population is smaller.
+
+This figure proves that channel structure is multi-dimensional. The same two channel labels have different footprints depending on whether the analysis is about arrival exposure, merchant participation, physical-site estate, virtual-routing estate, or geographic/timezone context. It does not prove which footprint is the "right" one. The right footprint depends on the question: load and throughput use row exposure, merchant behaviour uses merchant grain, route operations use site/edge context, and later case or truth analysis must introduce label and case denominators.
