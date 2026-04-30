@@ -106,6 +106,17 @@ Because every merchant has exactly one observed channel in this primitive, these
 
 So `channel_group` tells us the merchant's acceptance lane, while `is_virtual` tells us whether the arrival was routed through a physical site or a virtual edge. These are related operating concepts, but they are not the same field, and the data proves they should not be collapsed into one another.
 
+Concrete operating examples help make the distinction realistic:
+
+| Channel + route | Example operating scenario |
+|---|---|
+| `card_present` + physical | A customer taps or inserts a card/phone wallet at a supermarket checkout. The acceptance lane is card-present, and the arrival is tied to a physical store site. |
+| `card_present` + virtual | A transit operator, event venue, unattended kiosk estate, or cloud-managed POS fleet accepts card-present credentials, but the platform routes the arrival through a virtual terminal/edge rather than a fixed store site. |
+| `card_not_present` + physical | A restaurant or retailer takes an online or phone order for pickup from a specific branch. The payment is card-not-present, but the operating context is still tied to a physical site. |
+| `card_not_present` + virtual | A pure e-commerce merchant accepts an online card payment through a web/app checkout routed through a virtual commerce/payment edge, with no specific physical outlet attached. |
+
+These examples are not claiming that each row can be decoded into that exact business story. They anchor the field semantics: CP/CNP describes acceptance context; physical/virtual describes routing context.
+
 | Channel | Route mode | Rows | Share within channel | Share within route mode | Merchants | Sites | Edges |
 |---|---|---:|---:|---:|---:|---:|---:|
 | `card_present` | physical | `153,665,526` | `97.80%` | `71.10%` | `3,229` | `68,780` | `0` |
