@@ -1,0 +1,127 @@
+{
+  "channel_overview": [
+    {
+      "channel_group": "card_present",
+      "rows": 157117536,
+      "row_share": 0.6638067155833529,
+      "merchants": 3261,
+      "merchant_share": 0.8051851851851852,
+      "sites": 68780,
+      "edges": 537,
+      "zones": 339,
+      "operational_timezones": 258
+    },
+    {
+      "channel_group": "card_not_present",
+      "rows": 79574158,
+      "row_share": 0.3361932844166471,
+      "merchants": 789,
+      "merchant_share": 0.1948148148148148,
+      "sites": 9736,
+      "edges": 2468,
+      "zones": 325,
+      "operational_timezones": 241
+    }
+  ],
+  "channel_by_route_mode": [
+    {
+      "channel_group": "card_not_present",
+      "is_virtual": false,
+      "rows": 62470581,
+      "share_within_channel": 0.7850611626955575,
+      "share_within_route_mode": 0.2890335255275048,
+      "merchants": 664,
+      "sites": 9736,
+      "edges": 0
+    },
+    {
+      "channel_group": "card_not_present",
+      "is_virtual": true,
+      "rows": 17103577,
+      "share_within_channel": 0.2149388373044425,
+      "share_within_route_mode": 0.8320646352740985,
+      "merchants": 125,
+      "sites": 0,
+      "edges": 2468
+    },
+    {
+      "channel_group": "card_present",
+      "is_virtual": false,
+      "rows": 153665526,
+      "share_within_channel": 0.9780291233691445,
+      "share_within_route_mode": 0.7109664744724953,
+      "merchants": 3229,
+      "sites": 68780,
+      "edges": 0
+    },
+    {
+      "channel_group": "card_present",
+      "is_virtual": true,
+      "rows": 3452010,
+      "share_within_channel": 0.021970876630855514,
+      "share_within_route_mode": 0.16793536472590154,
+      "merchants": 32,
+      "sites": 0,
+      "edges": 537
+    }
+  ],
+  "merchant_channel_stability": [
+    {
+      "channel_count": 1,
+      "merchants": 4050,
+      "rows": 236691694
+    }
+  ],
+  "merchant_volume_by_channel": [
+    {
+      "channel_group": "card_present",
+      "merchants": 3261,
+      "rows": 157117536,
+      "min_rows_per_merchant": 1842,
+      "p05_rows_per_merchant": 3582.0,
+      "p25_rows_per_merchant": 15686.0,
+      "mean_rows_per_merchant": 48180.783808647655,
+      "median_rows_per_merchant": 32162.0,
+      "p75_rows_per_merchant": 56996.0,
+      "p95_rows_per_merchant": 144057.0,
+      "max_rows_per_merchant": 841654
+    },
+    {
+      "channel_group": "card_not_present",
+      "merchants": 789,
+      "rows": 79574158,
+      "min_rows_per_merchant": 2098,
+      "p05_rows_per_merchant": 5301.4,
+      "p25_rows_per_merchant": 32079.0,
+      "mean_rows_per_merchant": 100854.44613434728,
+      "median_rows_per_merchant": 66662.0,
+      "p75_rows_per_merchant": 122675.0,
+      "p95_rows_per_merchant": 308313.79999999993,
+      "max_rows_per_merchant": 836294
+    }
+  ],
+  "channel_daily_share_stats": [
+    {
+      "channel_group": "card_present",
+      "days": 90,
+      "min_daily_share": 0.6095595718943243,
+      "p25_daily_share": 0.6284561203121041,
+      "mean_daily_share": 0.6633595294247949,
+      "median_daily_share": 0.6768341003599745,
+      "p75_daily_share": 0.6818766266434345,
+      "max_daily_share": 0.6883764586893059,
+      "stddev_daily_share": 0.02617016091589647
+    },
+    {
+      "channel_group": "card_not_present",
+      "days": 90,
+      "min_daily_share": 0.31162354131069414,
+      "p25_daily_share": 0.3181233733565655,
+      "mean_daily_share": 0.3366404705752051,
+      "median_daily_share": 0.3231658996400255,
+      "p75_daily_share": 0.37154387968789593,
+      "max_daily_share": 0.39044042810567564,
+      "stddev_daily_share": 0.02617016091589647
+    }
+  ]
+}

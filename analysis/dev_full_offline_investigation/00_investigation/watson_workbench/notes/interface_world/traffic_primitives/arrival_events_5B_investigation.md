@@ -136,6 +136,10 @@ The month pattern mostly reflects calendar length. January and March are close t
 
 ## Channel structure
 
+Branch investigation:
+
+- [`branches/arrival_events_channel_structure.md`](branches/arrival_events_channel_structure.md)
+
 The surface has two channel groups:
 
 | Channel | Rows | Row share | Merchants | Sites | Edges |
