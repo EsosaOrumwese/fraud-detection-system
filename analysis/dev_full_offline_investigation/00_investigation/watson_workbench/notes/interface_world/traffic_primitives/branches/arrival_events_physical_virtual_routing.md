@@ -53,6 +53,12 @@ It is also not a generic boolean for "online transaction." In this surface, it t
 | physical | `is_virtual = false`, `site_id` populated, `edge_id` null | The arrival is attached to a physical merchant site/outlet. |
 | virtual | `is_virtual = true`, `edge_id` populated, `site_id` null | The arrival is attached to a virtual edge from the virtual routing fabric. |
 
+In operating terms, a physical site is a concrete merchant location or outlet that the platform can attach arrival context to. Examples include a supermarket branch, restaurant location, fuel station, pharmacy outlet, hotel desk, or any other merchant location where the transaction can be routed back to a physical operating site.
+
+A virtual edge is different. It is a commerce or payment endpoint that is not represented as a physical outlet in this surface. Examples include an e-commerce checkout, marketplace seller endpoint, app checkout, hosted payment page, subscription billing endpoint, cloud POS fleet, or virtual-terminal-like route. The arrival is still real platform traffic, but the endpoint that carries the route context is an `edge_id`, not a `site_id`.
+
+This is why `channel_group` and `is_virtual` must be kept separate. `channel_group` describes the payment-acceptance lane, such as `card_present` or `card_not_present`. `is_virtual` describes the route endpoint, meaning whether the arrival resolves through a physical `site_id` or a virtual `edge_id`. A card-not-present transaction can still be tied to a physical site, such as an online order fulfilled by a specific restaurant branch. A card-present transaction can also appear on a virtual edge, such as a mobile POS, transit, event, kiosk, or cloud POS setup where the payment is card-present in acceptance behaviour but routed through a virtualized endpoint estate.
+
 The 5B contract is strict on this. Physical arrivals must resolve to a valid `site_id`. Virtual arrivals must resolve to a valid `edge_id`. A row with both endpoint ids populated, both endpoint ids missing, or endpoint ids inconsistent with `is_virtual` is invalid by the route contract.
 
 In company-operating language, this field tells us whether the arrival-context system should recover physical site context or virtual edge context when enriching later traffic. That affects joins, denominators, endpoint-level analysis, feature context, and later comparison of fraud/case rates by route mode.
