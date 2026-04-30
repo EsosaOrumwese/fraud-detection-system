@@ -106,6 +106,10 @@ That matters because `arrival_seq` is not just a loose row number. It behaves as
 
 ## Time coverage
 
+Branch investigation:
+
+- [`branches/arrival_events_time_coverage.md`](branches/arrival_events_time_coverage.md)
+
 The surface spans the full three-month operating window:
 
 - first UTC timestamp: `2026-01-01T00:00:00.001940Z`
