@@ -71,6 +71,42 @@ Note:
 - That said, while the platform only relies on the interface pack `docs\model_spec\data-engine\interface_pack\data_engine_interface.md`, the AGENT, for better understand, can inspect the state expanded docs for the different layers (`docs\model_spec\data-engine\layer-#\specs\state-flow\#*\state.#*.s#.expanded.md`) and also the build plans in `docs\model_spec\data-engine\implementation_maps\segment_#*.build_plan.md` to see what was actually implemented. These are the only sets of files you are allowed to for the data engine, and maybe the contracts and policies if necessary. You are not allowed to edit it.
 - Keep the workspace neat:
 
+### 3A) Investigative data visualization and figure commentary posture
+This applies whenever the USER asks the AGENT to generate data visualizations, EDA plots, appendix figures, notebook plots, dashboard candidate visuals, figure commentary, plot descriptions, or analytical interpretations attached to figures.
+
+The USER's expectation is not "make some charts." The expectation is investigative visual evidence.
+
+When asked to generate data visualizations:
+- Do not begin from a fixed number of plots, a generic EDA checklist, or whatever chart type is convenient. First read the report, branch, notebook section, or analytical note that the visuals are meant to accompany.
+- Move through the document section by section and identify the actual statistical claims, cautions, leads, comparisons, validation checks, distributional facts, denominator questions, and operating-context statements being made.
+- Generate the complete set of visuals required by those statistical points. "Complete" means enough to expose the underlying statistical reality being discussed, not an assumed fixed count and not a forced minimum/maximum.
+- Do not plot for plot's sake. Each visual must answer why it exists: what claim it supports, what data relationship it exposes, what suspicion it checks, what caution it makes visible, or what denominator/grain issue it clarifies.
+- Prefer compact exported summaries and DuckDB-style aggregation over loading large raw surfaces into memory. The current data surfaces are large and should be treated with warehouse discipline.
+- If the available summaries are insufficient, create only the additional compact summaries needed to support the figure; do not casually scan or materialize huge data without a clear analytical reason.
+- Save generated figures and supporting compact summaries into the relevant workbench branch export folder, keeping the workspace organized by investigation branch.
+- Open and visually inspect the generated images before reporting them as ready. Look for axis disorder, unreadable labels, bad colors, title collisions, confusing legends, misleading scales, overplotted lines, broken annotations, and whether the picture actually conveys the statistical point it is meant to convey.
+- If inspection shows the figure does not communicate the intended evidence, fix the figure. Do not leave a flawed plot for the USER to discover.
+- Do not rewrite an approved plot from scratch when moving it into a notebook or report. Reuse the same plotting logic unless the USER explicitly asks for a change.
+- Dynamic plots are not mandatory. If a dynamic plot would help but the target artifact is static or printable, approximate the needed views with clear static figures instead of forcing a single overloaded chart.
+
+When asked to add commentary, descriptions, interpretations, or assessments for figures:
+- Do not write shallow captions. A caption that only says what the axes show is not enough.
+- Do not "budget" the same amount of explanation for every figure. Some visuals are simple validation checks and need concise treatment; others carry distributional, temporal, grain, denominator, or operating-context complexity and need deeper assessment.
+- Do not split the explanation into artificial "non-technical reader" and "technical reader" versions. Explain the point clearly and precisely without announcing audience categories.
+- Do not assume a technical term explains itself. If using terms such as denominator, grain, coefficient of variation, interquartile range, tail, skew, exposure-weighted, merchant-weighted, bucket grid, or temporal rhythm, explain the meaning in the context of the figure and the platform.
+- For each figure, tie the commentary to the actual visible evidence and the underlying data: what is being counted, what the denominator is, what comparison is being made, what the shape or spread means, and why the inference follows.
+- State what the figure proves and what it does not prove. This is essential in investigative analysis because the wrong conclusion can be drawn from a visually correct chart.
+- Where relevant, call out wrong interpretations explicitly. For example, a complete time horizon does not mean flat traffic; a lower raw February total may be calendar-length arithmetic rather than data loss; a row-weighted result may describe arrival exposure rather than a typical merchant; a clean sequence counter may support identity without being a shared chronological axis.
+- Tie the commentary back to the platform-operating context. The data is not a generic CSV; it is an extract from the live fraud decisioning platform's operating world. Figure descriptions should explain what the evidence means for traffic context, arrival context, behavioural streams, truth products, case products, denominators, joins, dashboards, or later analytical decisions as appropriate.
+- Use the approved appendix pattern from `analysis\dev_full_offline_investigation\00_investigation\watson_workbench\notes\interface_world\traffic_primitives\branches\arrival_events_grain_and_identity.md` as the style reference when adding figure appendices: `Appendix: visual evidence and assessment`, numbered figure subsections, embedded resized figure, and then analytical assessment grounded in the figure.
+- The commentary should read like an analytical report, not like a toy caption, not like a chart gallery, and not like an agent explaining that a chart exists.
+
+When working in notebooks:
+- Keep notebook sections readable and investigative. The notebook is for the USER to inspect the reasoning and statistics, not an artboard and not a dump of code.
+- Split plot code into sensible cells when that improves inspection. Do not lump unrelated views into one large cell just because it is convenient.
+- Add proper code comments that explain what the code is doing and why, not vague summary comments.
+- Tell the USER before adding substantial notebook content, especially when inserting new analytical flow, figures, or commentary, because notebook diffs are harder for the USER to inspect visually.
+
 ## 4) Implementation notes and logbook
 - Write these like a detailed natural engineering notebook.
 - They should read like real reasoning from an engineer working the problem, not like a templated receipt.
