@@ -196,84 +196,102 @@ The correct conclusion is not "traffic is uniform." The correct conclusion is th
 
 ## Appendix: visual evidence and assessment
 
-This appendix holds the visual evidence behind the time-coverage branch. The figures are not included as decoration. Each one tests a specific part of the coverage argument: whether the horizon is complete, whether month-level differences are calendar effects, whether daily volume is stable enough to serve as a denominator, and whether the surface carries real temporal structure rather than a flat synthetic spread.
+This appendix holds the visual evidence behind the time-coverage branch. The figures are not included as decoration. Each figure tests a specific part of the coverage argument: whether the observed horizon is complete, whether month-level differences are calendar effects, whether daily volume is stable enough to serve as a denominator, and whether the surface carries real temporal structure rather than a flat synthetic spread.
+
+The core distinction running through the appendix is this: **coverage** asks whether the operating period is continuously represented; **traffic shape** asks how arrival volume moves inside that period. A continuous surface does not have to be flat. In fact, if this is a plausible operating traffic surface, we should expect visible daily, weekly, and hourly rhythm. The question is whether those rhythms sit inside a complete and interpretable time frame.
 
 ### A1. Daily horizon coverage and boundary behaviour
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/01_horizon_daily_coverage.png" alt="Daily coverage across the January-March operating horizon" width="780">
 
-This figure is the first coverage check because it answers the simplest question: do we actually have the full January-March date horizon? The top strip shows `90 / 90` UTC dates present. That means there is no missing calendar day between `2026-01-01` and `2026-03-31`.
+This figure is the first coverage check because it asks the most basic question: does the surface actually contain every UTC date in the claimed operating window? The top strip answers that directly: `90 / 90` UTC dates are present from `2026-01-01` through `2026-03-31`. That is the first piece of evidence that this is a full-quarter context surface rather than a partial slice.
 
-The lower panel then places the daily row counts inside that same continuous window. The title records the timestamp boundary: the first row begins just after midnight on `2026-01-01`, and the last row lands just before midnight on `2026-03-31`. That boundary matters because it rules out a common extract problem: a file that claims to represent a quarter but actually starts late, ends early, or omits part of the edge days.
+The lower panel then shows that the row counts live inside the same continuous date frame. The title records the timestamp boundary: the first row begins just after midnight on `2026-01-01`, and the last row lands just before midnight on `2026-03-31`. That boundary is important because a dataset can have rows in January, February, and March while still being incomplete at the edges. Here, the timestamps show that the surface opens and closes at the expected quarter boundary.
 
-The daily line is not flat, and it should not be read as though flatness is the goal. A live operating platform should have day-to-day movement. The relevant statistical point is that the movement occurs inside a complete date sequence. The surface therefore gives us a continuous arrival-context denominator for the three-month operating window, while still preserving ordinary daily traffic variation.
+The daily line is intentionally not interpreted as a flatness test. Flatness is not the goal. A live fraud decisioning platform should have day-to-day movement because merchant activity, customer behaviour, channel use, and calendar effects vary. The statistical point is that the movement occurs inside an unbroken date sequence. There is no visible missing-date collapse where traffic drops to zero, no late start, and no early termination.
+
+This is why the figure supports denominator trust at the date level. Later, when we compute traffic shares, fraud rates, case rates, or other daily/period rates, we need confidence that the denominator exists for the whole period. This figure does not prove that later labels or case products are complete. It proves that the arrival-context denominator itself spans the full date horizon.
 
 ### A2. Raw monthly totals versus calendar-normalized traffic
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/02_monthly_raw_vs_daily_normalized.png" alt="Raw monthly rows versus rows per active day" width="780">
 
-This figure tests whether the lower February total should be treated as a coverage concern. The left panel shows raw monthly rows: January and March sit around `81M`, while February sits around `73.65M`. If we stopped there, February might look like a weaker or partially missing month.
+This figure tests a common interpretation trap: reading raw month totals without accounting for month length. The left panel shows total rows by month. January has `81.68M` rows, February has `73.65M`, and March has `81.36M`. On raw totals alone, February appears materially lower.
 
-The right panel changes the denominator from month to active day. Once the rows are divided by the number of active days, the three months are close: January is about `2.635M` rows per day, February about `2.630M`, and March about `2.625M`. The apparent monthly drop is therefore mostly explained by February having `28` active days rather than `31`.
+The right panel changes the question from "how many rows are in the month?" to "how many rows are there per active day?" That denominator shift is the whole point of the figure. Once normalized by active days, the three months are very close: January is about `2.635M` rows per day, February about `2.630M`, and March about `2.625M`.
 
-This distinction is important because raw period totals can mislead when period lengths differ. The evidence here supports the branch conclusion that the monthly pattern behaves like a continuous daily process over months of different lengths, not like an obvious February data-loss event.
+This means the apparent February dip is mostly calendar arithmetic. February has `28` days; January and March have `31`. A three-day difference at roughly `2.63M` rows per day accounts for most of the raw monthly gap. If February were genuinely missing operating coverage, the normalized daily bar would also be depressed. It is not.
+
+This figure therefore supports the branch claim that month-level coverage behaves like a continuous daily process over months of different lengths. It also shows why denominator choice matters even in a time-coverage branch. Raw totals answer "how much traffic occurred in this calendar month"; normalized totals answer "what was the daily operating pace inside the month." The coverage interpretation needs the second view.
 
 ### A3. Daily volume stability across the horizon
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/03_daily_volume_stability.png" alt="Daily arrival volume stability" width="780">
 
-This view asks whether the complete date horizon is also operationally stable. The mean and median daily volumes sit almost on top of each other at about `2.63M` rows. That matters because a large separation between mean and median would suggest that a small number of unusual days is pulling the center away from the typical day. Here, the center is stable.
+This figure moves from calendar completeness to operating stability. It asks whether the complete date horizon is populated by plausible daily traffic volumes, or whether the full set of dates hides serious instability. The daily row count line stays around a central band near `2.63M` rows per day.
 
-The shaded band marks the interquartile range, the middle half of daily volumes. The daily line moves above and below that band, but it does so without producing a day that looks like a missing-data collapse. The minimum day, `2026-01-25`, has about `2.47M` rows. The maximum day, `2026-01-30`, has about `2.89M` rows. Relative to the daily base, those are real excursions but not structural breaks.
+The mean and median are almost on top of each other at about `2.63M`. That is a meaningful stability signal. When the mean and median are close, the center of the distribution is not being dragged far away from the typical day by a few extreme observations. In this case, the daily surface has variation, but its center is coherent.
 
-The statistical reading is continuity with variation. This figure supports the branch's wording that time coverage is not the same thing as uniform traffic. The surface can be continuous and still show peaks, troughs, and weekly rhythm. That is exactly what we should expect from an operating traffic context surface.
+The shaded band marks the interquartile range, meaning the middle half of daily volumes. The line repeatedly moves above and below that band, which shows ordinary day-level traffic movement. The minimum day, `2026-01-25`, has about `2.47M` rows; the maximum day, `2026-01-30`, has about `2.89M` rows. These are real excursions, but they remain inside the same operating scale. They do not look like a missing-day failure, where volume would collapse toward zero, or a duplicated-day failure, where volume would jump to a different order of magnitude.
+
+The figure therefore supports a precise reading: the surface is continuous and operationally stable, but not uniform. This is the correct posture for later analysis. We should trust the horizon as a denominator, but still preserve daily movement because that movement is part of the operating reality.
 
 ### A4. Distribution and range of daily traffic
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/04_daily_volume_distribution_and_range.png" alt="Daily volume distribution and range" width="780">
 
-This figure reads the same daily-volume evidence as a distribution rather than as a sequence. The histogram shows how the 90 daily totals cluster, and the boxplot gives a compact range check. The mean and median both sit around `2.63M`, confirming the same stable-center observation from the time-series view.
+This figure reads daily traffic as a distribution rather than a chronological sequence. That matters because the time-series view can show when movement happens, while the distribution view shows the shape of the 90 daily totals as a population.
 
-The coefficient of variation is `3.15%`. In plain statistical terms, the daily standard deviation is small relative to the mean daily traffic base. That does not mean every day is identical. It means the surface varies inside a comparatively narrow operating band when measured against a base of roughly `2.63M` rows per day.
+The histogram shows clustering around the daily center, and the boxplot compresses the same evidence into median, spread, whiskers, and high-side points. The mean and median are both around `2.63M`, repeating the stable-center signal from the previous figure. The distribution is not perfectly symmetric, and some high-volume days sit above the main body, but the spread does not suggest a broken extract.
 
-The upper-side points in the boxplot are useful because they show that some high-volume days exist. The correct conclusion is not that the daily distribution is perfectly smooth or symmetric. The correct conclusion is that the spread is modest enough to support denominator trust: daily traffic moves, but it does not behave like a broken or intermittently missing extract.
+The coefficient of variation is `3.15%`. This means the daily standard deviation is small relative to the mean daily volume. The point of this metric is not to hide the variation; it gives scale to the variation. A standard deviation of roughly `83K` rows sounds large in isolation, but against a daily base of roughly `2.63M` rows, it is modest.
+
+The correct inference is that daily traffic has controlled variability. The surface is not mechanically flat, but neither is it unstable in a way that would undermine its use as a baseline denominator. This matters for later metrics because a stable denominator makes it easier to distinguish outcome movement from denominator failure.
 
 ### A5. Daily merchant and channel presence
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/05_daily_merchant_and_channel_presence.png" alt="Daily merchant and channel presence" width="780">
 
-This figure checks whether daily coverage is only a row-count claim or whether the main participant fields also remain present. The channel panel is straightforward: both channel groups are present every day, so the daily horizon does not lose an entire channel lane.
+This figure asks whether daily coverage is only true at the row-count level, or whether the participant fields also remain stable. That is important because a surface could have rows every day while quietly losing a channel lane or a large part of the merchant population on some days.
 
-The merchant panel adds an important nuance. Most days have all `4,050` merchants active, but `2026-03-22` has `4,049`. That single-day exception is small, but it matters for wording. At month level, every month touches all `4,050` merchants. At day level, one day is short by one merchant.
+The lower panel shows that both channel groups are present every day. This supports channel-level coverage: the daily horizon does not lose card-present or card-not-present visibility on any date in the period.
 
-This is why the branch should say "nearly complete daily merchant participation" rather than "every merchant appears every day." The exception does not undermine the overall time-coverage claim, because the date, channel, and row-volume evidence remain continuous. It does, however, matter if a later analysis requires strict merchant-by-day completeness.
+The merchant panel is almost flat at `4,050`, but it has one visible exception: `2026-03-22` has `4,049` active merchants. This is a small exception, but it is analytically important because it prevents us from overclaiming. Month-level participation says every month touches all `4,050` merchants. Day-level participation says almost every day touches all merchants, with one day short by one merchant.
+
+The correct conclusion is therefore not "merchant participation is perfectly complete every day." The correct conclusion is "daily merchant participation is effectively complete, with one known one-merchant exception." That distinction matters if we later compute merchant-day completeness, merchant-level exposure, or any metric that assumes all merchants appear on every date.
 
 ### A6. Weekday operating shape
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/06_weekday_operating_shape.png" alt="Weekday operating shape in daily arrival volume" width="780">
 
-This figure shows that the arrival surface has an operating-week rhythm. Friday has the strongest average daily volume, while Sunday has the weakest. The vertical ranges show that each weekday also has its own day-to-day spread, so the weekday pattern is not the only source of daily movement.
+This figure shows that the continuous horizon carries weekday structure. Friday has the strongest average daily volume, while Sunday has the weakest. The direction is operationally plausible: weekday traffic is generally stronger than weekend traffic, with Sunday at the bottom of the profile.
 
-The point is not that weekday alone explains the time series. The point is that time is already meaningful inside the traffic primitive. A flat-time assumption would ignore this structure and could distort later comparisons. For example, a future case-rate or fraud-rate view that rises on a Friday should be compared against the fact that Friday also carries higher arrival volume.
+The vertical ranges are important because they show that weekday category is not the only source of movement. Each weekday still has day-to-day variation inside it. So the figure is not saying "weekday fully explains daily volume." It is saying that weekday is one visible component of the surface's time structure.
 
-This figure therefore converts "coverage" into an analytical warning. A continuous denominator is valuable, but it is not neutral over time. The traffic denominator has weekly shape, and later outcome analysis should preserve that time context rather than collapsing the whole quarter into one undifferentiated block.
+This matters for later rate interpretation. If fraud outcomes, bank outcomes, or case activity appear higher on certain weekdays, the first question should be whether the numerator changed, the denominator changed, or both. A Friday increase in cases has a different meaning if Friday also has higher arrival volume.
+
+This figure therefore turns the time-coverage branch into a caution about temporal normalization. The denominator is continuous, but it is not neutral over the week. Later analysis should preserve weekday context instead of collapsing the entire quarter into one undifferentiated time block.
 
 ### A7. Hourly bucket-grid coverage and intensity
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/07_bucket_grid_coverage_and_intensity.png" alt="Hourly bucket grid coverage and arrival intensity" width="780">
 
-This figure is stronger than a date-level coverage check because it tests the canonical hourly grid. The top panel confirms that all `2,160` expected bucket indexes are present. Since the horizon is 90 days and `90 * 24 = 2,160`, this supports the claim that `bucket_index` is complete at the hourly UTC-grid level.
+This figure strengthens the coverage claim by moving below the day grain. A dataset can pass a daily coverage check while still having missing hours. The top panel tests that risk directly: all `2,160` expected hourly bucket indexes are present. Since the horizon is 90 days and `90 * 24 = 2,160`, this supports the claim that the `bucket_index` grid is complete at the hourly UTC level.
 
-The lower panel then shows row intensity inside each hourly bucket. The repeated peaks and troughs are not a defect; they show that the hourly grid carries operating rhythm. This is the difference between structural coverage and traffic intensity. Coverage asks whether the bucket exists. Intensity asks how much traffic is inside it. Both are visible here.
+The lower panel then shows the number of arrivals inside each hourly bucket. This is a different question from coverage. Coverage asks whether the bucket exists. Intensity asks how much traffic falls into it. Both matter. A complete grid with empty or erratic traffic would raise different questions from a complete grid with a repeated operating rhythm.
 
-This matters for later analysis because a dataset could pass a date-level check and still have missing hourly sections. This surface does not show that problem. The hourly grid is present across the full horizon, which gives us stronger confidence in using `bucket_index` for time-window analysis, replay framing, and later rate denominators.
+The repeated peaks and troughs show that the hourly bucket field carries real temporal intensity. The pattern is not random visual noise; it repeats across the horizon, which is consistent with daily operating cycles. At this branch stage, we do not need to explain every peak. The claim is narrower: `bucket_index` is both complete as a grid and meaningful as a time-intensity coordinate.
+
+This gives stronger confidence in using `bucket_index` for later time-window analysis, replay framing, and denominator alignment. It also exposes a follow-on branch: the repeated hourly rhythm deserves its own analysis rather than being treated as a background detail.
 
 ### A8. UTC-hour profile
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/time_coverage/figures/08_utc_hour_profile.png" alt="UTC hour profile" width="780">
 
-This figure collapses the full quarter into a 24-hour UTC profile. The early UTC hours around `03:00` to `05:00` have the lowest shares, while the late-morning to late-afternoon band carries the strongest shares. The peak sits around `15:00` UTC.
+This figure collapses the full quarter into a 24-hour UTC profile. It answers a different question from the bucket-intensity line. The bucket line shows the sequence of hourly traffic across the whole horizon; this profile asks how traffic mass is distributed across the 24 UTC hours after aggregating the quarter.
 
-The statistical point is that timestamp mass is not uniformly distributed across the day. If the surface were time-flat, each hour would sit close to `1 / 24`, or about `4.17%`, of rows. Instead, the profile ranges from under `3%` in the lowest hours to above `5%` in the strongest hours. That is a meaningful time-of-day shape.
+If arrivals were uniformly distributed across UTC hours, each hour would hold about `1 / 24`, or `4.17%`, of rows. The figure does not show that. The early UTC hours around `03:00` to `05:00` are below `3%`, while the late-morning to late-afternoon band sits above `5%`, with the peak around `15:00` UTC.
 
-This figure does not yet settle local operating rhythm because UTC is only one time frame. The surface also carries primary, settlement, and operational local timestamp fields, so a later branch should compare UTC activity to local operating time. What this figure proves at this stage is narrower but important: time-of-day structure exists, and later traffic, label, and case-rate analysis should not ignore it.
+That spread is a meaningful time-of-day structure. The difference between roughly `2.8%` and `5.4%` is not a small cosmetic fluctuation around uniformity; the strongest hours carry nearly twice the share of the weakest hours. That matters if later rates are compared by hour, because the denominator itself is not evenly distributed through the day.
+
+This figure does not yet settle local operating rhythm because UTC is only one frame of time. The surface also carries primary, settlement, and operational local timestamp fields. The correct conclusion is therefore not "the business day peaks at 15:00 everywhere." The correct conclusion is that UTC time-of-day structure is present, and a later local-time branch is necessary before making stronger operational claims about local business rhythms.
