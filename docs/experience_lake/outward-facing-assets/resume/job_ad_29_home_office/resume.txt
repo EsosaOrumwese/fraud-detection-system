@@ -18,7 +18,7 @@ Delivery & Quality Discipline: Git, documentation, reproducible workflows, testi
 RELEVANT EXPERIENCE
 
 Data Analyst & Analytics Engineer
-AWS-hosted Fraud Decisioning Platform — Exeter, UK | May 2025 - Present
+AWS-hosted Fraud Decisioning Platform - Exeter, UK | May 2025 - Present
 
 - Applied data analytics techniques to real decision-support problems in a governed fraud environment, using SQL, Python, matching logic, record retrieval, cohort analysis, modelling, and forecasting to support prioritisation, workload planning, and compliance-style review.
 - Worked with complex multi-source operational data covering event records, decision outcomes, case movement, labels, entity histories, and control signals, shaping them into analytical datasets that could support repeatable reporting rather than one-off extracts.
@@ -46,14 +46,14 @@ Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2
 ADDITIONAL EXPERIENCE
 
 Field Engineer (Trainee)
-South Western Technologies & Oilfield Services Ltd — Rivers, Nigeria | Jul 2021 - Aug 2022
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 
 - Worked in a technical and safety-conscious operational environment where accurate readings, disciplined procedures, and timely escalation supported reliable delivery.
 - Monitored pressure, temperature, equipment, and field-condition signals, identifying irregular conditions early and supporting corrective action through structured evidence.
 - Prepared clear technical updates and handovers so engineers and supervisors could act on the same information confidently.
 
 Crew Member
-Five Guys — Exeter, UK | Sep 2024 - Present
+Five Guys - Exeter, UK | Sep 2024 - Present
 
 - Work in a fast-moving customer and operations environment where pace, accuracy, communication, and service consistency matter every day.
 - Adapt quickly to changing priorities while keeping outputs reliable and understandable for colleagues and customers.
