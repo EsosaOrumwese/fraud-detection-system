@@ -58,7 +58,7 @@ The identity fields do different jobs:
 
 The important point is that `arrival_seq` is only unique within a merchant and scenario/world identity. It is not a global event id by itself.
 
-So `merchant_id = 123, arrival_seq = 50` means "the 50th arrival for merchant 123 in this sealed scenario basis." Another merchant can also have `arrival_seq = 50`; that is not a collision because the merchant is part of the key.
+So `merchant_id = 123, arrival_seq = 50` means "the arrival occurrence assigned sequence 50 for merchant 123 in this sealed scenario basis." Another merchant can also have `arrival_seq = 50`; that is not a collision because the merchant is part of the key.
 
 This is why the primary key includes both `merchant_id` and `arrival_seq`.
 
@@ -76,7 +76,9 @@ This matters operationally because it lets other surfaces point back to arrival 
 
 `seed + manifest_fingerprint + scenario_id + merchant_id + arrival_seq`
 
-For analysis, this means `arrival_seq` can be used to reason about order and volume within a merchant, but it should not be compared across merchants as if `arrival_seq = 10,000` means the same business moment for every merchant. A high-volume merchant reaches `arrival_seq = 10,000` much earlier than a low-volume merchant.
+For analysis, this means `arrival_seq` can be used to reason about merchant-local identity and total merchant volume, but it should not be treated as a shared time axis. The visual check against `bucket_index` shows that sequence values need to be interpreted with `ts_utc` or `bucket_index` when the question is chronological.
+
+So `arrival_seq = 10,000` is not a universal business moment. It is a merchant-local identifier inside the sealed world key. If we want calendar-time ordering, the time fields carry that responsibility.
 
 ## What `bucket_index` captures
 
@@ -177,7 +179,7 @@ This grain is useful because it gives us:
 - a time-grid coordinate through `bucket_index`
 - physical/virtual route interpretation through `site_id`, `edge_id`, and `is_virtual`
 
-The clean sequence check is especially important. If `arrival_seq` were broken, downstream joins by arrival identity could duplicate, miss, or misattribute context. In this run, the sequence behaviour supports the surface's use as arrival-context authority.
+The clean sequence check is especially important. If `arrival_seq` were broken, downstream joins by arrival identity could duplicate, miss, or misattribute context. In this run, the sequence behaviour supports the surface's use as arrival-context authority, while the chronological reading still belongs to `ts_utc` and `bucket_index`.
 
 ## What the grain does not let us conclude
 
