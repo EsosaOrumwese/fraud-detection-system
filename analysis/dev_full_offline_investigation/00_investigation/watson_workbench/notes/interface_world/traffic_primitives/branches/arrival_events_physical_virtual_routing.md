@@ -63,6 +63,8 @@ The 5B contract is strict on this. Physical arrivals must resolve to a valid `si
 
 In company-operating language, this field tells us whether the arrival-context system should recover physical site context or virtual edge context when enriching later traffic. That affects joins, denominators, endpoint-level analysis, feature context, and later comparison of fraud/case rates by route mode.
 
+For the geography-specific clarification, see the sub-branch [`arrival_events_physical_virtual_endpoint_geography.md`](arrival_events_physical_virtual_endpoint_geography.md). That sub-branch illustrates the difference between physical site coordinates, virtual edge coordinates, and virtual settlement anchors without overloading this routing report.
+
 ## Route-mode scale
 
 The arrival surface is mostly physical by rows and by merchants, but virtual routing is still a meaningful lane.
