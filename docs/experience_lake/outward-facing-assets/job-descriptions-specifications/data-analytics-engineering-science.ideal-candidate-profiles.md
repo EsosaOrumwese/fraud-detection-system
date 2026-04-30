@@ -4103,3 +4103,142 @@ The strongest-fit candidate would likely go beyond generic analyst claims and sh
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a full-stack data analyst who can model and transform reliable cloud data, collaborate with data engineers on pipelines, deliver trusted self-serve insight through `BI`, and translate ambiguous business questions into well-scoped, governed analytical work. They are useful because they combine analytics-engineering depth, communication strength, and product-minded judgment in a way that helps the business build a more mature and reliable data environment.
+
+---
+
+## Ideal Candidate Profile - Commercial Data Analyst - Home Office
+
+Source role:
+- `Commercial Data Analyst`
+- `Home Office`
+- <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=c2VhcmNocGFnZT0xJm93bmVyPTUwNzAwMDAmb3duZXJ0eXBlPWZhaXImc2VhcmNoc29ydD1zY29yZSZ1c2Vyc2VhcmNoY29udGV4dD0xODYwNzk1NDAmcGFnZWFjdGlvbj12aWV3dmFjYnlqb2JsaXN0JmpvYmxpc3Rfdmlld192YWM9MTk5NDQ5NiZwYWdlY2xhc3M9Sm9icyZyZXFzaWc9MTc3NzUzODU4NS00YWFkODgwODhmZDk4ZDNjNjQ1NTM3MTRmYmZmNWU5YzAxNmY3M2I1>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not just someone who can build procurement dashboards. The employer is looking for a commercial data analyst who can work with complex spend, supplier, and performance data, apply a broad range of analytical techniques, support data feeds and data solutions with engineers, and brief senior stakeholders in a way that improves compliance, value for money, and operational delivery.
+
+This person would likely present as someone who is comfortable moving between:
+- commercial spend, supplier, and performance analysis
+- data collection, cleaning, linking, quality assurance, and information assurance
+- statistical methods such as forecasting, time series, modelling, and data mining
+- techniques such as data matching, information retrieval, text analysis, and network analysis
+- BI dashboards, reporting, and visualisation
+- data-feed mapping, transformation, testing, and implementation with Data Engineers
+- senior stakeholder communication and mentoring inside an analysis community
+
+They would sound like someone who can make commercial data trustworthy, explainable, and useful for high-stakes government decision making.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has used data to support real-world decisions in a government, commercial, procurement, operational, or similarly complex business context. Their story would show that they can handle messy multi-source data, define requirements with users, produce useful `SQL` and `Power BI` outputs, apply appropriate analytical methods, and explain technical work clearly to senior and non-technical audiences.
+
+They would likely have experience that sounds like this:
+- analysing spend, supplier, performance, compliance, or operational delivery data
+- collecting, cleaning, linking, and assuring data from multiple sources
+- building reports, dashboards, and visualisations for decision makers
+- applying modelling, forecasting, data matching, text analysis, or similar techniques
+- collaborating with Data Engineers on data feeds or data-solution delivery
+- presenting evidence-based conclusions and recommendations to senior stakeholders
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants commercial analytics tied to decision making
+
+The ideal candidate would sound like someone who can connect data analysis to commercial outcomes. They would likely show that they can use spend, supplier, and performance data to improve compliance, value for money, operational delivery, or programme oversight.
+
+The candidate's evidence would likely include:
+- commercial, procurement, supplier, or performance-data analysis
+- insight that supported operational or financial decision making
+- reporting that improved compliance or performance visibility
+- analysis linked to value for money or delivery outcomes
+
+#### B. If the employer wants broad analytical-method capability
+
+The ideal candidate would not rely only on descriptive dashboards. They would also show that they can apply analytical and statistical techniques that fit the problem, including forecasting, modelling, data mining, data matching, text analysis, or network-style analysis where relevant.
+
+The candidate's evidence would likely include:
+- applied forecasting or time-series work
+- modelling or trend prediction
+- data matching or information retrieval
+- text analysis or network-analysis style methods
+- ability to explain why a method was chosen and what it achieved
+
+#### C. If the employer wants strong data handling, quality, and assurance
+
+The ideal candidate would sound like someone who understands that commercial decisions depend on defensible data foundations. They would likely show that they can clean, link, validate, and assure data while respecting security, information assurance, legal, and ethical constraints.
+
+The candidate's evidence would likely include:
+- multi-source data cleaning and linking
+- data-quality issue identification and resolution
+- quality assurance for analytical outputs
+- awareness of data protection, legal issues, and ethical handling
+- clear communication of limitations and caveats
+
+#### D. If the employer wants collaboration with Data Engineers and data-solution delivery
+
+The ideal candidate would sound like someone who can contribute to technical delivery without overclaiming full data-engineering ownership. They would likely show that they can map, transform, test, or implement data feeds in collaboration with engineers and contribute to the design or maintenance of data solutions.
+
+The candidate's evidence would likely include:
+- work on data feeds, migrations, or system-to-system data movement
+- collaboration with Data Engineers or technical colleagues
+- contribution to data-solution design, implementation, or maintenance
+- practical understanding of data structures and databases
+
+#### E. If the employer wants strong BI and stakeholder-facing communication
+
+The ideal candidate would sound like someone who can make complex commercial data accessible. They would likely show that they can build clear reports and dashboards, brief internal and external audiences, and adapt the level of detail for technical, non-technical, and senior stakeholders.
+
+The candidate's evidence would likely include:
+- `SQL` and `Power BI` delivery
+- dashboard and visualisation development
+- senior stakeholder presentations
+- clear written and verbal recommendations
+- translation of complex analysis into accessible insight
+
+#### F. If the employer wants analysis-community contribution and mentoring
+
+The ideal candidate would sound like someone who is willing to build capability around them. They would likely show that they can contribute to analytical standards, mentor junior staff, and operate as part of a wider professional community rather than only delivering individual tasks.
+
+The candidate's evidence would likely include:
+- mentoring or coaching analysts
+- contribution to analytical community standards
+- support for upskilling colleagues
+- openness to learning new tools and approaches
+
+### 4. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can turn complex spend, supplier, and performance data into evidence-based insight that improves compliance, value for money, and operational delivery.
+- I can collect, clean, link, and assure multi-source data while maintaining strong quality, security, and information-assurance standards.
+- I can apply analytical methods such as forecasting, modelling, data matching, information retrieval, text analysis, or network analysis where they fit the decision problem.
+- I can work with Data Engineers to map, transform, test, and implement new data feeds and contribute to data-solution design and maintenance.
+- I can build clear `Power BI` dashboards, reports, and visualisations and explain complex analytical work to senior and non-technical stakeholders.
+- I can contribute to an analysis community by sharing capability, mentoring others, and working to recognised analytical and quality standards.
+
+### 5. The Employer's Implied Non-Negotiables
+
+Even though the title sounds broad, the posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- commercial or operational decision-support analytics
+- multi-source data cleaning, linking, and quality assurance
+- `SQL` and `Power BI` or comparable tooling
+- analytical-method breadth beyond basic reporting
+- data structures, database systems, and data-solution contribution
+- senior stakeholder communication
+- legal, ethical, security, and information-assurance awareness
+
+### 6. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic civil-service analyst claims and show evidence of:
+- direct work with commercial, procurement, spend, supplier, or contract-performance data
+- analysis supporting value for money, compliance, supplier performance, or operational delivery
+- hands-on contribution to data feeds, migrations, or linked datasets
+- use of advanced analytical techniques such as forecasting, matching, text analysis, or network analysis
+- strong `Power BI` reporting with clear non-technical communication
+- quality-assured analysis under government, security, or information-governance standards
+- mentoring, coaching, or contribution to a formal analysis community
+
+### 7. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a commercial data analyst who can clean, link, model, and analyse complex spend, supplier, and performance data, collaborate with engineers on data feeds, deliver clear `BI` and statistical insight, and brief senior stakeholders in a way that supports compliance, value for money, and operational delivery. They are useful because they combine commercial domain awareness, technical data handling, assurance discipline, and decision-focused communication in a high-impact government setting.

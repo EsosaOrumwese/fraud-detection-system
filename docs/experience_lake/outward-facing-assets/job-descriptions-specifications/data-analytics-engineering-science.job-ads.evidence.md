@@ -4161,3 +4161,184 @@ This posting is a strong full-stack analytics and analytics-engineering role cen
 - thoughtful use of `AI`-assisted coding inside a governed data environment
 
 It is a useful evidence point because it shows a role where the employer wants far more than report production. They want someone who can work across modelling, transformation, pipeline collaboration, governance, and business-facing insight delivery in a way that helps build a more mature, reliable, and scalable data environment.
+
+---
+
+## Commercial Data Analyst - Home Office
+
+Source:
+- `Civil Service Jobs` - <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=c2VhcmNocGFnZT0xJm93bmVyPTUwNzAwMDAmb3duZXJ0eXBlPWZhaXImc2VhcmNoc29ydD1zY29yZSZ1c2Vyc2VhcmNoY29udGV4dD0xODYwNzk1NDAmcGFnZWFjdGlvbj12aWV3dmFjYnlqb2JsaXN0JmpvYmxpc3Rfdmlld192YWM9MTk5NDQ5NiZwYWdlY2xhc3M9Sm9icyZyZXFzaWc9MTc3NzUzODU4NS00YWFkODgwODhmZDk4ZDNjNjQ1NTM3MTRmYmZmNWU5YzAxNmY3M2I1>
+
+Role family:
+- `Commercial Data Analyst`
+- public-sector commercial analytics
+- spend, supplier, and performance analysis
+- BI, modelling, data feeds, and senior decision support
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Data Analyst` in the `Commercial Directorate`, delivering high-quality analysis and insight to support commercial decision making across the `Home Office`.
+
+The role is explicitly focused on complex spend, supplier, and performance data. The postholder is expected to produce dashboards, reports, and insight that improve compliance, value for money, and operational delivery across large and complex government commercial programmes. The advert also links the role to nationally significant programmes, senior decision-maker influence, and the wider `Analysis Function` and `Government Digital and Data Profession` capability framework.
+
+This is therefore not a generic dashboarding post. It is a public-sector commercial analytics role that combines data collection, cleaning, linking, modelling, forecasting, BI delivery, data-feed implementation, information assurance, stakeholder briefing, and mentoring inside a high-impact government commercial function.
+
+### Responsibilities Evidence
+
+#### 1. Commercial decision-support analytics
+
+- Deliver high-quality analysis and insight to support commercial decision making across the `Home Office`.
+- Work with complex spend data.
+- Work with complex supplier data.
+- Work with complex performance data.
+- Produce insights that help improve compliance.
+- Produce insights that help improve value for money.
+- Produce insights that help improve operational delivery.
+- Support some of the Government's largest and most complex commercial programmes.
+
+#### 2. Data collection, management, cleaning, linking, and assurance
+
+- Collect data from multiple sources.
+- Manage data from multiple sources.
+- Clean data from multiple sources.
+- Link data from multiple sources.
+- Analyse data from multiple sources.
+- Ensure appropriate data-quality standards are applied.
+- Ensure appropriate security standards are applied.
+- Ensure appropriate information-assurance standards are applied.
+- Demonstrate knowledge of open and public data.
+- Demonstrate knowledge of administrative data.
+- Demonstrate knowledge of research data.
+- Understand appropriate use, limitations, quality considerations, and ethical handling of different data types.
+
+#### 3. Analytical and statistical techniques
+
+- Use analytical techniques to identify trends.
+- Use statistical techniques to identify trends.
+- Use analytical and statistical techniques to interpret trends.
+- Use analytical and statistical techniques to predict trends.
+- Use data mining.
+- Use forecasting.
+- Use time series.
+- Use modelling.
+- Apply data analytics techniques such as network analysis.
+- Apply data matching.
+- Apply information retrieval.
+- Apply text analysis.
+- Explain analytical approaches taken and outcomes achieved.
+
+#### 4. Data modelling, migration, data feeds, and engineering collaboration
+
+- Manipulate data across systems.
+- Aggregate data across systems.
+- Migrate data across systems.
+- Work with Data Engineers to map new data feeds.
+- Work with Data Engineers to transform new data feeds.
+- Work with Data Engineers to test new data feeds.
+- Work with Data Engineers to implement new data feeds.
+- Contribute to the design of data solutions in collaboration with others.
+- Contribute to the implementation of data solutions in collaboration with others.
+- Contribute to the maintenance of data solutions in collaboration with others.
+
+#### 5. BI, dashboards, reports, and visualisation
+
+- Develop reports using `Business Intelligence` tools.
+- Maintain reports using `Business Intelligence` tools.
+- Develop dashboards using `Business Intelligence` tools.
+- Maintain dashboards using `Business Intelligence` tools.
+- Develop visualisations using `Business Intelligence` tools.
+- Maintain visualisations using `Business Intelligence` tools.
+- Apply tools and techniques for data analysis and data visualisation.
+- Use practical tools such as `SQL` and `Power BI`, or comparable technologies.
+
+#### 6. Insight communication, recommendations, and stakeholder briefing
+
+- Summarise findings.
+- Draw evidence-based conclusions.
+- Present insights clearly to internal stakeholders.
+- Present insights clearly to external stakeholders.
+- Present recommendations clearly to internal and external stakeholders.
+- Make complex information easy to understand, particularly for non-technical audiences.
+- Brief internal audiences.
+- Brief external audiences.
+- Present analytical or technical work to senior stakeholders with appropriate support or guidance.
+- Respond constructively to feedback and questions.
+
+#### 7. Requirements definition, accessibility, and mentoring
+
+- Work with users and stakeholders to clearly define data requirements.
+- Work with users and stakeholders to clearly define analytical requirements.
+- Ensure solutions are accessible.
+- Ensure solutions are proportionate.
+- Ensure solutions are aligned with user needs.
+- Contribute to the performance analysis community.
+- Continuously develop analytical capability.
+- Support upskilling of others through mentoring and coaching.
+- Be comfortable mentoring to upskill junior staff.
+
+### Person Specification Evidence
+
+#### 1. Analytical techniques and real-world decision support
+
+- Demonstrable experience applying data analytics techniques to support decision making in real-world contexts. Essential.
+- Experience with techniques such as network analysis, data matching, information retrieval, and text analysis. Essential examples.
+- Ability to explain the analytical approach taken and outcomes achieved. Essential.
+
+#### 2. Data concepts, sources, and solution contribution
+
+- Knowledge of different types of data including open and public data, administrative data, and research data. Essential.
+- Understanding of appropriate use, limitations, quality considerations, and ethical handling of different data types. Essential.
+- Understanding of core data concepts including data structures and database systems. Essential.
+- Experience contributing to design, implementation, or maintenance of data solutions in collaboration with others. Essential.
+
+#### 3. Stakeholder and communication capability
+
+- Ability to work with users and stakeholders to clearly define data and analytical requirements. Essential.
+- Ability to ensure solutions are accessible, proportionate, and aligned with user needs. Essential.
+- Strong communication skills. Essential.
+- Ability to convey complex technical or analytical information clearly and inclusively to technical audiences. Essential.
+- Ability to convey complex technical or analytical information clearly and inclusively to non-technical audiences. Essential.
+- Ability to adapt language, format, and level of detail as required. Essential.
+- Experience presenting analytical or technical work to senior stakeholders. Essential.
+
+#### 4. Tooling, quality, and legal-awareness capability
+
+- Practical experience using data tools such as `SQL` and `Power BI`, or comparable technologies. Essential.
+- Openness to learning new tools and approaches as required. Essential.
+- Awareness of data protection and legal issues. Desirable.
+- Experience identifying, preventing, and resolving data-quality issues. Desirable.
+- Strong understanding of quality-assurance principles for analytical work. Desirable.
+
+#### 5. Framework and assessed capability signals
+
+- `Innovation (INOV) - Level 2`.
+- `Quality Assurance (QUAS) - Level 2`.
+- `Programming/Software Development (PROG) - Level 2`.
+- `Data Modelling and Design (DTAN) - Level 2`.
+- `Analytics (INAN) - Level 3`.
+- `Stakeholder Relationship Management (RLMT) - Level 3`.
+
+### Additional Process and Environment Evidence
+
+- Role is in the `Chief Operating Officer Group`, inside the `Commercial Directorate`.
+- Locations are `Croydon`, `Liverpool`, and `Salford`.
+- Role is `Permanent`, `Higher Executive Officer`, and full-time, with compressed hours available.
+- The advertised role is eligible for a `Digital Capability Allowance`.
+- A recruitment and retention allowance of up to `£4000` is available for candidates who demonstrate exceptional skills and experience at interview.
+- Application process includes a `Civil Service Numerical Test`, `CV`, and `1000` word personal statement.
+- Interview includes behaviours, strengths, technical skills, and a presentation assessed against `Analytics (INAN) - Level 3`.
+- Security requirement is `Security Check`.
+- Office expectation is a minimum of `60%` working time in an office where business needs allow hybrid working.
+
+### Hiring Signal Summary
+
+This posting is a strong public-sector commercial analytics role centred on:
+- spend, supplier, and performance analysis for major government commercial programmes
+- dashboards, reports, and insight for compliance, value for money, and operational delivery
+- data collection, cleaning, linking, quality assurance, security, and information assurance
+- statistical techniques including data mining, forecasting, time series, and modelling
+- data matching, information retrieval, text analysis, and network-analysis style methods
+- collaboration with Data Engineers on mapping, transforming, testing, and implementing data feeds
+- senior stakeholder briefing, non-technical communication, and mentoring inside an analysis community
+
+It is a useful evidence point because it shows a commercial analyst role with a notably broad technical and governance footprint. The employer wants someone who can connect commercial domain questions to robust data handling, BI delivery, analytical modelling, data-feed implementation, assurance standards, and senior decision support in a high-stakes government environment.
