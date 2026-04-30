@@ -157,6 +157,10 @@ The second read is that virtual routing is much more concentrated in card-not-pr
 
 ## Physical versus virtual routing
 
+Branch investigation:
+
+- [`branches/arrival_events_physical_virtual_routing.md`](branches/arrival_events_physical_virtual_routing.md)
+
 The site and edge null profile is not random missingness. It encodes the two routing modes:
 
 | Routing mode | Rows | Row share | Merchants | Sites | Edges |

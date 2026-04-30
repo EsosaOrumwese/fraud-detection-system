@@ -1,0 +1,197 @@
+{
+  "route_overview": [
+    {
+      "route_mode": "physical",
+      "rows": 216136107,
+      "row_share": 0.9131545908831089,
+      "merchants": 3893,
+      "merchant_share": 0.9612345679012345,
+      "channels": 2,
+      "zones": 339,
+      "primary_timezones": 222,
+      "settlement_timezones": 222,
+      "operational_timezones": 222,
+      "sites": 78516,
+      "edges": 0
+    },
+    {
+      "route_mode": "virtual",
+      "rows": 20555587,
+      "row_share": 0.0868454091168911,
+      "merchants": 157,
+      "merchant_share": 0.03876543209876543,
+      "channels": 2,
+      "zones": 267,
+      "primary_timezones": 197,
+      "settlement_timezones": 63,
+      "operational_timezones": 197,
+      "sites": 0,
+      "edges": 3005
+    }
+  ],
+  "route_consistency": [
+    {
+      "route_key_state": "physical_valid_site_only",
+      "rows": 216136107,
+      "merchants": 3893
+    },
+    {
+      "route_key_state": "virtual_valid_edge_only",
+      "rows": 20555587,
+      "merchants": 157
+    }
+  ],
+  "merchant_route_stability": [
+    {
+      "route_mode_count": 1,
+      "merchants": 4050,
+      "rows": 236691694
+    }
+  ],
+  "merchant_volume_by_route": [
+    {
+      "route_mode": "physical",
+      "merchants": 3893,
+      "rows": 216136107,
+      "min_rows_per_merchant": 1842,
+      "p05_rows_per_merchant": 3843.6,
+      "p25_rows_per_merchant": 16677.0,
+      "mean_rows_per_merchant": 55519.164397636785,
+      "median_rows_per_merchant": 34690.0,
+      "p75_rows_per_merchant": 66143.0,
+      "p95_rows_per_merchant": 178077.3999999999,
+      "max_rows_per_merchant": 841654,
+      "mean_zones_per_merchant": 15.08194194708451,
+      "median_zones_per_merchant": 11.0,
+      "max_zones_per_merchant": 64,
+      "mean_sites_per_physical_merchant": 20.168507577703572,
+      "median_sites_per_physical_merchant": 17.0,
+      "max_sites_per_physical_merchant": 123,
+      "mean_edges_per_virtual_merchant": 0.0,
+      "median_edges_per_virtual_merchant": 0.0,
+      "max_edges_per_virtual_merchant": 0
+    },
+    {
+      "route_mode": "virtual",
+      "merchants": 157,
+      "rows": 20555587,
+      "min_rows_per_merchant": 4697,
+      "p05_rows_per_merchant": 7324.200000000001,
+      "p25_rows_per_merchant": 49114.0,
+      "mean_rows_per_merchant": 130927.30573248408,
+      "median_rows_per_merchant": 95103.0,
+      "p75_rows_per_merchant": 156941.0,
+      "p95_rows_per_merchant": 422411.19999999966,
+      "max_rows_per_merchant": 763822,
+      "mean_zones_per_merchant": 14.140127388535031,
+      "median_zones_per_merchant": 9.0,
+      "max_zones_per_merchant": 58,
+      "mean_sites_per_physical_merchant": 0.0,
+      "median_sites_per_physical_merchant": 0.0,
+      "max_sites_per_physical_merchant": 0,
+      "mean_edges_per_virtual_merchant": 19.14012738853503,
+      "median_edges_per_virtual_merchant": 18.0,
+      "max_edges_per_virtual_merchant": 55
+    }
+  ],
+  "endpoint_density": [
+    {
+      "endpoint_type": "physical_site",
+      "endpoints": 78516,
+      "rows": 216136107,
+      "min_rows_per_endpoint": 1,
+      "p05_rows_per_endpoint": 53.0,
+      "p25_rows_per_endpoint": 334.0,
+      "mean_rows_per_endpoint": 2752.7651306740026,
+      "median_rows_per_endpoint": 967.0,
+      "p75_rows_per_endpoint": 2329.0,
+      "p95_rows_per_endpoint": 10710.25,
+      "max_rows_per_endpoint": 403212,
+      "mean_zones_per_endpoint": 11.230398899587346,
+      "median_zones_per_endpoint": 8.0,
+      "max_zones_per_endpoint": 64
+    },
+    {
+      "endpoint_type": "virtual_edge",
+      "endpoints": 3005,
+      "rows": 20555587,
+      "min_rows_per_endpoint": 86,
+      "p05_rows_per_endpoint": 230.40000000000003,
+      "p25_rows_per_endpoint": 1689.0,
+      "mean_rows_per_endpoint": 6840.4615640599,
+      "median_rows_per_endpoint": 3394.0,
+      "p75_rows_per_endpoint": 7196.0,
+      "p95_rows_per_endpoint": 24693.399999999994,
+      "max_rows_per_endpoint": 137585,
+      "mean_zones_per_endpoint": 11.632945091514143,
+      "median_zones_per_endpoint": 8.0,
+      "max_zones_per_endpoint": 58
+    }
+  ],
+  "route_by_channel": [
+    {
+      "route_mode": "physical",
+      "channel_group": "card_present",
+      "rows": 153665526,
+      "share_within_route_mode": 0.7109664744724953,
+      "share_within_channel": 0.9780291233691445,
+      "merchants": 3229,
+      "sites": 68780,
+      "edges": 0
+    },
+    {
+      "route_mode": "physical",
+      "channel_group": "card_not_present",
+      "rows": 62470581,
+      "share_within_route_mode": 0.2890335255275048,
+      "share_within_channel": 0.7850611626955575,
+      "merchants": 664,
+      "sites": 9736,
+      "edges": 0
+    },
+    {
+      "route_mode": "virtual",
+      "channel_group": "card_not_present",
+      "rows": 17103577,
+      "share_within_route_mode": 0.8320646352740985,
+      "share_within_channel": 0.2149388373044425,
+      "merchants": 125,
+      "sites": 0,
+      "edges": 2468
+    },
+    {
+      "route_mode": "virtual",
+      "channel_group": "card_present",
+      "rows": 3452010,
+      "share_within_route_mode": 0.16793536472590154,
+      "share_within_channel": 0.021970876630855514,
+      "merchants": 32,
+      "sites": 0,
+      "edges": 537
+    }
+  ],
+  "route_daily_share_stats": [
+    {
+      "route_mode": "physical",
+      "days": 90,
+      "min_daily_share": 0.8983933289157767,
+      "p25_daily_share": 0.9076683195543863,
+      "mean_daily_share": 0.913048009947432,
+      "median_daily_share": 0.9149848911723193,
+      "p75_daily_share": 0.9173563002971253,
+      "max_daily_share": 0.922097320104382,
+      "stddev_daily_share": 0.005935410826983951
+    },
+    {
+      "route_mode": "virtual",
+      "days": 90,
+      "min_daily_share": 0.07790267989561805,
+      "p25_daily_share": 0.0826436997028746,
+      "mean_daily_share": 0.08695199005256801,
+      "median_daily_share": 0.08501510882768076,
+      "p75_daily_share": 0.09233168044561368,
+      "max_daily_share": 0.1016066710842233,
+      "stddev_daily_share": 0.005935410826983947
+    }
+  ]
+}
