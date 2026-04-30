@@ -208,7 +208,7 @@ For platform-load questions, row grain is appropriate. For merchant-behaviour qu
 
 ## Leads exposed
 
-1. We need a grain discipline note or notebook anchor before deeper analysis: arrival-weighted, merchant-weighted, flow-weighted, event-weighted, label-weighted, and case-weighted views answer different questions.
+1. We need a grain discipline note or notebook anchor before deeper analysis: arrival-weighted, merchant-weighted, flow-weighted, event-weighted, label-weighted, and case-weighted views answer different questions. This has been opened as [`grain_discipline_for_interface_analysis.md`](grain_discipline_for_interface_analysis.md).
 
 2. Merchant-volume inequality should be explored as its own branch because it will affect every later row-level rate: fraud rate, case rate, traffic share, and model-evaluation exposure.
 
