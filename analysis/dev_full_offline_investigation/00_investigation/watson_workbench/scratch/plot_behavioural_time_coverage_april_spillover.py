@@ -58,6 +58,7 @@ def format_integer_axis(ax: plt.Axes) -> None:
 
 
 def style_axis(ax: plt.Axes) -> None:
+    ax.set_axisbelow(True)
     ax.grid(axis="x", color=COLORS["grid"], linewidth=0.8)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
