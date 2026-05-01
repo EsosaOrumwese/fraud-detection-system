@@ -1,0 +1,13 @@
+is_fraud_truth,fraud_label,is_fraud_bank_view,bank_label,cell,flows,flow_share
+False,LEGIT,False,BANK_CONFIRMED_LEGIT,true_negative_alignment,220401202,0.9311742134897222
+False,LEGIT,True,BANK_CONFIRMED_FRAUD,bank_positive_truth_negative,10232664,0.043232036693269006
+True,ABUSE,False,NO_CASE_OPENED,truth_positive_bank_negative,2423574,0.010239370714884486
+True,ABUSE,False,CUSTOMER_DISPUTE_REJECTED,truth_positive_bank_negative,2109342,0.00891177026262696
+True,ABUSE,True,CHARGEBACK_WRITTEN_OFF,true_positive_alignment,1135282,0.0047964589750242774
+True,ABUSE,True,BANK_CONFIRMED_FRAUD,true_positive_alignment,269918,0.001140377997379156
+False,LEGIT,False,CUSTOMER_DISPUTE_REJECTED,true_negative_alignment,111452,0.00047087414905231105
+False,LEGIT,True,CHARGEBACK_WRITTEN_OFF,bank_positive_truth_negative,5837,2.4660772422373216e-05
+True,FRAUD,True,BANK_CONFIRMED_FRAUD,true_positive_alignment,1190,5.027637344975866e-06
+True,FRAUD,False,NO_CASE_OPENED,truth_positive_bank_negative,948,4.005210254653042e-06
+True,FRAUD,True,CHARGEBACK_WRITTEN_OFF,true_positive_alignment,228,9.632784156760482e-07
+True,FRAUD,False,CUSTOMER_DISPUTE_REJECTED,truth_positive_bank_negative,57,2.4081960391901206e-07
