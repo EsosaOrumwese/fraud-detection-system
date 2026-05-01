@@ -197,6 +197,10 @@ This is not yet a fraud finding. It is an operating-shape finding. Before labels
 
 ## Zone and timezone structure
 
+Branch investigation:
+
+- [`branches/arrival_events_zone_timezone_structure.md`](branches/arrival_events_zone_timezone_structure.md)
+
 The surface covers `339` zone representations. The top zones by row count are:
 
 | Zone | Rows | Row share | Merchants | Sites | Edges |
@@ -221,6 +225,8 @@ Every merchant appears in more than one zone:
 
 So zones are not merchant-home identities in this surface. They are arrival/routing representations. That is important: if we read `zone_representation` as if it were merchant domicile, we will misinterpret the primitive.
 
+The branch investigation also separates zone from timezone. `zone_representation` matches `tzid_primary` on only about `39.3%` of rows, and large zones can contain many active primary timezones. That means zone findings should be phrased as arrival/routing exposure unless later surfaces justify a stronger geographic or local-clock interpretation.
+
 ## UTC hour shape
 
 The UTC-hour profile has a visible business-day shape:
@@ -231,7 +237,7 @@ The UTC-hour profile has a visible business-day shape:
 
 This is consistent with the surface carrying real temporal operating structure rather than being uniformly spread over the day.
 
-Because the surface also carries primary, settlement, and operational local timestamps, the right later analysis should not stop at UTC. The traffic primitive gives us enough material to compare UTC activity to local operating time, but that should be done deliberately in the notebook or next workbench step because local-time interpretation depends on the platform question being asked.
+Because the surface also carries primary, settlement, and operational local timestamps, the right later analysis should not stop at UTC. The branch investigation shows that the global UTC-hour profile is a mixed-clock view: it is useful for global platform timing and extract coverage, but it does not flow cleanly through every zone. Local-hour views should be preferred when the question is about merchant/customer operating behaviour, while UTC should be kept for platform-wide timing questions.
 
 ## Data-quality and readiness read
 

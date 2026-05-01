@@ -1,0 +1,2 @@
+zones,min_rows,p05_rows,p25_rows,median_rows,mean_rows,p75_rows,p95_rows,max_rows,min_merchants,median_merchants,mean_merchants,max_merchants,min_rows_per_merchant,median_rows_per_merchant,mean_rows_per_merchant,max_rows_per_merchant
+339,11,4331.200000000001,37671.0,124834.0,698205.587020649,481961.5,3634891.399999998,18850372,1,37.0,179.7463126843658,2046,11.0,2933.3,9465.717658992091,283919.5
