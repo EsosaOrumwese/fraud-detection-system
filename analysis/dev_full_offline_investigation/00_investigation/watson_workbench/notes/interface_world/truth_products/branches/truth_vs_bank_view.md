@@ -29,7 +29,7 @@ Related branch:
 
 - [`flow_truth_labels_positive_class_semantics.md`](flow_truth_labels_positive_class_semantics.md)
 
-This branch primarily uses compact exports already produced by the truth-products investigation. It also adds one compact label-pair anatomy export produced by streaming matching truth/bank parquet part files and aggregating only the label pairs needed for this branch. The raw `236.7M` rows were not materialized into one in-memory frame.
+This branch primarily uses compact exports already produced by the truth-products investigation. It also adds one compact label-pair anatomy aggregate, exported in two views, produced by streaming matching truth/bank parquet part files and aggregating only the label pairs needed for this branch. The raw `236.7M` rows were not materialized into one in-memory frame.
 
 ## What is being compared
 
