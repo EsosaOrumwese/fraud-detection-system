@@ -213,34 +213,88 @@ The overlay preserves the event-bus shape and changes selected economic values. 
 
 <img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/01_schema_overlay_contract.png" width="900" />
 
+The first figure makes the schema contract visible as a before-and-after surface rather than as a table of column names. Most fields are connected from `baseline` to `with_fraud`, which means they exist on both sides of the stream comparison: `flow_id`, `event_seq`, `event_type`, `ts_utc`, lineage fields, and `amount` remain part of the same event body. The two fields that do not connect back to baseline are `campaign_id` and `fraud_flag`; they appear only on the with-fraud side and are marked as overlay-added.
+
+That distinction is the first important guardrail for the branch. The with-fraud stream is not carrying a broader operating object with new merchant context, case context, or truth context attached to every row. It is the same thin behavioural event stream with two additional fraud-layer fields. The plot therefore supports the contract reading that `s3_event_stream_with_fraud_6B` should be treated as an overlay on the baseline stream, not as a separately authored population of events.
+
+The figure does not prove row identity by itself. A shared schema can still hide row-level differences. Its role is narrower: it shows that the structural change between the two surfaces is limited to overlay metadata, which is why the later preservation and keyed-comparison figures matter.
+
 ### Figure 2. Contract shape and amount delta
 
 <img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/02_contract_shape_and_amount_delta.png" width="900" />
+
+This figure separates two questions that can easily be confused. The first two panels ask whether the with-fraud stream expands the traffic contract. It does not: both streams carry `473.4M` event rows and both retain the same two-event grammar. The event count and grammar breadth sit at parity, so the fraud overlay is not producing another stream of extra transaction events.
+
+The third panel asks a different question: if the traffic body is preserved, does the amount surface move? The answer is yes, but only slightly at the global stream level. The mean, median, and P95 amount bars are almost visually on top of each other, which is consistent with the branch table where the mean changes by less than one tenth of a cent and the median changes by less than half a cent. That does not mean fraud had no effect. It means the denominator is enormous, so sparse fraud mutations are diluted when read through whole-stream summary statistics.
+
+The right inference is therefore two-part. The with-fraud stream preserves the broad operating contract, and the global amount surface barely shifts because the changed rows are rare relative to the full event body. This figure should not be used to conclude that fraud rows are economically normal; Figure 3 and Figure 5 address the fraud subset directly.
 
 ### Figure 3. Fraud sparsity and amount contrast
 
 <img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/03_fraud_sparsity_and_amount_contrast.png" width="900" />
 
+The left panel shows why full-stream averages are a weak lens for this branch. Fraud-marked rows are only `0.003013%` of the with-fraud event stream, while non-fraud rows make up `99.996987%`. The y-axis is logarithmic because a normal linear scale would visually crush the fraud bar into the baseline. This is a denominator warning: row-grain fraud is present, but it is extremely sparse.
+
+The middle panel then shows why the sparse subset still matters. Fraud-marked rows have higher mean and median amounts than non-fraud rows. The mean amount for fraud-marked rows is about `54.76`, compared with about `24.31` for non-fraud rows; the median is also higher, around `31.75` versus `14.99`. The fraud subset is therefore not just a random sliver of the same amount distribution. It carries a different economic posture.
+
+The right panel puts both facts together. The baseline total amount is roughly `$11.509B`, while the overlay lift is roughly `$437.5K`, so the overlay is visible in absolute value but small relative to the full amount surface. This is why the branch needs both full-stream and fraud-subset views. The full-stream view tells us the operating surface is preserved; the fraud-subset view tells us the marked rows are materially different.
+
 ### Figure 4. Fraud event-side balance
 
 <img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/04_fraud_event_side_balance.png" width="900" />
+
+This figure checks whether fraud marking respects the behavioural stream grammar. The left panel shows that fraud-marked rows are split evenly across `AUTH_REQUEST` and `AUTH_RESPONSE`: `7,132` rows on each side. That matters because the behavioural stream is not a single-row transaction table; it is a two-event authorization flow. A fraud overlay that marked only one side would create a reconstruction problem for any downstream flow-level analysis.
+
+The right panel confirms the same point at flow grain. Fraud flows have a minimum, median, and maximum of two events per flow, and there are zero nonstandard fraud flow shapes. In practical terms, each fraud-marked flow carries the expected request and response pair. The overlay does not appear to create partial fraud flows, orphan response rows, or request-only fraud artifacts.
+
+This figure supports flow consistency, not campaign meaning. It tells us the fraud overlay is aligned with the event grammar of the stream. It does not tell us why a flow was selected, what campaign logic selected it, or what business scenario each campaign represents.
 
 ### Figure 5. Fraud-row preservation and mutation
 
 <img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/05_fraud_row_preservation_and_mutation.png" width="900" />
 
+This is the strongest row-level evidence in the branch. The left panel focuses only on the `14,264` fraud-marked rows and compares them back to baseline under the pinned single-lineage context. Every fraud-marked row matches a baseline row, every matched row keeps the same event type, and every matched row keeps the same timestamp. The `same amount` bar is zero, which is the visible break in the pattern: identity and timing are preserved, but amount is deliberately changed.
+
+The right panel quantifies the size of that change. The minimum amount increase is small but positive, the mean increase is about `30.67`, and the largest increase is about `497.13`. This means the mutation is not merely a binary label being attached to an unchanged event. The fraud overlay changes the economic signal that the live fraud decisioning platform would see on those event keys.
+
+The figure also defines the correct analytical comparison. A row-count comparison would miss the effect because no rows are added. A full-stream average would mute the effect because the fraud rows are sparse. The useful comparison is keyed: find the marked rows, join them back to their baseline versions, and ask which attributes were preserved and which were mutated. The limitation remains that this exact row-level proof is for the fraud-marked subset, not for every non-fraud row in the `473M`-row stream.
+
 ### Figure 6. Campaign overlay footprint
 
 <img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/06_campaign_overlay_footprint.png" width="900" />
+
+This figure treats `campaign_id` as an exposed footprint rather than as an interpretable campaign label. The left panel ranks the six campaigns by fraud-flow count. The first two campaigns are much larger than the last two: rank 1 has `2,278` fraud flows, rank 2 has `1,922`, while ranks 5 and 6 have only `275` and `226`. The campaign layer is therefore uneven; it is not six equally sized partitions of fraud traffic.
+
+The right panel compares footprint against mean amount. The largest campaigns do not simply occupy the highest mean amount positions. Campaign 6 is the smallest by flow count but has the highest mean amount, while campaign 1 is the largest by footprint but has a lower mean amount than several smaller campaigns. That tells us campaign size and campaign amount posture are related surfaces worth tracking separately.
+
+The figure should not be read as a semantic explanation of the campaigns. The IDs are handles. From this stream alone, we can measure footprint, row/flow consistency, and amount posture, but we cannot infer what each campaign was designed to represent. That semantic bridge belongs to the campaign catalogue or downstream truth/case context.
 
 ### Figure 7. Campaign ID null semantics
 
 <img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/07_campaign_id_null_semantics.png" width="760" />
 
+This figure addresses whether `campaign_id` nulls are a data-quality defect or a meaningful state. The count of `campaign_id` null rows exactly matches the count of non-fraud rows: `473,369,124`. Fraud rows account for the remaining `14,264` rows and carry campaign identity. The log scale is necessary because the non-fraud body is several orders of magnitude larger than the fraud body.
+
+The interpretation is that `campaign_id` is conditionally populated. It is not supposed to exist for every behavioural event row. It exists when a row belongs to the fraud overlay and remains null when the row is outside the campaign layer. That is important for completeness checks: treating all campaign nulls as missing values would produce a false alarm over almost the entire stream.
+
+This figure does not say the campaign IDs themselves are correct, meaningful, or complete as business definitions. It only establishes that the null pattern aligns with fraud state. Campaign-level meaning still needs to come from a surface that defines campaigns, not from the presence or absence of the ID alone.
+
 ### Figure 8. Stream profile preservation evidence
 
 <img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/08_stream_profile_preservation_evidence.png" width="900" />
 
+This figure visualizes the preservation claim without pretending it is a full key-level reconciliation. The left panel expresses several profile signals as `with_fraud / baseline` ratios. Event rows, approximate flows, event types, and the key hash fingerprint all sit exactly on the parity line at `1.0`. This says the with-fraud stream has the same broad event body and the same fingerprint profile as the baseline stream.
+
+The right panel shows that both streams occupy the same UTC operating horizon, from the beginning of January through the slight April spillover already discussed in the time-coverage branch. The with-fraud stream is not shifted into a different time window and is not adding an additional period of traffic. It is aligned to the same operating extract.
+
+The caution in this figure is important. A parity plot is strong profiling evidence, especially when multiple signals agree, but it is not the same as a full exact anti-join over every event key. The branch has exact keyed evidence for the fraud-marked rows. For the non-fraud universe, this figure supports preservation at profile/fingerprint level and identifies what an audit-grade follow-up would need to tighten.
+
 ### Figure 9. Campaign grammar and time span
 
 <img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/09_campaign_grammar_and_time_span.png" width="900" />
+
+This figure checks whether the campaign layer respects the same grammar and temporal footprint visible in the broader fraud overlay. The left panel shows that each campaign has two rows per flow and two event types. Both lines sit on the two-event contract, which means campaign membership is not breaking the request/response structure. Even the smallest campaigns preserve the expected event-pair shape.
+
+The right panel shows that each campaign spans the operating window rather than appearing as a narrow burst in a single week or month. The first and last fraud-row markers for all campaigns extend across January to late March or the April boundary. This matters because campaign footprint is not only a count question. A small campaign that spans the whole period has a different operating meaning from a small campaign concentrated into one short incident window.
+
+Taken together with Figure 6, the campaign layer has uneven footprint and slightly different amount posture, but it remains structurally coherent. Campaign IDs partition fraud-marked traffic without breaking stream grammar or collapsing into short isolated bursts. The figure still does not explain campaign semantics; it only shows that the exposed campaign handles behave like stable overlay partitions across the extract.
