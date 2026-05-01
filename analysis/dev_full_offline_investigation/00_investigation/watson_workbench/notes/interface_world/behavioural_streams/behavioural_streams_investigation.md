@@ -38,6 +38,7 @@ Support script and exports:
 Branch investigations:
 
 - [`branches/event_grammar_and_grain.md`](branches/event_grammar_and_grain.md)
+- [`branches/time_coverage_and_april_spillover.md`](branches/time_coverage_and_april_spillover.md)
 
 ## Contract read before touching the data
 

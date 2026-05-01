@@ -1,0 +1,103 @@
+{
+  "time_horizon_profile": [
+    {
+      "stream": "baseline",
+      "rows": 473383388,
+      "min_ts_utc": "2026-01-01T00:00:00.001940Z",
+      "max_ts_utc": "2026-04-01T00:01:41.104298Z",
+      "april_rows": 151
+    },
+    {
+      "stream": "with_fraud",
+      "rows": 473383388,
+      "min_ts_utc": "2026-01-01T00:00:00.001940Z",
+      "max_ts_utc": "2026-04-01T00:01:41.104298Z",
+      "april_rows": 151
+    },
+    {
+      "stream": "arrival_events_5B",
+      "rows": 236691694,
+      "min_ts_utc": "2026-01-01T00:00:00.001940Z",
+      "max_ts_utc": "2026-03-31T23:59:59.944516Z",
+      "april_rows": 0
+    }
+  ],
+  "april_rows_by_event_side": [
+    {
+      "stream": "baseline",
+      "event_seq": 1,
+      "event_type": "AUTH_RESPONSE",
+      "rows": 151,
+      "distinct_flows": 151,
+      "min_ts_utc": "2026-04-01T00:00:00.006427Z",
+      "max_ts_utc": "2026-04-01T00:01:41.104298Z",
+      "total_amount": 3411.7300000000005,
+      "mean_amount": 22.59423841059603
+    },
+    {
+      "stream": "with_fraud",
+      "event_seq": 1,
+      "event_type": "AUTH_RESPONSE",
+      "rows": 151,
+      "distinct_flows": 151,
+      "min_ts_utc": "2026-04-01T00:00:00.006427Z",
+      "max_ts_utc": "2026-04-01T00:01:41.104298Z",
+      "total_amount": 3411.73,
+      "mean_amount": 22.594238410596027
+    }
+  ],
+  "april_touched_flow_shape": [
+    {
+      "stream": "baseline",
+      "april_touched_flows": 151,
+      "event_rows_for_april_touched_flows": 302,
+      "request_rows": 151.0,
+      "response_rows": 151.0,
+      "pre_april_event_rows": 151.0,
+      "april_event_rows": 151.0,
+      "min_ts_utc": "2026-03-31T23:57:27.903525Z",
+      "max_ts_utc": "2026-04-01T00:01:41.104298Z"
+    },
+    {
+      "stream": "with_fraud",
+      "april_touched_flows": 151,
+      "event_rows_for_april_touched_flows": 302,
+      "request_rows": 151.0,
+      "response_rows": 151.0,
+      "pre_april_event_rows": 151.0,
+      "april_event_rows": 151.0,
+      "min_ts_utc": "2026-03-31T23:57:27.903525Z",
+      "max_ts_utc": "2026-04-01T00:01:41.104298Z"
+    }
+  ],
+  "april_touched_flow_latency": [
+    {
+      "stream": "baseline",
+      "paired_flows": 151,
+      "min_request_ts_utc": "2026-03-31T23:57:27.903525Z",
+      "max_request_ts_utc": "2026-03-31T23:59:59.944516Z",
+      "min_response_ts_utc": "2026-04-01T00:00:00.006427Z",
+      "max_response_ts_utc": "2026-04-01T00:01:41.104298Z",
+      "min_request_to_response_seconds": 0.443,
+      "p25_request_to_response_seconds": 6.29,
+      "median_request_to_response_seconds": 13.615,
+      "p75_request_to_response_seconds": 29.403,
+      "max_request_to_response_seconds": 180.0,
+      "mean_request_to_response_seconds": 24.436311258278145
+    },
+    {
+      "stream": "with_fraud",
+      "paired_flows": 151,
+      "min_request_ts_utc": "2026-03-31T23:57:27.903525Z",
+      "max_request_ts_utc": "2026-03-31T23:59:59.944516Z",
+      "min_response_ts_utc": "2026-04-01T00:00:00.006427Z",
+      "max_response_ts_utc": "2026-04-01T00:01:41.104298Z",
+      "min_request_to_response_seconds": 0.443,
+      "p25_request_to_response_seconds": 6.29,
+      "median_request_to_response_seconds": 13.615,
+      "p75_request_to_response_seconds": 29.403,
+      "max_request_to_response_seconds": 180.0,
+      "mean_request_to_response_seconds": 24.436311258278145
+    }
+  ]
+}

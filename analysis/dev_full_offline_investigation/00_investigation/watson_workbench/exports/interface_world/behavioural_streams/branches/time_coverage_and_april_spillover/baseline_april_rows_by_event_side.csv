@@ -1,0 +1,2 @@
+stream,event_seq,event_type,rows,distinct_flows,min_ts_utc,max_ts_utc,total_amount,mean_amount
+baseline,1,AUTH_RESPONSE,151,151,2026-04-01T00:00:00.006427Z,2026-04-01T00:01:41.104298Z,3411.7300000000005,22.59423841059603
