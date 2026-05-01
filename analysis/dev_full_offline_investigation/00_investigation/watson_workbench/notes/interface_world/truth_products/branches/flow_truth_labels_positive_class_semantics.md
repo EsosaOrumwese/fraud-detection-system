@@ -122,3 +122,57 @@ So the data may be fit for broad abuse/fraud-risk analytics, but it is not yet p
 But the positive class must be named carefully. The binary `is_fraud_truth` flag mostly means `ABUSE` in this run, not explicit `FRAUD`. The upstream `fraud_flag` is a narrow campaign marker contained inside truth positives, while the truth surface expands the positive class far beyond that marker.
 
 For the wider fitness-for-fraud-analytics question, this branch softens the earlier "fraud is too sparse" concern only if we define the target as broad truth-positive abuse/fraud risk. It does not by itself prove the extract is realistic for fraud-loss, chargeback-fraud, or explicit fraud-only stakeholder conclusions.
+
+## Appendix: visual evidence and assessment
+
+The figures below translate the compact branch exports into visual evidence. They are not separate claims from the report; they are the visible form of the same label-distribution and reconciliation evidence used above.
+
+### Figure 1. Flow truth label distribution
+
+<img src="../../../../exports/interface_world/truth_products/branches/flow_truth_labels_positive_class_semantics/figures/01_flow_truth_label_distribution.png" alt="Flow truth label distribution" width="820">
+
+This figure starts with the full truth-label surface at flow grain. The dominant bar is `LEGIT / truth=false`, with `230,751,155` flows, or `97.4902%` of the flow universe. The next visible mass is `ABUSE / truth=true`, with `5,938,116` flows, or `2.5088%`. The explicit `FRAUD / truth=true` class exists, but only at `2,423` flows, or `0.0010%` of the universe.
+
+The x-axis is intentionally logarithmic. On a linear axis, the explicit `FRAUD` class would be visually erased by the much larger `LEGIT` and `ABUSE` counts. That choice matters because the point of the figure is not only "most flows are legitimate"; the more important investigative point is that the truth surface contains two positive labels with radically different scales. `ABUSE` is a large supervised-positive population. `FRAUD` is a very small explicit fraud population.
+
+This figure proves that `is_fraud_truth=true` is not semantically equivalent to "explicit fraud" in this extract. It does not explain why a flow becomes `ABUSE` or `FRAUD`; that belongs to the truth-generation and case/evaluation logic outside this branch. What it does establish is the denominator problem that must govern any downstream analytics: a truth-positive rate calculated from `is_fraud_truth` is mostly an abuse-positive rate, not a direct fraud-only incidence rate.
+
+### Figure 2. What the positive class is made of
+
+<img src="../../../../exports/interface_world/truth_products/branches/flow_truth_labels_positive_class_semantics/figures/02_positive_class_composition.png" alt="Positive class composition" width="820">
+
+This figure removes the `LEGIT` class and looks only inside the truth-positive population. The result is sharper than the full distribution: `ABUSE` accounts for `5,938,116` of `5,940,539` truth-positive flows, which is `99.9592%` of the positive class. Explicit `FRAUD` contributes only `2,423` flows, or `0.0408%` of truth positives.
+
+This is the figure that explains why stakeholder language has to be disciplined. If we say "the fraud-positive class is 2.51%" without qualification, the reader may reasonably assume that the platform has labelled about 2.51% of flows as explicit fraud. That is not what the data says. The data says the binary positive class is overwhelmingly `ABUSE`, with explicit `FRAUD` present as a tiny subset.
+
+The figure does not make the `ABUSE` label invalid. It shows that the binary target is broader than explicit fraud. That broader target may be suitable for risk modelling, abuse detection, policy enforcement, suspicious-behaviour analytics, or early-warning workflows. It is not automatically suitable for fraud-loss reporting unless the business definition intentionally groups abuse and fraud together.
+
+### Figure 3. Positive rate by target definition
+
+<img src="../../../../exports/interface_world/truth_products/branches/flow_truth_labels_positive_class_semantics/figures/03_positive_definition_prevalence.png" alt="Positive definition prevalence" width="820">
+
+This figure compares four ways a reader might define "positive" in the same extract. If positive means `is_fraud_truth=true`, the prevalence is `5.94M` flows, or `2.5098%`. If positive means the `ABUSE` label alone, it is nearly the same, `2.5088%`, because `ABUSE` dominates the truth-positive class. If positive means the upstream `fraud_flag`, the count collapses to `7.1K` flows, or `0.0030%`. If positive means the explicit `FRAUD` label, it collapses further to `2.4K` flows, or `0.0010%`.
+
+This is not a cosmetic difference. It changes the apparent operating reality of the platform. A `2.51%` positive rate describes a substantial supervised target population. A `0.0030%` overlay rate describes a very sparse upstream campaign/context marker. A `0.0010%` explicit fraud-label rate describes a still smaller fraud-only label population. Those are three different analytical worlds, even though they come from the same run.
+
+The figure proves that the fitness question cannot be answered by one global "fraud rate" number. The answer depends on the definition of the target. It does not prove which definition stakeholders should use; that has to be chosen from the business question. But it does show why using `fraud_flag`, `is_fraud_truth`, `ABUSE`, and `FRAUD` interchangeably would create misleading analysis.
+
+### Figure 4. Truth label versus upstream overlay marker
+
+<img src="../../../../exports/interface_world/truth_products/branches/flow_truth_labels_positive_class_semantics/figures/04_truth_overlay_reconciliation_matrix.png" alt="Truth label versus upstream overlay marker" width="760">
+
+This reconciliation matrix compares the final truth flag against the upstream `fraud_flag`. The top-right cell is the containment check: there are `0` flows where `fraud_flag=true` but `is_fraud_truth=false`. In this extract, every overlay-marked flow is contained inside the final truth-positive population.
+
+The bottom row is the more important asymmetry. There are `7,132` flows that are both truth-positive and overlay-marked, but there are `5,933,407` truth-positive flows without the upstream overlay marker. That means the overlay marker is not a coverage-complete label. It identifies a narrow subset of positive truth, while most positive truth is declared outside the explicit overlay.
+
+This figure proves that the earlier behavioural-stream realism concern should be narrowed, not discarded. The sparse `fraud_flag` does not mean the supervised label surface has only `7,132` positives. But the `fraud_flag` itself remains sparse and should still be read as an overlay/campaign marker, not as the final fraud label. The matrix also does not tell us whether the truth-positive-without-overlay flows are realistic; it only shows that the final truth authority is broader than the overlay flag.
+
+### Figure 5. Overlay coverage inside the truth-positive class
+
+<img src="../../../../exports/interface_world/truth_products/branches/flow_truth_labels_positive_class_semantics/figures/05_overlay_coverage_of_truth_positives.png" alt="Overlay coverage inside truth positives" width="820">
+
+This figure focuses on coverage rather than raw prevalence. In the upper panel, almost the entire truth-positive bar is made of flows without upstream `fraud_flag`: `5,933,407` flows, or `99.8799%` of truth positives. The overlay-marked portion is only `7,132` flows, or `0.1201%` of truth positives.
+
+The lower panel then separates two small positive subsets that are easy to conflate: truth-positive flows with upstream `fraud_flag`, and flows explicitly labelled `FRAUD`. The overlay subset is `7,132` flows, while the explicit `FRAUD` label is `2,423` flows. Both are tiny relative to the full flow universe, but they are not the same object. The overlay subset is a marker carried from the upstream behavioural/anchor world; the explicit `FRAUD` label is a truth-label category inside `s4_flow_truth_labels_6B`.
+
+The figure reinforces the branch's main semantic conclusion. The supervised positive class is broad enough in count terms to support labelled modelling work, but it is broad because of `ABUSE`, not because the extract contains a large explicit fraud population. For stakeholder-facing fraud analytics, this means we should not promise explicit fraud-loss conclusions until the question and target definition are separated: broad abuse/fraud-risk, upstream overlay behaviour, and explicit fraud-only incidence are different readings of the same interface world.
