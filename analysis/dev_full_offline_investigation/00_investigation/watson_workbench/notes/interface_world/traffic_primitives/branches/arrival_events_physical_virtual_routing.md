@@ -253,3 +253,95 @@ So route mode should be carried forward as a required segmentation field when we
 4. Virtual settlement-timezone coverage is much more compressed than virtual primary/operational timezone coverage. A later timezone branch should inspect what that means before using local-time features or settlement-time summaries.
 
 5. Endpoint density is uneven in both physical and virtual estates. If later cases or fraud labels concentrate by endpoint, the first question should be whether that reflects endpoint exposure before interpreting it as endpoint risk.
+
+## Appendix: visual evidence and assessment
+
+This appendix holds the visual evidence behind the branch. Several figures contain more than one plot, so the assessment reads them panel by panel before drawing the combined implication. The point is not to restate the branch in shorter form, but to expose the statistical situation visible in each view.
+
+### A1. Route scale and denominator shape
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/figures/01_route_scale_and_denominators.png" alt="Physical and virtual route scale by denominator" width="820">
+
+The left plot reads the same physical/virtual split through three different denominators. On arrival rows, physical routing carries `91.3%` of observed traffic and virtual routing carries `8.7%`. That is the exposure view: it tells us how much of the operating arrival surface each route lane contributes. If the question is platform load, traffic share, queue pressure, or row-weighted model exposure, this is the denominator that matters.
+
+The second bar in the left plot changes the denominator from rows to merchants. Virtual falls to `3.9%` of merchants. That difference between `8.7%` of rows and `3.9%` of merchants is not a rounding detail; it says virtual merchants are carrying more row exposure per merchant than their population share would imply. The row denominator and merchant denominator are therefore answering different questions. A statement like "virtual is small" is technically true, but incomplete unless we state whether we mean small by merchant count or small by arrival exposure.
+
+The third bar in the left plot moves to route endpoints. Virtual is `3.7%` of route endpoints, close to its merchant share rather than its row share. This tightens the reading: virtual is not only a smaller merchant population, it is also a smaller endpoint estate. Yet it has a larger row share than either of those two structural denominators. That is the earliest visual sign of virtual-route compression.
+
+The right plot is not a share plot; it is a context-coverage plot. Physical routing covers `339` zones, while virtual routing still covers `267`. The virtual lane is therefore not a tiny local exception. It has broad geographic reach despite having fewer merchants and endpoints.
+
+The timezone bars add the more subtle point. Virtual has `197` primary timezones and `197` operational timezones, but only `63` settlement timezones. So virtual routing is broad in operational context, but more compressed in settlement-clock context. That distinction will matter later if we compare outcomes by local operating time versus settlement time. The combined message of the figure is that route mode changes both denominator and clock/geography semantics.
+
+### A2. Endpoint-key contract and merchant route stability
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/figures/02_route_contract_cleanliness.png" alt="Route-key contract cleanliness and merchant route stability" width="820">
+
+The left plot is a contract-read of the endpoint keys. Physical rows appear only in the valid `site_id`-only state, with `216.1M` rows. Virtual rows appear only in the valid `edge_id`-only state, with `20.6M` rows. The invalid endpoint states are explicitly shown as zero. That zero is important because it tells us the mutually exclusive endpoint structure is not merely assumed from schema notes; it is observed in the data.
+
+This changes how we should read nulls. If we ran a generic null report, `site_id` and `edge_id` would look incomplete because one of them is null on every row. But the plot shows that this is not missingness. A physical row is complete when `site_id` is populated and `edge_id` is null. A virtual row is complete when `edge_id` is populated and `site_id` is null. So the endpoint key is complete, but represented through two mutually exclusive columns.
+
+The right plot then moves from rows to merchants. All `4,050` merchants have exactly one route mode in this primitive. That means route mode is merchant-stable inside `arrival_events_5B`. It is not behaving like a transaction-by-transaction routing choice where the same merchant alternates between physical and virtual endpoints.
+
+Those two panels together give the route contract its analytical meaning. At row level, the endpoint key is structurally clean. At merchant level, the route assignment partitions the merchant universe. Later, if a row-weighted outcome differs by route, we cannot interpret it as "same merchants behaving differently by endpoint" unless a downstream surface proves that more granular behaviour exists. In this primitive, the route split is also a population split.
+
+### A3. Merchant-level arrival exposure by route
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/figures/03_merchant_exposure_density_by_route.png" alt="Merchant-level arrival exposure by route" width="820">
+
+The left plot compares rows per merchant across route modes using quantiles. The x-axis moves from p05 to p95, so we are not only seeing a mean; we are seeing how the lower, middle, and upper parts of each route population behave. The virtual line sits above the physical line at every displayed quantile. That means heavier virtual merchant exposure is not being driven only by one extreme high-volume merchant. It is visible across the distribution.
+
+At the center of the distribution, the median virtual merchant carries about `95.1K` arrivals, while the median physical merchant carries about `34.7K`. In practical terms, a typical virtual merchant in this primitive receives almost three times the arrival exposure of a typical physical merchant. This matters because a row-weighted calculation will naturally hear more from virtual merchants than their merchant count suggests.
+
+At the upper end, the p95 virtual merchant reaches about `422.4K` arrivals, compared with about `178.1K` for physical. The gap therefore persists in the high-exposure band. The use of a log scale is not cosmetic here. It lets us compare p05, median, and p95 values on the same visual surface without losing the lower quantiles under the larger upper-tail values.
+
+The right plot translates those quantile differences into lift ratios: virtual is `2.36x` physical at the mean, `2.74x` at the median, and `2.37x` at p95. The median lift being the largest of the three is informative. It says the virtual density difference is especially strong around the typical merchant, not merely at the tail. The analytical consequence is clear: route comparisons must distinguish between "share of merchants" and "share of merchant exposure." Virtual has few merchants, but those merchants are arrival-dense.
+
+### A4. Endpoint-level exposure by route
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/figures/04_endpoint_density_by_route.png" alt="Endpoint-level arrival exposure by physical sites and virtual edges" width="820">
+
+The left plot repeats the exposure question at endpoint grain. The unit is no longer a merchant. For physical routing, the endpoint is a site. For virtual routing, the endpoint is an edge. This matters because endpoint-level analysis answers a different question: how much arrival load is carried by the places or route endpoints through which traffic is attached.
+
+At the median, a virtual edge carries about `3.4K` arrivals, while a physical site carries about `967`. So the typical virtual endpoint is much denser than the typical physical endpoint. This is not the same statement as "virtual merchants are denser"; it is a second density statement at a different grain.
+
+At p95, virtual edges carry about `24.7K` arrivals compared with about `10.7K` for physical sites. The high-exposure endpoint tail is therefore also heavier for virtual edges. But the visual still shows both route modes have endpoint tails; physical has dense sites too, just not as dense at the shown quantiles.
+
+The right plot gives the lift ratios: `2.48x` at the mean, `3.51x` at the median, and `2.31x` at p95. The median lift again stands out. A typical virtual edge carries more than three times the arrival load of a typical physical site. This is the endpoint version of compression: fewer virtual endpoints are carrying a heavier load per endpoint. If later case or fraud products concentrate on virtual edges, the first investigation should be exposure-adjustment before any risk interpretation.
+
+### A5. Route and channel intersection
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/figures/05_route_channel_intersection.png" alt="Route mode and channel intersection" width="820">
+
+The left plot reads channel composition inside each route mode. Physical routing is mostly card-present at `71.1%`, but the remaining `28.9%` is card-not-present. That is not a small rounding cell; it is more than a quarter of physical-route arrivals. So physical route does not mean "customer physically presented a card at a storefront" in a simplistic way. It means the arrival resolves through physical site routing, while channel still has its own acceptance-lane meaning.
+
+The same left plot shows the inverse pattern for virtual routing. Virtual is mostly card-not-present at `83.2%`, but `16.8%` is card-present. That minority cell is conceptually important because it prevents us from collapsing virtual routing into CNP. A virtual edge can carry a card-present acceptance context, just as a physical site can carry card-not-present context.
+
+The right plot changes from within-route composition to total operating footprint. Physical card-present is the dominant cell at `64.9%` of all arrival rows. Physical card-not-present is the second major cell at `26.4%`. Together, those two physical cells explain why the whole surface looks physically dominated.
+
+The two virtual cells are smaller but analytically real. Virtual card-not-present contributes `7.2%` of total arrivals, and virtual card-present contributes `1.5%`. If we erase the smaller virtual card-present cell because it is small, we also erase the evidence that route and channel are not the same variable. The figure therefore supports a four-cell operating segmentation: physical CP, physical CNP, virtual CP, and virtual CNP.
+
+### A6. Daily route continuity
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/figures/06_daily_route_continuity.png" alt="Physical and virtual route continuity across the operating window" width="820">
+
+The upper plot focuses only on virtual daily row share, rather than plotting physical and virtual on the same full-scale axis where the virtual movement would be visually crushed. This choice matters because the question is not whether physical is larger; we already know that. The question is whether the virtual lane is consistently present and how much its daily share moves.
+
+The virtual line stays within a bounded range, roughly `7.8%` to `10.2%`, with a mean around `8.7%`. There are visible peaks and troughs, so daily route mix is not perfectly flat. That means a daily fraud or case-rate chart could be affected by route mix if virtual and physical later show different outcome behaviour. But the route share is not behaving like a late-arriving feed, a short outage, or a partial-period insertion.
+
+The lower plot checks merchant presence rather than row share. Both route populations are effectively active across the operating window. This is the denominator support behind using route mode over the full January-March extract. We are not comparing one route mode with full-period merchant coverage against another route mode that only exists for part of the horizon.
+
+Taken together, the panels give a useful boundary. Route mode is stable enough to carry as a full-period segmentation field, but its daily share is not perfectly constant. Later daily outcome analysis should therefore preserve route mode and, where necessary, control for route mix.
+
+### A7. Geographic and timezone footprint
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/figures/07_zone_and_timezone_footprint.png" alt="Physical and virtual route geographic and timezone footprint" width="820">
+
+The left plot compares the breadth of route context. Physical routing covers all `339` observed zones. Virtual routing covers `267` zones. That is smaller, but still broad. So virtual routing should not be read as a narrow special geography or a single virtual region.
+
+The same left plot then separates primary, settlement, and operational timezone counts. Physical has `222` in all three timezone categories. Virtual has `197` primary timezones and `197` operational timezones, but only `63` settlement timezones. That is the key statistical asymmetry: virtual route geography is broad at the operational edge layer, but settlement clock geography is much more compressed.
+
+The middle plot ranks the top physical zones. `Europe/Paris` leads at `8.1%`, followed by several European zones and `Africa/Accra`. The lead zone is not dominant enough to define the whole physical lane. Physical routing is broad and distributed, even though some zones carry more share than others.
+
+The right plot ranks the top virtual zones. `Europe/Luxembourg` leads at `7.1%`, with `Europe/Paris` very close at `6.9%`, and `Africa/Accra`, `Europe/Oslo`, `Europe/Zurich`, and Asian zones also appearing. Again, there is no single-zone dominance. The virtual lane has a different top-zone shape from physical, but it is still distributed.
+
+The combined reading is that geography and clock semantics need to be handled carefully. A physical site zone, a virtual operational zone, and a virtual settlement timezone can all sound like "location", but they are not the same analytical object. If later analysis uses local time, settlement time, operational zone, or geographic footprint, the route model has to remain visible.

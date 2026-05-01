@@ -58,41 +58,41 @@ The physical example is selected because it gives a visible multi-country site f
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/endpoint_geography/figures/01_representative_endpoint_geography.png" alt="Representative physical site geography and virtual edge geography" width="820">
 
-This figure makes the route distinction concrete.
+The left panel places one physical-route merchant on a coordinate surface. This merchant has `34` site coordinates across `6` countries and `10,937` arrival rows in the arrival primitive. Each point is part of the merchant's physical site estate. The visual reads like an outlet geography: multiple concrete places where the platform can attach physical route context. The points should not be read as transactions. They are the spatial reference points behind the merchant's physical endpoint model.
 
-The physical panel shows a merchant whose route estate is made of physical site coordinates. Each point represents a site location tied to a legal country/site-order coordinate row. The geography therefore reads like an outlet estate: the merchant has places where physical route context can attach.
+The country labels in the left panel help make the concept concrete. The merchant's site estate is not only a count of locations; it has spatial spread. Some sites cluster around nearby European coordinates, while another point sits away from that cluster. That matters because a physical `site_id` is not merely an arbitrary endpoint token. It represents a site-like geography that can later matter for local-time interpretation, country/site grouping, and endpoint-level exposure.
 
-The virtual panel shows a different object. The gold points are operational edges, not stores. They are distributed route endpoints in the virtual routing fabric. The purple star is the settlement anchor, which is separate from the edge points. This separation is the reason it is wrong to think of a virtual merchant as simply "having no geography." It has geography, but the geography is not a storefront/site geography.
+The right panel uses a virtual-route merchant instead, with `18` operational edges across `17` countries and `80,018` arrival rows. These points are also geographic, but they do not represent storefronts or outlet sites. They represent operational edge coordinates in the virtual routing fabric. That is why the virtual panel has a broader edge-country footprint than the physical example even though it has fewer endpoint points.
 
-The figure also shows why `is_virtual` should not be reduced to channel language. A virtual merchant can have a broad edge footprint, and a physical merchant can have a broad site footprint. The relevant distinction is the operating endpoint: site estate versus edge estate.
+The purple star in the right panel is the settlement anchor. It is plotted on the same coordinate surface, but it should not be read as just another edge. It is a separate coordinate concept attached to the virtual merchant. The right panel therefore carries two virtual geographies at once: operational edge geography and settlement anchor geography.
 
-What this figure proves is endpoint-semantics difference. It does not prove that either route is riskier, larger in total fraud, or operationally harder to manage. Those questions require behavioural streams, truth products, and case products.
+Reading the two panels together corrects the initial intuition. The difference is not that physical routing has geography and virtual routing has only a network id. Both have geography. The difference is the object represented by the geography. Physical coordinates describe site-like places. Virtual coordinates describe edge-like route endpoints, with settlement geography carried separately.
 
 ### G2. Virtual edge estate versus settlement anchor
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/endpoint_geography/figures/02_virtual_edge_network_anchor.png" alt="Virtual edge estate and settlement anchor" width="760">
 
-This figure isolates the virtual side because it is the easier one to misunderstand.
+The virtual side needs its own view because the two coordinate concepts can easily get collapsed inside the side-by-side comparison.
 
-The virtual merchant has `18` operational edges across `17` countries. Those are the points that represent the routing/edge estate. The settlement anchor sits in `Europe/Copenhagen`. The faint lines are not transaction flows; they are visual aids showing that the edge estate and settlement anchor are separate coordinate concepts attached to the same virtual merchant.
+The gold points are the `18` operational edges. They spread across `17` countries, so the edge estate is not a single location disguised as an id. The edge coordinates are the geography of the virtual routing fabric: the points through which virtual route context can attach.
 
-This is the practical interpretation: a virtual arrival can carry operational route geography through an edge while settlement-time context can be anchored elsewhere. If a later analysis groups virtual traffic by operational geography, settlement geography, or timezone, those are not automatically the same denominator.
+The star is the settlement anchor, shown here with `Europe/Copenhagen` settlement time. It sits near a cluster of operational edges, but the visual relationship should not be overread. The faint connecting lines are not observed payment paths or transaction routes. They are only a visual device showing that the same merchant carries one settlement anchor while also carrying many operational edges.
 
-That distinction matters for downstream analysis. A case-rate or fraud-rate view by `tzid_operational` may answer a different question from a view by `tzid_settlement`. The geography visible here is the reason those questions should not be collapsed prematurely.
+The statistical implication is about grouping and denominators. If we later group virtual traffic by `tzid_operational`, we are reading the operational edge estate. If we group by `tzid_settlement`, we are reading settlement-clock anchoring. Both are attached to the same virtual merchant, but they are not the same geography. A case-rate view by operational edge and a case-rate view by settlement timezone may therefore answer different questions.
 
 ### G3. Endpoint counts per merchant
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/endpoint_geography/figures/03_endpoint_count_distribution.png" alt="Endpoint count distribution for physical site estates and virtual edge estates" width="820">
 
-This figure answers the "one or more" question.
+The left panel shows the distribution of physical site counts per physical merchant. Most physical merchants sit around the low tens of sites, with a median of `17`. The selected illustrative merchant has `34` sites, so it is above the median but still inside the ordinary body of the distribution rather than being a maximum-edge case. The full range runs from `1` to `124` physical sites per merchant.
 
-Physical merchants can have more than one site. In the physical estate summarized here, the median physical merchant has `17` site coordinates, while the selected illustrative merchant has `34`. The full physical range runs from `1` to `124` sites per merchant.
+That left panel is useful because it keeps the physical example honest. The map used a visibly multi-site physical merchant, but the distribution shows that multi-site physical routing is normal in this surface. Physical endpoint geography is not one merchant equals one site. Many physical merchants have site estates, and those estates vary in size.
 
-Virtual merchants can also have more than one endpoint. In the virtual estate, the median virtual merchant has `18` operational edges, and the selected virtual merchant also has `18`. The full virtual range runs from `6` to `55` edges per merchant.
+The right panel performs the same check for virtual merchants. The median virtual merchant has `18` edges, and the selected virtual example also has `18`. That makes the virtual example a typical edge-count case rather than a cherry-picked extreme. The observed virtual range runs from `6` to `55` edges per merchant.
 
-So the distinction is not "physical has many geographic points, virtual has one abstract network id." Both sides can have multi-endpoint estates. The difference is the type of endpoint estate: physical sites represent outlet-like locations, while virtual edges represent operational routing endpoints.
+The right panel also corrects the idea that virtual means one abstract online store. In this surface, virtual merchants have edge estates. The edge estate is smaller than the physical site estate in total count, but it is still plural and variable. So a merchant-level comparison hides a second structure: endpoint-estate size.
 
-This figure also helps avoid a later denominator mistake. If we compare physical and virtual traffic by merchant only, we hide endpoint estate size. If we compare by endpoint only, we change the denominator again. Both views can be valid, but they answer different questions.
+Taken together, the two panels show why route geography cannot be reduced to merchant geography alone. A merchant can have many physical sites or many virtual edges. If we compare physical and virtual at merchant grain, endpoint-estate size disappears. If we compare them at endpoint grain, the unit of analysis changes. Both views are useful, but they are not interchangeable.
 
 ## Working interpretation
 
