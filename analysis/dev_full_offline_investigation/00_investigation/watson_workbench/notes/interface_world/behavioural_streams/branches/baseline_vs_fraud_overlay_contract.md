@@ -206,3 +206,41 @@ It also does not explain the meaning of the six campaign IDs. The stream exposes
 The baseline stream is the clean traffic contract. The with-fraud stream is the same traffic contract after a sparse, campaign-tagged fraud overlay has been applied.
 
 The overlay preserves the event-bus shape and changes selected economic values. That makes the with-fraud stream analytically different from baseline, but not because it adds a new traffic population. It is different because a tiny set of existing event keys has been marked, campaign-tagged, and amount-mutated while the surrounding stream remains structurally stable.
+
+## Appendix: visual evidence
+
+### Figure 1. Schema overlay contract
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/01_schema_overlay_contract.png" width="900" />
+
+### Figure 2. Contract shape and amount delta
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/02_contract_shape_and_amount_delta.png" width="900" />
+
+### Figure 3. Fraud sparsity and amount contrast
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/03_fraud_sparsity_and_amount_contrast.png" width="900" />
+
+### Figure 4. Fraud event-side balance
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/04_fraud_event_side_balance.png" width="900" />
+
+### Figure 5. Fraud-row preservation and mutation
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/05_fraud_row_preservation_and_mutation.png" width="900" />
+
+### Figure 6. Campaign overlay footprint
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/06_campaign_overlay_footprint.png" width="900" />
+
+### Figure 7. Campaign ID null semantics
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/07_campaign_id_null_semantics.png" width="760" />
+
+### Figure 8. Stream profile preservation evidence
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/08_stream_profile_preservation_evidence.png" width="900" />
+
+### Figure 9. Campaign grammar and time span
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/baseline_vs_fraud_overlay_contract/figures/09_campaign_grammar_and_time_span.png" width="900" />
