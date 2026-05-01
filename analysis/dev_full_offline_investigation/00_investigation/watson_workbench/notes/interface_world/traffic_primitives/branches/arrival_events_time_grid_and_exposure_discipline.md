@@ -194,3 +194,29 @@ This branch does not create another arrival-events branch. It converts the remai
 - Use merchant-weighted views when the question is about the typical merchant rather than platform load.
 - Check channel and route mix before interpreting hour-of-day movement as risk movement.
 - Keep the `2026-03-22` merchant-day exception in mind only when strict merchant-day completeness is required.
+
+## Appendix: visual evidence
+
+### A1. Bucket grid contract
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_grid_exposure_discipline/figures/01_bucket_grid_contract.png" alt="Bucket grid contract checks for arrival events" width="780">
+
+### A2. Bucket intensity surface
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_grid_exposure_discipline/figures/02_bucket_intensity_surface.png" alt="Bucket-level traffic intensity across UTC date and hour" width="780">
+
+### A3. Hourly bucket profile and channel mix
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_grid_exposure_discipline/figures/03_hourly_bucket_profile_and_channel_mix.png" alt="Hourly bucket profile and channel mix" width="780">
+
+### A4. Channel and route hour shapes
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_grid_exposure_discipline/figures/04_channel_route_hour_shapes.png" alt="Channel and route operating lanes by UTC hour" width="780">
+
+### A5. Merchant exposure distribution and concentration
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_grid_exposure_discipline/figures/05_merchant_exposure_distribution_and_concentration.png" alt="Merchant exposure distribution and cumulative row concentration" width="780">
+
+### A6. Merchant-day exception context
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/time_grid_exposure_discipline/figures/06_merchant_day_exception_context.png" alt="Localized merchant-day exception context for 2026-03-22" width="780">
