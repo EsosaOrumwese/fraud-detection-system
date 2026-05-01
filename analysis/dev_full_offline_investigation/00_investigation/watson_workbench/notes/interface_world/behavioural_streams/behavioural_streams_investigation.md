@@ -35,6 +35,10 @@ Support script and exports:
 - [`analysis/dev_full_offline_investigation/00_investigation/watson_workbench/scratch/analyze_behavioural_streams.py`](../../../scratch/analyze_behavioural_streams.py)
 - [`analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/interface_world/behavioural_streams`](../../../exports/interface_world/behavioural_streams)
 
+Branch investigations:
+
+- [`branches/event_grammar_and_grain.md`](branches/event_grammar_and_grain.md)
+
 ## Contract read before touching the data
 
 The catalogue gives both streams the same primary key:

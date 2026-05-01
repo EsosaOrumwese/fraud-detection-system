@@ -1,0 +1,150 @@
+{
+  "stream_event_flow_grain": [
+    {
+      "stream_name": "baseline",
+      "event_rows": 473383388,
+      "seq0_request_rows": 236691694,
+      "seq1_response_rows": 236691694,
+      "seq0_minus_seq1_rows": 0,
+      "implied_flows_from_balanced_sequence": 236691694,
+      "event_rows_per_implied_flow": 2.0,
+      "event_types": 2,
+      "min_event_seq": 0,
+      "max_event_seq": 1,
+      "distinct_event_seq": 2
+    },
+    {
+      "stream_name": "with_fraud",
+      "event_rows": 473383388,
+      "seq0_request_rows": 236691694,
+      "seq1_response_rows": 236691694,
+      "seq0_minus_seq1_rows": 0,
+      "implied_flows_from_balanced_sequence": 236691694,
+      "event_rows_per_implied_flow": 2.0,
+      "event_types": 2,
+      "min_event_seq": 0,
+      "max_event_seq": 1,
+      "distinct_event_seq": 2
+    }
+  ],
+  "event_seq_type_shape": [
+    {
+      "stream_name": "baseline",
+      "event_seq": 0,
+      "event_type": "AUTH_REQUEST",
+      "rows": 236691694,
+      "approx_flows": 244190267,
+      "row_share_within_stream": 0.5
+    },
+    {
+      "stream_name": "baseline",
+      "event_seq": 1,
+      "event_type": "AUTH_RESPONSE",
+      "rows": 236691694,
+      "approx_flows": 244190267,
+      "row_share_within_stream": 0.5
+    },
+    {
+      "stream_name": "with_fraud",
+      "event_seq": 0,
+      "event_type": "AUTH_REQUEST",
+      "rows": 236691694,
+      "approx_flows": 244190267,
+      "row_share_within_stream": 0.5
+    },
+    {
+      "stream_name": "with_fraud",
+      "event_seq": 1,
+      "event_type": "AUTH_RESPONSE",
+      "rows": 236691694,
+      "approx_flows": 244190267,
+      "row_share_within_stream": 0.5
+    }
+  ],
+  "amount_surface_by_event_side": [
+    {
+      "stream_name": "baseline",
+      "event_type": "AUTH_REQUEST",
+      "rows": 236691694,
+      "row_share": 0.5,
+      "mean_amount": 24.312742096536688,
+      "median_amount": 14.99,
+      "max_amount": 3401.78
+    },
+    {
+      "stream_name": "baseline",
+      "event_type": "AUTH_RESPONSE",
+      "rows": 236691694,
+      "row_share": 0.5,
+      "mean_amount": 24.312742096536688,
+      "median_amount": 14.99,
+      "max_amount": 3401.78
+    },
+    {
+      "stream_name": "with_fraud",
+      "event_type": "AUTH_REQUEST",
+      "rows": 236691694,
+      "row_share": 0.5,
+      "mean_amount": 24.313666392373197,
+      "median_amount": 14.99,
+      "max_amount": 3401.78
+    },
+    {
+      "stream_name": "with_fraud",
+      "event_type": "AUTH_RESPONSE",
+      "rows": 236691694,
+      "row_share": 0.5,
+      "mean_amount": 24.31366639237374,
+      "median_amount": 14.99,
+      "max_amount": 3401.78
+    }
+  ],
+  "fraud_balance_by_event_side": [
+    {
+      "event_seq": 0,
+      "event_type": "AUTH_REQUEST",
+      "fraud_flag": false,
+      "rows": 236684562,
+      "approx_flows": 244190267,
+      "share_within_event_type": 0.9999698679751728
+    },
+    {
+      "event_seq": 0,
+      "event_type": "AUTH_REQUEST",
+      "fraud_flag": true,
+      "rows": 7132,
+      "approx_flows": 7208,
+      "share_within_event_type": 3.013202482719989e-05
+    },
+    {
+      "event_seq": 1,
+      "event_type": "AUTH_RESPONSE",
+      "fraud_flag": false,
+      "rows": 236684562,
+      "approx_flows": 244190267,
+      "share_within_event_type": 0.9999698679751728
+    },
+    {
+      "event_seq": 1,
+      "event_type": "AUTH_RESPONSE",
+      "fraud_flag": true,
+      "rows": 7132,
+      "approx_flows": 7208,
+      "share_within_event_type": 3.013202482719989e-05
+    }
+  ],
+  "baseline_overlay_key_fingerprint": [
+    {
+      "stream_name": "baseline",
+      "rows": 473383388,
+      "approx_flows": 244190267,
+      "key_hash_sum": 4.365982797643315e+27
+    },
+    {
+      "stream_name": "with_fraud",
+      "rows": 473383388,
+      "approx_flows": 244190267,
+      "key_hash_sum": 4.365982797643315e+27
+    }
+  ]
+}
