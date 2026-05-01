@@ -1,369 +1,304 @@
-# AGENTS.md - Resume, CV, Cover Letter, and Supporting Statement Router
+# AGENTS.md - Application Materials Operating Guide
 _As of 2026-05-01_
 
-This document governs all work inside:
+This document governs work inside:
 
 `docs/experience_lake/outward-facing-assets/resume`
 
-Read this file before creating or editing any recruiter calls, CVs, resumes, cover letters, supporting statements, application answers, or postmortem reviews in this folder.
+Read this before creating or editing recruiter calls, CVs, resumes, cover letters, supporting statements, application answers, or postmortem reviews in this folder.
+
+---
+
+## 0) How to Use This Guide
+
+This guide is not a rigid template.
+
+Its purpose is to shape the agent's judgement so that application materials are competitive, role-specific, truthful, and easy to score.
+
+Do not turn every output into a formula. Do not force every section of this guide into every document. Use the smallest structure that helps the candidate compete for the specific role.
+
+The standard is:
+
+> Sell hard. Stay truthful. Sound like the role. Make scoring easy.
 
 ---
 
 ## 1) Purpose
 
-This folder is for turning the candidate's real evidence base into competitive, role-specific job application materials.
+This folder turns the candidate's real evidence base into outward-facing job application materials.
 
-The goal is not generic career writing. The goal is to help the candidate compete seriously for interviews while keeping every claim defensible.
+The goal is not generic career writing. The goal is to produce role-specific material that can compete for interviews while staying defensible in interview.
 
-Every output must balance:
+Every output should balance:
 
 - competitive positioning
 - role-native framing
 - evidence quality
 - truth-boundary discipline
-- recruiter/sift readability
+- recruiter or sift readability
 - interview defensibility
 
-The Met Office rejection postmortem showed the key risk: an application can be technically strong but still fail because it sounds like transferable analytics rather than the exact role the panel is scoring.
-
----
-
-## 1A) Non-Negotiables
-
-Before producing final outward-facing material, always confirm internally that:
-
-1. The platform is not presented as a conventional employer unless explicitly justified.
-2. The application sounds like the target role, not generic fraud analytics.
-3. The lead criterion or most important requirement is answered early and strongly.
-4. No sentence invents direct domain, stakeholder, employment, or tool ownership.
-5. Weaknesses are not volunteered unless the form explicitly asks.
-6. Metrics are translated into the employer's decision problem.
-7. The final output is easy for a scorer or recruiter to mark quickly.
+The Met Office rejection postmortem showed the key risk: an application can be technically strong but still fail if it sounds like transferable analytics rather than the exact role the panel is scoring.
 
 ---
 
 ## 2) Source of Truth
 
-Use these sources before writing final application material. If the relevant files exist, inspect them rather than relying on memory or generic assumptions:
+Before writing final application material, inspect the relevant files where they exist. Do not rely on memory when the repo contains the source material.
+
+Useful sources include:
 
 1. The job advert and person specification.
-2. `docs/experience_lake/outward-facing-assets/job-descriptions-specifications/data-analytics-engineering-science.job-ads.evidence.md`
-3. `docs/experience_lake/outward-facing-assets/job-descriptions-specifications/data-analytics-engineering-science.ideal-candidate-profiles.md`
-4. The relevant `recruiter_calls.md` for the job folder, if it exists.
-5. Prior supporting statements or prelim-response docs in the same job folder.
-6. The candidate's real evidence base from the governed fraud decisioning platform, MSc, engineering experience, and service work.
-7. `application_postmortem_audit_2026-05-01.md` for lessons from prior applications.
+2. The relevant job folder.
+3. Any `recruiter_calls.md` for the role.
+4. Prior supporting statements, CV variants, cover letters, or prelim-response docs in the same job folder.
+5. `docs/experience_lake/outward-facing-assets/job-descriptions-specifications/data-analytics-engineering-science.job-ads.evidence.md`
+6. `docs/experience_lake/outward-facing-assets/job-descriptions-specifications/data-analytics-engineering-science.ideal-candidate-profiles.md`
+7. The candidate's real evidence base from the governed fraud decisioning platform, MSc, engineering experience, and service work.
+8. `application_postmortem_audit_2026-05-01.md` for lessons from prior applications.
 
-Do not rely on memory when files exist. Inspect the folder and relevant docs.
+If a file is missing, proceed from the best available evidence and state any important assumption internally.
 
 ---
 
-## 3) Candidate Positioning
+## 3) First Think, Then Write
+
+Before drafting final material, form a short working view of the role.
+
+This does not need to become a separate document unless useful. It can be a brief internal plan.
+
+Clarify:
+
+- What is the employer really hiring for?
+- What would a strong direct-fit candidate sound like?
+- What are the highest scoring requirements?
+- Is there a lead criterion or preliminary sift criterion?
+- Which of the candidate's evidence best matches the role?
+- What is the main gap or risk?
+- How can the gap be handled without apology or overclaiming?
+- Which internal project language must be translated into employer language?
+
+Classify the role lightly:
+
+- `Direct Fit`: evidence maps naturally.
+- `Adjacent Fit`: evidence maps, but domain translation is needed.
+- `Stretch Fit`: domain gap is material and may need a small role-native proof.
+- `Structural Risk`: visa, sponsorship, clearance, location, seniority, or mandatory experience may block even strong content.
+
+This classification should guide tone and evidence choice. It should not make the application timid.
+
+---
+
+## 4) Candidate Positioning
 
 The candidate's base evidence identity is:
 
 A data analyst / analytics engineer with strong independent applied analytics experience, built around a governed fraud decisioning platform, supported by an MSc in Data Science, prior engineering-field experience, and live service work.
 
-The outward-facing target identity must be chosen per role. Do not force the same title or summary across all roles.
+The outward-facing identity must be chosen per role. Do not force the same title or summary across all applications.
 
 Examples:
 
 - Data Analyst / Analytics Engineer for analytics, BI, reporting, insight, and operational data roles.
 - Applied Data Scientist for modelling, statistical analysis, forecasting, and scientific computing roles.
-- Junior/Mid-level MLOps or ML Platform Engineer only where the role genuinely values production ML systems, CI/CD, model governance, deployment, monitoring, or platform evidence.
-- Scientific Data Analyst / Applied Scientist only where physical-science, environmental, statistical, or modelling evidence can be made role-native.
+- Junior/Mid-level MLOps or ML Platform Engineer where the role values production ML systems, CI/CD, model governance, deployment, monitoring, or platform evidence.
+- Scientific Data Analyst / Applied Scientist where physical-science, environmental, statistical, or modelling evidence can be made role-native.
 
-Use the base evidence identity as the foundation, not as a fixed public label. Do not present the candidate as if they have conventional paid data-team employment unless the specific context supports it.
+Use the base identity as a foundation, not as a fixed public label.
 
-Safer labels for the platform:
+Do not present the candidate as if they have conventional paid data-team employment unless the specific context supports it.
+
+Safer platform labels include:
 
 - `Independent Data Scientist & Analytics Engineer`
 - `Governed Fraud Decisioning Platform`
 - `Applied Analytics Portfolio`
 - `Production-shaped fraud decisioning and analytics platform`
 
-Avoid presenting `AWS-hosted Fraud Decisioning Platform` as a conventional employer. That can create credibility risk.
-
 Good framing:
 
 > Built and analysed a production-shaped fraud decisioning platform to demonstrate applied data science, reproducible modelling, operational reporting, and decision-support analytics.
 
-Bad framing:
+Avoid:
 
 > Employer: AWS-hosted Fraud Decisioning Platform
 
----
-
-## 4) Competitive Application Posture
-
-Do not write from a posture of apology or permission-seeking.
-
-Do not self-sabotage with lines such as:
-
-- `I do not have direct X experience`
-- `My strongest case is not direct X specialism`
-- `Although I lack...`
-
-If a gap must be handled, use positive transfer framing:
-
-> My direct specialism is applied quantitative modelling and decision-support analytics, which I would bring into this role's domain context.
-
-Only discuss gaps when the application explicitly asks or when truth-boundary protection requires it.
-
-The job is not to confess weakness. The job is to prove fit without lying.
+That wording can create credibility risk.
 
 ---
 
-## 5) Role-Native Rule
+## 5) Role-Native Framing
 
 Every application must sound like the target role, not like a generic analytics profile.
 
-Recruiter calls define what the strongest candidate sounds like. The final CV or statement must embody that sound.
+The fraud platform can be strong evidence, but it must be translated into the target domain's problem structure.
 
-For each role, ask:
+Ask:
 
 > Would a scorer immediately recognise this as evidence for this exact role?
 
-If not, rewrite.
+If not, rewrite the framing.
 
-Examples:
+Examples of translation:
 
-- Met Office role-native language: environmental data, weather/climate signals, physical systems, impacts and risks, user-relevant science, defence decision support, scientific reports, uncertainty, Python scientific computing.
-- NHS information role-native language: validated information flows, data quality, clinical/operational data, performance monitoring, pathway logic, governance, confidentiality, service delivery, managers/clinicians.
-- Commercial analytics role-native language: spend, supplier, performance, compliance, value for money, data matching, dashboards, senior decision support, data assurance.
-- Retail/distribution role-native language: operational MI, fulfilment, productivity, stock, distribution, ecommerce, throughput, inefficiency, site/network performance, customer impact.
+- For a weather, climate, or defence science role, translate the evidence into environmental data, physical systems, impact analysis, uncertainty, scientific computing, user-relevant science, and decision support.
+- For an NHS information role, translate the evidence into validated information flows, data quality, governance, operational reporting, pathway-style logic, confidentiality, and service delivery.
+- For a commercial analytics role, translate the evidence into performance, spend, value, compliance, customer impact, dashboards, forecasting, and decision support.
+- For a distribution or operations role, translate the evidence into throughput, backlog, fulfilment, productivity, inefficiency, SLA, and operational MI.
 
-The fraud platform can be used as evidence, but it must be translated into the target domain's problem structure.
-
----
-
-## 6) Role Classification Before Writing
-
-Classify every role before creating materials:
-
-- `Direct Fit`: Platform evidence maps naturally. Apply aggressively.
-- `Adjacent Fit`: Platform evidence maps, but domain gap exists. Use clear transfer framing.
-- `Stretch Fit`: Domain gap is material. Build or cite a small role-native proof before applying.
-- `Structural Risk`: Visa, sponsorship, clearance, seniority, location, or mandatory domain experience may block even good content.
-
-For stretch roles, do not rely only on transferability. Build or document a bounded role-native proof where possible.
-
-Examples of role-native proof:
-
-- Climate/weather role: small Python analysis of open weather, climate, geospatial, or environmental risk data.
-- NHS patient-safety role: bounded safety-critical incident-style analysis using appropriate non-patient or open/simulated data.
-- Commercial procurement role: spend/supplier/performance style analysis using open procurement or synthetic contract data.
-- Distribution role: throughput, order-flow, stock, backlog, fulfilment, or SLA analysis.
+Do not dump the platform story and expect the employer to translate it.
 
 ---
 
-## 6A) Mandatory Pre-Write Role Brief
-
-Before drafting final materials, create a short internal role brief with:
-
-- Target role title/posture.
-- Role classification: Direct Fit, Adjacent Fit, Stretch Fit, or Structural Risk.
-- Top 5 employer needs from the advert/person specification.
-- Best matching evidence from the candidate's evidence base.
-- Main gap or risk.
-- How the gap will be handled without apology or overclaiming.
-- Lead criterion or highest-priority sift requirement.
-- Role-native vocabulary that should appear naturally.
-- Internal vocabulary that must be translated or avoided.
-
-Do not write final material until this mapping is clear.
-
----
-
-## 7) Truth-Boundary Rules
+## 6) Truth Boundary
 
 Every sentence must be defensible in interview.
+
+Do not invent or imply direct experience that did not happen.
 
 Do not claim:
 
 - direct NHS experience if it was not NHS experience
-- patient-level or clinical data experience if it was not patient/clinical data
+- patient-level or clinical data experience if it was not patient or clinical data
 - live stakeholders if there were no live stakeholders
-- direct Power BI/Looker/Dataform/SSRS production ownership if it was only designed, specified, or adjacent
+- direct Power BI, Looker, Dataform, SSRS, or production BI ownership if the work was only designed, specified, adjacent, or implementation-ready
 - senior stakeholder presentation if the audience was not senior
 - external submissions, FOI, SAR, procurement, supplier, or clinical governance work if it was not actually done
 - team leadership, mentoring, or line management if only informal support occurred
-
-Prefer:
-
-- `designed`
-- `specified`
-- `built as a proof`
-- `platform-derived`
-- `decision needs`
-- `stakeholder-style requirements`
-- `operational review needs`
-- `reporting-ready`
-- `BI-style`
-- `SSRS-adjacent`
-- `Power BI-ready`
-- `NHS-adjacent`
-
-Use terms like `NHS-adjacent`, `pathway-style`, `patient-safety-style`, `SSRS-adjacent`, or `Power BI-ready` mainly as internal truth-boundary labels. In final application wording, prefer natural phrasing such as:
-
-- designed around safety-critical decision needs
-- used governance-conscious data handling
-- produced reviewable operational evidence
-- structured analysis around service, pathway, workload, or reporting implications
-- designed reporting outputs that could be implemented in Power BI or SSRS-style workflows
-
-Only use literal phrases like `NHS-adjacent` or `SSRS-adjacent` if they help avoid a false claim and still read naturally.
-
-Do not overload every sentence with caveats, but do not create false direct ownership.
-
----
-
-## 8) Stakeholder Language Rule
 
 If there were no literal stakeholders, do not write:
 
 > Worked with operational stakeholders.
 
-Use:
+Prefer natural truth-safe wording such as:
 
 > Shaped the analysis around operational decision needs.
 
-Or:
+or:
 
 > Designed outputs for operational, planning, and review use cases.
 
-Or:
+or:
 
-> Translated the findings into workload, quality, and prioritisation implications.
+> Translated findings into workload, quality, prioritisation, and reporting implications.
 
-The reader can infer stakeholder relevance without us inventing people.
+Use internal labels like `NHS-adjacent`, `Power BI-ready`, `SSRS-adjacent`, or `stakeholder-style` to protect truth boundaries while drafting. In final wording, use natural language unless the label genuinely helps clarity.
 
----
-
-## 9) Supporting Statement Structure
-
-For public-sector, NHS, Civil Service, university, and charity applications, supporting statements are usually more important than the CV.
-
-Use the person specification order unless there is a strong reason not to.
-
-When the employer lists criteria:
-
-- mirror the criteria order
-- group criteria only when grouping makes marking easier
-- attack each criterion clearly
-- use examples, not responsibility lists
-- make the scorer's job easy
-
-Preferred paragraph structure:
-
-1. Context: what situation or decision need existed?
-2. Action: what did the candidate do?
-3. Result: what changed, improved, became clearer, or became usable?
-4. Learning/transfer: what does this prove for the target role?
-
-This may follow STAR or CARL, but do not label paragraphs mechanically unless the form specifically asks for it.
-
-Avoid writing a longer CV. A supporting statement must show evidence against criteria.
+Do not overload the final material with caveats. The aim is truthful confidence, not defensive writing.
 
 ---
 
-## 10) Evidence Quality Standard
+## 7) Handling Gaps
 
-Strong evidence has:
+Do not write from apology.
 
-- a named situation
-- a clear problem
+Avoid lines such as:
+
+- `I do not have direct X experience`
+- `Although I lack...`
+- `My strongest case is not direct X specialism`
+
+Only discuss a gap when the form explicitly asks, when the advert makes it unavoidable, or when truth-boundary protection requires it.
+
+Prefer positive transfer framing:
+
+> My direct specialism is applied quantitative modelling and decision-support analytics, which I would bring into this role's domain context.
+
+The job is not to confess weakness. The job is to prove fit without lying.
+
+---
+
+## 8) Evidence Quality
+
+Strong evidence usually includes:
+
+- a real situation or decision need
 - what was at stake
-- what data was involved
-- what tools/methods were used
-- why those methods were appropriate
+- what data, tools, or methods were used
 - what the candidate specifically did
-- a measurable or concrete result
-- an explanation of why the result mattered
-- a link back to the job criterion
+- what changed, improved, became clearer, or became usable
+- why the result mattered
+- how it maps to the role
 
 Weak evidence:
 
-- says `I have experience in...`
 - repeats the job description
 - lists tools without use cases
-- says `stakeholders` without explaining the need
 - gives metrics without interpretation
-- hides the actual decision problem
 - uses domain words without defensible experience
+- hides the decision problem
+- sounds like a responsibility list rather than proof
+
+Metrics should prove the criterion, not decorate the answer.
+
+Use fewer, better metrics. Explain what each metric means for the employer's problem.
+
+Do not repeat the same metric block across multiple answers unless each use has a different scoring purpose.
 
 ---
 
-## 10A) Metric Use Rule
+## 9) Public Sector, Civil Service, NHS, University, and Charity Applications
 
-Metrics must prove the criterion, not decorate the answer.
+For these applications, assume the supporting statement or application answers are scored against the essential criteria.
 
-For each application, choose a small number of high-signal metrics and translate their meaning.
+Make the scorer's job easy.
 
-Do not repeat the same metric block across multiple criteria unless each use has a different purpose.
+When criteria are listed:
 
-Every metric should answer:
+- follow the person specification order unless another structure is clearly better
+- make coverage obvious
+- use examples, not generic claims
+- answer the lead or highest-weighted criterion early and strongly
+- do not bury the strongest evidence
+- avoid motivation-only paragraphs where evidence is needed
 
-- What problem did this measure?
-- What action did the candidate take?
-- Why does the result matter to this employer?
+Use STAR, CARL, or similar logic naturally, but do not label paragraphs mechanically unless the form asks.
 
-If a metric is impressive but does not help the scorer mark the criterion, cut it or move it behind the core evidence.
+For a lead criterion or preliminary sift criterion:
+
+- put the strongest relevant fit in the opening lines
+- do not end with a caveat
+- do not use the answer to explain what the candidate lacks
+- translate transferable evidence into the role's domain before giving technical detail
+
+A weak lead-criterion answer can sink an otherwise strong application.
 
 ---
 
-## 11) CV / Resume Structure
+## 10) CVs, Cover Letters, and Supporting Statements
 
-For current applications, prefer:
+Different assets have different jobs.
+
+A CV should be fast to scan. It should show target identity, role-relevant skills, evidence, education, and experience clearly.
+
+A supporting statement should score against criteria. It is not a longer CV.
+
+A cover letter should explain fit, motivation, and 2 or 3 strongest proof points. It should not carry the full burden of evidence if a supporting statement exists.
+
+For current CVs, usually prefer:
 
 1. Name and target title.
 2. Personal summary.
-3. Core skills aligned to the recruiter calls.
+3. Core skills aligned to the role.
 4. Applied Data Experience.
 5. Professional Experience.
 6. Education.
 7. Additional Experience.
 
-If the platform is included in experience, label it honestly:
+If the platform appears in experience, label it honestly:
 
-`Independent Data Scientist & Analytics Engineer`
+`Independent Data Scientist & Analytics Engineer`  
 `Governed Fraud Decisioning Platform | May 2025 - Present`
 
-Do not use `Employer: AWS-hosted Fraud Decisioning Platform`.
+Do not use:
 
-Every CV bullet should pass:
-
-- one clear claim
-- one role-relevant action
-- one defensible result or purpose
-- no inflated domain ownership
-- no vague filler
+`Employer: AWS-hosted Fraud Decisioning Platform`
 
 ---
 
-## 12) Recruiter Calls
+## 11) Role-Native Proof for Stretch Roles
 
-Recruiter calls are not decoration. They define the target sound of the application.
-
-They must capture:
-
-- what the employer is really hiring for
-- what the strongest candidate would have done
-- what evidence would score highly
-- what domain language must appear
-- what not to overclaim
-
-Before writing final materials, check:
-
-> Does the final output sound like the recruiter calls, or does it still sound like generic fraud/data analytics?
-
-If it sounds generic, revise.
-
----
-
-## 13) Role-Native Proof Requirement
-
-For stretch roles, do not apply with transfer evidence alone if there is time to build a bounded proof.
+For stretch roles, do not rely only on transferability if there is time to create a bounded proof.
 
 A bounded proof can be:
 
@@ -371,161 +306,77 @@ A bounded proof can be:
 - a mini dashboard spec
 - a SQL model
 - a short report
-- a simulated/public dataset analysis
+- a simulated or public dataset analysis
 - a role-specific evidence pack
 
-The proof should be truthful:
+The proof must be presented truthfully.
 
-> Built a role-native analytical proof using open/simulated data to demonstrate how I would approach this domain.
+Good framing:
 
-Do not pretend the proof was employer or industry work.
+> Built a role-native analytical proof using open or simulated data to demonstrate how I would approach this domain.
 
----
-
-## 14) Public Sector and NHS Sift Rules
-
-For NHS, Civil Service, public-sector, and university roles:
-
-- assume the statement is scored against essential criteria
-- make criteria coverage obvious
-- use concrete examples
-- avoid generic motivation-only paragraphs
-- avoid vague platform language
-- avoid AI-sounding repetition
-- use clear English
-- do not include personal details if instructed not to
-
-For NHS roles:
-
-- do not claim NHS systems, patient databases, patient-level data, clinical audit, pathways, RTT, sepsis, AKI, VTE, PSIRF, or clinical governance unless directly defensible
-- if adjacent, write `NHS-adjacent`, `pathway-style`, `patient-safety-style`, `governance-style`, or `standards-conscious`
-- do not overuse these softeners; use them where needed to avoid false claims
-
-For Civil Service roles:
-
-- make behaviours visible through examples
-- include judgement under uncertainty, pace, improvement, stakeholder engagement, and public-value framing where relevant
-- do not bury lead-criterion evidence
+Do not imply the proof was employer work, client work, NHS work, defence work, or commercial production work unless that is true.
 
 ---
 
-## 14A) Lead Criterion Rule
-
-If the advert identifies a lead criterion, preliminary sift criterion, essential shortlisting criterion, or first-ranked requirement:
-
-- answer it with the strongest and most direct evidence available
-- place the most relevant fit in the opening sentence
-- do not end the answer with a caveat
-- do not use the lead criterion to explain what the candidate lacks
-- translate transferable evidence into the role's domain before giving details
-- make the scoreable evidence visible within the first 3-5 lines
-
-A weak lead-criterion answer can sink an otherwise strong application.
-
----
-
-## 14B) Eligibility, Visa, Sponsorship, and Clearance Rule
+## 12) Eligibility, Visa, Sponsorship, and Clearance
 
 Do not speculate in application materials about visa, sponsorship, nationality, or clearance risk.
 
 If the form asks eligibility questions, answer truthfully, directly, and only within the scope of the question.
 
-Do not volunteer uncertainty or defensive explanations unless explicitly required.
+Do not volunteer uncertainty or defensive explanations unless required.
 
-In postmortems, treat visa/security/clearance as a possible structural risk, but do not assume it was the reason for rejection unless the employer states it or the advert makes the block clear.
-
----
-
-## 15) Private Sector Rules
-
-For private-sector roles, CV fast-scan and direct stack/domain fit matter more.
-
-Do not assume strong writing can overcome missing direct stack experience.
-
-If the role asks for Dataform, Looker, BigQuery, SAP, Azure, Databricks, retail, manufacturing, distribution, ecommerce, or aviation:
-
-- state direct experience only if direct
-- otherwise frame comparable technologies carefully
-- show artefacts or implementation-ready evidence where possible
-- avoid broad tool lists that cannot be defended
-
-Private-sector applications should be shorter, sharper, and more outcome-led.
+In postmortems, treat visa, sponsorship, and clearance as possible structural risks, but do not assume they caused rejection unless the employer states this or the advert makes the block clear.
 
 ---
 
-## 16) Final Application Gates
+## 13) Final Review Before Output
 
-Before any application is considered ready, run these gates:
+Before finalising any application material, run a light review.
 
-### Gate 1: Role-Native
+Ask:
 
-Does the output sound like this exact job?
+1. Does it sound like this exact role?
+2. Is the lead or highest-priority requirement handled strongly?
+3. Can the reviewer map the evidence to the criteria quickly?
+4. Is every claim defensible in interview?
+5. Are gaps handled without apology or overclaiming?
+6. Are metrics interpreted, not dumped?
+7. Does the platform appear credible and honestly framed?
+8. Is the writing clear, human, and easy to scan?
+9. Is the text ASCII-clean unless there is a reason otherwise?
 
-If no, revise.
+If the answer to a major question is no, revise.
 
-### Gate 2: Criteria Coverage
-
-Can a reviewer map the evidence to every essential criterion quickly?
-
-If no, revise.
-
-### Gate 3: Evidence Substance
-
-Does each major claim have a scenario, action, result, and relevance?
-
-If no, revise.
-
-### Gate 4: Truth Boundary
-
-Can every sentence be defended in interview without embarrassment?
-
-If no, rewrite.
-
-### Gate 5: Competition
-
-Would this compete against candidates with direct domain experience?
-
-If no, either build role-native proof, reframe as adjacent, or mark the role as stretch.
-
-### Gate 6: Self-Sabotage
-
-Does the application volunteer weaknesses unnecessarily?
-
-If yes, reframe.
-
-### Gate 7: Formatting and Scan
-
-Is it clear, ATS-safe, and easy to read?
-
-If no, simplify.
-
-### Gate 8: ASCII and Clean Text
-
-Unless there is a clear reason otherwise, keep files ASCII-clean. Replace smart quotes, em dashes, and special symbols.
+Do not create extra review documents unless useful. The goal is better applications, not more files.
 
 ---
 
-## 17) Postmortem Rule
+## 14) Postmortems
 
-When an application is rejected and feedback is unavailable:
+When an application is rejected and feedback is unavailable, do not assume incompetence.
 
-- do not assume incompetence
-- compare the submitted material to the advert
-- identify lead criterion risk
-- identify domain-distance risk
-- identify truth-boundary/credibility risk
-- identify visa/security/sponsorship risk
-- identify competition risk
-- update future rules if a repeat pattern appears
+Compare the submitted material to the advert and identify likely risk categories:
 
-Save postmortem notes in this resume folder when useful.
+- lead criterion weakness
+- domain-distance risk
+- role-native language gap
+- evidence presentation issue
+- truth-boundary or credibility risk
+- visa, sponsorship, clearance, seniority, or location risk
+- competition risk
+
+Update future guidance only when a repeat pattern appears or when a lesson is clearly useful.
 
 ---
 
-## 18) Final Reminder
+## 15) Final Reminder
 
-The candidate does not need to look weak because the evidence is partly independent. The candidate needs to look serious, specific, and defensible.
+The candidate does not need to look weak because the evidence is partly independent.
 
-The standard is:
+The candidate needs to look serious, specific, competitive, and defensible.
+
+The standard remains:
 
 > Sell hard. Stay truthful. Sound like the role. Make scoring easy.
