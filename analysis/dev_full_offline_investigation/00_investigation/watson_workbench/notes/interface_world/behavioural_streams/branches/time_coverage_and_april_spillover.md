@@ -140,3 +140,75 @@ It also does not mean April should be blindly dropped. Dropping April event rows
 The April spillover is not evidence of a rogue April data population. It is a normal consequence of a two-event authorization stream at a UTC reporting boundary: `151` March-end requests complete as April response events.
 
 For the rest of the behavioural-stream investigation, the practical rule is to stop treating `ts_utc` as a single universal reporting clock. It is the event timestamp. When the analytical question is flow-level, we need to decide whether the flow belongs to the period of its request side, response side, or completion side. This branch gives us the first concrete reason to keep that distinction explicit.
+
+## Appendix: visual evidence and assessment
+
+### A1. Horizon profile and boundary zoom
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/time_coverage_and_april_spillover/figures/01_horizon_profile_boundary.png" alt="Horizon profile and boundary zoom" width="900">
+
+The left panel establishes the broad operating horizon: all three surfaces begin at the same UTC opening instant, but the arrival surface stops at the March boundary while the two behavioural streams continue slightly into April. On its own, the full-horizon view would make the difference look almost invisible because the spillover is only about one minute and forty-one seconds against a three-month window. That is why the boundary zoom matters; it is the part of the figure that makes the actual evidence readable.
+
+The zoom panel shows the distinction cleanly. `arrival_events_5B` terminates at `23:59:59`, while both behavioural streams continue to `00:01:41`. This supports the branch's first claim: the behavioural streams carry event-time lifecycle semantics that can extend past the arrival horizon. It does not yet prove why the extension exists. It only proves that the terminal timestamps differ and that the difference is concentrated at the UTC month boundary. The later figures and the paired-flow check explain the event-side reason for that difference.
+
+For downstream analysis, this figure is the warning against treating every timestamped surface as though it shares one universal period boundary. The arrival horizon and the behavioural event horizon are aligned for almost all of the Jan-Mar window, but the edge behaviour differs exactly where reporting windows are most vulnerable to mistaken inclusion/exclusion rules.
+
+### A2. Monthly event volume with April tail
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/time_coverage_and_april_spillover/figures/02_monthly_volume_with_april_tail.png" alt="Monthly event volume with April tail" width="900">
+
+The main panel shows why the April population cannot be interpreted from the monthly scale alone. January, February, and March each contain roughly `147M` to `163M` behavioural event rows per stream. Against that scale, April is visually flattened at zero even though it is not actually empty. The right panel isolates the April tail and shows the exact count: `151` rows in baseline and `151` rows in with-fraud.
+
+This split view is important because it prevents two opposite mistakes. If we only look at the full monthly bars, we might miss the boundary tail entirely. If we only look at the April inset, we might overstate its importance by forgetting that it is tiny relative to the operating body. The correct reading is both: April exists, but it is a boundary edge rather than a fourth operating month.
+
+The figure also supports the statement that the fraud overlay is not changing the aggregate boundary volume. Baseline and with-fraud match at the April tail count. This is still an aggregate comparison, not a row-identity proof; the stronger point established elsewhere is that the April edge is present before the overlay and remains visible after it.
+
+### A3. April response-side-only event rows
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/time_coverage_and_april_spillover/figures/03_april_response_side_only.png" alt="April response-side-only event rows" width="760">
+
+This figure answers the first concrete grammar question about the April tail: what kind of event rows are those `151` rows? In both streams, April has `0` `AUTH_REQUEST` rows and `151` `AUTH_RESPONSE` rows. That is the key evidence against reading April as a new traffic population. If April represented new traffic starting after the extract boundary, we would expect request-side rows to appear. They do not.
+
+The denominator here is only the April subset, not the whole stream. That matters because the figure is not trying to describe normal request/response balance across the full Jan-Mar horizon. It is isolating the boundary exception and showing that the exception is one-sided. The April tail belongs to the completion side of the event grammar.
+
+The practical consequence is that any event-time report will show April response events, while any request-side flow-origin report should keep these flows anchored to March. This figure does not by itself prove that the March request rows exist; it shows that April contains no requests. The paired-flow figure supplies the complementary evidence that those response rows are matched to pre-April request rows.
+
+### A4. Boundary-minute request and response profile
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/time_coverage_and_april_spillover/figures/04_boundary_minute_request_response_profile.png" alt="Boundary-minute request and response profile" width="900">
+
+This figure brings the boundary into minute-level view for both streams. Before midnight, request and response rows move together at roughly the same per-minute scale, around the low-thousands per minute in this terminal slice. At `00:00`, the request line disappears while the response line continues with `143` rows in the first April minute and `8` rows in the next minute. The same shape appears in baseline and with-fraud.
+
+The important point is not that traffic "drops" at midnight in a normal operating sense. The plotted window is the end of the extract, so the edge is expected to look truncated. The statistical point is the side-specific truncation: requests stop at the boundary, but responses continue briefly. That is exactly the shape expected when flows that began before midnight are allowed to complete after midnight.
+
+This figure should be read together with the paired-flow evidence. The minute profile shows the temporal pattern and the event-side asymmetry. It does not alone prove that each April response has a March request partner; that comes from the bounded join over the `151` April-touched flows. Together, they give the branch its lifecycle interpretation rather than a generic "April leakage" interpretation.
+
+### A5. April-touched flow pair shape
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/time_coverage_and_april_spillover/figures/05_april_touched_flow_pair_shape.png" alt="April-touched flow pair shape" width="900">
+
+This figure is deliberately titled as two readings of the same `151` boundary flows. The first pair of bars reads the flows by event side: `151` request rows and `151` response rows. The second pair reads the same event rows by calendar side: `151` pre-April rows and `151` April rows. These four bars are not four independent populations; they are two ways of slicing the same `302` event rows attached to the `151` April-touched flows.
+
+That distinction is the core of the branch. At flow grain, the boundary population is complete: each April-touched flow has both sides of the two-event grammar. At event-time grain, the same flow is split across the month boundary: request before April, response in April. This is why blindly dropping April rows can damage completeness if the later analysis needs full request/response pairs.
+
+The figure also shows that baseline and with-fraud have the same boundary shape under this check. It does not claim the overlay rows are identical at every field; it shows that the event-side and calendar-side counts match for the bounded April-touched flow population. That is enough for the branch question, because the branch is focused on period semantics rather than full overlay identity.
+
+### A6. Request-to-response latency profile
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/time_coverage_and_april_spillover/figures/06_request_response_latency_profile.png" alt="Request-to-response latency profile" width="840">
+
+This figure summarizes the request-to-response delay for the `151` flows whose response falls in April. It is not a full per-flow distribution plot; it is a compact summary profile. The minimum delay is `0.443` seconds, the median is `13.6` seconds, the p75 is `29.4` seconds, and the maximum is `180` seconds. Baseline and with-fraud have the same summary profile for this boundary cohort.
+
+The statistical reading is that the April spillover is bounded in both row count and elapsed time within this extract. Most of the boundary cohort completes within tens of seconds, while the maximum observed delay reaches three minutes. That supports the interpretation of a short lifecycle tail around midnight rather than a broad April continuation.
+
+The figure should not be read as a service-level agreement or a latency performance claim for the whole platform. It only describes the April-touched boundary cohort. A full latency investigation would need the complete request/response delay distribution across all flows, not only the `151` flows that crossed this particular reporting boundary.
+
+### A7. Approximate distinct boundary caution
+
+<img src="../../../../exports/interface_world/behavioural_streams/branches/time_coverage_and_april_spillover/figures/07_approx_distinct_boundary_caution.png" alt="Approximate distinct boundary caution" width="840">
+
+This figure makes the measurement caution visible. The monthly profiling export reports `162` approximate April flows, while the bounded exact April subset has `151` distinct flows. Because April has only `151` event rows, a literal flow count above `151` is not credible for this subset. The mismatch is a property of using approximate distinct counting on a tiny edge population, not evidence that the stream has more April flows than April rows.
+
+The point is not that approximate distinct counts are useless. At full-stream scale, approximate distinct counting is often a practical way to profile hundreds of millions of rows without expensive exact counting. The problem is using the same approximate measure as authority for small boundary cohorts, exception buckets, audit checks, or other places where a difference of a few rows changes the interpretation.
+
+For this branch, the exact bounded count is the one that should drive the conclusion: `151` April rows and `151` April-touched flows in each stream. The approximate monthly count is useful as a warning that large-surface profiling methods need to be swapped out for exact checks when the question becomes narrow, boundary-sensitive, or audit-like.
