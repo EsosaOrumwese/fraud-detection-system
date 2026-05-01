@@ -199,3 +199,101 @@ This branch creates several later checks:
 - For virtual traffic, operational-time and settlement-time views should be kept separate because most virtual rows have a distinct settlement clock.
 - Any dashboard using hour-of-day should decide upfront whether it is a UTC operations dashboard or a local operating-time dashboard.
 - Zone-level rate denominators should be exposure-weighted and merchant-aware, because merchants are multi-zone but often have a dominant zone.
+
+## Appendix: visual evidence and assessment
+
+### Z1. Zone representation versus timezone identity
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/zone_timezone_structure/figures/01_zone_timezone_identity_check.png" alt="Zone representation and timezone identity check" width="820">
+
+The left panel starts with a simple count question: if `zone_representation` were just another timezone field, the number of zone labels, timezone labels, and pairings would sit much closer together. Instead, the surface has `339` zone representations, `281` primary/operational timezones, `227` settlement timezones, but `11,854` distinct zone-primary pairs. That large pair count is the statistical clue that zone and timezone are related fields, not duplicate fields. One zone can appear with many primary clocks, and one clock can be seen under many zone representations.
+
+The `1,331` timezone triples reinforce the same point from another angle. The row does not only carry one clock. It carries a primary clock, a settlement clock, and an operational clock, and those combinations form their own structure. This matters because a later dashboard or query that groups by `zone_representation` is not automatically grouping by local time. It is grouping by the arrival/routing zone label and only indirectly touching clock interpretation.
+
+The right panel turns that concept into a row-weighted check. On physical rows, `zone_representation` equals `tzid_primary` for only `41.8%` of rows. On virtual rows, the match rate falls to `13.2%`. The denominator here is arrival rows, not merchants or zones, so the figure is telling us how much traffic exposure has direct equality between the zone label and the primary timezone label. Most row exposure does not have that equality. This does not mean the data is wrong. It means the platform surface is carrying more than one kind of location/time concept in the same row.
+
+The practical warning is direct: do not rename `zone_representation` in your head as "timezone." When we need local-clock behaviour, the timezone fields are the safer authority. When we need route/zone exposure, `zone_representation` is the field of interest.
+
+### Z2. Zone exposure concentration
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/zone_timezone_structure/figures/02_zone_exposure_concentration.png" alt="Zone exposure concentration" width="820">
+
+The left panel ranks the largest zone representations by arrival rows. This is row exposure, not merchant count, so the bars answer "where does the arrival-context volume sit?" rather than "where are the merchants based?" `Europe/Paris` is the largest zone at about `18.9M` rows and `8.0%` of the surface, followed by `Europe/Berlin`, `Europe/Oslo`, `Europe/Luxembourg`, and `Europe/Zurich`. The first read is that no single zone owns the traffic primitive. Even the largest zone is below `10%` of all rows.
+
+The right panel adds the distribution shape that the bar chart alone cannot show. The top `5` zones hold `27.3%` of rows, the top `10` hold `39.2%`, the top `20` hold `55.2%`, the top `50` hold `77.4%`, and the top `100` hold `90.4%`. That is a concentrated head with a long tail. The surface is broad enough that many zones exist, but most row exposure is still in a relatively small subset of zones.
+
+This distinction is important for later rate analysis. If we eventually calculate fraud rate, case rate, or event intensity by zone, high-volume zones will dominate row-weighted summaries even though the full zone catalogue is much wider. A stakeholder could truthfully say the platform has global zone coverage, but an analyst must still ask whether a metric is being driven by the head of the distribution.
+
+The figure does not prove that the head zones are riskier, more profitable, or more operationally important. It only proves that they carry more arrival-context exposure. Risk or business importance must wait for behavioural streams, truth products, and case products.
+
+### Z3. Zone rows versus merchant presence
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/zone_timezone_structure/figures/03_zone_rows_vs_merchants.png" alt="Zone rows versus merchant presence" width="760">
+
+This scatter plot tests whether zone exposure is simply a merchant-count story. The x-axis is distinct merchants observed in the zone. The y-axis is arrival rows in millions. If row exposure were only a function of merchant presence, the points would sit close to a simple rising line. They do not.
+
+`Europe/Paris` and `Europe/Berlin` are high on both axes: many merchants and many rows. But `Europe/Oslo` and `Africa/Accra` sit much higher in row volume than their merchant counts would suggest. `Africa/Accra`, for example, has far fewer merchants than the largest European zones but still carries a large amount of arrival exposure. That is the visible form of the report's warning that zone exposure is not merely merchant presence.
+
+The bubble size adds another layer: it represents distinct primary timezones observed within the zone. Larger bubbles mean the zone is associated with a more varied clock context, not necessarily more rows by itself. This matters because zones such as `Europe/Paris` and `Europe/Berlin` are not just large in row count; they also carry many distinct primary timezone contexts. That reinforces the earlier point that zone is an arrival/routing representation rather than a one-to-one local-clock label.
+
+The plot should not be read as a geographic map or as a causal explanation. A point above the rough cloud does not tell us why that zone has high rows per merchant. It tells us where to investigate later: merchant mix, route mode, endpoint estate size, channel composition, and behavioural streams may explain why some zones are volume-heavy relative to merchant count.
+
+### Z4. Merchant zone spread and dominant-zone dependence
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/zone_timezone_structure/figures/04_merchant_zone_spread_and_dominance.png" alt="Merchant zone spread and dominant-zone dependence" width="820">
+
+The left panel moves from zone-level exposure to merchant-level spread. Each bar counts merchants by the number of distinct zone representations they appear in. The important baseline is that the minimum is not `1`; every merchant is multi-zone in this surface. The median merchant appears in `11` zones, and the p95 merchant appears in `42` zones. That is why `zone_representation` cannot be treated as a fixed merchant-home field.
+
+The distribution is not smooth, and that is itself useful. The merchant-zone shape has clumps rather than a perfect bell curve, which suggests the zone footprint is tied to structured operating patterns rather than random noise. We should not overfit that shape yet, but it tells us not to flatten merchants into a single zone without losing information.
+
+The right panel answers the natural follow-up: if every merchant is multi-zone, are merchants evenly spread across those zones? The answer is no. For each merchant, the figure takes that merchant's largest zone by row count and computes the share of the merchant's rows held by that top zone. The median is `70.6%`, and the interquartile range is roughly `54%` to `83%`. So most merchants are multi-zone, but many still have one dominant zone.
+
+This is the denominator lesson. A merchant-level analysis and a zone-level analysis are both valid, but they are not interchangeable. At merchant grain, one merchant contributes once. At arrival-row grain, a merchant's dominant zone can carry most of that merchant's exposure. If we later compare case counts by zone without controlling for merchant spread, high-volume dominant zones may look more important simply because more of the merchant's arrival exposure sits there.
+
+### Z5. Timezone relationship by route mode
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/zone_timezone_structure/figures/05_timezone_relationship_by_route.png" alt="Timezone relationship by route mode" width="720">
+
+This figure isolates the clock relationship by route mode, which is the cleanest way to understand why the timezone fields exist separately. Physical arrivals are simple in this surface: `100%` of physical rows have `tzid_primary = tzid_settlement = tzid_operational`. For physical site traffic, the primitive collapses the three clocks into one local-time interpretation.
+
+Virtual routing behaves differently. Only `13.3%` of virtual rows have all three clocks equal. The remaining `86.7%` have primary and operational clocks equal while settlement differs. That is not a formatting curiosity; it is a route-structure finding. Virtual traffic can operate through an edge context while settlement is anchored elsewhere.
+
+This connects directly to the physical/virtual routing branch. Physical arrivals resolve through `site_id`; virtual arrivals resolve through `edge_id` and can carry separate settlement anchoring. The timezone split is therefore part of the operating model, not a data-quality defect. If we later ask "what time of day does virtual traffic happen?", we need to decide whether we mean operational edge time or settlement time.
+
+The figure does not say that settlement time is more important than operational time. It says they are different enough on virtual traffic that we cannot lazily use one and claim to have answered all local-time questions.
+
+### Z6. UTC versus local-hour profiles
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/zone_timezone_structure/figures/06_utc_vs_local_hour_profiles.png" alt="UTC versus local-hour profiles" width="820">
+
+This line chart compares the global UTC-hour profile against the three local-hour interpretations. The black UTC line has the broad business-day shape identified in the main report: lower row share in the early UTC hours and stronger activity through the UTC daytime band. The profile is not flat, so the arrival primitive is not behaving like rows were uniformly scattered across the day.
+
+The local-clock lines sharpen that story. Primary local and operational local lie almost exactly on top of each other, and both peak around local hour `17`. Settlement local is very close but peaks around `18`. The local profiles also put less share into the `03-05` low band than UTC does. That is what happens when global traffic is translated back into its local operating clocks: some of the UTC spread tightens into a more recognizable operating-day rhythm.
+
+The yellow band marks `10-17`; the reddish band marks `03-05`. These are not business rules hardcoded into the platform. They are reference bands used to compare the shape described in the report. The figure shows that the row distribution is meaningfully higher across the operating-day band and lower in the early-hour band, especially under local clocks.
+
+The correct inference is limited but important. UTC is good for platform-wide timing, extract continuity, and global scheduling. Local-hour fields are better when the question concerns customer, merchant, operational-edge, or settlement-clock behaviour. The chart does not prove store opening hours or customer intent; it shows the row-level temporal rhythm available in the arrival-context surface.
+
+### Z7. UTC-hour shape inside high-volume zones
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/zone_timezone_structure/figures/07_top_zone_utc_hour_heatmap.png" alt="UTC-hour heatmap for high-volume zones" width="820">
+
+This heatmap asks whether the global UTC-hour shape repeats inside each high-volume zone. Each row is a zone, each column is a UTC hour, and the colour is the share of that zone's own rows in that hour. That denominator matters. Darker cells do not mean the zone has more total rows than another zone; they mean that hour is more important within that zone's own daily UTC profile.
+
+The purple dots mark each zone's peak UTC hour. Those dots do not line up. `Europe/Paris` peaks around `11`, `Europe/Berlin` around `13`, `Africa/Accra` around `18`, `Asia/Shanghai` around `5`, and `America/New_York` around `15`. This is the visual evidence behind the report's statement that the global UTC-hour story does not flow cleanly through every zone.
+
+The heatmap also shows why UTC can be misleading if treated as local behaviour. Some Asian zones have strong UTC activity early in the UTC day because their local operating day is shifted forward relative to UTC. Some American zones peak later in UTC. European zones tend to sit closer to the middle UTC hours, but even they do not share one identical peak.
+
+The chart does not invalidate the global UTC-hour profile. It explains it. The global line in Z6 is an aggregate of many zone-level rhythms viewed through UTC. For operational platform monitoring, that aggregate is useful. For local behaviour, it is mixed.
+
+### Z8. Zone-level UTC peak-hour rollup
+
+<img src="../../../../exports/interface_world/traffic_primitives/branches/zone_timezone_structure/figures/08_zone_peak_hour_rollup.png" alt="Zone-level UTC peak-hour rollup" width="820">
+
+The left panel compresses the heatmap into a distribution of peak UTC hours. Green bars count all zones. Rust bars restrict the view to zones with at least `100,000` rows, which removes very small zones that might have unstable peak hours. The yellow background marks the global `10-17` UTC band. Peaks appear inside that band, but they also appear outside it. That confirms the caution from Z7 in a less detailed but more complete way.
+
+The right panel asks a related question: does zone size determine how much of a zone's traffic sits in the `10-17` UTC band? The x-axis is zone rows in millions, and the y-axis is the share of that zone's rows in the global UTC business band. The dashed line is the global share, about `42.3%`. Large zones do not all sit at the same value. `Europe/Berlin`, `Europe/Luxembourg`, and `Europe/Brussels` sit above the global line, while `Africa/Accra` is slightly below it and `Europe/Paris` is only modestly above it despite being the largest zone.
+
+This panel is useful because it prevents a second overclaim: not only are peak hours distributed, but even large zones vary in how concentrated they are inside the global UTC business band. A high row count does not imply the same UTC-hour shape.
+
+Together, the two panels close the UTC-hour assumption. The global UTC profile is real, but it is not a universal zone-level law. Later work should choose UTC when the analytical question is platform-wide timing, and local-clock fields when the question is operating behaviour inside a zone, merchant, edge, or settlement context.
