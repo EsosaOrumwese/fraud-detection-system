@@ -48,10 +48,10 @@ So a single merchant cannot honestly demonstrate both physical sites and virtual
 
 | Example role | Merchant | Endpoint estate | Arrival rows |
 |---|---:|---:|---:|
-| physical example | `4991141159764472327` | `34` physical site coordinates across `6` countries | `10,937` |
+| physical example | `1377960301193355258` | `28` physical site coordinates across `6` countries | `66,349` |
 | virtual example | `4363910952380256924` | `18` virtual edge coordinates across `17` countries, plus `1` settlement anchor | `80,018` |
 
-The physical example is selected because it gives a visible multi-country site footprint. The virtual example is selected near the median virtual edge count, so it demonstrates that a virtual merchant can have multiple operational edges without needing an extreme case.
+The physical example is selected as a Europe-bounded multi-country site footprint so the explanatory map stays focused on the physical-versus-virtual distinction rather than on overseas-territory or legal-country edge cases. The virtual example is selected near the median virtual edge count, so it demonstrates that a virtual merchant can have multiple operational edges without needing an extreme case.
 
 ## Visual evidence and assessment
 
@@ -59,7 +59,7 @@ The physical example is selected because it gives a visible multi-country site f
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/endpoint_geography/figures/01_representative_endpoint_geography.png" alt="Representative physical site geography and virtual edge geography" width="820">
 
-The upper map places one physical-route merchant against country outlines. This merchant has `34` site coordinates across `6` countries and `10,937` arrival rows in the arrival primitive. Each point is part of the merchant's physical site estate. The visual reads like an outlet geography: multiple concrete places where the platform can attach physical route context. The points should not be read as transactions. They are the spatial reference points behind the merchant's physical endpoint model.
+The upper map places one physical-route merchant against country outlines. This merchant has `28` site coordinates across `6` countries and `66,349` arrival rows in the arrival primitive. Each point is part of the merchant's physical site estate. The visual reads like an outlet geography: multiple concrete places where the platform can attach physical route context. The points should not be read as transactions. They are the spatial reference points behind the merchant's physical endpoint model.
 
 The country labels in the upper map help make the concept concrete. The merchant's site estate is not only a count of locations; it has spatial spread across a recognizable regional map. Some sites cluster around nearby European countries, while another point sits away from that cluster. That matters because a physical `site_id` is not merely an arbitrary endpoint token. It represents a site-like geography that can later matter for local-time interpretation, country/site grouping, and endpoint-level exposure.
 

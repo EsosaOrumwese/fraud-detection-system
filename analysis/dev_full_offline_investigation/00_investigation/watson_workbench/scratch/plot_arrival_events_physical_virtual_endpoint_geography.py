@@ -187,7 +187,11 @@ def build_compact_evidence() -> dict[str, pd.DataFrame]:
                 COUNT(*) AS site_locations,
                 COUNT(DISTINCT legal_country_iso) AS site_countries,
                 MAX(lon_deg) - MIN(lon_deg) AS lon_span,
-                MAX(lat_deg) - MIN(lat_deg) AS lat_span
+                MAX(lat_deg) - MIN(lat_deg) AS lat_span,
+                MIN(lon_deg) AS min_lon,
+                MAX(lon_deg) AS max_lon,
+                MIN(lat_deg) AS min_lat,
+                MAX(lat_deg) AS max_lat
             FROM read_parquet('{sites}', hive_partitioning=true)
             GROUP BY 1
         )
@@ -198,10 +202,18 @@ def build_compact_evidence() -> dict[str, pd.DataFrame]:
             s.site_locations,
             s.site_countries,
             s.lon_span,
-            s.lat_span
+            s.lat_span,
+            s.min_lon,
+            s.max_lon,
+            s.min_lat,
+            s.max_lat
         FROM arrival_physical p
         INNER JOIN site_counts s USING (merchant_id)
         WHERE s.site_locations BETWEEN 15 AND 35
+          AND s.min_lon BETWEEN -25 AND 45
+          AND s.max_lon BETWEEN -25 AND 45
+          AND s.min_lat BETWEEN 34 AND 72
+          AND s.max_lat BETWEEN 34 AND 72
         ORDER BY
             s.site_countries DESC,
             (s.lon_span + s.lat_span) DESC,
