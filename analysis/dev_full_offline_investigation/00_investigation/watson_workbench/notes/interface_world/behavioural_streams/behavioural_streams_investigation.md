@@ -182,6 +182,14 @@ The exact fraud-flow shape is clean:
 
 That means the overlay is flow-consistent. When a flow is marked fraud, both request and response rows are represented. Fraud is not appearing as a one-sided event-row artifact.
 
+### Realism and calibration lead
+
+The fraud overlay is mechanically clean, but its operating realism is now a live concern. The stream has only `14,264` fraud-marked rows out of `473,383,388` event rows, or `0.003013%` at event-row grain. At exact flow grain, `7,132` fraud flows sit inside an approximate `244.2M`-flow behavioural surface. That is an extremely sparse fraud world for an investigation whose downstream purpose is realistic fraud analytics and stakeholder-facing conclusions.
+
+The amount posture raises the same concern. Fraud-marked rows are elevated relative to non-fraud rows, but the fraud median is only `31.75`, and the overlay moves total amount by only about `437.5K` against an `11.5B` surface. Low-ticket fraud can be realistic for card testing, credential validation, digital goods abuse, or probe transactions. It is less convincing if this stream is meant to support broad fraud-loss, portfolio-risk, or stakeholder-facing fraud-impact conclusions.
+
+We should therefore treat this as a calibration lead rather than a settled defect. The current extract remains useful for understanding overlay mechanics, grain discipline, stream preservation, and campaign handles. But before using it for serious fraud analytics claims, the fraud overlay policy may need recalibration around incidence, severity bands, channel exposure, campaign density, and downstream truth/case alignment.
+
 ## Campaign surface inside the stream
 
 The post-overlay stream exposes six campaign IDs through `campaign_id`.

@@ -114,6 +114,14 @@ The total amount increases by about `437.5K`, but that is only about `0.0038%` o
 - full-stream view: the overlay preserves traffic scale and barely moves global summaries
 - fraud-subset view: the marked rows have a different economic profile
 
+### Realism and calibration lead
+
+This branch exposes a realism concern for any later stakeholder-facing fraud analytics. The fraud overlay is structurally clean, but it is extremely sparse: `14,264` fraud-marked rows inside `473,383,388` event rows, with `7,132` exact fraud flows inside an approximate `244.2M`-flow behavioural surface. That is a very low fraud incidence for a run intended to support realistic fraud-rate, fraud-loss, campaign, or decisioning conclusions.
+
+The amount posture is also low-impact at portfolio scale. Fraud-marked rows are amount-elevated relative to non-fraud rows, but the fraud median is `31.75`, and the total amount lift is only about `437.5K` against an `11.5B` stream amount surface. Low-ticket fraud can be realistic in card-testing, credential validation, digital goods abuse, or probe-transaction scenarios. It is less convincing as a broad fraud-loss world unless later truth/case surfaces introduce stronger severity, escalation, or campaign semantics.
+
+So the current extract should not be treated as fully calibrated for serious stakeholder fraud analytics. It remains valid for understanding the overlay contract, keyed mutation, grain, and event-flow mechanics. But the fraud generation policy may need a future recalibration pass before we rely on this run for business-facing conclusions about fraud incidence or financial exposure.
+
 ## Fraud event grammar is balanced
 
 The fraud rows preserve the request/response grammar:
