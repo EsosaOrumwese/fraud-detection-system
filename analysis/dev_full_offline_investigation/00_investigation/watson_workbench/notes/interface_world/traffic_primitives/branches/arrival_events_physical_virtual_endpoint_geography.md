@@ -21,6 +21,7 @@ Primary workbench evidence:
 - [`representative_virtual_merchant_edges.csv`](../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/endpoint_geography/representative_virtual_merchant_edges.csv)
 - [`representative_virtual_merchant_settlement.csv`](../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/endpoint_geography/representative_virtual_merchant_settlement.csv)
 - [`endpoint_counts_by_route_merchant.csv`](../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/endpoint_geography/endpoint_counts_by_route_merchant.csv)
+- Natural Earth 110m country boundaries cached under [`reference/ne_110m_admin_0_countries`](../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/endpoint_geography/reference/ne_110m_admin_0_countries)
 
 Coordinate authorities used from the pinned run:
 
@@ -72,11 +73,11 @@ Reading the two panels together corrects the initial intuition. The difference i
 
 <img src="../../../../exports/interface_world/traffic_primitives/branches/physical_virtual_routing/endpoint_geography/figures/02_virtual_edge_network_anchor.png" alt="Virtual edge estate and settlement anchor" width="760">
 
-The virtual side needs its own view because the two coordinate concepts can easily get collapsed inside the side-by-side comparison.
+The virtual side needs its own map because the two coordinate concepts can easily get collapsed inside the side-by-side comparison. This view is zoomed to the selected merchant's observed edge-and-settlement footprint rather than showing the whole world, so the edge spread can be read against actual country outlines.
 
-The gold points are the `18` operational edges. They spread across `17` countries, so the edge estate is not a single location disguised as an id. The edge coordinates are the geography of the virtual routing fabric: the points through which virtual route context can attach.
+The gold points are the `18` operational edges. Most sit across Europe, while others extend into the United States, the Caribbean/Central America region, India, China, and Southeast Asia. The map makes the point more concretely than a raw longitude/latitude grid: the edge estate is a distributed operational footprint, not a single location disguised as an id.
 
-The star is the settlement anchor, shown here with `Europe/Copenhagen` settlement time. It sits near a cluster of operational edges, but the visual relationship should not be overread. The faint connecting lines are not observed payment paths or transaction routes. They are only a visual device showing that the same merchant carries one settlement anchor while also carrying many operational edges.
+The star is the settlement anchor, shown here with `Europe/Copenhagen` settlement time. It sits near the European edge cluster, but it is still a separate object from the edge points. The faint connecting lines are not observed payment paths or transaction routes. They are only a visual device showing that the same merchant carries one settlement anchor while also carrying many operational edges.
 
 The statistical implication is about grouping and denominators. If we later group virtual traffic by `tzid_operational`, we are reading the operational edge estate. If we group by `tzid_settlement`, we are reading settlement-clock anchoring. Both are attached to the same virtual merchant, but they are not the same geography. A case-rate view by operational edge and a case-rate view by settlement timezone may therefore answer different questions.
 

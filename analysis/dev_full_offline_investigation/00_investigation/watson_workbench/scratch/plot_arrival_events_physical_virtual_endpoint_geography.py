@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.request import urlretrieve
+import zipfile
 
 import duckdb
+import geopandas as gpd
 import matplotlib
 import numpy as np
 import pandas as pd
@@ -34,6 +37,8 @@ EXPORT_DIR = (
     / "endpoint_geography"
 )
 FIGURE_DIR = EXPORT_DIR / "figures"
+REFERENCE_DIR = EXPORT_DIR / "reference"
+NATURAL_EARTH_URL = "https://naturalearth.s3.amazonaws.com/110m_cultural/ne_110m_admin_0_countries.zip"
 
 
 COLORS = {
@@ -115,6 +120,41 @@ def savefig(name: str) -> None:
     FIGURE_DIR.mkdir(parents=True, exist_ok=True)
     plt.savefig(FIGURE_DIR / name, dpi=180, bbox_inches="tight")
     plt.close()
+
+
+def load_world_boundaries() -> gpd.GeoDataFrame | None:
+    REFERENCE_DIR.mkdir(parents=True, exist_ok=True)
+    zip_path = REFERENCE_DIR / "ne_110m_admin_0_countries.zip"
+    extract_dir = REFERENCE_DIR / "ne_110m_admin_0_countries"
+    shp_path = extract_dir / "ne_110m_admin_0_countries.shp"
+
+    if not shp_path.exists():
+        try:
+            if not zip_path.exists():
+                urlretrieve(NATURAL_EARTH_URL, zip_path)
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(zip_path) as archive:
+                archive.extractall(extract_dir)
+        except Exception as exc:
+            print(f"WARNING: could not load Natural Earth boundaries: {exc}")
+            return None
+
+    return gpd.read_file(shp_path)
+
+
+def plot_basemap(ax: plt.Axes, extent: tuple[float, float, float, float]) -> None:
+    world = load_world_boundaries()
+    if world is not None:
+        min_lon, max_lon, min_lat, max_lat = extent
+        subset = world.cx[min_lon:max_lon, min_lat:max_lat]
+        subset.plot(ax=ax, color="#efe4d2", edgecolor="#b7ad9c", linewidth=0.55, zorder=0)
+    ax.set_xlim(extent[0], extent[1])
+    ax.set_ylim(extent[2], extent[3])
+    ax.grid(color=COLORS["grid"], linewidth=0.8, alpha=0.58)
+    ax.set_axisbelow(True)
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Latitude")
+    ax.set_facecolor("#f6efe3")
 
 
 def build_compact_evidence() -> dict[str, pd.DataFrame]:
@@ -400,8 +440,22 @@ def plot_virtual_edge_network_anchor(data: dict[str, pd.DataFrame]) -> None:
     virtual_settlement = data["virtual_settlement"].copy()
     virtual_meta = selected.loc[selected["route_mode"].eq("virtual")].iloc[0]
 
-    fig, ax = plt.subplots(figsize=(10.8, 6.6))
-    style_geo_axes(ax, "Virtual routing: operational edge geography versus settlement anchor")
+    coord_frames = [virtual_edges[["lon_deg", "lat_deg"]]]
+    if not virtual_settlement.empty:
+        coord_frames.append(virtual_settlement[["lon_deg", "lat_deg"]])
+    coords = pd.concat(coord_frames, ignore_index=True)
+    lon_margin = max(8.0, (coords["lon_deg"].max() - coords["lon_deg"].min()) * 0.08)
+    lat_margin = max(6.0, (coords["lat_deg"].max() - coords["lat_deg"].min()) * 0.12)
+    extent = (
+        max(-180.0, coords["lon_deg"].min() - lon_margin),
+        min(180.0, coords["lon_deg"].max() + lon_margin),
+        max(-60.0, coords["lat_deg"].min() - lat_margin),
+        min(85.0, coords["lat_deg"].max() + lat_margin),
+    )
+
+    fig, ax = plt.subplots(figsize=(11.8, 6.8))
+    plot_basemap(ax, extent)
+    ax.set_title("Virtual routing: operational edge map versus settlement anchor", loc="left", fontsize=13, pad=12)
 
     if not virtual_settlement.empty:
         anchor = virtual_settlement.iloc[0]
@@ -411,8 +465,8 @@ def plot_virtual_edge_network_anchor(data: dict[str, pd.DataFrame]) -> None:
                 [anchor["lat_deg"], edge["lat_deg"]],
                 color=COLORS["slate"],
                 linewidth=0.75,
-                alpha=0.25,
-                zorder=1,
+                alpha=0.32,
+                zorder=2,
             )
         ax.scatter(
             [anchor["lon_deg"]],
@@ -423,7 +477,7 @@ def plot_virtual_edge_network_anchor(data: dict[str, pd.DataFrame]) -> None:
             edgecolors=COLORS["ink"],
             linewidths=0.8,
             label=f"settlement anchor ({anchor['tzid_settlement']})",
-            zorder=4,
+            zorder=5,
         )
 
     sizes = 70 + (virtual_edges["edge_weight"] / virtual_edges["edge_weight"].max()) * 240
@@ -436,8 +490,18 @@ def plot_virtual_edge_network_anchor(data: dict[str, pd.DataFrame]) -> None:
         linewidths=0.65,
         alpha=0.92,
         label="operational edges",
-        zorder=3,
+        zorder=4,
     )
+    top_labels = virtual_edges.sort_values("edge_weight", ascending=False).head(8)
+    for _, edge in top_labels.iterrows():
+        ax.text(
+            edge["lon_deg"] + 1.8,
+            edge["lat_deg"] + 1.0,
+            str(edge["country_iso"]),
+            fontsize=8,
+            zorder=6,
+            bbox={"boxstyle": "round,pad=0.12", "facecolor": COLORS["paper"], "edgecolor": "none", "alpha": 0.78},
+        )
     add_info_box(
         ax,
         f"merchant_id: {int(virtual_meta['merchant_id'])}\n"
@@ -445,7 +509,7 @@ def plot_virtual_edge_network_anchor(data: dict[str, pd.DataFrame]) -> None:
         f"edge countries: {virtual_edges['country_iso'].nunique():,}\n"
         f"settlement anchor: {virtual_settlement['tzid_settlement'].iloc[0] if not virtual_settlement.empty else 'missing'}",
     )
-    ax.legend(frameon=False, loc="lower left")
+    ax.legend(frameon=False, loc="lower left", ncol=2)
     fig.tight_layout()
     savefig("02_virtual_edge_network_anchor.png")
 
