@@ -1,0 +1,91 @@
+{
+  "bucket_grid_summary": {
+    "rows": 236691694,
+    "merchants": 4050,
+    "min_bucket_index": 0,
+    "max_bucket_index": 2159,
+    "observed_buckets": 2160,
+    "expected_buckets": 2160,
+    "missing_buckets": 0,
+    "rows_bucket_hour_mismatch": 0,
+    "buckets_with_hour_mismatch": 0,
+    "first_ts_utc": "2026-01-01T00:00:00.001940Z",
+    "last_ts_utc": "2026-03-31T23:59:59.944516Z"
+  },
+  "bucket_distribution_stats": {
+    "buckets": 2160,
+    "min_rows_per_bucket": 68584,
+    "p05_rows_per_bucket": 73242.0,
+    "p25_rows_per_bucket": 84558.75,
+    "median_rows_per_bucket": 108028.0,
+    "mean_rows_per_bucket": 109579.48796296296,
+    "p75_rows_per_bucket": 137248.25,
+    "p95_rows_per_bucket": 145046.55,
+    "max_rows_per_bucket": 160084,
+    "min_merchants_per_bucket": 3203,
+    "median_merchants_per_bucket": 3753.0,
+    "mean_merchants_per_bucket": 3676.5662037037036,
+    "max_merchants_per_bucket": 3982
+  },
+  "merchant_exposure_summary": {
+    "merchants": 4050,
+    "min_rows_per_merchant": 1842,
+    "p05_rows_per_merchant": 3935.4000000000005,
+    "p25_rows_per_merchant": 17176.0,
+    "median_rows_per_merchant": 35671.0,
+    "mean_rows_per_merchant": 58442.39358024691,
+    "p75_rows_per_merchant": 69228.0,
+    "p95_rows_per_merchant": 189747.84999999966,
+    "max_rows_per_merchant": 841654,
+    "top_1_share": 0.0035559084722254766,
+    "top_5_share": 0.016528843635721328,
+    "top_10_share": 0.031328268747782925,
+    "top_50_share": 0.11189425599362181,
+    "top_100_share": 0.17780620134477554,
+    "top_10pct_merchants_share": 0.40391576224892795
+  },
+  "daily_merchant_presence_min": {
+    "min_merchants": 4049,
+    "dates_at_min": [
+      "2026-03-22"
+    ]
+  },
+  "merchant_day_exception_rows": [
+    {
+      "missing_utc_date": "2026-03-22 00:00:00",
+      "merchant_id": 13317238460857713575,
+      "context_utc_date": "2026-03-19 00:00:00",
+      "rows": 25
+    },
+    {
+      "missing_utc_date": "2026-03-22 00:00:00",
+      "merchant_id": 13317238460857713575,
+      "context_utc_date": "2026-03-20 00:00:00",
+      "rows": 36
+    },
+    {
+      "missing_utc_date": "2026-03-22 00:00:00",
+      "merchant_id": 13317238460857713575,
+      "context_utc_date": "2026-03-21 00:00:00",
+      "rows": 7
+    },
+    {
+      "missing_utc_date": "2026-03-22 00:00:00",
+      "merchant_id": 13317238460857713575,
+      "context_utc_date": "2026-03-23 00:00:00",
+      "rows": 26
+    },
+    {
+      "missing_utc_date": "2026-03-22 00:00:00",
+      "merchant_id": 13317238460857713575,
+      "context_utc_date": "2026-03-24 00:00:00",
+      "rows": 26
+    },
+    {
+      "missing_utc_date": "2026-03-22 00:00:00",
+      "merchant_id": 13317238460857713575,
+      "context_utc_date": "2026-03-25 00:00:00",
+      "rows": 17
+    }
+  ]
+}

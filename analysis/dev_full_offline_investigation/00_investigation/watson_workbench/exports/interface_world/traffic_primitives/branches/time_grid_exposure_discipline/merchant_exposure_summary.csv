@@ -1,0 +1,2 @@
+merchants,min_rows_per_merchant,p05_rows_per_merchant,p25_rows_per_merchant,median_rows_per_merchant,mean_rows_per_merchant,p75_rows_per_merchant,p95_rows_per_merchant,max_rows_per_merchant,top_1_share,top_5_share,top_10_share,top_50_share,top_100_share,top_10pct_merchants_share
+4050,1842,3935.4000000000005,17176.0,35671.0,58442.39358024691,69228.0,189747.84999999966,841654,0.0035559084722254766,0.016528843635721328,0.031328268747782925,0.11189425599362181,0.17780620134477554,0.40391576224892795

@@ -239,6 +239,27 @@ This is consistent with the surface carrying real temporal operating structure r
 
 Because the surface also carries primary, settlement, and operational local timestamps, the right later analysis should not stop at UTC. The branch investigation shows that the global UTC-hour profile is a mixed-clock view: it is useful for global platform timing and extract coverage, but it does not flow cleanly through every zone. Local-hour views should be preferred when the question is about merchant/customer operating behaviour, while UTC should be kept for platform-wide timing questions.
 
+## Time-grid and exposure discipline
+
+Branch investigation:
+
+- [`branches/arrival_events_time_grid_and_exposure_discipline.md`](branches/arrival_events_time_grid_and_exposure_discipline.md)
+
+The final branch closes the remaining denominator issues around `bucket_index`, merchant-volume inequality, and the one merchant-day exception.
+
+`bucket_index` is a clean UTC-hour grid coordinate:
+
+- observed buckets: `2,160`
+- expected buckets: `2,160`
+- missing buckets: `0`
+- rows where `bucket_index % 24` disagrees with parsed UTC hour: `0`
+
+That makes the field safe for UTC-hour alignment, replay framing, and time-window denominators. It does not make traffic uniform. Rows per bucket range from `68,584` to `160,084`, and hourly intensity differs by channel and route mode.
+
+Merchant exposure is unequal but not single-merchant dominated. The top merchant contributes only about `0.36%` of rows, while the top `10%` of merchants contribute about `40.4%`. So the correct caution is cohort weighting: row-weighted analysis reflects high-volume merchant exposure, not the typical merchant.
+
+The `2026-03-22` merchant-day exception is localized to one low-volume merchant with no rows that day. It should be remembered for strict merchant-day completeness checks, but it does not undermine the row-level operating denominator.
+
 ## Data-quality and readiness read
 
 The surface is clean on the fields that define identity and operational interpretation:
@@ -266,7 +287,7 @@ So the primitive is usable as a stable timing/routing context surface. The main 
 
 The traffic primitive leaves several trails worth carrying forward:
 
-1. The downstream operating world begins with `236.7M` arrival skeleton rows, but only `4,050` merchants. Row-level analysis will be dominated by merchant-volume inequality unless we control the grain.
+1. The downstream operating world begins with `236.7M` arrival skeleton rows, but only `4,050` merchants. Row-level analysis is exposure-weighted and materially shaped by the high-volume merchant cohort unless we control the grain.
 
 2. Channel behaves as merchant-stable in this primitive. That suggests channel may be closer to merchant operating mode than transaction-level behavior at this stage.
 
@@ -274,7 +295,7 @@ The traffic primitive leaves several trails worth carrying forward:
 
 4. Zone is an arrival/routing representation, not a merchant-home field. Zone-level findings must be phrased as traffic/routing findings unless later context proves otherwise.
 
-5. Time coverage is complete across January to March. The primitive looks like a full operating extract rather than an obviously gapped period.
+5. Time coverage is complete across January to March. The primitive looks like a full operating extract rather than an obviously gapped period, and `bucket_index` is a clean UTC-hour coordinate over that horizon.
 
 6. The primitive is time-safe as a join surface, but it is not the canonical traffic stream. The next layer to inspect should show how this arrival context lines up with `6B` behavioural traffic and context.
 
