@@ -39,6 +39,7 @@ Branch investigations:
 
 - [`branches/event_grammar_and_grain.md`](branches/event_grammar_and_grain.md)
 - [`branches/time_coverage_and_april_spillover.md`](branches/time_coverage_and_april_spillover.md)
+- [`branches/baseline_vs_fraud_overlay_contract.md`](branches/baseline_vs_fraud_overlay_contract.md)
 
 ## Contract read before touching the data
 

@@ -1,0 +1,172 @@
+{
+  "stream_contract_profile": [
+    {
+      "stream": "baseline",
+      "rows": 473383388,
+      "approx_flows": 244190267,
+      "event_types": 2,
+      "min_event_seq": 0,
+      "max_event_seq": 1,
+      "min_ts_utc": "2026-01-01T00:00:00.001940Z",
+      "max_ts_utc": "2026-04-01T00:01:41.104298Z",
+      "mean_amount": 24.312742096890343,
+      "median_amount": 14.991536951660194,
+      "p95_amount": 99.44337472002096,
+      "max_amount": 3401.78,
+      "total_amount": 11509248225.396175
+    },
+    {
+      "stream": "with_fraud",
+      "rows": 473383388,
+      "approx_flows": 244190267,
+      "event_types": 2,
+      "min_event_seq": 0,
+      "max_event_seq": 1,
+      "min_ts_utc": "2026-01-01T00:00:00.001940Z",
+      "max_ts_utc": "2026-04-01T00:01:41.104298Z",
+      "mean_amount": 24.313666392731097,
+      "median_amount": 14.995169257344704,
+      "p95_amount": 99.71227231273426,
+      "max_amount": 3401.78,
+      "total_amount": 11509685771.692783
+    }
+  ],
+  "contract_delta": [
+    {
+      "metric": "rows",
+      "baseline": 473383388.0,
+      "with_fraud": 473383388.0,
+      "delta": 0.0
+    },
+    {
+      "metric": "approx_flows",
+      "baseline": 244190267.0,
+      "with_fraud": 244190267.0,
+      "delta": 0.0
+    },
+    {
+      "metric": "event_types",
+      "baseline": 2.0,
+      "with_fraud": 2.0,
+      "delta": 0.0
+    },
+    {
+      "metric": "total_amount",
+      "baseline": 11509248225.396175,
+      "with_fraud": 11509685771.692783,
+      "delta": 437546.2966079712
+    },
+    {
+      "metric": "mean_amount",
+      "baseline": 24.312742096890343,
+      "with_fraud": 24.313666392731097,
+      "delta": 0.0009242958407540414
+    },
+    {
+      "metric": "median_amount",
+      "baseline": 14.991536951660194,
+      "with_fraud": 14.995169257344704,
+      "delta": 0.0036323056845102286
+    },
+    {
+      "metric": "p95_amount",
+      "baseline": 99.44337472002096,
+      "with_fraud": 99.71227231273426,
+      "delta": 0.2688975927133015
+    }
+  ],
+  "schema_overlay_contract": [
+    {
+      "column": "amount",
+      "in_baseline": true,
+      "in_with_fraud": true,
+      "overlay_added_column": false
+    },
+    {
+      "column": "campaign_id",
+      "in_baseline": false,
+      "in_with_fraud": true,
+      "overlay_added_column": true
+    },
+    {
+      "column": "event_seq",
+      "in_baseline": true,
+      "in_with_fraud": true,
+      "overlay_added_column": false
+    },
+    {
+      "column": "event_type",
+      "in_baseline": true,
+      "in_with_fraud": true,
+      "overlay_added_column": false
+    },
+    {
+      "column": "flow_id",
+      "in_baseline": true,
+      "in_with_fraud": true,
+      "overlay_added_column": false
+    },
+    {
+      "column": "fraud_flag",
+      "in_baseline": false,
+      "in_with_fraud": true,
+      "overlay_added_column": true
+    },
+    {
+      "column": "manifest_fingerprint",
+      "in_baseline": true,
+      "in_with_fraud": true,
+      "overlay_added_column": false
+    },
+    {
+      "column": "parameter_hash",
+      "in_baseline": true,
+      "in_with_fraud": true,
+      "overlay_added_column": false
+    },
+    {
+      "column": "scenario_id",
+      "in_baseline": true,
+      "in_with_fraud": true,
+      "overlay_added_column": false
+    },
+    {
+      "column": "seed",
+      "in_baseline": true,
+      "in_with_fraud": true,
+      "overlay_added_column": false
+    },
+    {
+      "column": "ts_utc",
+      "in_baseline": true,
+      "in_with_fraud": true,
+      "overlay_added_column": false
+    }
+  ],
+  "fraud_overlay": {
+    "fraud_rows": 14264,
+    "non_fraud_rows": 473369124,
+    "fraud_row_share": 3.013202482719989e-05,
+    "campaign_count": 6,
+    "fraud_mean_amount": 54.7634755095689,
+    "non_fraud_mean_amount": 24.31274885067952
+  },
+  "fraud_rows_vs_baseline": {
+    "fraud_rows": 14264,
+    "matched_baseline_rows": 14264,
+    "missing_baseline_rows": 0,
+    "same_event_type_rows": 14264,
+    "same_ts_rows": 14264,
+    "same_amount_rows": 0,
+    "mean_amount_delta": 30.674866423758477,
+    "min_amount_delta": 0.0826429454999999,
+    "max_amount_delta": 497.128330676
+  },
+  "fraud_flow_shape": {
+    "flows": 7132,
+    "min_events_per_flow": 2,
+    "median_events_per_flow": 2.0,
+    "max_events_per_flow": 2,
+    "nonstandard_flow_shapes": 0
+  }
+}

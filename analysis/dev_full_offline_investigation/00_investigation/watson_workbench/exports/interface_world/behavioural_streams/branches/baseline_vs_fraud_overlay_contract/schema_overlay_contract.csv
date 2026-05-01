@@ -1,0 +1,12 @@
+column,in_baseline,in_with_fraud,overlay_added_column
+amount,True,True,False
+campaign_id,False,True,True
+event_seq,True,True,False
+event_type,True,True,False
+flow_id,True,True,False
+fraud_flag,False,True,True
+manifest_fingerprint,True,True,False
+parameter_hash,True,True,False
+scenario_id,True,True,False
+seed,True,True,False
+ts_utc,True,True,False
