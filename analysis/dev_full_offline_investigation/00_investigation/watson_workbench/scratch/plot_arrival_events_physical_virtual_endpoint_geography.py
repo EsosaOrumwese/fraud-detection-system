@@ -367,11 +367,28 @@ def plot_representative_endpoint_geography(data: dict[str, pd.DataFrame]) -> Non
     physical_meta = selected.loc[selected["route_mode"].eq("physical")].iloc[0]
     virtual_meta = selected.loc[selected["route_mode"].eq("virtual")].iloc[0]
 
-    fig, axes = plt.subplots(1, 2, figsize=(15.2, 6.0), sharex=True, sharey=True)
-    fig.suptitle("Physical Sites and Virtual Edges Are Both Geographic, but They Are Different Operating Objects", fontsize=14.0, y=1.01)
+    physical_coords = physical_sites[["lon_deg", "lat_deg"]]
+    virtual_coord_frames = [virtual_edges[["lon_deg", "lat_deg"]]]
+    if not virtual_settlement.empty:
+        virtual_coord_frames.append(virtual_settlement[["lon_deg", "lat_deg"]])
+    virtual_coords = pd.concat(virtual_coord_frames, ignore_index=True)
+
+    def extent_for(coords: pd.DataFrame, min_lon_margin: float = 6.0, min_lat_margin: float = 4.0) -> tuple[float, float, float, float]:
+        lon_margin = max(min_lon_margin, (coords["lon_deg"].max() - coords["lon_deg"].min()) * 0.16)
+        lat_margin = max(min_lat_margin, (coords["lat_deg"].max() - coords["lat_deg"].min()) * 0.18)
+        return (
+            max(-180.0, coords["lon_deg"].min() - lon_margin),
+            min(180.0, coords["lon_deg"].max() + lon_margin),
+            max(-60.0, coords["lat_deg"].min() - lat_margin),
+            min(85.0, coords["lat_deg"].max() + lat_margin),
+        )
+
+    fig, axes = plt.subplots(2, 1, figsize=(12.8, 11.6))
+    fig.suptitle("Physical Sites and Virtual Edges Are Both Geographic, but They Are Different Operating Objects", fontsize=14.0, y=0.995)
 
     ax = axes[0]
-    style_geo_axes(ax, "Physical route: outlet/site coordinates")
+    plot_basemap(ax, extent_for(physical_coords))
+    ax.set_title("Physical route: outlet/site map", loc="left", fontsize=11, pad=12)
     ax.scatter(
         physical_sites["lon_deg"],
         physical_sites["lat_deg"],
@@ -381,6 +398,7 @@ def plot_representative_endpoint_geography(data: dict[str, pd.DataFrame]) -> Non
         linewidths=0.7,
         alpha=0.92,
         label="site location",
+        zorder=4,
     )
     add_info_box(
         ax,
@@ -390,11 +408,19 @@ def plot_representative_endpoint_geography(data: dict[str, pd.DataFrame]) -> Non
         f"arrival rows: {int(physical_meta['arrival_rows']):,}",
     )
     for _, row in physical_sites.drop_duplicates("legal_country_iso").head(8).iterrows():
-        ax.text(row["lon_deg"] + 2, row["lat_deg"] + 1.5, str(row["legal_country_iso"]), fontsize=8)
+        ax.text(
+            row["lon_deg"] + 0.9,
+            row["lat_deg"] + 0.65,
+            str(row["legal_country_iso"]),
+            fontsize=8,
+            zorder=6,
+            bbox={"boxstyle": "round,pad=0.12", "facecolor": COLORS["paper"], "edgecolor": "none", "alpha": 0.78},
+        )
     ax.legend(frameon=False, loc="lower left")
 
     ax = axes[1]
-    style_geo_axes(ax, "Virtual route: operational edge coordinates")
+    plot_basemap(ax, extent_for(virtual_coords, min_lon_margin=8.0, min_lat_margin=6.0))
+    ax.set_title("Virtual route: operational edge map", loc="left", fontsize=11, pad=12)
     sizes = 70 + (virtual_edges["edge_weight"] / virtual_edges["edge_weight"].max()) * 230
     ax.scatter(
         virtual_edges["lon_deg"],
@@ -405,6 +431,7 @@ def plot_representative_endpoint_geography(data: dict[str, pd.DataFrame]) -> Non
         linewidths=0.65,
         alpha=0.9,
         label="operational edge",
+        zorder=4,
     )
     if not virtual_settlement.empty:
         ax.scatter(
@@ -416,7 +443,7 @@ def plot_representative_endpoint_geography(data: dict[str, pd.DataFrame]) -> Non
             edgecolors=COLORS["ink"],
             linewidths=0.8,
             label="settlement anchor",
-            zorder=4,
+            zorder=5,
         )
     add_info_box(
         ax,
@@ -427,10 +454,17 @@ def plot_representative_endpoint_geography(data: dict[str, pd.DataFrame]) -> Non
         f"settlement anchors: {len(virtual_settlement):,}",
     )
     for _, row in virtual_edges.drop_duplicates("country_iso").head(8).iterrows():
-        ax.text(row["lon_deg"] + 2, row["lat_deg"] + 1.5, str(row["country_iso"]), fontsize=8)
-    ax.legend(frameon=False, loc="lower left")
+        ax.text(
+            row["lon_deg"] + 1.8,
+            row["lat_deg"] + 1.0,
+            str(row["country_iso"]),
+            fontsize=8,
+            zorder=6,
+            bbox={"boxstyle": "round,pad=0.12", "facecolor": COLORS["paper"], "edgecolor": "none", "alpha": 0.78},
+        )
+    ax.legend(frameon=False, loc="lower left", ncol=2)
 
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.98))
     savefig("01_representative_endpoint_geography.png")
 
 
