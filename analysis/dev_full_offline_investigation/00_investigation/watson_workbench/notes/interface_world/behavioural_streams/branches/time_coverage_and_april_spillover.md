@@ -61,7 +61,7 @@ The branch export gives an exact event-side read for the April population:
 
 There are no April `AUTH_REQUEST` rows. This is the strongest evidence against treating the April tail as a new April traffic population. If April contained both requests and responses, or if it contained request rows that began new flows after the operating window, the concern would be different. Here, the April population is one-sided and completion-side.
 
-The rows are also identical in baseline and with-fraud at the boundary. The April total amount is `3,411.73` in both streams, and the mean April response amount is about `22.59`. The existing month-by-fraud summary also shows that April has `151` non-fraud rows and no fraud-marked rows. So the April edge is not being introduced by the fraud overlay; it is present in the baseline stream lifecycle and carried forward unchanged.
+The baseline and with-fraud streams also have the same aggregate boundary profile. The April total amount is `3,411.73` in both streams, and the mean April response amount is about `22.59`. The existing month-by-fraud summary also shows that April has `151` non-fraud rows and no fraud-marked rows. So the April edge is not being introduced by the fraud overlay; it is visible in the baseline stream lifecycle and preserved at aggregate shape in the with-fraud stream.
 
 ## The paired requests sit before midnight
 
@@ -90,9 +90,9 @@ The latency summary confirms that the boundary is operationally small:
 | `baseline` | `151` | `0.443s` | `13.615s` | `29.403s` | `180.000s` | `24.436s` |
 | `with_fraud` | `151` | `0.443s` | `13.615s` | `29.403s` | `180.000s` | `24.436s` |
 
-This matters because the April tail is not a long uncontrolled extension of the extract. Most of the boundary-crossing flows complete within tens of seconds. The longest request-to-response delay among these boundary flows is exactly `180` seconds, and the latest response lands at `00:01:41.104298Z`.
+This matters because the April tail is bounded in the observed extract. Most of the boundary-crossing flows complete within tens of seconds. The longest request-to-response delay among these boundary flows is exactly `180` seconds, and the latest response lands at `00:01:41.104298Z`.
 
-So the spillover is not merely small by row count; it is also tight in elapsed time. It is consistent with authorization lifecycle completion around midnight, not with an additional April operating day.
+So the spillover is not merely small by row count; it is also tight in elapsed time within this extract. It is consistent with authorization lifecycle completion around midnight, not with an additional April operating day.
 
 ## Why the monthly approximate flow count should not drive this branch
 
@@ -106,12 +106,12 @@ That caution should carry forward. Approximate distinct counts are useful for ve
 
 This branch exposes a boundary decision we need to keep explicit in later analysis:
 
-- If we report by arrival/request period, these `151` flows belong to March because their request side occurred before midnight.
+- If we report by request-side period, these `151` flows belong to March because their request side occurred before midnight.
 - If we report by response/event timestamp, the `151` response events belong to April.
 - If we report by flow completion, these flows complete in April even though they started in March.
 - If we report by event-row traffic, April has `151` response events and no request events.
 
-None of those views is universally "wrong." The wrong move would be to mix them without naming the grain. A dashboard that counts event rows by `ts_utc` will show a small April tail. A flow-origin dashboard should pin those same flows to March. A response-latency or completion-SLA view may intentionally keep them in April.
+None of those views is universally "wrong." The wrong move would be to mix them without naming the grain. A dashboard that counts event rows by `ts_utc` will show a small April tail. A request-side flow dashboard should pin those same flows to March. A response-latency or completion-SLA view may intentionally keep them in April.
 
 For the live fraud decisioning platform, this matters because different teams may be asking different questions. RTDL traffic monitoring may care about event-time messages. Offline performance analysis may care about flow-level windows. Finance or business reporting may care about authorization start date. Case workflows may care about when a response, label, or case action completed. The same `151` boundary flows can therefore be valid evidence in multiple windows, but only if the boundary definition is stated.
 
