@@ -40,6 +40,10 @@ Support script and exports:
 - [`analysis/dev_full_offline_investigation/00_investigation/watson_workbench/scratch/analyze_truth_products.py`](../../../scratch/analyze_truth_products.py)
 - [`analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/interface_world/truth_products`](../../../exports/interface_world/truth_products)
 
+Branch investigations:
+
+- [`branches/flow_truth_labels_positive_class_semantics.md`](branches/flow_truth_labels_positive_class_semantics.md)
+
 ## Contract read before touching the data
 
 The interface contract places all `s4_*` products in the `truth_products` role. The binding posture is:
