@@ -129,3 +129,59 @@ For realism assessment, this branch does not create the same concern as the spar
 Read as a classifier, bank view has low precision and low recall against truth. Read as an operational surface, the same disagreement becomes analytically valuable: it exposes possible over-action, missed truth-positive behaviour, chargeback/write-off posture, and the gap between truth and institutional handling.
 
 For later project briefs, this branch gives us a strong candidate area: truth/bank divergence analysis. The data can support stakeholder-facing questions about operational action quality and risk handling, provided we keep the target definition clear and do not present bank view as ground truth.
+
+## Appendix: visual evidence and assessment
+
+The figures below turn the branch's compact exports into visual evidence. They do not introduce a separate argument from the report; they make the truth/bank disagreement easier to inspect at the level of label language, binary alignment, positive-class overlap, metric behaviour, and operational burden.
+
+### Figure 1. Bank view label distribution
+
+<img src="../../../../exports/interface_world/truth_products/branches/truth_vs_bank_view/figures/01_bank_view_label_distribution.png" alt="Bank view label distribution" width="820">
+
+This figure shows why `s4_flow_bank_view_6B` should not be treated as a plain replacement for the truth-label table. The largest category is `BANK_CONFIRMED_LEGIT`, with `220,401,202` flows, or `93.1174%` of the flow universe. That is the expected majority-class mass. The next largest bank outcome is `BANK_CONFIRMED_FRAUD`, with `10,503,772` flows, or `4.4377%`. The smaller but still material categories are `NO_CASE_OPENED` at `2,424,522` flows, `CUSTOMER_DISPUTE_REJECTED` at `2,220,851` flows, and `CHARGEBACK_WRITTEN_OFF` at `1,141,347` flows.
+
+The important point is the label vocabulary. This is not merely a binary fraud/not-fraud surface with a different name. It carries institutional handling language: confirmation, case absence, customer dispute rejection, and chargeback write-off. That language tells us the surface is closer to how the institution records or acts on flows than to a pure supervised target.
+
+The log scale is used because the bank labels span from over `220M` flows down to about `1.14M` flows. The figure proves that the bank view has operational structure inside it. It does not prove whether each institutional outcome is correct against truth. That judgment requires the truth/bank reconciliation shown in the next figures.
+
+### Figure 2. Truth versus bank view at flow grain
+
+<img src="../../../../exports/interface_world/truth_products/branches/truth_vs_bank_view/figures/02_truth_bank_confusion_matrix.png" alt="Truth versus bank view at flow grain" width="760">
+
+This matrix is the core reconciliation surface for the branch. It compares `is_fraud_truth` and `is_fraud_bank_view` over the same flow universe. The largest cell is the true-negative cell: `220,512,654` flows are truth-negative and bank-negative. That cell explains why all-flow agreement and accuracy can look strong even when positive-class alignment is weak.
+
+The two off-diagonal cells are the operationally interesting part. `10,238,501` flows are bank-positive but truth-negative. These are the flows that create the over-action or false-positive-style question: why did the institution-facing surface mark these flows as positive when the supervised truth surface did not? On the other side, `4,533,921` flows are truth-positive but bank-negative. These create the missed-risk or under-action question: why did the supervised truth surface mark these flows positive without the bank view also marking them positive?
+
+The true-positive alignment cell is `1,406,618` flows. That is the overlap between the two positive concepts. It is not the majority of either positive population. So the figure proves that bank view and truth are not simply two names for the same label. It also does not prove that the bank view is defective by itself; it only proves that if we read bank view against truth, there is a large disagreement surface that needs to be investigated rather than ignored.
+
+### Figure 3. Positive populations do not cover the same flows
+
+<img src="../../../../exports/interface_world/truth_products/branches/truth_vs_bank_view/figures/03_positive_population_overlap.png" alt="Positive population overlap" width="820">
+
+This figure looks inside the positive populations rather than across the full flow universe. That matters because the full matrix is dominated by truth-negative flows. Here, the denominator changes depending on which positive population we are inspecting.
+
+The upper bar starts with all bank-positive flows: `11,645,119` flows. Of these, `10,238,501` are truth-negative, which is `87.92%` of bank positives. Only `1,406,618`, or `12.08%`, are also truth-positive. This is the precision view: when the bank view says positive, only a small share agrees with supervised truth.
+
+The lower bar starts with all truth-positive flows: `5,940,539` flows. Of these, `4,533,921`, or `76.32%`, are bank-negative. Only `1,406,618`, or `23.68%`, are also bank-positive. This is the recall view: when truth says positive, the bank view captures only about a quarter of that positive population.
+
+The figure proves that the disagreement is not just a small edge effect caused by the huge full-flow denominator. It remains large even after we zoom into the positive populations. What it does not prove is why the mismatch exists. The reason could be label semantics, bank-action policy, case lifecycle, synthetic calibration, or segment-specific behaviour. Those are follow-on questions for deeper branch work.
+
+### Figure 4. Bank view read as a classifier against truth
+
+<img src="../../../../exports/interface_world/truth_products/branches/truth_vs_bank_view/figures/04_classifier_metric_read.png" alt="Bank view classifier metrics against truth" width="820">
+
+This figure translates the confusion matrix into standard classifier-style metrics, but the wording is deliberate: it is the bank view read as a classifier, not necessarily the bank view designed as a classifier. Precision is `12.08%`, recall is `23.68%`, and F1 is `16.00%`. Those three metrics say that positive-class alignment is weak if `is_fraud_truth` is the target.
+
+The same chart also shows specificity at `95.56%` and accuracy at `93.76%`. Those numbers look strong, but they are dominated by the truth-negative majority. Because `97.49%` of flows are truth-negative, a surface can appear accurate at all-flow level while still missing most truth positives and producing many bank positives that do not match truth.
+
+The figure's statistical point is therefore not "accuracy is fake." Accuracy is mathematically correct. The point is that accuracy is not the right lead metric for this branch's question. If the stakeholder question is about fraud/risk-positive behaviour, precision, recall, F1, false positives, and false negatives carry more meaning than all-flow accuracy. This is exactly the kind of metric discipline we need later when turning the investigation into stakeholder-facing analytics.
+
+### Figure 5. Disagreement burden versus aligned positive set
+
+<img src="../../../../exports/interface_world/truth_products/branches/truth_vs_bank_view/figures/05_disagreement_burden_vs_alignment.png" alt="Disagreement burden versus true positive alignment" width="820">
+
+This figure compares the two disagreement populations against the aligned true-positive set. The bank-positive/truth-negative population contains `10,238,501` flows, which is `7.28x` the true-positive alignment count. The truth-positive/bank-negative population contains `4,533,921` flows, which is `3.22x` the true-positive alignment count. The aligned positive set itself is `1,406,618` flows.
+
+This is the operational burden view. If we only report the true-positive agreement, we miss the larger operating story. The bigger analytical question is not simply "how many positives agree?" It is how much work, friction, missed-risk, or review burden exists around the agreement. Bank-positive/truth-negative flows may represent over-action, false-positive review, customer friction, or conservative institutional handling. Truth-positive/bank-negative flows may represent missed risk, under-escalation, delayed recognition, or a truth-positive class that is not meant to always become bank-positive.
+
+The figure does not assign blame to the bank view. It makes the scale of divergence visible. That scale is why this branch is useful for later project briefs: truth/bank divergence can support concrete stakeholder questions about operational quality, risk handling, review burden, and the difference between supervised truth and institutional action.
