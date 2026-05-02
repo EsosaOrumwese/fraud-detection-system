@@ -223,3 +223,65 @@ The safe analytical wording is therefore not "session features are bad." The cor
 It is not live-safe as a direct feature source. The fields that make it analytically useful, especially `arrival_count`, `session_end_utc`, and final duration, are closure fields. They tell us what the session became after completion, not what the platform could know at the moment of authorization.
 
 The practical rule for the fraud decisioning platform is simple: use `session_id` and online-maintained as-of session state in live paths; use `s1_session_index_6B` for offline reconstruction and completed-session analysis. Mixing those two would create temporal leakage and would overstate what the live system could honestly know.
+
+## Appendix: visual evidence and assessment
+
+### Figure A1. Session rows versus represented arrival exposure
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/session_index_time_safety/figures/01_session_rows_vs_arrival_exposure.png" width="900">
+
+This figure separates two denominators that can easily be confused: session rows and represented arrival exposure. The session index has `184.82M` completed-session rows, but those rows reconstruct `236.69M` arrivals once `arrival_count` is summed. The single-arrival component is the same absolute count in both bars, `141.99M`, because one single-arrival session contributes exactly one arrival. The difference appears in the multi-arrival component: `42.83M` multi-arrival sessions expand into `94.71M` represented arrivals.
+
+The statistical point is that session-grain and arrival-grain answers are not interchangeable. A session-weighted statement describes a typical completed session, while an arrival-weighted statement describes the exposure seen by authorization traffic. Single-arrival sessions dominate session rows at `76.8%`, but they account for a smaller `60.0%` of represented arrivals. Multi-arrival sessions are only `23.2%` of sessions but contribute `40.0%` of represented arrivals. That is why later analytics must state the denominator explicitly. A fraud or behaviour pattern that looks small at session grain may represent a much larger share of live arrival exposure.
+
+The figure supports the claim that `s1_session_index_6B` is a coherent reconstruction surface: the completed-session rows expand cleanly into the arrival estate. It does not prove that final session fields are live-safe. In fact, the expansion is part of the leakage caution. The completed row already knows whether a session stayed single-arrival or became multi-arrival, which is not necessarily knowable when the first authorization request is being scored.
+
+### Figure A2. Completed-session arrival-count distribution
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/session_index_time_safety/figures/02_arrival_count_distribution_log_tail.png" width="900">
+
+The arrival-count distribution falls sharply as final session size increases. The log scale is necessary because the head and tail are separated by many orders of magnitude: `141.99M` sessions have one arrival, `35.14M` have two, `6.53M` have three, and the estate continues down to a single observed session with ten arrivals. On a linear axis, the tail would visually disappear, which would hide the fact that longer completed sessions exist even though they are rare.
+
+The operational meaning is that this platform's session surface is not mainly a long browsing-journey surface. It is mostly a short operating unit: one-arrival sessions dominate, two-arrival sessions are substantial, and longer sessions rapidly become exceptional. That matters for how we speak about "session behaviour" later. If we use session language with stakeholders, we should not imply that most customers or merchants are producing long multi-step session journeys. The evidence says the typical completed session is short.
+
+The figure also clarifies why `arrival_count` is such a sensitive field. The final count is a compact summary of the future shape of the session. For a one-arrival session, it says no later arrival occurred. For a two-arrival or larger session, it says additional arrivals occurred after the session opened. Those statements are valid after completion, but unsafe if injected into a model before those later arrivals have either happened or failed to happen.
+
+### Figure A3. Session share versus represented arrival share
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/session_index_time_safety/figures/03_arrival_count_band_tail_exposure.png" width="900">
+
+This view keeps the same arrival-count bands but compares their share of completed sessions against their share of represented arrivals. The one-arrival band shows the strongest denominator gap: `76.8%` of sessions but only `60.0%` of arrivals. Every multi-arrival band moves in the opposite direction. Two-arrival sessions are `19.0%` of sessions but `29.7%` of represented arrivals; three-arrival sessions are `3.5%` of sessions but `8.3%` of represented arrivals; the smaller four and `5+` bands also carry more arrival exposure than their session share alone would suggest.
+
+The point is not just that multi-arrival sessions exist. The point is that they are exposure-amplifying at arrival and authorization grain. A completed session with multiple arrivals receives more chances to appear in flow-level and authorization-level reads than a single-arrival session. If we later compare fraud rates, review burden, or behavioural outcomes by session type, a session-weighted read and an arrival-weighted read may answer different questions. Session weighting answers "what kind of completed sessions do we have?" Arrival weighting answers "what kind of session context does live traffic encounter?"
+
+This figure does not say multi-arrival sessions are riskier. It does not join to fraud labels or case outcomes. It only establishes the denominator discipline needed before making that kind of claim. The safe conclusion is that multi-arrival sessions are a minority of completed sessions but a larger part of operating exposure, so they cannot be dismissed simply because their session count is smaller.
+
+### Figure A4. Completed-session duration by arrival-count band
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/session_index_time_safety/figures/04_duration_quantiles_by_arrival_count_band.png" width="900">
+
+The duration profile confirms that final session length is tied to final arrival count. One-arrival sessions sit at zero duration across the plotted summary points, which is expected because a single-arrival completed session starts and ends on the same event. Once a session has two or more arrivals, the median duration becomes positive and rises with the arrival-count band. The approximate median moves from about `6.34h` for two-arrival sessions to about `15.09h` for the `5+` band. The upper quantiles and maximum values cluster below the one-day boundary, with maxima just under `24h`.
+
+The statistical reality behind the figure is a mixture of coherence and caution. Coherence comes from the monotonic shape: sessions with more arrivals generally last longer, and the maximum is bounded rather than unbounded. That supports the view that the session index was built under a consistent session-window rule. The caution comes from the same facts. Final duration and final end time are completed-session facts. They are excellent for offline reconstruction and post-hoc analysis, but they would leak future knowledge if used during a live authorization decision before the session has closed.
+
+The figure also helps separate two different questions. It supports the internal consistency of the session construction; it does not automatically validate the realism of the session policy. Multi-arrival sessions can span many hours, so if a later stakeholder analysis interprets sessions as normal customer checkout sessions, that assumption should be checked. In this platform extract, "session" may be better understood as a bounded operating grouping rather than a short web visit in every case.
+
+### Figure A5. Closure field footprint across session rows
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/session_index_time_safety/figures/05_time_safety_closure_field_footprint.png" width="900">
+
+This figure shows why the leakage issue is not limited to a small tail of unusual sessions. The final `arrival_count` and final `session_end_utc` fields are present across the full `184.82M` session rows. The same surface also separates single-arrival sessions from multi-arrival sessions, showing that the final closure fields cover both parts of the estate. That means even a one-arrival session row carries completed-session knowledge: it tells us the session did not continue.
+
+The key inference is that live-safety cannot be decided by looking only at whether a session is multi-arrival. Multi-arrival rows make the issue obvious because later arrivals plainly exist. Single-arrival rows are more subtle but still time-sensitive because the completed record says the session ended immediately. At the first authorization event, the platform may know the session has started, but it cannot honestly know the final closure state unless the online session logic has already closed it under an explicit as-of rule.
+
+The figure proves field footprint, not modelling harm by itself. It does not show that a particular model used these fields incorrectly. What it establishes is that the raw session index contains closure information everywhere, so any modelling or analytics workflow that imports the surface directly must classify fields before use. The safe posture is to allow this surface for offline reconstruction and case review, while requiring as-of projections for live features.
+
+### Figure A6. Session-index field time-safety classes
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/session_index_time_safety/figures/06_session_index_field_time_safety_classes.png" width="900">
+
+This figure turns the time-safety argument into a field-level classification. `session_id` and session-opening context are live-compatible concepts because an online system can maintain those values as-of the current arrival. That does not mean they should be sourced directly from `s1_session_index_6B` inside the live decision path; in this branch, the session index itself remains a completed-session surface. `arrival_count` and `session_end_utc` are classified as offline-only because they describe the completed session. All four fields cover the same `184.82M` session rows, so the difference is not coverage. The difference is whether the value can be known as-of authorization without looking ahead.
+
+That distinction is the practical rule this branch is trying to preserve. A field can be complete, clean, and analytically useful while still being unsafe for live decisioning when read from the wrong surface. Completeness tells us whether the data is populated. Time-safety tells us whether the platform could have known the value at the moment of authorization from an online/as-of source. `arrival_count` and `session_end_utc` pass the first test and fail the second if used naively as live features.
+
+The figure should therefore be read as a usage map, not as a quality score. The offline-only fields are not bad data. They are good completed-session data. The problem would arise only if we crossed the operating boundary and treated completed-session facts as if they were available inside the live fraud decisioning path. For notebook work, dashboarding, and stakeholder analysis, this figure anchors the rule: use completed-session fields for retrospective analysis, but rebuild session features as as-of-time projections before making live model claims.
