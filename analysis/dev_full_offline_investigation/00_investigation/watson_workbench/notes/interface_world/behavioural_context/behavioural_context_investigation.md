@@ -289,6 +289,16 @@ The session index is still valuable, but it belongs to offline analysis and reco
 
 7. Campaign IDs are usable as grouping keys, but their business meaning is still not self-contained in the context surfaces alone.
 
+## Branch closure note
+
+Three planned behavioural-context branch questions are considered covered by this parent investigation and the completed [`flow_anchor_contract.md`](branches/flow_anchor_contract.md) branch:
+
+1. **Baseline vs post-overlay anchor.** Covered. The investigation establishes that the post-overlay anchor preserves the same aggregate flow/arrival identity surface as the baseline anchor, while selected fraud flows receive changed amounts plus fraud/campaign markers.
+
+2. **Campaign and fraud marker semantics.** Covered to the appropriate level for this stage. `fraud_flag` is treated as the post-overlay positive-flow marker, and `campaign_id` is treated as a sparse campaign grouping field attached to fraud-marked flows. The limit remains explicit: campaign business meaning is not self-contained in the context surface alone and should not be overinterpreted without campaign catalogue, truth, or case context.
+
+3. **Null and completeness semantics.** Covered. Required context fields are complete across the inspected surfaces, and `campaign_id` nullness is structural non-campaign traffic rather than a data-quality defect.
+
 ## Working conclusion
 
 The behavioural context layer is what turns thin event traffic into an analytically usable fraud-platform world.
