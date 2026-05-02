@@ -44,6 +44,7 @@ Branch investigations:
 
 - [`branches/flow_truth_labels_positive_class_semantics.md`](branches/flow_truth_labels_positive_class_semantics.md)
 - [`branches/truth_vs_bank_view.md`](branches/truth_vs_bank_view.md)
+- [`branches/case_timeline_operational_burden.md`](branches/case_timeline_operational_burden.md)
 
 ## Contract read before touching the data
 

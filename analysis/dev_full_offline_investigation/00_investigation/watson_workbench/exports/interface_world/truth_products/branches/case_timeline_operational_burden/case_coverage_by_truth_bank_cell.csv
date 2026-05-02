@@ -1,0 +1,5 @@
+cell,flows,case_flows,case_coverage_share
+bank_positive_truth_negative,10238501,10238501,1.0
+true_negative_alignment,220512654,7992292,0.036244142252262766
+truth_positive_bank_negative,4533921,3115199,0.687087181272016
+true_positive_alignment,1406618,1406618,1.0
