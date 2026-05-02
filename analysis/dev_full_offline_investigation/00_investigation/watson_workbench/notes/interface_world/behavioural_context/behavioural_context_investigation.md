@@ -49,6 +49,7 @@ Branch investigations:
 
 - [`branches/entity_grain_identity_graph.md`](branches/entity_grain_identity_graph.md)
 - [`branches/session_index_time_safety.md`](branches/session_index_time_safety.md)
+- [`branches/flow_anchor_contract.md`](branches/flow_anchor_contract.md)
 
 ## Contract read before touching the data
 
