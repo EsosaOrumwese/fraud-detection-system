@@ -1,0 +1,2 @@
+sessions,represented_arrivals,merchants,min_session_start_utc,max_session_end_utc,negative_duration_sessions,zero_duration_sessions,positive_duration_sessions,single_arrival_sessions,multi_arrival_sessions,arrivals_in_multi_arrival_sessions,min_duration_seconds,approx_median_duration_seconds,approx_p95_duration_seconds,approx_p99_duration_seconds,max_duration_seconds
+184820742,236691694,4050,2026-01-01 00:00:00.00194,2026-03-31 23:59:59.944516,0,141986429,42834313,141986429,42834313,94705265,0.0,0.0,45041.15351882279,66944.51335372466,86386.23874211311

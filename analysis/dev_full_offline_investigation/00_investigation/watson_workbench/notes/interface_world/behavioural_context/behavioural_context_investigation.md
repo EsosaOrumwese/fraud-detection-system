@@ -48,6 +48,7 @@ Support script and exports:
 Branch investigations:
 
 - [`branches/entity_grain_identity_graph.md`](branches/entity_grain_identity_graph.md)
+- [`branches/session_index_time_safety.md`](branches/session_index_time_safety.md)
 
 ## Contract read before touching the data
 

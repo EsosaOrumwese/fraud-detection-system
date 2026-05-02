@@ -1,0 +1,5 @@
+field_class,fields,rows_represented
+live-safe identity handle,session_id,184820742
+offline closure field,session_end_utc,184820742
+offline closure field,arrival_count,184820742
+session opening context,session_start_utc + entity IDs,184820742
