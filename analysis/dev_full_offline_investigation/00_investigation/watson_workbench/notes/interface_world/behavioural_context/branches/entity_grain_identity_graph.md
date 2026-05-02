@@ -37,8 +37,9 @@ Branch exports:
 - [`entity_cardinality_profile.csv`](../../../../exports/interface_world/behavioural_context/branches/entity_grain_identity_graph/entity_cardinality_profile.csv)
 - [`entity_arrival_reuse_summary.csv`](../../../../exports/interface_world/behavioural_context/branches/entity_grain_identity_graph/entity_arrival_reuse_summary.csv)
 - [`top_merchant_id_by_arrivals.csv`](../../../../exports/interface_world/behavioural_context/branches/entity_grain_identity_graph/top_merchant_id_by_arrivals.csv)
+- [`merchant_arrival_counts.csv`](../../../../exports/interface_world/behavioural_context/branches/entity_grain_identity_graph/merchant_arrival_counts.csv)
 
-The branch adds exact cardinality and arrival-reuse summaries for `s1_arrival_entities_6B`. A broader entity fanout scan was deliberately not carried forward into the report because the useful first-order branch question can be answered from exact cardinalities, per-entity arrival reuse, and the contract-defined row grain without materializing heavy many-to-many projections.
+The branch adds exact cardinality and arrival-reuse summaries for `s1_arrival_entities_6B`, plus a targeted full-merchant compact export used to inspect merchant exposure and concentration. A broader entity fanout scan was deliberately not carried forward into the report because the useful first-order branch question can be answered from exact cardinalities, per-entity arrival reuse, merchant exposure counts, and the contract-defined row grain without materializing heavy many-to-many projections.
 
 ## What this surface is
 
@@ -190,3 +191,89 @@ The graph is therefore useful, but it is not automatically realistic enough for 
 The surface is complete and coherent at required-field level, and it is rich enough to support entity-aware analytics. But the first statistical read shows a governed synthetic identity world rather than an obviously organic one. Party, account, instrument, and device IDs are broad but highly symmetric. IPs are much more reused. Sessions are numerous and short.
 
 So the next useful branch should not simply describe more columns. It should test identity fanout directly: how many accounts per party, instruments per account, devices per party, parties per device, parties per IP, and merchants per entity. That is the branch that will tell us whether the context layer can support realistic network-style fraud analytics or whether its strongest defensible use is simpler entity exposure and IP/session concentration analysis.
+
+## Appendix: visual evidence and assessment
+
+This appendix holds the visual evidence behind the branch. The figures are not included as decoration: they are here to make the entity-context structure visible at human scale. The branch is asking what kind of identity surface the platform has received, so the figures focus on cardinality, reuse, symmetry, merchant exposure, and the limits of what arrival-grain co-occurrence can prove.
+
+### A1. Entity cardinality contrast
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/entity_grain_identity_graph/figures/01_entity_cardinality_contrast.png" alt="Exact entity cardinalities in the arrival context surface" width="780">
+
+This figure shows how differently sized the identity layers are even though every layer is attached to the same `236.7M` arrival rows. The merchant layer is tiny at `4,050` IDs. Party, account, instrument, and device sit together at roughly `5.59M` IDs. IP is smaller at `2.39M` IDs. Session is much larger at `184.8M` IDs.
+
+The log scale is necessary because the surface contains several orders of magnitude in one view. Without the log scale, merchant count would disappear visually and session count would dominate the chart. The important point is not merely that the bars have different heights; it is that the same arrival table exposes several different denominators. A merchant-grain question, a customer-grain question, an IP-grain question, and a session-grain question are not interchangeable, even when they all start from the same `s1_arrival_entities_6B` surface.
+
+The figure also makes the first realism caution visible. Party, account, instrument, and device are almost the same size. In an organic financial-services identity estate, we would usually expect more separation between those populations because customers, accounts, instruments, and devices do not normally move as perfectly matched layers. This chart does not prove one-to-one mapping, but it explains why the branch treats that symmetry as a lead rather than as a settled fact.
+
+What this figure proves is the cardinality structure of the identity handles. What it does not prove is relationship structure. It does not tell us whether one party has many accounts, whether one device is shared by many parties, or whether one IP joins unrelated customers. Those are fanout questions, and they require a separate grouped relationship scan.
+
+### A2. Arrival reuse shape by entity type
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/entity_grain_identity_graph/figures/02_entity_arrival_reuse_quantiles.png" alt="Arrival reuse shape by entity type" width="780">
+
+This figure moves from "how many IDs exist" to "how many arrivals each ID tends to carry." That distinction matters because a large entity population can still be weak analytically if each entity appears only once, while a smaller population can be powerful if entities recur often enough to support behavioural evidence.
+
+Merchants are the high-volume operating nodes. The median merchant has about `35.6K` arrivals, the P95 merchant has about `189.9K`, the P99 merchant has about `408.1K`, and the maximum reaches about `841.7K`. That shape is expected because merchants are venues through which many transactions pass. It also warns us that row-weighted summaries will be influenced by high-volume merchants unless we explicitly choose a merchant-weighted view.
+
+Party, account, instrument, and device form a second and very different pattern. Their median, P95, P99, and maximum reuse values sit almost on top of each other. The median is `36` arrivals, P95 is `75`, P99 is `83`, and the maximum is `114` for all four layers. That is not just "similar"; it is close enough to suggest these layers were authored under a shared synthetic identity template. For analysis, this means account-level, instrument-level, and device-level summaries may look independent because the columns have different names, while statistically they may carry nearly the same recurrence structure.
+
+IP breaks that symmetry. Its median reuse is only slightly above party-level reuse, but its upper tail is much heavier: P95 is `433`, P99 is `635`, and the maximum is `1,481`. That means the IP layer has a stronger shared-infrastructure signature than party/account/instrument/device in this first-order view. If we are looking for network-style fraud analytics, IP deserves attention earlier than a generic "all entity handles are equally useful" approach.
+
+Session behaves differently again. Most sessions are short: median `1`, P95 `2`, P99 `3`, max `10`. The platform can attach session identity to arrivals, but this figure does not support treating sessions as long behavioural histories for most traffic. Session is more naturally a short-window reconstruction handle unless a later branch shows a richer session subset.
+
+The percentile points are approximate quantiles, not exact order statistics. They are still valid for reading distribution shape. The figure proves recurrence contrast across entity types; it does not prove cross-entity fanout or causality.
+
+### A3. Symmetry diagnostic against the party layer
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/entity_grain_identity_graph/figures/03_identity_layer_symmetry_diagnostic.png" alt="Identity layer symmetry diagnostic against the party layer" width="780">
+
+This heatmap is a direct diagnostic for the branch's main caution: party, account, instrument, and device may not be independent analytical surfaces in this synthetic world.
+
+Each cell compares an entity layer to the party layer. A value near `1.00x` means that layer is effectively the same as party on that metric. Account, instrument, and device stay at `1.00x` across entity count, approximate median reuse, approximate P95 reuse, approximate P99 reuse, maximum reuse, and mean reuse. That is why the report does not casually say "we have four separate customer-side identity behaviours." Statistically, the first-order evidence says those four layers are moving almost as one.
+
+The IP row shows the opposite pattern. IP has fewer distinct IDs than party (`0.43x`), similar median reuse (`1.11x`), but far heavier upper-tail reuse: P95 is `5.77x` party, P99 is `7.65x` party, and max is `13.0x` party. This is the statistical reason IP is called out as the stronger network lead. It is not because the IP column sounds interesting; it is because its reuse behaviour differs materially from the tightly coupled party/account/instrument/device block.
+
+The session row should be read carefully. Session has far more distinct IDs than party (`33.1x`), but each session is much shorter: median, P95, P99, max, and mean reuse are all far below party-level reuse. That combination means the platform has many session handles, not that it has long session histories. A dashboard that simply counts session IDs would miss that distinction.
+
+This figure proves metric-level symmetry and contrast. It does not prove that the identity graph is structurally one-to-one, because it compares marginal distributions rather than pairwise mappings. The correct next step for that question remains a fanout branch.
+
+### A4. Merchant arrival exposure across the full merchant estate
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/entity_grain_identity_graph/figures/04_full_merchant_ranked_arrival_exposure.png" alt="Merchant arrival exposure across the full merchant estate" width="780">
+
+This figure uses the full `4,050`-merchant compact export, not only the top-merchant slice. It ranks merchants by arrival rows and shows the entire exposure surface from the highest-volume merchant to the lowest-volume merchant.
+
+The top of the curve is steep. The highest merchant carries about `842K` arrivals, the tenth merchant still carries about `679K`, and the hundredth merchant carries about `261K`. By the middle of the merchant estate, the ranked merchant is around `36K` arrivals, and the lowest merchant is around `2K`. This is a large spread inside a single operating layer.
+
+The point of this figure is not that high-volume merchants are suspicious. High volume can be normal operating scale. The point is denominator discipline. If we compute a row-weighted fraud rate, decline rate, case rate, device-reuse rate, or IP-reuse rate, high-volume merchants will naturally carry more influence because they produce more arrivals. That is correct for platform-load questions. It is not automatically correct for "typical merchant" questions.
+
+The figure therefore supports the branch's warning that merchant exposure can dominate row-grain analysis. It does not prove merchant risk, merchant quality, or merchant fraud. It only proves the exposure shape that later risk analyses must control for.
+
+### A5. Merchant concentration curve
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/entity_grain_identity_graph/figures/05_full_merchant_arrival_concentration_curve.png" alt="Merchant concentration curve for arrival exposure" width="780">
+
+This figure turns the ranked merchant surface into a concentration view. The dashed diagonal is the equal-exposure reference: if every merchant contributed evenly, the top `10%` of merchants would contribute `10%` of arrivals, the top `50%` would contribute `50%`, and the curve would sit on the diagonal. The observed curve rises above that reference, which means arrival exposure is concentrated among higher-volume merchants.
+
+The top `100` merchants contribute `17.8%` of all arrivals. The top `10%` of merchants contribute `40.4%`. The top `50%` contribute `85.0%`. Those numbers are the practical reason merchant grain matters. A row-level view of the context surface is not a neutral view of all merchants; it is an exposure-weighted view of the operating world.
+
+This does not mean the merchant layer is unusable. It means we must be explicit about the analytical question. If the stakeholder question is platform throughput, queue load, total exposure, or total case burden, the exposure-weighted view is the right view. If the question is whether a typical merchant experiences a certain pattern, this curve says a merchant-weighted view is needed as well.
+
+The early concentration markers are included because the curve alone can make the concentration look smooth and abstract. The callouts show the actual business implication: a small subset of high-volume merchants can materially shape row-level statistics. This figure proves concentration of arrival exposure across merchants. It does not prove concentration of fraud, fraud loss, case burden, or bank action; those must be tested by joining to truth/case surfaces.
+
+### A6. Reuse tail strength by entity type
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/entity_grain_identity_graph/figures/06_reuse_tail_strength_by_entity_type.png" alt="Reuse tail strength by entity type" width="780">
+
+This figure compresses the reuse evidence into one tail-strength comparison. The x-axis is the approximate P99-to-median ratio for each entity type. A larger ratio means the upper tail sits much higher above the typical entity in that layer. Bubble size is readability-scaled from the number of distinct IDs, so it should be read as population context rather than as an exact proportional encoding.
+
+Party, account, instrument, and device cluster at about `2.3x`. That reinforces the same point seen in the table and heatmap: these layers have almost the same recurrence posture. Their upper tails exist, but they are not dramatically separated from the median compared with IP or merchant.
+
+IP sits far to the right at about `15.9x`. This is the strongest visual evidence in this branch that IP is the identity handle with a meaningfully heavier reuse tail. In platform terms, IP can represent shared network infrastructure, repeated access context, public/shared connectivity, or synthetic reuse policy. The figure does not tell us which of those explanations is true, but it tells us IP is statistically different enough to justify deeper inspection.
+
+Merchant also has a large tail ratio, about `11.5x`, but it should be interpreted differently from IP. A merchant with many arrivals is not an identity-sharing signal by itself; merchants are operating venues, so high volume is part of the business surface. IP reuse is more suggestive of shared infrastructure because IP is not the transaction venue in the same way. That is why the same numerical idea, reuse tail strength, has different operational meaning depending on the entity handle.
+
+Session has a ratio of `3.0x`, but its median is only `1` and P99 is `3`. That ratio should not be overread as a rich long-tail behaviour. In absolute terms, sessions remain short for almost all traffic. The figure helps separate relative tail strength from practical behavioural depth.
+
+This figure is useful as a prioritization view. It supports IP and merchant exposure as stronger first-order leads than party/account/instrument/device recurrence alone. It does not replace fanout analysis, and it should not be used to claim that IP reuse is fraudulent without truth, amount, channel, time, and case context.
