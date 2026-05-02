@@ -151,7 +151,7 @@ Both anchor surfaces carry:
 - `device_id`
 - `ip_id`
 
-The observed anchor cardinalities are the same in the baseline and post-overlay profiles:
+The approximate anchor cardinality profile is the same in the baseline and post-overlay profiles:
 
 | Entity field | Approx distinct count |
 |---|---:|
@@ -176,9 +176,9 @@ The parent key reconciliation gives strong compact evidence that the baseline an
 | `s2_flow_anchor_baseline_6B` | `236,691,694` | same as arrival entities | same as post-overlay anchor |
 | `s3_flow_anchor_with_fraud_6B` | `236,691,694` | same as arrival entities | same as baseline anchor |
 
-This supports a clear read: the post-overlay anchor is not a new population of flows. It preserves the same flow and arrival identity universe, then modifies selected flow attributes and adds fraud/campaign state.
+This strongly supports a clear read: the post-overlay anchor is not behaving like a new population of flows. The compact evidence says it carries the same row count and the same flow/arrival key hash surface as the baseline anchor, then modifies selected flow attributes and adds fraud/campaign state.
 
-The exact fraud-flow comparison from the parent export confirms the overlay behaviour for the positive class:
+The parent profiles also show a single pinned lineage context for both anchors: one `seed`, one `manifest_fingerprint`, one `parameter_hash`, and one `scenario_id`. Under that single-context run, the fraud-flow comparison from the parent export confirms the overlay behaviour for the positive class:
 
 | Metric | Value |
 |---|---:|
@@ -191,7 +191,7 @@ The exact fraud-flow comparison from the parent export confirms the overlay beha
 | Minimum amount delta | `+0.08` |
 | Maximum amount delta | `+497.13` |
 
-For fraud flows, the anchor relationship says: identity and timing are preserved, amount is changed, and fraud/campaign state is added. That is the overlay contract at flow grain.
+For fraud flows inside this pinned context, the anchor relationship says: the selected flow keys match back to baseline, timing is preserved, amount is changed, and fraud/campaign state is added. That is the observed overlay contract at flow grain.
 
 This is also why the correct analytical comparison is not "did fraud create new traffic?" At least for these anchor surfaces, the better question is "which existing flow keys were selected and economically altered?"
 
@@ -216,8 +216,8 @@ This branch proves:
 - the flow anchors carry the missing merchant/entity/IP/arrival context
 - baseline and post-overlay event streams have exactly two event rows per anchor row at aggregate shape
 - event amount totals are approximately two times anchor amount totals, consistent with request/response duplication
-- baseline and post-overlay anchors preserve the same flow and arrival identity universe by compact key reconciliation
-- fraud-marked post-overlay anchor rows all match baseline flows in the parent exact fraud-flow comparison
+- compact key reconciliation strongly supports that baseline and post-overlay anchors share the same flow and arrival identity universe
+- fraud-marked post-overlay anchor rows all match baseline flows in the parent comparison under the single pinned lineage context
 - fraud overlay preserves timestamp and changes amount for those fraud flows
 
 This branch does not prove:
@@ -263,6 +263,6 @@ So the safe rule is:
 
 The flow anchors are the contract that makes the thin behavioural streams usable.
 
-The stream rows carry the authorization event grammar. The anchors recover the flow's merchant, arrival, entity, IP, amount, and overlay context. The aggregate shape is coherent: the event-row count is twice the anchor-row count, and event amount totals are approximately doubled for the same reason. The baseline and post-overlay anchors also preserve the same flow universe, while fraud overlay changes selected flow amounts and attaches fraud/campaign state.
+The stream rows carry the authorization event grammar. The anchors recover the flow's merchant, arrival, entity, IP, amount, and overlay context. The aggregate shape is coherent: the event-row count is twice the anchor-row count, and event amount totals are approximately doubled for the same reason. Compact key reconciliation strongly supports that the baseline and post-overlay anchors share the same flow universe, while fraud overlay changes selected flow amounts and attaches fraud/campaign state.
 
 The practical analytical rule is straightforward: use streams to understand event movement, use anchors to recover flow context, and collapse back to flow grain before making flow-level economic, fraud, or stakeholder claims.
