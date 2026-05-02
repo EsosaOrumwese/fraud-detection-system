@@ -50,6 +50,7 @@ Branch exports:
 - [`fraud_event_schema.csv`](../../../../exports/interface_world/behavioural_context/branches/flow_anchor_contract/fraud_event_schema.csv)
 - [`baseline_anchor_schema.csv`](../../../../exports/interface_world/behavioural_context/branches/flow_anchor_contract/baseline_anchor_schema.csv)
 - [`fraud_anchor_schema.csv`](../../../../exports/interface_world/behavioural_context/branches/flow_anchor_contract/fraud_anchor_schema.csv)
+- [`fraud_anchor_amount_delta_distribution.csv`](../../../../exports/interface_world/behavioural_context/branches/flow_anchor_contract/fraud_anchor_amount_delta_distribution.csv)
 
 Parent exports reused:
 
@@ -58,7 +59,7 @@ Parent exports reused:
 - [`fraud_anchor_overlay_summary.csv`](../../../../exports/interface_world/behavioural_context/fraud_anchor_overlay_summary.csv)
 - [`fraud_anchor_campaign_summary.csv`](../../../../exports/interface_world/behavioural_context/fraud_anchor_campaign_summary.csv)
 
-This branch uses compact schema, profile, field-map, and key-reconciliation exports. It does not claim that a full row-level event-to-anchor anti-join was completed inside this branch. That full validation is still a useful engineering check, but the current report only makes claims supported by the compact evidence available here.
+This branch uses compact schema, profile, field-map, key-reconciliation, and amount-delta distribution exports. It does not claim that a full row-level event-to-anchor anti-join was completed inside this branch. That full validation is still a useful engineering check, but the current report only makes claims supported by the compact evidence available here.
 
 ## What an anchor is in this operating world
 
@@ -266,3 +267,55 @@ The flow anchors are the contract that makes the thin behavioural streams usable
 The stream rows carry the authorization event grammar. The anchors recover the flow's merchant, arrival, entity, IP, amount, and overlay context. The aggregate shape is coherent: the event-row count is twice the anchor-row count, and event amount totals are approximately doubled for the same reason. Compact key reconciliation strongly supports that the baseline and post-overlay anchors share the same flow universe, while fraud overlay changes selected flow amounts and attaches fraud/campaign state.
 
 The practical analytical rule is straightforward: use streams to understand event movement, use anchors to recover flow context, and collapse back to flow grain before making flow-level economic, fraud, or stakeholder claims.
+
+## Appendix: visual evidence and assessment
+
+### Figure A1. Event rows per anchor row
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/flow_anchor_contract/figures/02_event_anchor_grain_ratio.png" width="900">
+
+This figure makes the grain contract visible. Both the baseline and post-overlay streams have `473.38M` event rows, while their matching anchor surfaces have `236.69M` flow rows. The relationship is exactly `2.0` event rows per anchor row in the compact profile, which is the expected shape for a two-event authorization grammar: one `AUTH_REQUEST` row and one `AUTH_RESPONSE` row for each flow-level anchor.
+
+The important point is not only that the counts are large. It is that the two surfaces are answering different questions. The event stream is the moving authorization record; it tells us what happened at event grain. The anchor is the flow context record; it tells us what the flow belongs to. If an analyst joins anchor context onto event rows, every flow-level attribute from the anchor will be repeated across the two event rows. That repetition is contract-correct, but it becomes analytically dangerous if a flow-level metric is then summed at event grain.
+
+The figure also shows that the baseline and post-overlay streams preserve the same aggregate grammar. Fraud overlay does not create a third event row, remove an event side, or change the event-to-anchor ratio. What this figure does not prove is a full per-key anti-join showing that every individual event row has a matching anchor row. It supports the structural contract at aggregate shape; full row-level coverage would need a dedicated validation pass.
+
+### Figure A2. Event amount versus anchor amount denominator
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/flow_anchor_contract/figures/03_event_anchor_amount_denominator.png" width="900">
+
+This figure shows the economic version of the same grain issue. In the baseline world, the event stream totals about `11.509B` while the anchor totals about `5.755B`. In the post-overlay world, the event stream totals about `11.510B` while the anchor totals about `5.755B`. The event total is approximately twice the anchor total because the request and response rows both carry the flow amount.
+
+That doubling is not a fraud effect and should not be interpreted as extra economic value. It is the authorization grammar appearing in the amount denominator. A flow with amount `x` appears once in the anchor, but twice in the event stream. So if we later build amount dashboards, fraud exposure views, merchant value summaries, or loss-adjacent metrics, we need to decide whether we are describing event exposure or flow economic value. The anchor total, or a stream collapsed back to one row per flow, is the safer denominator for flow-level economic claims.
+
+The small difference between the baseline and post-overlay amount bars is also useful context. It confirms that overlay changes the amount surface slightly, but it does not alter the basic denominator relationship. This figure proves that amount totals are duplicated by event grammar; it does not by itself explain which flows changed or how the fraud overlay selected them. That more specific overlay question is handled by the fraud-anchor checks and amount-delta distribution later in the appendix.
+
+### Figure A3. Anchor entity cardinality profile
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/flow_anchor_contract/figures/04_anchor_entity_cardinality_profile.png" width="900">
+
+This figure shows what the anchor recovers that the thin event stream does not carry. The event stream can identify the flow and event side, but the anchor attaches the flow to the operating entity world: merchants, parties, accounts, instruments, devices, and IPs. The entity breadth is large: about `5.8M` parties, `6.1M` accounts, `5.9M` instruments, `6.4M` devices, and `2.4M` IPs. Merchants sit on a much smaller surface at `4,050`, which is why merchant-level analysis and customer/device/IP-level analysis will have very different denominators.
+
+The log scale matters here. On a linear axis, the merchant count would be visually crushed by the million-scale entity counts, and the reader could miss how different the entity layers are. The figure is not saying that merchants are unimportant because they are fewer. It is saying that merchant context is a compact business surface, while parties/accounts/instruments/devices/IPs form a much broader identity and behaviour surface. That is exactly why the anchor is central to investigation: it is the bridge from a thin authorization event into the entity graph needed for fraud analysis.
+
+The counts should be read as approximate distinct cardinalities from compact profiling, not exact audited set sizes. The figure also does not prove an ownership hierarchy such as merchant-to-party-to-account-to-instrument. It proves breadth of recoverable context fields on the anchor surface. Relationship structure, reuse, fanout, and risk concentration require separate branches or joins.
+
+### Figure A4. Fraud overlay anchor checks
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/flow_anchor_contract/figures/06_fraud_overlay_anchor_checks.png" width="900">
+
+This figure focuses only on the fraud-marked flow subset in the post-overlay anchor. There are `7,132` fraud flows in the comparison. All `7,132` match back to a baseline flow under the single pinned lineage context, all `7,132` preserve timestamp, and all `7,132` have changed amount. The exception side is explicitly shown as zero for each check, which is the key validation point: the observed fraud overlay is not introducing unmatched fraud-flow keys, not shifting their anchor timestamps, and not leaving their anchor amount unchanged.
+
+The statistical meaning is that fraud overlay behaves like an alteration of selected existing flows, not like a separate traffic generator. The platform-facing implication is important. When we analyze fraud rows in this surface, we should not ask whether fraud created new flow identities. The evidence says the better question is which existing flow keys were selected for overlay, how their economic surface changed, and what campaign or truth context explains that selection.
+
+The limit still matters. This is exact for the compared fraud-flow subset under the pinned run context, not a full proof of every event-to-anchor relationship in the entire `473.38M` event-row estate. It also does not prove that the fraud amount changes are realistic from a business standpoint. It proves the mechanical overlay contract for the positive anchor rows: matched baseline identity, timestamp preservation, and amount mutation.
+
+### Figure A5. Fraud flow amount delta quantiles
+
+<img src="../../../../exports/interface_world/behavioural_context/branches/flow_anchor_contract/figures/07_fraud_anchor_amount_delta_range.png" width="900">
+
+This figure explains what "amount changed" means for the `7,132` fraud flows. The deltas are all positive, but they are not uniform. The minimum uplift is only about `0.08`, the 5th percentile is `1.47`, the 25th percentile is `6.36`, the median is `15.67`, the mean is `30.67`, the 75th percentile is `36.42`, the 95th percentile is `112.89`, and the maximum is `497.13`. The log scale is appropriate because the distribution spans from cents-level changes to several hundred units; without the log scale, the lower and middle parts of the distribution would be visually flattened by the maximum.
+
+The shape gives us two readings at once. First, most fraud-overlay amount changes are modest: half of the fraud flows receive an uplift of roughly `15.67` or less. Second, the right tail is meaningful: the mean sits above the median, the 95th percentile is much larger than the 75th percentile, and the maximum is far beyond the central mass. That means the overlay amount posture is right-skewed. A small number of larger uplifts pull the average upward, so the mean alone would overstate the typical fraud-flow uplift.
+
+For analytics, this is both useful and cautionary. It gives us a concrete amount-change surface for the post-overlay anchor, but it also reinforces the realism concern we have already started documenting: some fraud-marked flows carry very small economic changes, while the overall fraud population is sparse. This figure does not decide whether the data is fit for stakeholder-facing fraud analytics. It gives us the evidence needed to ask that question more carefully: if later fraud claims depend on economic materiality, we must distinguish positive-class identity from financially material fraud impact.
