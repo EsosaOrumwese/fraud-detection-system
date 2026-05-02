@@ -45,6 +45,10 @@ Support script and exports:
 - [`analysis/dev_full_offline_investigation/00_investigation/watson_workbench/scratch/analyze_behavioural_context.py`](../../../scratch/analyze_behavioural_context.py)
 - [`analysis/dev_full_offline_investigation/00_investigation/watson_workbench/exports/interface_world/behavioural_context`](../../../exports/interface_world/behavioural_context)
 
+Branch investigations:
+
+- [`branches/entity_grain_identity_graph.md`](branches/entity_grain_identity_graph.md)
+
 ## Contract read before touching the data
 
 The interface contract separates behavioural context into two working levels.
