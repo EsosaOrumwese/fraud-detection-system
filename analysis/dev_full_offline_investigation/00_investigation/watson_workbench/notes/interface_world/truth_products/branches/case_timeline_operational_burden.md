@@ -23,6 +23,7 @@ Branch and parent exports:
 - [`case_timeline_nulls.csv`](../../../../exports/interface_world/truth_products/case_timeline_nulls.csv)
 - [`case_coverage_by_truth_bank_cell.csv`](../../../../exports/interface_world/truth_products/branches/case_timeline_operational_burden/case_coverage_by_truth_bank_cell.csv)
 - [`case_coverage_by_truth_bank_label_pair.csv`](../../../../exports/interface_world/truth_products/branches/case_timeline_operational_burden/case_coverage_by_truth_bank_label_pair.csv)
+- [`case_depth_by_chargeback_presence.csv`](../../../../exports/interface_world/truth_products/branches/case_timeline_operational_burden/case_depth_by_chargeback_presence.csv)
 
 Related branch:
 
@@ -89,7 +90,7 @@ Case length distribution:
 
 The dominant lifecycle has exactly two events. These are cases with the open/close frame and no additional middle events. That is `73.25%` of all cases.
 
-The deeper case population is smaller but still operationally material. `5`-event and `6`-event cases together represent `3,362,198` cases, or `14.78%` of the case population. That number lines up with the chargeback event counts, which suggests that chargeback progression is the main driver of deeper case lifecycles.
+The deeper case population is smaller but still operationally material. `5`-event and `6`-event cases together represent `3,362,198` cases, or `14.78%` of the case population. A case-level chargeback-depth cross-tab confirms that all `5`-event and `6`-event cases carry both `CHARGEBACK_INITIATED` and `CHARGEBACK_DECISION`, while `2`-, `3`-, and `4`-event cases carry neither. So the chargeback path is not just numerically aligned with deeper lifecycle counts; in this extract, it is the defining operational feature of those deeper lifecycles.
 
 So the case world is not "small but complicated." It is large and mostly shallow, with a meaningful chargeback-depth minority. That distinction matters for project framing: a workload project could focus on volume containment and triage, while a loss/project branch could focus on the smaller but deeper chargeback path.
 
