@@ -24,12 +24,13 @@ Branch and parent exports:
 - [`case_coverage_by_truth_bank_cell.csv`](../../../../exports/interface_world/truth_products/branches/case_timeline_operational_burden/case_coverage_by_truth_bank_cell.csv)
 - [`case_coverage_by_truth_bank_label_pair.csv`](../../../../exports/interface_world/truth_products/branches/case_timeline_operational_burden/case_coverage_by_truth_bank_label_pair.csv)
 - [`case_depth_by_chargeback_presence.csv`](../../../../exports/interface_world/truth_products/branches/case_timeline_operational_burden/case_depth_by_chargeback_presence.csv)
+- [`case_event_monthly_summary.csv`](../../../../exports/interface_world/truth_products/branches/case_timeline_operational_burden/case_event_monthly_summary.csv)
 
 Related branch:
 
 - [`truth_vs_bank_view.md`](truth_vs_bank_view.md)
 
-The branch uses compact exports from the truth-products investigation and one derived coverage aggregate, exported in two views, that joins those compact case counts to the label-pair anatomy from `truth_vs_bank_view`. It does not rescan the raw case timeline.
+The branch primarily uses compact exports from the truth-products investigation and one derived coverage aggregate, exported in two views, that joins those compact case counts to the label-pair anatomy from `truth_vs_bank_view`. Two targeted compact scans of `s4_case_timeline_6B` were added after the first read: one to prove chargeback-depth at case level and one to summarize case-event timing by month. Those scans produce small support exports only; they do not materialize the raw case timeline into the report.
 
 ## What the case timeline is allowed to answer
 
