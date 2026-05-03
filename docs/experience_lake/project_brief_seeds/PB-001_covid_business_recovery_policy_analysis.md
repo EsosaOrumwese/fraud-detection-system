@@ -251,7 +251,10 @@ The project is not successful if:
 5. Perform metric interpretation and exploratory trend analysis.
 6. Add policy/event context.
 7. Build geospatial views where useful.
-8. Write stakeholder briefing and technical appendix.
+8. Define the dashboard/reporting page specification, including page purpose, metric definitions, filters, caveats, and the dashboard-ready extracts each page needs.
+9. Build the dashboard-ready reporting layer from the analysed data, keeping stakeholder-facing extracts separate from exploratory notebooks.
+10. Build the recommendation and discussion register, tying each proposed action, caution, or follow-on question to the statistical evidence that supports it.
+11. Write stakeholder briefing and technical appendix.
 
 ## Experience Evidence Target
 

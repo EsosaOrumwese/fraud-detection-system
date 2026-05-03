@@ -88,16 +88,24 @@ This project must be designed around a service-planning decision, not around sho
 
 The future repo should produce dashboard-ready outputs or a compact reporting product. The product does not have to be deployed in Power BI, but it must be specified clearly enough that it could become a public-service planning dashboard.
 
-Required reporting pages:
+The reporting product must be selected after the final topic route is chosen. The core pages below are required for every route; the route-specific pages are only required where the selected data and method support them. This prevents the project from forcing network, geospatial, or text analysis for its own sake.
+
+Core reporting pages:
 
 | Page | Purpose | Expected content |
 |---|---|---|
 | Executive access overview | Show the headline access or pressure picture. | Key access metrics, highest-concern areas, confidence/caveat summary. |
-| Geographic access map | Make spatial variation visible. | Map of access, service availability, travel/distance proxy, or area score. |
-| Inequality and area comparison | Show whether access differs by area type. | Deprivation, rurality, population, region, or local authority comparisons. |
-| Network or pathway pressure view | Show bottlenecks or structural dependence where data supports network analysis. | Centrality, flow concentration, node/edge ranking, baseline comparison. |
 | Priority review table | Support operational planning discussion. | Ranked areas/services with evidence, caveats, and suggested next action. |
 | Data and method caveats | Prevent misuse. | Data coverage, assumptions, rejected interpretations, sensitivity notes. |
+
+Route-specific reporting pages:
+
+| Selected route | Required pages where supported by the data | Expected content |
+|---|---|---|
+| Healthcare/service access geography | Geographic access map; inequality and area comparison; access-threshold or catchment view. | Map of access, service availability, travel/distance proxy, area scores, deprivation/rurality/population comparisons. |
+| Referral or pathway network | Network or pathway pressure view; bottleneck/centrality comparison; pathway concentration table. | Centrality, flow concentration, node/edge ranking, baseline comparison, sensitivity notes. |
+| Transport/service accessibility | Geographic access map; route/travel-time access view; area comparison. | Travel-time or distance proxy, service availability, access thresholds, local authority or neighbourhood ranking. |
+| Public feedback text analysis | Theme and issue profile; service/geography issue concentration; examples and caveats. | Topic/theme prevalence, sentiment or concern patterns where defensible, area/service cross-tab, representative short excerpts if legally and ethically usable. |
 
 Minimum filters or breakdowns should be chosen after dataset selection, but may include:
 
