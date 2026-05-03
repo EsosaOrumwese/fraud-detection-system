@@ -152,7 +152,7 @@ The project is designed backwards from the kind of evidence a serious analytical
 - using SQL and Python to build reproducible analytical workflows
 - detecting and explaining data quality risks, anomalies, and structural null patterns
 - applying assurance controls before stakeholder-facing conclusions are made
-- designing dashboard-ready outputs and reporting pages for different users
+- designing dashboard-ready outputs and reporting pages for different users, with `Power BI` or an equivalent BI tool as the likely reporting target
 - communicating complex technical findings in plain operational language
 - recommending service-improvement priorities from evidence rather than intuition
 - explaining responsible-use boundaries such as leakage, offline-only fields, and target-definition limits

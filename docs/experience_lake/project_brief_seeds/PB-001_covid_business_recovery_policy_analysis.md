@@ -38,6 +38,16 @@ The assumed role is:
 
 The analyst is tasked with turning large-scale public-interest activity data into an evidence-led view of business disruption, recovery, and policy context across countries and sectors.
 
+## Tooling Assumption
+
+The future repo should make the analytical tooling explicit enough for a handoff agent to execute the project professionally:
+
+- Use `Python` and `SQL` for reproducible data preparation, profiling, joins, metric calculation, and analytical checks.
+- Use notebooks or scripts for investigative analysis, but keep stakeholder-facing outputs separate from exploratory work.
+- Use a local analytical query layer such as `DuckDB` where the data volume or workflow benefits from SQL-style modelling.
+- Produce dashboard-ready extracts and a page specification that could be implemented in `Power BI` or an equivalent BI tool.
+- A finished `.pbix` file is optional at brief stage; the non-negotiable output is a reporting-ready data layer, metric definitions, page design, caveats, and stakeholder briefing.
+
 ## Operating Scenario
 
 During and after the COVID-19 pandemic, public-sector and economic recovery stakeholders need to understand how business activity changed across countries, sectors, and time.

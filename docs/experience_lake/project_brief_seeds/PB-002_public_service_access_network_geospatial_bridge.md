@@ -38,6 +38,17 @@ The assumed role is:
 
 The analyst is asked to use network, geospatial, or text methods to identify where service access, service pressure, or user need appears uneven, fragile, or poorly understood.
 
+## Tooling Assumption
+
+The future repo should make the analytical tooling explicit without forcing a method before the dataset route is selected:
+
+- Use `Python` and `SQL` for reproducible data preparation, profiling, joins, metric calculation, and analytical checks.
+- Use notebooks or scripts for investigation, but keep dashboard/reporting extracts separate from exploratory outputs.
+- Use geospatial, network, or text-analysis libraries only where the chosen route justifies them.
+- Use a local analytical query layer such as `DuckDB` where SQL modelling or larger extracts make it useful.
+- Produce dashboard-ready extracts and a page specification that could be implemented in `Power BI` or an equivalent BI tool.
+- A finished `.pbix` file is optional at brief stage; the required output is a defensible reporting-ready layer, metric/method definitions, caveats, and stakeholder-facing recommendations.
+
 ## Topic Decision
 
 The final repo should choose one of these paths after dataset scouting.
