@@ -24,7 +24,7 @@ The initial project scope is limited to downstream operational and reporting sur
 
 | Surface group | Surface | Primary grain | Project role |
 |---|---|---:|---|
-| Arrival context | `arrival_events_5B` | Arrival row | Route, channel, zone, time, physical/virtual endpoint context. |
+| Arrival context | `arrival_events_5B` | Arrival row | Route, channel, zone, time, physical/virtual endpoint context. This is a traffic primitive/join surface, not the canonical scored traffic stream emitted to the platform traffic bus. |
 | Behavioural streams | `s2_event_stream_baseline_6B` | Event row | Baseline two-event authorization grammar and event-time profile. |
 | Behavioural streams | `s3_event_stream_with_fraud_6B` | Event row | Post-overlay event stream used to inspect what changed after the fraud overlay. |
 | Flow anchors | `s2_flow_anchor_baseline_6B` | Flow row | Baseline flow-level bridge from thin event stream to merchant, amount, entity, IP, and arrival context. |
@@ -84,7 +84,7 @@ The following tables are the minimum expected data model for execution.
 | Table | Grain | Purpose |
 |---|---:|---|
 | `flow_operational_mart` | Flow | Main reporting and analysis base. |
-| `case_summary_by_flow` | Flow | Rolls case timeline into case coverage, depth, path, and burden fields. |
+| `case_summary_by_flow` | Flow | Rolls case timeline into case coverage, depth, path, and burden fields after the case-to-flow bridge has been proven. |
 | `truth_bank_alignment_summary` | Flow-group aggregate | Summarizes truth/bank agreement and disagreement cells. |
 | `case_burden_metrics` | Segment aggregate | Summarizes case coverage, case depth, and case-event burden by valid segments. |
 | `data_quality_checks` | Check row | Reconciliation and caveat outputs used for QA sign-off. |
@@ -102,11 +102,26 @@ The preferred base for `flow_operational_mart` is the post-overlay flow anchor:
 
 This surface carries the flow-level context needed to connect event streams, arrival context, entity context, truth, bank view, and case summaries without using event rows as the denominator.
 
+### Binding Join Keys
+
+The following join keys are binding unless execution proves a better documented key from the interface contract or source schema.
+
+| Relationship | Left surface | Right surface | Required key | Grain after join | Notes |
+|---|---|---|---|---|---|
+| Baseline event stream to baseline flow anchor | `s2_event_stream_baseline_6B` | `s2_flow_anchor_baseline_6B` | `seed`, `manifest_fingerprint`, `scenario_id`, `flow_id` | Event rows enriched with flow context, or event rows aggregated to flow grain | Event rows must not become the flow denominator unless aggregated. |
+| Post-overlay event stream to post-overlay flow anchor | `s3_event_stream_with_fraud_6B` | `s3_flow_anchor_with_fraud_6B` | `seed`, `manifest_fingerprint`, `scenario_id`, `flow_id` | Event rows enriched with flow context, or event rows aggregated to flow grain | This is the preferred bridge for post-overlay traffic analysis. |
+| Flow anchor to arrival context | `s2_flow_anchor_baseline_6B` or `s3_flow_anchor_with_fraud_6B` | `arrival_events_5B` | `seed`, `manifest_fingerprint`, `scenario_id`, `merchant_id`, `arrival_seq` | Flow rows with arrival/routing context | `arrival_events_5B` is a join surface, not the scored stream. |
+| Arrival context to entity attachments | `arrival_events_5B` | `s1_arrival_entities_6B` | `seed`, `manifest_fingerprint`, `scenario_id`, `merchant_id`, `arrival_seq` | Arrival/entity binding context | `parameter_hash` is present in some 6B surfaces but absent from `arrival_events_5B`; do not force it into this join. |
+| Flow truth labels to post-overlay flow anchor | `s4_flow_truth_labels_6B` | `s3_flow_anchor_with_fraud_6B` | `seed`, `manifest_fingerprint`, `scenario_id`, `flow_id` | Flow | Truth label joins to post-overlay flow context. |
+| Bank view to post-overlay flow anchor | `s4_flow_bank_view_6B` | `s3_flow_anchor_with_fraud_6B` | `seed`, `manifest_fingerprint`, `scenario_id`, `flow_id` | Flow | Bank view joins to post-overlay flow context; it remains institutional judgement, not truth. |
+| Event labels to post-overlay event stream | `s4_event_labels_6B` | `s3_event_stream_with_fraud_6B` | `seed`, `manifest_fingerprint`, `scenario_id`, `flow_id`, `event_seq` | Event | Only use for event-grain checks or event-to-flow reconciliation. |
+| Case timeline to flow mart | `s4_case_timeline_6B` | `flow_operational_mart` | To be proven during execution | Flow after rollup | `s4_case_timeline_6B` is case-centric. It must not be treated as directly flow-joinable until a case-to-flow bridge is identified and reconciled. |
+
 ### Required Join Principles
 
 - Join flow-level truth labels to the flow anchor at flow grain.
 - Join bank view to the flow anchor at flow grain.
-- Aggregate case timeline to flow grain before joining it into the main mart.
+- Prove the case-to-flow bridge before aggregating case timeline to flow grain and joining it into the main mart.
 - Aggregate event streams to flow grain before using event counts in flow-level reporting.
 - Treat arrival/entity/session context as contextual surfaces, not as automatic reporting bases.
 - Preserve lineage keys where available; if a compact analysis uses a pinned single-lineage context, the report must say so.
@@ -116,6 +131,7 @@ This surface carries the flow-level context needed to connect event streams, arr
 The following patterns are prohibited unless a specific QA check proves the result is safe:
 
 - joining event rows directly to case timeline and reporting the result as flow count
+- joining case timeline into the flow mart before proving the case-to-flow bridge
 - counting `AUTH_REQUEST` and `AUTH_RESPONSE` rows as separate transactions
 - joining completed session fields into a live-safe feature set
 - treating `fraud_flag`, truth label, bank view, and case outcome as interchangeable fraud fields
@@ -166,6 +182,8 @@ The mart may include offline-only/reporting-only fields, but they must be labell
 
 The first execution pass should define these metrics before producing stakeholder-facing views.
 
+Some P0 metrics are case-bridge-gated. They are mandatory if the case-to-flow bridge is proven. If the bridge is not proven, they must be rejected or deferred with evidence rather than forced into the reporting product.
+
 | Metric | Numerator | Denominator | Grain | Primary source | Main caveat |
 |---|---|---:|---:|---|---|
 | Total flows | Count of flow rows | N/A | Flow | `flow_operational_mart` | Must not be replaced by event-row count. |
@@ -176,12 +194,12 @@ The first execution pass should define these metrics before producing stakeholde
 | Truth-bank agreement rate | Flows where truth and bank align | Total flows | Flow | Truth + bank | Requires explicit truth/bank cell definitions. |
 | Truth-positive / bank-negative rate | Truth-positive and bank-negative flows | Total flows | Flow | Truth + bank | Candidate under-action cell, not automatically confirmed failure. |
 | Truth-negative / bank-positive rate | Truth-negative and bank-positive flows | Total flows | Flow | Truth + bank | Candidate over-action/friction cell, not automatically incorrect action. |
-| Case coverage rate | Flows with at least one case event | Total flows | Flow | Case summary | Case presence is operational history, not truth by itself. |
-| Case events per case | Case-event rows | Cases | Case/case-event | Case timeline summary | Measures lifecycle depth, not case incidence. |
-| Case events per 1,000 flows | Case-event rows | Total flows / 1,000 | Flow/case-event aggregate | Case summary | Exposure-weighted burden measure. |
-| Deep-case rate | Cases above selected depth threshold | Cases | Case | Case summary | Threshold must be declared. |
-| Chargeback-path rate | Cases with chargeback progression | Cases | Case | Case summary | Requires case-level path derivation. |
-| Dispute-path rate | Cases with dispute progression | Cases | Case | Case summary | Requires case-level path derivation. |
+| Case coverage rate | Flows with at least one case event | Total flows | Flow | Case summary | Bridge-gated; case presence is operational history, not truth by itself. |
+| Case events per case | Case-event rows | Cases | Case/case-event | Case timeline summary | Bridge-gated for flow reporting; measures lifecycle depth, not case incidence. |
+| Case events per 1,000 flows | Case-event rows | Total flows / 1,000 | Flow/case-event aggregate | Case summary | Bridge-gated; exposure-weighted burden measure. |
+| Deep-case rate | Cases above selected depth threshold | Cases | Case | Case summary | Bridge-gated; threshold must be declared. |
+| Chargeback-path rate | Cases with chargeback progression | Cases | Case | Case summary | Bridge-gated; requires case-level path derivation. |
+| Dispute-path rate | Cases with dispute progression | Cases | Case | Case summary | Bridge-gated; requires case-level path derivation. |
 | Amount exposure | Sum of flow amount | Total flows or segment flows | Flow | Flow anchor | Currency and segment filters must be declared. |
 | Case amount exposure | Sum of amount for flows with case history | Total case flows | Flow | Mart + case summary | Not equivalent to loss unless a loss field exists. |
 | Channel burden rate | Case-covered flows by channel | Total flows by channel | Flow segment | Mart | Channel must not be confused with physical/virtual route. |
@@ -242,6 +260,7 @@ This contract is satisfied when execution produces:
 - a documented flow-level mart design
 - a source-to-target mapping for all in-scope surfaces used
 - metric definitions for all stakeholder-facing metrics
+- explicit approval, rejection, or deferral status for bridge-gated case metrics
 - QA checks that reconcile source counts to derived outputs
 - explicit caveats for truth, bank view, case timeline, fraud markers, structural nulls, and session fields
 - dashboard-ready extracts with grain and denominator rules attached
