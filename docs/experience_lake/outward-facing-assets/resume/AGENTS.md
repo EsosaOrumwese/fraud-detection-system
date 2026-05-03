@@ -56,8 +56,11 @@ Useful sources include:
 6. `docs/experience_lake/outward-facing-assets/job-descriptions-specifications/data-analytics-engineering-science.ideal-candidate-profiles.md`
 7. The candidate's real evidence base from the governed fraud decisioning platform, MSc, engineering experience, and service work.
 8. `application_postmortem_audit_2026-05-01.md` for lessons from prior applications.
+9. For Civil Service roles, `docs/experience_lake/outward-facing-assets/frameworks/civil_service_success_profiles/success_profiles_govuk_source_capture.md`
 
 If a file is missing, proceed from the best available evidence and state any important assumption internally.
+
+For Civil Service roles, the Success Profiles capture is not optional background reading. It is a binding source for how the application must understand Success Profiles, assessment methods, behaviours, strengths, experience, technical, ability, and STAR/CAR evidence structure.
 
 ---
 
@@ -265,7 +268,66 @@ A weak lead-criterion answer can sink an otherwise strong application.
 
 ---
 
-## 10) CVs, Cover Letters, and Supporting Statements
+## 10) Civil Service Success Profiles - Binding Rule
+
+For Civil Service applications, read and follow:
+
+`docs/experience_lake/outward-facing-assets/frameworks/civil_service_success_profiles/success_profiles_govuk_source_capture.md`
+
+This document captures the official GOV.UK Success Profiles pages and the GOV.UK STAR/CAR competency guidance. It is a source document, not a suggestion.
+
+Before drafting or editing a Civil Service CV, personal statement, behaviour answer, technical answer, experience answer, strengths preparation note, or interview response:
+
+- identify which Success Profile elements the advert says will be assessed
+- identify the assessment method: CV, supporting statement, personal statement, application form, online test, interview, presentation, assessment centre, technical test, or other exercise
+- identify any lead criterion, initial sift criterion, essential criterion, behaviour, technical skill, or listed framework skill
+- map the candidate's evidence to the exact element being assessed
+- use STAR or CAR where the form asks for examples, competencies, behaviours, or evidence
+- keep the answer specific, example-based, outcome-based, and defensible
+
+Do not treat Civil Service supporting statements as generic persuasion essays. They are scoring documents.
+
+Do not write a Civil Service answer from memory if the Success Profiles capture exists. Inspect it first.
+
+Do not invent Success Profiles definitions, behaviour expectations, strengths meanings, or assessment-method logic. Use the GOV.UK capture.
+
+When the advert lists behaviours:
+
+- match the behaviour name exactly
+- use evidence at the right level for the role
+- show the behaviour through action and result, not by naming the behaviour only
+- avoid using one repeated example for every behaviour unless it genuinely proves each one differently
+
+When the advert lists technical skills:
+
+- show the tool, method, framework, or professional skill in use
+- show the context, action, quality control, and outcome
+- do not only list tools
+
+When the advert lists experience:
+
+- give real evidence from work, independent platform work, MSc work, engineering work, service work, or other defensible experience
+- make the connection to the role explicit
+- do not overclaim domain exposure
+
+When the advert lists strengths:
+
+- understand the official strengths language before preparing
+- do not over-script strength answers into artificial examples
+- show what the candidate does well, does regularly, and is motivated by
+
+When the advert uses ability tests:
+
+- do not assume a written statement can compensate for test performance
+- prepare separately for the test type if known
+
+Final Civil Service gate:
+
+No Civil Service application material is ready until it has been checked against the GOV.UK Success Profiles capture and the advert-specific criteria.
+
+---
+
+## 11) CVs, Cover Letters, and Supporting Statements
 
 Different assets have different jobs.
 
@@ -296,7 +358,7 @@ Do not use:
 
 ---
 
-## 11) Role-Native Proof for Stretch Roles
+## 12) Role-Native Proof for Stretch Roles
 
 For stretch roles, do not rely only on transferability if there is time to create a bounded proof.
 
@@ -319,7 +381,7 @@ Do not imply the proof was employer work, client work, NHS work, defence work, o
 
 ---
 
-## 12) Eligibility, Visa, Sponsorship, and Clearance
+## 13) Eligibility, Visa, Sponsorship, and Clearance
 
 Do not speculate in application materials about visa, sponsorship, nationality, or clearance risk.
 
@@ -331,7 +393,7 @@ In postmortems, treat visa, sponsorship, and clearance as possible structural ri
 
 ---
 
-## 13) Final Review Before Output
+## 14) Final Review Before Output
 
 Before finalising any application material, run a light review.
 
@@ -346,6 +408,7 @@ Ask:
 7. Does the platform appear credible and honestly framed?
 8. Is the writing clear, human, and easy to scan?
 9. Is the text ASCII-clean unless there is a reason otherwise?
+10. For Civil Service roles, has the answer been checked against the GOV.UK Success Profiles capture?
 
 If the answer to a major question is no, revise.
 
@@ -353,7 +416,7 @@ Do not create extra review documents unless useful. The goal is better applicati
 
 ---
 
-## 14) Postmortems
+## 15) Postmortems
 
 When an application is rejected and feedback is unavailable, do not assume incompetence.
 
@@ -371,7 +434,7 @@ Update future guidance only when a repeat pattern appears or when a lesson is cl
 
 ---
 
-## 15) Final Reminder
+## 16) Final Reminder
 
 The candidate does not need to look weak because the evidence is partly independent.
 
