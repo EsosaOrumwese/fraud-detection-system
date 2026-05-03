@@ -128,15 +128,38 @@ The project should also include a discussion section that covers:
 
 ## Candidate Data Scope
 
-The final repo should verify and document exact sources before execution.
+The final repo should verify and document exact sources before execution. The current sourcing posture is:
+
+- `Facebook Business Activity Trends during COVID-19` remains the main activity surface, but it is not clearly exposed as a simple public bulk CSV. Meta's public note says access to Business Activity Trends / Commuting Zones is by request for nonprofits or academics; if the original coursework data is already available locally, the future repo should treat that local copy as the practical starting extract and document its provenance.
+- The Development Data Partnership example confirms the Business Activity Trends concept and structure: daily business activity quantile information, including COVID-triggered national-level data from March 1, 2020 to November 29, 2022.
+- `Oxford COVID-19 Government Response Tracker` is the preferred policy-context source because it is public, documented, and exposes both policy indicators and aggregate response/stringency indices.
 
 | Source | Role |
 |---|---|
-| Facebook Business Activity Trends during COVID-19 | Main activity surface. |
-| Oxford COVID-19 Government Response Tracker or equivalent policy dataset | Policy restriction / response context. |
-| Country metadata such as continent, income group, population, or region | Comparison and grouping context. |
-| GADM or other boundary files | Geospatial visualization support. |
-| Major event timeline from trusted public sources | Context for annotated changes. |
+| Facebook Business Activity Trends during COVID-19 | Main activity surface; expected to come from the original coursework/local extract or authorised Meta/Data for Good access. |
+| Oxford COVID-19 Government Response Tracker | Policy restriction / response context; use the GitHub `covid-policy-dataset` compact/simplified files or the Azure Open Datasets curated CSV/Parquet mirror. |
+| Country metadata such as continent, income group, population, or region | Comparison and grouping context; use World Bank, Our World in Data, or another documented public source. |
+| GADM, Natural Earth, or other boundary files | Geospatial visualization support, depending on the final country/region grain. |
+| Major event timeline from trusted public sources | Context for annotated changes; must be source-cited and not treated as causal proof. |
+
+Practical source locations to check first:
+
+- Meta announcement / access route: <https://about.fb.com/news/2020/12/data-for-good-new-tools-to-help-small-businesses-and-communities-during-the-covid-19-pandemic/>
+- Development Data Partnership example: <https://datapartnership.org/egypt-economic-monitor/notebooks/activity/business-activity-trends.html>
+- OxCGRT final dataset repository: <https://github.com/OxCGRT/covid-policy-dataset>
+- OxCGRT Azure Open Datasets mirror: <https://learn.microsoft.com/en-us/azure/open-datasets/dataset-oxford-covid-government-response-tracker>
+
+### Data-Access Gate
+
+Before execution begins, the future repo must make one of these decisions and document it in the data scope note:
+
+| Decision | When it applies | Consequence |
+|---|---|---|
+| Proceed with FBAT | The original coursework/local FBAT extract is available, legally usable, and sufficiently documented. | Use FBAT as the main activity surface and document provenance, fields, coverage, and limitations. |
+| Proceed with authorised FBAT access | Meta/Data for Good or another authorised route provides access. | Use the authorised extract and document access terms, permitted use, and reproducibility limits. |
+| Activate fallback activity proxy | FBAT cannot be accessed or cannot be used defensibly. | Re-scope the project to a public activity proxy such as Google Community Mobility, business registry/opening data, public economic indicators, or another documented public source before building analysis. |
+
+The project must not build analysis around FBAT until one of these gates is resolved. If the fallback route is activated, the title, metric dictionary, dashboard pages, and stakeholder claims must be adjusted so the project no longer claims to analyse Facebook Business Activity Trends.
 
 ## Analytical Rules
 
