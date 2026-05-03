@@ -4342,3 +4342,1926 @@ This posting is a strong public-sector commercial analytics role centred on:
 - senior stakeholder briefing, non-technical communication, and mentoring inside an analysis community
 
 It is a useful evidence point because it shows a commercial analyst role with a notably broad technical and governance footprint. The employer wants someone who can connect commercial domain questions to robust data handling, BI delivery, analytical modelling, data-feed implementation, assurance standards, and senior decision support in a high-stakes government environment.
+
+---
+
+## Technical Risk & Issues Analyst - Ministry of Justice
+
+Source:
+- `Ministry of Justice Careers` - <https://jobs.justice.gov.uk/careers/JobDetail/16976-Technical-Risk-Issues-Analyst/16976>
+- Job description provided by user
+- Civil Service Success Profiles source capture - `docs/experience_lake/outward-facing-assets/frameworks/civil_service_success_profiles/success_profiles_govuk_source_capture.md`
+
+Role family:
+- `Technical Risk & Issues Analyst`
+- technology risk, issue, and assurance analytics
+- service management / `ITIL` / `RAID` governance
+- public-sector digital risk reporting and stakeholder management
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Technical Risk & Issues Analyst` in `HMCTS Digital and Technology Services (DTS)`, reporting to the `Risk & Issues Manager`.
+
+The role is centred on enabling effective risk management across `Digital Operations` and wider `DTS` technical risks. It supports identification, assessment, management, tracking, reporting, and remediation of technology and operational risks across government projects and services. The advert explicitly references government risk frameworks such as the `Orange Book`, relevant IT security standards, `ITIL` best practice, `RAID` governance, audit and assurance evidence, emerging technology risks including `AI`, and data analytics to identify trends and predict risk scenarios.
+
+This is therefore not a generic analyst role and not just an administrative risk-log position. It is a technical risk and service-management analytics role where the candidate must maintain risk data, interpret technical risk information, facilitate structured stakeholder discussions, validate controls, report metrics, and support a risk-aware culture across a complex government digital function.
+
+### Responsibilities Evidence
+
+#### 1. Risk and issue management process support
+
+- Support implementation of the risk-management process for `Digital Operations`.
+- Support `DTS` technical risk management.
+- Coordinate and maintain the risks and issues register.
+- Coordinate and maintain the `RAID` log for `Digital Operations Directorate`.
+- Coordinate wider `DTS` technical risks.
+- Track and report actions and initiatives.
+- Assist in risk and issue logging.
+- Assist in risk and issue categorisation.
+- Assist in risk and issue prioritisation.
+- Ensure accurate and timely updates to the `RAID` log.
+
+#### 2. Risk assessment, control validation, and assurance
+
+- Support regular risk assessments.
+- Analyse current risks affecting `Digital Operations`.
+- Identify potential risks affecting wider `DTS` technical risks.
+- Gather evidence for audits.
+- Gather evidence for assurance reviews.
+- Support compliance activities.
+- Support remediation tracking.
+- Monitor and maintain technology controls such as access management and data integrity.
+- Support policy compliance.
+- Support alignment with regulatory requirements.
+- Review risk-identification rationale and issue details.
+- Validate controls.
+- Document outcomes within the `RAID` log in line with governance standards.
+
+#### 3. Risk reporting, metrics, and data analytics
+
+- Prepare summary reports for senior stakeholders.
+- Maintain risk registers.
+- Maintain issue logs.
+- Track progress of remediation plans.
+- Escalate unresolved issues where necessary.
+- Facilitate mitigation and resolution of risks and issues.
+- Collect relevant data and metrics.
+- Aggregate relevant data and metrics.
+- Report relevant data and metrics to colleagues.
+- Use data and metrics to support risk reporting and decision making.
+- Leverage data analytics to identify trends.
+- Leverage data analytics to predict potential risk scenarios.
+- Use data analytics to inform decision making.
+
+#### 4. Stakeholder engagement and risk culture
+
+- Engage and interact with owners of `DTS` products and services.
+- Maintain a holistic view of technical risks, potential threats, and opportunities.
+- Ensure alignment with organisational risk appetite.
+- Facilitate structured discussions to identify and assess risks within `DTS`.
+- Collaborate with the Services Team and other service areas.
+- Ensure streamlined and consistent capture of risk information.
+- Co-host regular risk-review meetings.
+- Chair risk-review meetings in the absence of the Risk and Issues Manager.
+- Ensure actions are tracked and reported.
+- Act as a key contact for risk and issue-related queries.
+- Foster open dialogue.
+- Embed a risk-aware culture across teams.
+
+#### 5. Governance, frameworks, and best practice
+
+- Actively engage the governance and management of risks and issues.
+- Work across government and other `Government Digital and Data (GDD)` communities and analytical professions.
+- Promote `ITIL` best practice for risk and issue management and reporting.
+- Contribute to process improvements in risk management.
+- Support training and awareness initiatives for risk culture.
+- Ensure alignment with Civil Service risk frameworks such as the `Orange Book`.
+- Ensure alignment with relevant IT security standards.
+- Provide guidance and support to `DTS` teams on best-practice risk management.
+- Support compliance with Civil Service risk frameworks and `ITIL` principles.
+
+#### 6. Emerging technology and AI risk
+
+- Support proactive risk management in emerging technologies.
+- Identify potential ethical risks in emerging technologies including `AI`.
+- Identify potential security risks in emerging technologies including `AI`.
+- Identify potential operational risks in emerging technologies including `AI`.
+- Ensure robust controls are in place for emerging technology risks.
+
+### Person Specification Evidence
+
+#### 1. Risk and issue management capability
+
+- Strong knowledge and practical experience in risk and issue management principles. Essential.
+- Strong knowledge and practical experience in risk and issue management frameworks. Essential.
+- Strong knowledge and practical experience in risk and issue management methodologies. Essential.
+- Experience covering identification, assessment, mitigation, and reporting. Essential.
+- Ability to support informed decision making and compliance with governance standards. Essential.
+
+#### 2. Analytical, investigation, and performance-management capability
+
+- Strong analytical skills. Essential.
+- Strong problem-solving abilities. Essential.
+- Experience conducting investigations using cause-and-effect analysis. Essential.
+- Experience interpreting key indicators. Essential.
+- Experience applying performance measurement frameworks and `KPI`s. Essential.
+- Proficiency using data and metrics to support risk reporting and decision making. Essential.
+- Experience using tools and dashboards to gather and analyse data from multiple sources. Desirable.
+- Experience measuring whether implemented improvements delivered desired benefits. Desirable.
+- `JIRA` experience. Desirable.
+
+#### 3. Technical, service-management, and organisational context
+
+- Technical understanding. Required.
+- Service Management / `ITIL` background. Required.
+- Experience working in large, complex organisations. Essential.
+- Demonstrated adherence to processes in line with compliance and governance standards such as `Risk Management Framework` and `Service Level Framework`. Essential.
+- Understanding of Service Management frameworks, principles, and processes. Desirable.
+- Experience working in a Service Management / `ITIL` environment. Desirable.
+- Technical understanding of tools, services, and products across `DTS`, including integration, functionality, and role in delivering business outcomes. Desirable.
+- Knowledge of Civil Service risk frameworks such as the `Orange Book`. Desirable.
+
+#### 4. Communication, influence, and collaboration
+
+- Proven ability to communicate and influence stakeholders effectively. Essential.
+- Ability to interpret and communicate technical risk information clearly to technical stakeholders. Essential.
+- Ability to interpret and communicate technical risk information clearly to non-technical stakeholders. Essential.
+- Excellent written communication skills. Essential.
+- Excellent spoken communication skills. Essential.
+- Experience successfully influencing others. Essential.
+- Experience negotiating effectively. Essential.
+- Experience winning over audiences. Essential.
+- Strong collaboration skills with `IT` teams, service owners, and governance bodies. Essential.
+
+#### 5. Detail, documentation, and risk-culture behaviours
+
+- Attention to detail when reviewing risk-identification rationale. Essential.
+- Attention to detail when reviewing controls. Essential.
+- Attention to detail when reviewing documentation. Essential.
+- Commitment to promoting a risk-aware culture. Essential.
+- Commitment to supporting best practice in risk management. Essential.
+
+### Success Profiles and Selection Evidence
+
+- Role is assessed at `HEO` level.
+- `Experience` is assessed through application form, `CV` or work history, and statement of suitability.
+- `Strengths` are assessed at interview, with `2` strengths discussed but not shared in advance.
+- `Behaviours` assessed at interview are:
+- `Managing a Quality Service`
+- `Working Together`
+- `Communicating and Influencing`
+- Under the Civil Service Success Profiles source capture, `Managing a Quality Service` at `HEO/SEO` level includes developing, implementing, maintaining, and reviewing systems and services; working with stakeholders to set priorities, objectives, and timescales; delivering high-quality outcomes that meet customer needs and give value for money; identifying risks and resolving issues efficiently; involving colleagues, stakeholders, and delivery partners in improvements; and responding to customer feedback.
+- Under the same source, `Working Together` at `HEO/SEO` level includes joined-up teamwork across groups, professional relationships with stakeholders, sharing information and support, developing common focus and team spirit, and actively seeking input from diverse perspectives.
+- Under the same source, `Communicating and Influencing` at `HEO/SEO` level includes straightforward, honest, engaging communication; choosing styles to maximise understanding and impact; clear purpose; checking understanding; respectful communication across diverse interests; and use of appropriate communication methods.
+
+### Additional Process and Environment Evidence
+
+- Role is in `HM Courts and Tribunals Service`.
+- Directorate is `Digital & Technology Services (DTS)`.
+- Role is `HEO`, permanent, and national / London.
+- Successful applicants are expected to be office based `3` days per week in an `HMCTS` office, subject to business availability.
+- The role sits in a specialist technology directorate supporting `HMCTS` use of `IT` and digital.
+- Expected interview dates are from `29th May`, subject to change.
+- Level of security check required is `DBS Basic`.
+- Reserve list is `12` months.
+
+### Hiring Signal Summary
+
+This posting is a strong technical risk, issue, and service-management analytics role centred on:
+- `RAID` register coordination, risk logging, categorisation, prioritisation, and action tracking
+- technical and operational risk assessment across `DTS` products, services, and digital operations
+- control validation, audit evidence, assurance support, compliance tracking, and remediation monitoring
+- senior stakeholder reporting using data, metrics, dashboards, key indicators, and `KPI`s
+- `ITIL`, Service Management, Civil Service risk frameworks, `Orange Book`, and IT security standards
+- emerging technology and `AI` risk, including ethical, security, and operational controls
+- HEO-level Success Profiles evidence for `Managing a Quality Service`, `Working Together`, and `Communicating and Influencing`
+
+It is a useful evidence point because it shows a data-adjacent government technology role where analytical value is expressed through risk intelligence, controls, service-management discipline, and stakeholder-led governance. The employer wants someone who can combine risk-method competence, technical understanding, metrics-based reporting, assurance discipline, and HEO-level communication across a complex public digital environment.
+
+---
+
+## Geospatial Data Analyst - Valuation Office Agency
+
+Source:
+- `Civil Service Jobs` - <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=c2VhcmNoc29ydD1zY29yZSZwYWdlYWN0aW9uPXZpZXd2YWNieWpvYmxpc3QmdXNlcnNlYXJjaGNvbnRleHQ9MTg2NTc0NjU5Jm93bmVydHlwZT1mYWlyJnBhZ2VjbGFzcz1Kb2JzJnNlYXJjaHBhZ2U9MSZqb2JsaXN0X3ZpZXdfdmFjPTE5OTUyMTAmb3duZXI9NTA3MDAwMCZyZXFzaWc9MTc3NzY5MDI1Ni0wZjdhMjM2ODEzZDQ5NzZkNjhjZjEwYzlhNWI4NzA0NThmNTYwNThm>
+- Civil Service Success Profiles source capture - `docs/experience_lake/outward-facing-assets/frameworks/civil_service_success_profiles/success_profiles_govuk_source_capture.md`
+
+Role family:
+- `Geospatial Data Analyst`
+- geospatial analytics and data lifecycle management
+- GIS, spatial data quality, and automated workflows
+- public-sector property valuation and business transformation support
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Geospatial Data Analyst` in `HMRC Valuation Office`, formerly the `Valuation Office Agency`, within the `Information, Data & Analysis` directorate.
+
+The role supports growth of geospatial data capability to improve geospatial services for property valuers and support wider business transformation. The postholder is expected to analyse, update, and refine geospatial data, ensure accuracy and quality, correct errors, add new data, create automated workflows and bespoke visualisations, and transfer knowledge across the business.
+
+This is therefore not a generic data analyst role with a map component. It is a specialist geospatial data role combining spatial and non-spatial data integration, full data-lifecycle work, GIS tooling, metadata, technical documentation, quality assurance, topological integrity, and stakeholder-facing knowledge transfer in a property valuation context.
+
+### Responsibilities Evidence
+
+#### 1. Geospatial data lifecycle work
+
+- Work with geospatial data throughout the full data lifecycle.
+- Source geospatial data.
+- Manage data licensing considerations.
+- Publish geospatial data.
+- Analyse geospatial data.
+- Update geospatial data.
+- Refine geospatial data.
+- Correct errors in geospatial data.
+- Add new data.
+- Ensure geospatial data accuracy.
+- Ensure geospatial data quality.
+
+#### 2. Data preparation, processing, automation, and visualisation
+
+- Create data.
+- Prepare data.
+- Process data.
+- Develop automated workflows.
+- Develop bespoke visualisations.
+- Transform data.
+- Integrate different data types from a range of data sources.
+- Integrate spatial and non-spatial data.
+- Use automated workflows and processes.
+
+#### 3. GIS, programming, and analytical methods
+
+- Undertake data analysis with a focus on geospatial data.
+- Use programming languages such as `Python` or `R` for analysis.
+- Work with `Geographic Information System (GIS)` software.
+- Use GIS tools such as `ArcGIS` or `QGIS`.
+- Apply strong analytical and problem-solving skills.
+- Maintain a high level of attention to detail.
+
+#### 4. Metadata, documentation, and standards
+
+- Contribute to metadata for data, processes, and workflows.
+- Contribute to technical documentation for data, processes, and workflows.
+- Apply data standards.
+- Implement analytical standards.
+- Implement data standards.
+- Share knowledge with others.
+
+#### 5. Quality assurance and geospatial integrity
+
+- Carry out quality assurance checks on geospatial products.
+- Define quality assurance activities.
+- Carry out verification.
+- Carry out validation.
+- Carry out analytical review.
+- Check completeness.
+- Check topological integrity.
+- Ensure data is of high quality and accuracy.
+
+#### 6. Stakeholder engagement and knowledge transfer
+
+- Liaise with internal stakeholders to understand geospatial requirements.
+- Liaise with external stakeholders to understand geospatial requirements.
+- Support knowledge transfer.
+- Engage with a range of teams.
+- Communicate clearly and confidently.
+- Organise workloads to meet expected timelines.
+- Work at pace.
+
+### Person Specification Evidence
+
+#### 1. Lead technical criterion
+
+- Experience undertaking analysis using programming languages such as `Python` or `R`. Essential and lead criterion for high-volume sift.
+
+#### 2. Geospatial and data-transformation capability
+
+- Experience transforming data. Essential.
+- Experience integrating different data types from a range of sources. Essential.
+- Experience integrating spatial and non-spatial data. Essential example.
+- Experience using automated workflows and processes. Essential.
+- Experience working with `GIS` software such as `ArcGIS` or `QGIS`. Essential.
+
+#### 3. Quality assurance and standards capability
+
+- Experience defining quality assurance activities. Essential.
+- Experience carrying out quality assurance activities such as verification, validation, and analytical review. Essential.
+- Experience implementing analytical standards. Essential.
+- Experience implementing data standards. Essential.
+- Strong attention to detail. Essential.
+
+#### 4. Communication and delivery capability
+
+- Strong analytical and problem-solving skills. Essential.
+- Strong verbal communication skills. Essential.
+- Strong written communication skills. Essential.
+- Ability to work at pace. Required by person specification narrative.
+- Ability to organise workloads to meet expected timelines. Required by person specification narrative.
+- Ability to transfer knowledge effectively to others. Required by person specification narrative.
+
+### Success Profiles and Selection Evidence
+
+- Role is assessed at `HEO` level.
+- The vacancy uses `Success Profiles` and assesses `Behaviours` and `Experience`.
+- Application requires `CV` and a `750` word personal statement.
+- The personal statement should pay particular attention to the `Essential Requirements` and `Person Specification`.
+- Initial sift, if needed, will be on the lead essential requirement: experience undertaking analysis using programming languages such as `Python` or `R`.
+- Interview assesses the listed behaviours and a presentation.
+- Interview includes a `5` minute presentation and `5` minute Q&A.
+- `Behaviours` assessed are:
+- `Making Effective Decisions`
+- `Managing a Quality Service`
+- `Communicating and Influencing`
+- Under the Civil Service Success Profiles source capture, `Making Effective Decisions` at `HEO/SEO` level includes using credible internal and external information, involving others where appropriate, consulting on end-user impacts, and presenting timely recommendations with options, costs, benefits, and risks.
+- Under the same source, `Managing a Quality Service` at `HEO/SEO` level includes maintaining and reviewing systems and services, working with stakeholders on priorities and timescales, delivering high-quality outcomes that meet customer needs, identifying and resolving risks, and responding to customer feedback.
+- Under the same source, `Communicating and Influencing` at `HEO/SEO` level includes straightforward, honest, engaging communication; choosing styles to maximise understanding and impact; communicating with clear purpose; checking understanding; and respecting diverse stakeholder interests.
+
+### Additional Process and Environment Evidence
+
+- Role sits in `HMRC Valuation Office`, formerly known as the `Valuation Office Agency`.
+- Business area is `VOA - Practitioners - Information, Data & Analysis`.
+- Role is `Permanent` and `Higher Executive Officer`.
+- Locations are `Bristol`, `Cardiff`, `Exeter`, `Leeds`, `Manchester`, and `Newcastle-upon-Tyne`.
+- HMRC Valuation Office is described as the public sector's property valuation expert and adviser.
+- Work supports collection of over `£60 billion` of revenue.
+- Hybrid working expects `60%` office attendance, with up to `2` days per week from home where suitable.
+- Sift is provisionally `11th - 15th May 2026`.
+- Interviews are provisionally week commencing `1st June 2026`.
+- Reserve list is `6` months.
+- Security requirement is baseline personnel security standard and criminal record check.
+
+### Hiring Signal Summary
+
+This posting is a strong geospatial data and public-sector transformation role centred on:
+- full-lifecycle geospatial data work, including sourcing, licensing, publishing, updating, and refinement
+- `Python` or `R` analysis as the lead sift criterion
+- `GIS` software such as `ArcGIS` or `QGIS`
+- spatial and non-spatial data integration through automated workflows and processes
+- metadata, technical documentation, data standards, and analytical standards
+- geospatial quality assurance, including completeness and topological integrity
+- stakeholder requirement gathering and knowledge transfer for property valuation services
+- HEO-level Success Profiles evidence for `Making Effective Decisions`, `Managing a Quality Service`, and `Communicating and Influencing`
+
+It is a useful evidence point because it shows a specialist government data role where the competitive candidate must combine geospatial technical skill, programming, automated data transformation, rigorous QA, and Civil Service decision and communication behaviours. The employer is looking for someone who can make spatial data accurate, trusted, reusable, and useful for public-sector valuation work and wider business transformation.
+
+---
+
+## Data Manager - UK Health Security Agency
+
+Source:
+- `Civil Service Jobs` - <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=b3duZXJ0eXBlPWZhaXImam9ibGlzdF92aWV3X3ZhYz0xOTk2MTgyJnVzZXJzZWFyY2hjb250ZXh0PTE4NjU3NDc3OCZzZWFyY2hzb3J0PXNjb3JlJnBhZ2VjbGFzcz1Kb2JzJnNlYXJjaHBhZ2U9MSZwYWdlYWN0aW9uPXZpZXd2YWNieWpvYmxpc3Qmb3duZXI9NTA3MDAwMCZyZXFzaWc9MTc3NzY5MDg5NC1kMWVlNGQ0NDYzNzE2MWY2OTZkZTIyMzAxOTZjNjQxMWU1YjU3NTc5>
+
+Role family:
+- `Data Manager`
+- public-health surveillance data management
+- respiratory-virus database development and scientific analysis
+- reference-laboratory data governance, reporting, and research support
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Data Manager` in the `Respiratory Virus Unit (RVU)` within the `Virus Reference Department (VRD)` at `UKHSA Reference Services Colindale`.
+
+The role supports a high-consequence public-health laboratory context. `RVU` is the `WHO` National Influenza Centre for the UK, the National Reference Laboratory for respiratory virus pathogens, one of four `WHO` global respiratory syncytial virus reference laboratories, and a `WHO` Middle East Respiratory Syndrome coronavirus reference laboratory. The postholder is expected to develop and maintain respiratory-virus databases, manage enhanced surveillance systems, analyse and interpret complex scientific data, contribute to publications and grant reporting, support outbreak work, and maintain confidentiality and security of patient information.
+
+This is therefore not a generic data-management role. It is a scientific surveillance data management role where database work, SQL capability, epidemiological/public-health reporting, respiratory-virus domain context, confidentiality, research outputs, and national/international reference-lab responsibilities all matter.
+
+### Responsibilities Evidence
+
+#### 1. Respiratory-virus database development and management
+
+- Develop respiratory-virus-specific databases.
+- Maintain respiratory-virus-specific databases.
+- Develop databases related to hospital surveillance.
+- Develop databases related to laboratory surveillance.
+- Manage respiratory-virus databases for England and Wales in conjunction with others.
+- Oversee redevelopment of respiratory-virus databases.
+- Work with software experts in planning transfer of databases into a new system.
+- Provide day-to-day management of enhanced surveillance systems for respiratory viruses.
+- Contribute to further development of surveillance systems.
+
+#### 2. Scientific data analysis, interpretation, and reporting
+
+- Analyse complex scientific data.
+- Interpret complex scientific data.
+- Analyse data in relation to hospital surveillance projects.
+- Produce regular scientific reports.
+- Produce presentations for national meetings.
+- Produce presentations for international meetings.
+- Produce publications in peer-reviewed journals.
+- Produce other ad hoc analyses.
+- Provide key input into project analysis.
+- Contribute to dissemination and presentation.
+- Contribute to publication in peer-reviewed journals.
+
+#### 3. Surveillance system and project development
+
+- Contribute to pandemic surveillance preparedness activities.
+- Contribute to development of new projects for respiratory-virus infections.
+- Contribute to new projects relating to community surveillance.
+- Participate in research projects related to respiratory viruses.
+- Participate in surveillance related to respiratory viruses.
+- Provide support for other surveillance activities within the Department.
+
+#### 4. Grant applications, research outputs, and project organisation
+
+- Contribute to applications for grant funding for respiratory viruses.
+- Provide key input into project organisation.
+- Provide key input into project management.
+- Provide key input into reports.
+- Participate in research activities within the section and department.
+
+#### 5. Outbreak, liaison, and public-health collaboration
+
+- Liaise with medical and scientific staff in `UKHSA`.
+- Liaise with medical and scientific staff in the `NHS`.
+- Liaise with other bodies to provide information necessary for respiratory viruses.
+- Regularly liaise with clinical microbiologists.
+- Regularly liaise with physicians working in respiratory-virus surveillance and research.
+- Liaise with health care professionals at local and national level.
+- Support national and international outbreak-related work.
+- Provide scientific support to the `Virus Reference Department`, Colindale.
+
+#### 6. Confidentiality, security, teaching, and training
+
+- Maintain confidentiality of patient information.
+- Maintain data confidentiality and security in compliance with `UKHSA` policies.
+- Maintain compliance with the Data Protection Act and other statutory requirements.
+- Be aware of and put into practice relevant policies and procedures for confidentiality.
+- Contribute to the active teaching and training programme of the department.
+- Contribute to teaching and training within and outside the department.
+
+### Person Specification Evidence
+
+#### 1. Education and scientific grounding
+
+- Bachelor's degree in a science or health-related topic. Essential.
+
+#### 2. Database management and SQL capability
+
+- Experience in data management and analysis using database software packages such as `MS Access` and `SQL`. Essential and lead sift criterion.
+- Experience in programming using `SQL`. Desirable.
+- Interview includes a `10-15` minute written `SQL` test covering knowledge and skill in creating queries.
+
+#### 3. Accuracy, surveillance, and reporting
+
+- Attention to detail. Essential.
+- Particular emphasis on accuracy of data. Essential.
+- Surveillance experience. Desirable.
+- Report-writing experience. Desirable.
+
+### Selection and Assessment Evidence
+
+- Role is `Higher Executive Officer`.
+- Type of role is `Governance`.
+- The vacancy is assessed using a competency-based framework rather than a behaviour-led Success Profiles structure.
+- Application and sift assess qualifications, knowledge, experience, skills, and abilities against the essential criteria.
+- Application requires an application form and a `750` word supporting statement.
+- The supporting statement must reference the essential criteria.
+- The application form and supporting statement receive a joint score.
+- In a large field, longlisting may classify candidates into `Meets all essential criteria`, `Meets some essential criteria`, and `Meets no essential criteria`.
+- If there are many applications, initial sift may use the lead criterion: experience in data management and analysis using database software packages such as `MS Access` and `SQL`.
+- Desirable criteria may be used in high-volume scenarios.
+- Interview is a single face-to-face interview in `Colindale`, with remote interview only in exceptional circumstances.
+- Interview tests knowledge, experience, skills, and abilities.
+- Interview includes a written `SQL` assessment lasting `10-15` minutes.
+
+### Additional Process and Environment Evidence
+
+- Role is based at the scientific campus in `Colindale`.
+- Hybrid working is not available.
+- The role requires `Counter Terrorism Check (CTC)` clearance as a minimum because it is based at a scientific campus.
+- Applicants normally need to have been resident in the UK for the last `3` years for meaningful vetting.
+- UKHSA notes future relocation context linked to the new National Biosecurity Centre in `Harlow`, with phased moves expected as facilities become available.
+- Role is permanent and full time.
+- Closing date is `13th May 2026`.
+
+### Hiring Signal Summary
+
+This posting is a strong public-health surveillance data management role centred on:
+- respiratory-virus database development, maintenance, and redevelopment
+- enhanced surveillance systems for hospital, laboratory, and community surveillance
+- database analysis using `MS Access` and `SQL`, with a written SQL test at interview
+- complex scientific data interpretation for reports, meetings, publications, and ad hoc analysis
+- pandemic preparedness, outbreak support, research projects, grant applications, and reference-lab outputs
+- liaison with clinical microbiologists, physicians, NHS staff, UKHSA staff, WHO-linked reference-lab stakeholders, and other bodies
+- confidentiality, patient-information security, Data Protection Act compliance, and high-accuracy data management in a secure scientific-campus environment
+
+It is a useful evidence point because it shows a data role where database skill is inseparable from scientific surveillance, public-health reporting, and governed handling of sensitive patient data. The employer wants someone who can manage and analyse respiratory-virus surveillance data accurately enough to support national and international public-health work, not just maintain databases as a technical exercise.
+
+---
+
+## Portfolio Analyst - Crown Commercial Service
+
+Source:
+- `Civil Service Jobs` - <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=dXNlcnNlYXJjaGNvbnRleHQ9MTg2NzA0MDg3JnBhZ2VhY3Rpb249dmlld3ZhY2J5am9ibGlzdCZwYWdlY2xhc3M9Sm9icyZzZWFyY2hzb3J0PXNjb3JlJm93bmVyPTUwNzAwMDAmc2VhcmNocGFnZT01Jm93bmVydHlwZT1mYWlyJmpvYmxpc3Rfdmlld192YWM9MTk5NjI4OSZyZXFzaWc9MTc3NzgyMjU3NC1hOWVhNTNiNzUwY2IxMDRlYzg1OWExMTI0ZWMwODNlZmM1MzA5YzJk>
+- Civil Service Success Profiles source capture - `docs/experience_lake/outward-facing-assets/frameworks/civil_service_success_profiles/success_profiles_govuk_source_capture.md`
+
+Role family:
+- `Portfolio Analyst`
+- PMO / portfolio management analytics
+- project delivery governance, reporting, risk and dependency insight
+- senior-board investment decision support
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Portfolio Analyst` in the `Portfolio Management Office (PMO)` within the `Portfolio & Project Delivery` function.
+
+The role is positioned as central to ensuring projects and programmes deliver value for the nation. The advert explicitly states that the role is not just tracking spreadsheets: the postholder provides high-quality insights for senior leaders making critical investment decisions, maintains a central hub of portfolio information, monitors performance, identifies emerging risks, supports governance standards, and collaborates with project managers and stakeholders to maintain a single version of the truth.
+
+This is therefore not a generic project admin role. It is a portfolio insight and governance role where data analysis, reporting, risk/issue/dependency management, resource optimisation, process improvement, stakeholder challenge, and Civil Service project-delivery behaviours all shape the expected candidate.
+
+### Responsibilities Evidence
+
+#### 1. Portfolio insight and senior-board reporting
+
+- Gather complex data across the portfolio.
+- Analyse complex data across the portfolio.
+- Produce clear reports for senior boards.
+- Produce actionable reports for senior boards.
+- Provide high-quality insights for senior leaders.
+- Support critical investment decisions.
+- Act as a central hub of portfolio information.
+- Maintain a single version of the truth.
+
+#### 2. Performance monitoring and strategic delivery support
+
+- Monitor portfolio performance.
+- Ensure highest-priority projects stay on track.
+- Ensure strategic objectives stay on track.
+- Support projects and programmes to deliver real value for the nation.
+- Help ensure resources are used effectively.
+- Optimise resources.
+- Support delivery of maximum value from national projects and programmes.
+
+#### 3. Governance and PMO standards
+
+- Work collaboratively to ensure projects are managed to the highest standards.
+- Ensure governance standards are met across the board.
+- Work at the heart of the `PMO`.
+- Contribute to newly forming `SDD PMO` processes.
+- Help build processes to drive change capability across the `PMO` and wider business.
+- Technical skill assessed: `Governance`.
+
+#### 4. Risk, issue, and dependency management
+
+- Identify emerging risks.
+- Manage risks.
+- Identify trends across the portfolio.
+- Identify dependencies across the portfolio.
+- Identify issues and dependencies that could impact delivery.
+- Support risk, issue, and dependency management.
+- Bring clarity to complexity.
+
+#### 5. Stakeholder engagement, challenge, and support
+
+- Build strong relationships with project managers.
+- Build strong relationships with stakeholders.
+- Challenge project teams in their reporting.
+- Support project teams in their reporting.
+- Collaborate with project managers and stakeholders.
+- Work with stakeholders to maintain a single version of the truth.
+
+#### 6. Process improvement and tooling
+
+- Drive simplification of processes.
+- Use tools such as `AI` to enhance productivity and quality.
+- Support change capability across the wider business.
+- Leverage tools to improve PMO reporting and process quality.
+
+### Person Specification Evidence
+
+#### 1. Strategic and portfolio understanding
+
+- Demonstrate ability to grasp the big picture. Essential.
+- Understand critical drivers of business strategy. Essential.
+- Understand the project delivery lifecycle. Essential.
+- Understand key differences between `Agile` and `Waterfall` methodologies. Essential.
+
+#### 2. Analytical and reporting capability
+
+- Possess strong analytical skills. Essential.
+- Use data to identify trends. Essential.
+- Formulate sound conclusions from data. Essential.
+- Produce insights that support senior-leader decision making. Strongly implied.
+
+#### 3. Collaboration and communication
+
+- Exhibit a strong team ethic. Essential.
+- Collaborate and engage with impact. Essential.
+- Display excellent communication skills. Essential.
+- Simplify complex information for diverse stakeholders. Essential.
+
+#### 4. Process improvement and productivity
+
+- Drive simplification of processes. Essential.
+- Leverage tools such as `AI` to enhance productivity and quality. Essential.
+
+### Success Profiles and Selection Evidence
+
+- Role is `Higher Executive Officer`, `Band 3`.
+- Vacancy uses `Success Profiles`.
+- It assesses `Behaviours` and `Technical skills`.
+- `Essential Criteria` are assessed at application stage.
+- Behaviours assessed are:
+- `Seeing the Big Picture`
+- `Changing and Improving`
+- `Working Together`
+- `Communicating and Influencing`
+- Technical skill assessed is `Governance`.
+- Under the Civil Service Success Profiles source capture, `Seeing the Big Picture` at `HEO/SEO` level includes understanding strategic drivers, aligning activities to organisational priorities, staying alert to emerging issues and trends, developing knowledge of the business area, and understanding how team strategies create value for stakeholders.
+- Under the same source, `Changing and Improving` at `HEO/SEO` level includes identifying improvements with others, simplifying processes, using technology to increase efficiency, explaining change, encouraging safe challenge, and taking managed risks while considering user impacts.
+- Under the same source, `Working Together` at `HEO/SEO` level includes joined-up teamwork across groups, professional stakeholder relationships, sharing information and support, building common focus, and seeking input from diverse perspectives.
+- Under the same source, `Communicating and Influencing` at `HEO/SEO` level includes straightforward, honest, engaging communication; choosing styles to maximise understanding and impact; clear purpose; checked understanding; and respectful handling of diverse stakeholder interests.
+
+### Additional Process and Environment Evidence
+
+- There are `3` permanent roles.
+- Locations are `Birmingham`, `Liverpool`, `Newport (Gwent)`, and `Norwich`.
+- Role type is `Project Delivery`.
+- Role sits in a newly formed `SDD PMO` team of `8`.
+- Reserve list may be held for up to `12` months.
+- Working model expects at least `26` days per quarter, approximately `2` days per week, at the contracted office, another site, or off-site meetings.
+- Security requirement is baseline personnel security standard and criminal record check.
+
+### Hiring Signal Summary
+
+This posting is a strong portfolio analytics and PMO governance role centred on:
+- complex portfolio data gathering and analysis for senior-board reports
+- investment decision support for national projects and programmes
+- performance monitoring and single-version-of-truth portfolio information
+- governance standards across projects and programmes
+- risk, issue, dependency, and resource insight across the portfolio
+- stakeholder challenge and support for project teams
+- process simplification, change capability, and use of tools such as `AI` to improve productivity and quality
+- HEO-level Success Profiles evidence for `Seeing the Big Picture`, `Changing and Improving`, `Working Together`, and `Communicating and Influencing`, plus technical assessment of `Governance`
+
+It is a useful evidence point because it shows an analyst role where the data work is embedded in project-delivery governance and senior decision support. The employer wants someone who can turn portfolio complexity into trusted insight, challenge reporting quality, expose risks and dependencies, and help a newly forming PMO build stronger processes.
+
+---
+
+## Intergenerational Harm Analyst - Ministry of Justice
+
+Source:
+- `Ministry of Justice Careers` - <https://jobs.justice.gov.uk/careers/JobDetail/17301-Intergeneration-Harm-Analyst-1-role-available-Justice-Data-Ministry-of-Justice/17301>
+- Job description provided by user
+- Civil Service Success Profiles source capture - `docs/experience_lake/outward-facing-assets/frameworks/civil_service_success_profiles/success_profiles_govuk_source_capture.md`
+
+Role family:
+- `Intergenerational Harm Analyst`
+- justice data and cross-government analytical linkage
+- vulnerable-cohort analytics, data sharing, ethics, and quality assurance
+- advanced quantitative analysis, matching methodology, and AI-enabled discovery
+
+### Job Purpose Evidence
+
+The employer frames this role as an `SEO Intergenerational Harm Analyst` in the `Cross-Government and Academia` division of the `Ministry of Justice` Data Directorate, as part of the `BOLD` partnership.
+
+The role focuses on using linked data and advanced analysis to improve services and outcomes for people with complex needs and vulnerable cohorts. It sits in the `Families and Intergenerational Harm` team within the `BOLD Prevention` workstream, developing the evidence base on children affected by parental imprisonment. The role supports a new project exploring operational methods for identifying children and families affected by parental imprisonment, enabling earlier intervention and contributing to improved outcomes, rehabilitation, and reduced intergenerational offending.
+
+This is therefore not a generic data analyst role. It is a high-interest cross-government analytical role combining large-scale linked administrative data, data-sharing agreements, matching methodology, data quality, ethics, AI-enabled approaches, multidisciplinary delivery, and professional analytical competency assessment.
+
+### Responsibilities Evidence
+
+#### 1. Cross-government data linkage and vulnerable-cohort analysis
+
+- Bring together data held across the `Ministry of Justice`.
+- Bring together data held by `His Majesty's Prison and Probation Service`.
+- Bring together data held by `HM Revenue & Customs`.
+- Bring together data held by the `Department for Education`.
+- Work with wider partners to support identification of children affected by parental imprisonment.
+- Improve data coverage on children affected by parental imprisonment.
+- Analyse datasets to identify and understand this hidden population.
+- Build understanding of the scale, characteristics, and needs of children affected by parental imprisonment.
+
+#### 2. Data sharing, ethics, and cross-government use cases
+
+- Lead cross-government data sharing arrangements.
+- Deliver data-sharing work with `HMRC`, `DfE`, and other partners.
+- Support development of data-sharing agreements.
+- Provide analytical input into cross-government use cases.
+- Consider data protection.
+- Consider ethics.
+- Understand the potential of data for analysis.
+- Ensure ethical and responsible use of data.
+
+#### 3. Matching methodology, data quality, and operational adaptation
+
+- Adapt methodology to an operational setting.
+- Improve matching methodology.
+- Work closely with social researchers to identify barriers to self-disclosure.
+- Drive data quality.
+- Design a monitoring dashboard to assess quality of data matching across local authorities.
+- Develop a monitoring dashboard to assess quality of data matching across local authorities.
+- Coordinate dashboard updates with `DfE` and other stakeholders.
+
+#### 4. Advanced analysis, AI, and frontline tools
+
+- Use innovative approaches and `AI` to deliver on a manifesto commitment.
+- Work with advanced tools and expertise in data analysis.
+- Work with large language models and AI tools that can understand and generate text.
+- Contribute to frontline tools containing live data to support caseworkers.
+- Apply complex analytical techniques to generate insights and visualisations.
+
+#### 5. Analytical project management and multidisciplinary delivery
+
+- Manage analytical projects from scoping and planning through delivery.
+- Coordinate stakeholders.
+- Ensure quality and timeliness.
+- Work in a multidisciplinary team.
+- Work collaboratively with stakeholders and colleagues across organisations and professions.
+- Identify use cases for data and analytical projects.
+- Co-create deliverables.
+- Share findings with others.
+
+#### 6. Communication, dissemination, and impact
+
+- Communicate findings clearly to technical audiences.
+- Communicate findings clearly to non-technical audiences.
+- Support strategic decision making.
+- Support operational decision making.
+- Support decision-makers and frontline practitioners to understand the whole picture of people's experiences.
+- Deliver high-quality analysis.
+
+### Person Specification Evidence
+
+#### 1. Data and quantitative analysis
+
+- Experience manipulating large complex datasets across government. Essential.
+- Experience applying complex analytical techniques to generate insights. Essential.
+- Experience applying complex analytical techniques to generate visualisations. Essential.
+
+#### 2. Data sharing, ethics, and quality assurance
+
+- Understanding of data sharing. Essential.
+- Understanding of ethics. Essential.
+- Understanding of quality assurance. Essential.
+
+#### 3. Analytical tools and languages
+
+- Experience using analytical tools and languages such as `R` or `Python`. Essential.
+- `AI` knowledge. Desirable.
+- Data-linking knowledge. Desirable.
+
+#### 4. Project management and stakeholder coordination
+
+- Experience managing analytical projects from scoping and planning through delivery. Essential.
+- Experience coordinating stakeholders. Essential.
+- Experience ensuring quality and timeliness. Essential.
+
+#### 5. Communication and domain knowledge
+
+- Ability to communicate findings clearly to technical audiences. Essential.
+- Ability to communicate findings clearly to non-technical audiences. Essential.
+- Knowledge of government data on offending, education, or benefits data. Desirable.
+
+#### 6. Security and analytical profession context
+
+- Must meet requirements for `BPSS` clearance. Essential.
+- Must be willing to apply for `SC` clearance depending on projects taken forward. Essential.
+- Role is open to badged and unbadged analysts.
+- Applications from `GSG`, `GORS`, `GES`, `GSR`, and other analytical professions are welcomed.
+- Badging opportunities are available once in post for candidates with similar experience at the appropriate level.
+
+### Success Profiles and Professional Competency Evidence
+
+- Role is assessed at `SEO` level.
+- Application requires a current `CV` and a statement of suitability of up to `1000` words.
+- Application-stage assessment includes `CV or Work History`, `Experience Questions`, and `Statement of Suitability`.
+- Experience question word limit is `250`.
+- Interview is a `1-hour` panel interview by video conference.
+- Interview includes a `5` minute presentation.
+- Recruitment uses a combination of `Professional Competencies` and `Success Profiles`.
+- Assessed elements include `Experience`, `Technical Skills`, and behaviours.
+- Behaviours assessed are:
+- `Changing and Improving`
+- `Making Effective Decisions`
+- `Working Together`
+- Professional Competency 1, `Knowledge & Skills`, maps to:
+- `GSS - Data Analysis`
+- `GORS - Knowledge and application of OR Skills and Techniques`
+- `GES - Analysis of Data`
+- `GSR - Knowledge and application of GSR technical skills`
+- Professional Competency 2, `Influence & Impact`, maps to:
+- `GSS - Presenting and disseminating data effectively`
+- `GORS - Achieving impact with analysis`
+- `GES - Effective communication`
+- `GSR - using and promoting social research`
+- For external and unbadged Civil Service candidates, interview assesses analytical knowledge, experience, abilities, and impact of analytical work.
+- Under the Civil Service Success Profiles source capture, `Changing and Improving` at `HEO/SEO` level includes identifying improvements with others, simplifying processes, using technology to increase efficiency, encouraging ideas, explaining change, safe challenge, and managed risk with user impacts considered.
+- Under the same source, `Making Effective Decisions` at `HEO/SEO` level includes using credible internal and external information, involving others where appropriate, consulting on end-user impacts, and presenting timely recommendations with options, costs, benefits, and risks.
+- Under the same source, `Working Together` at `HEO/SEO` level includes joined-up teamwork across groups, professional stakeholder relationships, sharing information and support, common focus, and input from diverse perspectives.
+
+### Additional Process and Environment Evidence
+
+- Role sits in the `Cross-Government and Academia` division within the `Data Directorate`.
+- Role is part of the `BOLD` partnership and `BOLD Prevention` workstream.
+- Role has high ministerial interest and cross-government collaboration.
+- The work contributes to a manifesto commitment to support children affected by parental imprisonment.
+- Role is `Senior Executive Officer`.
+- Role is permanent and national.
+- Working pattern includes full-time, part-time, and flexible working.
+- Hybrid working is offered, with minimum `60%` office attendance subject to local estate capacity.
+- Interviews are likely week commencing `15th June 2026`.
+- Reserve list may be held for up to `12` months.
+- Specialist data and analysis allowance is available following analytical interview: `SEO London: £500`; `SEO National: £1500`.
+
+### Hiring Signal Summary
+
+This posting is a strong cross-government justice data and vulnerable-cohort analytics role centred on:
+- large complex administrative datasets across justice, prison/probation, tax, education, and wider partners
+- data sharing agreements, ethics, data protection, quality assurance, and responsible use of data
+- matching methodology and operational identification of children affected by parental imprisonment
+- monitoring dashboard development to assess matching quality across local authorities
+- advanced quantitative analysis, `R` / `Python`, visualisation, data linking, and potential `AI` / large language model use
+- analytical project management, stakeholder coordination, and multidisciplinary delivery
+- professional analytical competency assessment across `GSS`, `GORS`, `GES`, or `GSR` pathways
+- SEO-level Success Profiles evidence for `Changing and Improving`, `Making Effective Decisions`, and `Working Together`
+
+It is a useful evidence point because it shows an advanced public-sector analytical role where technical strength must be coupled with data ethics, cross-government partnership, methodological judgement, and policy/operational impact. The employer wants someone who can make linked government data usable for earlier intervention with vulnerable children while maintaining quality, ethics, and analytical credibility.
+
+---
+
+## Situational Awareness Analyst - UK Research and Innovation
+
+Source:
+- `Civil Service Jobs` - <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=c2VhcmNoc29ydD1zY29yZSZwYWdlYWN0aW9uPXZpZXd2YWNieWpvYmxpc3QmdXNlcnNlYXJjaGNvbnRleHQ9MTg2NTc0NjU5Jm93bmVydHlwZT1mYWlyJnBhZ2VjbGFzcz1Kb2JzJnNlYXJjaHBhZ2U9MSZqb2JsaXN0X3ZpZXdfdmFjPTE5OTY1MTAmb3duZXI9NTA3MDAwMCZyZXFzaWc9MTc3NzY5MDI1Ni0wZjdhMjM2ODEzZDQ5NzZkNjhjZjEwYzlhNWI4NzA0NThmNTYwNThm>
+
+Role family:
+- `Situational Awareness Analyst`
+- research landscape intelligence and horizon scanning
+- strategic analysis for research and innovation investment
+- social science ecosystem monitoring and foresight
+
+### Job Purpose Evidence
+
+The employer frames this role as a `Situational Awareness Analyst` in a new `Situational Awareness Function (SAF)` within the `Economic and Social Research Council (ESRC)`, part of `UK Research and Innovation`.
+
+The `SAF` is designed to enhance ESRC's understanding of the UK's social science research landscape by providing insight, horizon scanning, and timely intelligence to inform future strategic decision making. The postholder is expected to deliver broad, up-to-date evidence and analysis across the social science ecosystem, drawing on new and existing data sources, and communicating outputs to a range of audiences.
+
+This is therefore not a generic analyst post. It is a strategic intelligence and research-landscape analytics role that combines structured dataset analysis, research-system monitoring, horizon scanning, dashboards, briefings, interpretive insight, stakeholder presentations, and organisational capability building in data-informed decision making.
+
+### Responsibilities Evidence
+
+#### 1. Social science landscape analysis and intelligence
+
+- Lead analysis on the UK's social science landscape.
+- Deliver analysis on the UK's social science landscape.
+- Produce outputs tailored to diverse audiences.
+- Produce outputs tailored to different decision-making needs.
+- Deliver descriptive analytics.
+- Deliver interpretive insights.
+- Deliver strategic insights.
+- Identify emerging trends.
+- Identify knowledge gaps.
+- Identify opportunities for deeper exploration.
+
+#### 2. Monitoring, horizon scanning, and foresight
+
+- Contribute to ongoing monitoring.
+- Contribute to ad hoc intelligence needs.
+- Produce briefings on emerging trends or developments.
+- Contribute to strategic foresight.
+- Contribute to horizon scanning.
+- Provide timely intelligence to inform future strategic decision making.
+- Deliver broad and up-to-date evidence across the social science ecosystem.
+
+#### 3. Outputs, dashboards, reports, and communication
+
+- Produce landscape summaries.
+- Produce dashboards.
+- Produce analytical reports.
+- Produce visualisations.
+- Produce presentations to internal stakeholders.
+- Produce presentations to external stakeholders.
+- Communicate outputs to a range of audiences.
+- Synthesise and communicate complex information clearly and concisely.
+
+#### 4. SAF development, joint projects, and organisational capability
+
+- Support the Situational Awareness Lead in shaping the function's analytical work.
+- Support the Situational Awareness Lead in developing analytical priorities.
+- Deliver joint projects with the `UK Metascience Unit`.
+- Enhance the impact of `ESRC` and `UKRI` research and innovation investment activity.
+- Promote analytical expertise within `ESRC`.
+- Build organisational capability in intelligence gathering.
+- Build organisational capability in data-informed decision making.
+
+#### 5. Initiative, external representation, and stakeholder engagement
+
+- Independently identify new activities.
+- Independently initiate new activities.
+- Apply innovative approaches to enhance organisational understanding of the social science landscape.
+- Represent `ESRC` externally.
+- Participate in `UKRI` groups.
+- Participate in stakeholder engagements.
+- Work across `ESRC` and `UKRI` to gather, analyse, and communicate insights.
+
+### Person Specification Evidence
+
+#### 1. Statistical and structured-data capability
+
+- Experience using appropriate statistical methods when working with structured datasets. Essential, scored at shortlisting and interview.
+- Relevant example datasets include bibliometrics. Essential context.
+- Relevant example datasets include `HESA`. Essential context.
+- Relevant example datasets include `UKRI` grants. Essential context.
+
+#### 2. Synthesis, communication, and problem solving
+
+- Ability to synthesise complex information clearly and concisely. Essential, scored at shortlisting and interview.
+- Ability to communicate complex information clearly and concisely. Essential, scored at shortlisting and interview.
+- Strong analytical skills. Essential, scored at shortlisting and interview.
+- Strong problem-solving skills. Essential, scored at shortlisting and interview.
+
+#### 3. Tools and analytical languages
+
+- Familiarity with tools such as `R`, `SQL`, or `Python` for data analysis. Essential, scored at shortlisting and interview.
+- Ability and willingness to adopt `R`, `SQL`, or `Python` quickly. Essential alternative.
+
+#### 4. Survey and independent-working capability
+
+- Understanding of survey design and analysis. Essential for one of the two roles only, scored at shortlisting and interview.
+- Ability to work independently. Essential, scored at shortlisting and interview.
+- Ability to manage competing priorities. Essential, scored at shortlisting and interview.
+
+### Selection and Assessment Evidence
+
+- Role is `Senior Executive Officer`, `UKRI Band E`.
+- The criteria are explicitly marked as scored at shortlisting, interview, or both.
+- All listed essential criteria are scored at both shortlisting and interview.
+- The advert does not list Civil Service behaviours for assessment.
+- The advert states this post is not regulated by the Civil Service Commission.
+- The assessment signal is therefore concentrated on the essential criteria, analytical outputs, and interview evidence rather than named behaviours.
+
+### Additional Process and Environment Evidence
+
+- Role is in `ESRC`, part of `UKRI`.
+- Business area is `UKRI - Data and Resources`.
+- Role is permanent / open ended.
+- Location is `Polaris House`, `Swindon`, with hybrid working available.
+- Role can be full-time or part-time, with minimum `0.8 FTE`.
+- Closing date is `18 May 2026`.
+- Role sits in a newly created `Situational Awareness Function`.
+- Role supports strategic decision making around the UK's social science research ecosystem.
+- Security requirement includes criminal record check and baseline personnel security standard.
+
+### Hiring Signal Summary
+
+This posting is a strong research-system intelligence and situational-awareness analytics role centred on:
+- analysis of the UK's social science research landscape
+- structured datasets such as bibliometrics, `HESA`, and `UKRI` grants
+- horizon scanning, foresight, emerging-trend briefings, and knowledge-gap identification
+- dashboards, landscape summaries, reports, visualisations, and stakeholder presentations
+- `R`, `SQL`, or `Python` for data analysis, or rapid adoption of those tools
+- synthesis of complex information for strategic decision makers
+- collaboration across `ESRC`, `UKRI`, and the `UK Metascience Unit`
+- independent initiation of analytical activities and organisational capability building
+
+It is a useful evidence point because it shows an analyst role where value comes from turning dispersed research-system evidence into timely strategic intelligence. The employer wants someone who can combine statistical analysis, research-landscape understanding, horizon scanning, clear synthesis, and independent judgement to help ESRC and UKRI make better investment and strategy decisions.
+
+## Advanced Information Analyst - Lewisham and Greenwich NHS Trust
+
+Source: NHS Jobs advert and candidate information pack supplied by user.
+
+### Role Title Evidence
+
+- `Advanced Information Analyst`
+- Employer: `Lewisham and Greenwich NHS Trust`
+- Department: `Performance and Business Intelligence`
+- Grade: `Band 7`
+- Responsible to: `Performance and Modelling Analyst`
+- Location signal: Catford / Rushy Green / London.
+
+### Job Purpose Evidence
+
+The employer frames this as a senior NHS business intelligence and performance analytics role. The post exists to deliver an effective business analytics and intelligence service for:
+- the executive team
+- divisional operational managers
+- clinicians
+- corporate functions
+
+The core purpose is to provide accurate, timely, high-quality information analysis and insight that supports:
+- effective decision making
+- business planning
+- service delivery
+- service improvement
+- operational and performance management
+- national and local monitoring requirements
+
+The role has a specific emphasis on:
+- demand and capacity modelling
+- productivity and efficiency analysis
+- performance reporting
+- operational reporting
+- indicators and dashboards
+- advanced modelling and forecasting
+- analysis of highly complex, multi-stranded data
+
+### Role Family Evidence
+
+This is not a general entry-level analyst role. It sits at the intersection of:
+- NHS performance intelligence
+- business intelligence delivery
+- advanced information analysis
+- demand and capacity modelling
+- productivity and efficiency analytics
+- operational improvement analytics
+- data quality and information governance
+- senior stakeholder decision support
+- analytical leadership and mentoring
+
+### Key Responsibility Evidence
+
+#### 1. Operational, clinical, and executive decision support
+
+- Support operational divisions with management decisions in service delivery.
+- Support service development.
+- Support performance management.
+- Provide high-quality, accurate information analysis through advanced technical information skills.
+- Present operational and strategic information to varied audiences.
+- Determine the best format for communicating information.
+- Ensure information is comprehensible, relevant, and timely.
+- Provide business intelligence about Trust performance.
+- Inform operational, clinical, and performance improvements.
+- Support business planning.
+- Assist in setting contract plans.
+- Assist in developing new `KPIs`.
+
+#### 2. Advanced analytical modelling, forecasting, and demand-capacity work
+
+- Provide in-depth analysis, forecasting, and modelling.
+- Analyse highly complex, multi-stranded data.
+- Develop and implement advanced analytical models.
+- Develop forecasting tools using `Python`, and `R` where appropriate.
+- Apply simulation techniques.
+- Apply optimisation techniques.
+- Apply statistical techniques.
+- Support service planning and decision making.
+- Provide capacity and demand modelling for business planning.
+- Provide capacity and demand modelling for service improvements.
+- Produce meaningful intelligence for evidence-based decisions.
+- Focus particularly on demand and capacity modelling, productivity, and efficiency analysis across domains including elective, outpatients, and diagnostics.
+
+#### 3. SQL, BI, dashboarding, and reporting solution delivery
+
+- Use advanced `SQL`.
+- Use advanced `Excel`.
+- Use `Python` and/or `R`.
+- Write complex `SQL` queries.
+- Build reporting dashboards using `Power BI`.
+- Use visualisation and business intelligence packages including `Power BI` and `SSRS`.
+- Develop new complex and impactful reports and dashboards.
+- Replace existing reporting mechanisms where better solutions are needed.
+- Be responsible for the development, maintenance, and delivery of reporting solutions.
+- Provide expert advice in the use of IT systems.
+- Provide expert advice in data analysis using advanced database, query language, modelling, and report writing tools.
+
+#### 4. Automation, methods improvement, and technical documentation
+
+- Proactively improve data extraction methods.
+- Proactively improve data manipulation methods.
+- Proactively improve data analysis and presentation methods.
+- Develop new systems and evaluate alternative options.
+- Maximise automation of regular reports and analyses.
+- Increase efficiency within the analyst team.
+- Develop and document new procedures.
+- Adapt procedures to changing Trust requirements and technology infrastructure.
+- Maintain standard operating procedures for routine tasks and processes.
+- Ensure service continuity in own area through up-to-date documentation.
+
+#### 5. NHS policy, performance, planning, and contracting
+
+- Provide specialist knowledge across NHS information and policy.
+- Be conversant with national and local policies in the area of responsibility.
+- Produce performance analysis required for national and local monitoring.
+- Support the annual planning and contracting cycle.
+- Provide deep-dive analysis with interpretative narrative.
+- Provide activity information to support business planning.
+- Support the development of metrics and monitoring mechanisms for service improvement initiatives.
+- Collate and analyse benchmarking data.
+- Lead on specific external data flows where required.
+
+#### 6. Data quality, validation, governance, and confidentiality
+
+- Develop robust processes to validate information.
+- Improve data quality with operational staff and data warehouse staff.
+- Produce ad hoc and `FOI` responses in a timely way.
+- Ensure responses are accurate and consistent with published information.
+- Handle sensitive and personal information in line with the `Data Protection Act`.
+- Handle sensitive and personal information in line with information governance requirements.
+- The candidate information pack also emphasises `GDPR`, `Caldicott Principles`, Common Law Duty of Confidentiality, records management, and `FOI` compliance.
+- Make proposals to improve data quality with a view to maximising Trust income.
+- Design efficient databases to reduce validation and correction effort across the Trust.
+
+#### 7. Stakeholder communication and influence
+
+- Work with staff to define specifications.
+- Represent the Performance and Business Intelligence department at meetings.
+- Communicate with employees across the health and social care spectrum.
+- Explain complex solutions and information to non-technical managers.
+- Communicate detailed `IM&T` information within peer groups.
+- Present and interpret activity and performance information.
+- Select appropriate formats for senior managers and clinicians.
+- Highlight pressure points.
+- Predict future challenges.
+- Alert senior managers to potential performance or recording failures.
+- Manage contentious or delicate conversations where managers may not perceive a problem.
+- Use persuasive and motivational skills to negotiate timescales with divisional staff.
+
+#### 8. Leadership, mentoring, training, and deputising
+
+- Lead own projects.
+- Deliver accurate and complete analysis and reporting within agreed timescales.
+- Work independently and as part of a collaborative team.
+- Provide advice, guidance, and training to colleagues.
+- Provide guidance, support, and development for staff in the team.
+- Provide operational leadership and mentorship of more junior staff.
+- Share expert knowledge and skills with other analysts.
+- Deputise for senior members of the team.
+- Attend meetings and communicate with the Executive team when deputising.
+- Provide specialist training on data definitions, standards, `SQL` reporting, `Python`, modelling, analytical techniques, and presentation techniques.
+
+### Person Specification Evidence
+
+#### 1. Qualifications and professional development
+
+- Relevant Master's degree or equivalent senior analytical experience. Essential.
+- Evidence of continuing professional development. Essential.
+- Degree in an analytical subject. Desirable.
+- Membership of a recognised professional body such as `AphA`. Desirable.
+- Qualifications or certification in `Python`, `SQL`, or `Power BI`. Desirable.
+
+#### 2. Analytical and performance-information experience
+
+- Significant experience in an analytical role within performance or information management. Essential.
+- Substantial experience extracting large, complex datasets. Essential.
+- Substantial experience linking large, complex datasets. Essential.
+- Substantial experience analysing large, complex datasets. Essential.
+- Experience developing dashboards in reporting or visualisation tools such as `Python` or `Power BI`. Essential.
+- Experience applying analysis to support operational improvement and informed decision making. Essential.
+- Experience working with and communicating data to colleagues across disciplines and seniority. Essential.
+- Experience working in a fast-paced complex organisation with multiple priorities. Essential.
+- Experience working with `Linux` / `Ubuntu` environments. Desirable.
+
+#### 3. Technical and analytical skills
+
+- Expert knowledge of `SQL`, including complex interlinked models. Essential.
+- Forecasting and predictive modelling with `Python` and `R`. Essential.
+- Advanced `MS Office`, particularly `Excel`. Essential.
+- Specialist knowledge of statistical and analytical techniques. Essential.
+- Data visualisation skills. Essential.
+- Presentation skills. Essential.
+- Good understanding of `Data Protection`, information governance, `FOI`, and `Caldicott Guidance`. Essential.
+- Understanding of NHS policies, NHS agenda, data standards, and performance targets. Desirable.
+
+#### 4. Personal qualities and operating style
+
+- Excellent analytical skills.
+- Excellent problem-solving skills.
+- High attention to detail.
+- Ability to translate complex information into clear, actionable messages for varied audiences.
+- Strategic thinking.
+- Innovative thinking.
+- Ability to build and maintain collaborative relationships across multidisciplinary teams.
+- Ability to work independently.
+- Ability to manage competing priorities.
+- Ability to meet tight deadlines.
+- Flexible and adaptable response to change.
+- Ability to undertake prolonged concentration.
+- Commitment to ongoing personal development.
+- Professional and aligned to Trust values.
+- Positive, reliable, approachable, motivated, and respectful.
+- Actively supports and shares technical expertise with colleagues. Desirable.
+
+### Organisational and Values Evidence
+
+- Trust vision: `To be exceptional`.
+- Trust values include `Respect`, `Compassion`, and `Inclusion`.
+- The candidate pack emphasises:
+  - being accountable over staying comfortable
+  - listening over always knowing best
+  - succeeding together over achieving alone
+- The Trust describes itself as a community-focused provider of local and acute care.
+- The Trust emphasises reducing inequalities.
+- The Trust has a strong equality, diversity, and inclusion agenda.
+- The Trust is an anchor institution and wants its workforce to reflect local communities.
+- The role contributes to patient care by ensuring high-quality analysis and reporting support better healthcare decisions.
+
+### Selection and Assessment Evidence
+
+- Assessment methods listed include application, interview, and test depending on criterion.
+- Qualifications are assessed at application.
+- Experience is assessed at application and interview.
+- Knowledge and skills are assessed through application, interview, and test.
+- Personal qualities are assessed through application and interview.
+- The role is NHS rather than Civil Service; the advert does not use Civil Service Success Profiles or named Civil Service behaviours.
+
+### Hiring Signal Summary
+
+This posting is a strong senior NHS performance intelligence role centred on:
+- advanced `SQL`, `Python` / `R`, `Power BI`, `SSRS`, and `Excel`
+- demand and capacity modelling
+- forecasting, predictive modelling, simulation, optimisation, and statistical analysis
+- productivity and efficiency analysis
+- operational, clinical, executive, and corporate decision support
+- NHS performance reporting, planning, contracting, benchmarking, and `KPI` development
+- data validation, data quality, `FOI`, information governance, `Caldicott`, and confidentiality
+- automation and documentation of recurring reporting workflows
+- multidisciplinary stakeholder engagement and executive-level communication
+- mentoring, training, deputising, and analytical leadership
+
+It is a useful evidence point because the employer wants a Band 7 analyst who can operate above dashboard production. The ideal candidate must combine advanced technical analytics, NHS performance context, demand-capacity modelling, operational improvement judgement, governance discipline, and senior stakeholder influence.
+
+## Senior Data Engineer - Homes England
+
+Source: Civil Service Jobs advert supplied by user.
+
+### Role Title Evidence
+
+- `Senior Data Engineer`
+- Employer: `Homes England`
+- Reference number: `459857`
+- Type of role: `Analytical`, `Architecture and Data`, `Digital`
+- Contract type: Permanent
+- Number of jobs available: `2`
+- Salary: `£51,076 - £59,570`
+- Locations include Birmingham, Bristol, Longstanton, Liverpool, Leeds, Manchester, and Newcastle upon Tyne.
+
+### Public Sector Assessment Lens
+
+The advert is hosted on Civil Service Jobs, so it is relevant to read it through the public-sector application lens captured in `success_profiles_govuk_source_capture.md`: identify the evidence demands around `Experience`, `Technical`, `Behaviours`, `Strengths`, and `Ability`, but only where the advert actually uses them.
+
+For this advert:
+- `Experience` is strongly present through the qualifications, knowledge, and experience section.
+- `Technical` is strongly present through Azure data platform, pipelines, coding, scalable data models, governance, security, and data quality requirements.
+- Named Civil Service `Behaviours` are not listed.
+- `Strengths` are not listed.
+- `Ability` tests are not listed.
+- The advert states the post is `NOT regulated by the Civil Service Commission`.
+
+### Job Purpose Evidence
+
+Homes England frames this as a senior data engineering role supporting the `Azure Data Platform`. The successful candidate joins a team of data engineers and data professionals who are working to make Homes England a data-led organisation.
+
+The role is positioned as central to:
+- shaping the future of the Data Platform
+- designing a scalable, reliable, future-proof data platform
+- resolving data engineering and platform challenges
+- supporting key strategic projects
+- balancing day-to-day delivery with innovative solution implementation
+- enabling a national organisation with social purpose to use data effectively
+
+### Role Family Evidence
+
+This is a senior data engineering and data platform role, not a pure analysis role. It sits at the intersection of:
+- Azure cloud data platform engineering
+- data pipeline design and delivery
+- scalable data modelling
+- analytical data product enablement
+- data governance, security, and data quality
+- stakeholder translation between business problems and technical solutions
+- Agile delivery
+- data visualisation and insight presentation
+- people and team collaboration
+
+### Key Responsibility Evidence
+
+#### 1. Azure data platform support and future platform design
+
+- Support the `Azure Data Platform`.
+- Play a critical role in the data platform team.
+- Help make Homes England a data-led organisation.
+- Shape the future of the Data Platform.
+- Design a scalable data platform.
+- Build a reliable data platform.
+- Build a future-proof data platform.
+- Resolve data engineering and platform challenges efficiently.
+- Resolve platform challenges consistently.
+- Resolve platform challenges effectively.
+- Support the design and delivery of key strategic projects.
+
+#### 2. Pipeline design, ingestion, transformation, and serving
+
+- Design pipelines to copy data from various sources.
+- Deliver pipelines to copy data from various sources.
+- Transform data based on analysis-team requirements.
+- Transform data based on business-team requirements.
+- Present data in an accessible way.
+- Present data in a consistent way.
+- Work with large and complex data environments.
+- Design scalable data models.
+
+#### 3. Cloud, coding, and engineering methods
+
+- Work with cloud technologies, with `Azure` given as the example.
+- Use coding skills, with `Python`, `PySpark`, and `SQL` given as examples.
+- Apply software design principles.
+- Work with `Agile` methodologies.
+- Translate business problems into technical solutions.
+- Manage ambiguity independently.
+- Balance operational delivery with innovative solutions.
+
+#### 4. Stakeholder, commercial, and operational engagement
+
+- Work with key stakeholders.
+- Work with a multidisciplinary team.
+- Manage stakeholders at senior level.
+- Negotiate and persuade.
+- Shape discussions through understanding of commercial impact.
+- Shape discussions through understanding of operational impact.
+- Present data insights to varied audiences.
+- Work in an innovative, fun, and engaging way.
+
+#### 5. Team contribution and management
+
+- Work with other data engineers.
+- Work with a team of data professionals.
+- Manage colleagues as an experienced data professional.
+- Work collaboratively.
+- Work inclusively.
+- Demonstrate team contribution.
+
+### Person Specification Evidence
+
+#### 1. Qualifications and professional background
+
+- Degree in a relevant discipline. Required route.
+- Equivalent professional experience. Alternative required route.
+
+#### 2. Cloud data engineering and platform delivery
+
+- Proven experience delivering data solutions using cloud technologies. Required.
+- `Azure` is the preferred cloud technology.
+- Experience working with large, complex data environments. Required.
+- Experience designing scalable data models. Required.
+
+#### 3. Engineering and delivery practice
+
+- Solid understanding of software design principles. Required.
+- Solid understanding of `Agile` methodologies. Required.
+- Ability to translate business problems into technical solutions. Required.
+- Ability to manage ambiguity independently. Required.
+
+#### 4. Insight, visualisation, and stakeholder communication
+
+- Experience presenting data insights to varied audiences. Required.
+- Experience with data visualisation tools such as `Power BI` or `Tableau`. Required.
+- Comfort managing stakeholders at senior level. Required by job description.
+- Ability to negotiate and persuade. Required by job description.
+
+#### 5. Governance, security, and data quality
+
+- Knowledge of data governance. Required.
+- Knowledge of security standards. Required.
+- Knowledge of best practices for data quality management. Required.
+
+### Organisational and Values Evidence
+
+- Homes England is an executive non-departmental public body.
+- Homes England is a government agency working in partnership with the private sector.
+- The role is framed around a national organisation with social purpose.
+- The employer wants to become a data-led organisation.
+- The benefits section emphasises flexible working, health and wellbeing, professional development, and continued learning.
+- Homes England states it is an equal opportunities employer and values and respects its staff.
+- The employer aims to enable everyone to reach their full potential.
+
+### Selection and Assessment Evidence
+
+- The advert directs candidates to apply through the Homes England careers page.
+- The advert says more information is available in the attached Job Description.
+- The advert does not list a Civil Service personal statement word count.
+- The advert does not list named Civil Service behaviours.
+- The advert does not list a technical test.
+- The advert states this post is `NOT regulated by the Civil Service Commission`.
+- Successful candidates must pass a disclosure and barring security check.
+- Homes England also references compliance with `HMG Baseline Personnel Security Standard`.
+- Feedback is only provided if candidates attend interview or assessment.
+
+### Hiring Signal Summary
+
+This posting is a strong senior data engineering and Azure platform role centred on:
+- Azure data platform support and future platform design
+- data pipeline design, ingestion, transformation, and serving
+- `Python`, `PySpark`, and `SQL`
+- scalable data modelling in large and complex environments
+- software design principles and Agile delivery
+- translating ambiguous business problems into technical solutions
+- data governance, security standards, and data quality best practice
+- senior stakeholder management, commercial and operational awareness, negotiation, and persuasion
+- data visualisation and insight presentation using tools such as `Power BI` or `Tableau`
+- collaborative, inclusive team contribution and colleague management
+
+It is a useful evidence point because it represents the engineering side of the analytics-data spectrum. The employer wants someone who can build and operate a trusted cloud data platform that analysis and business teams can depend on, while also communicating clearly with senior stakeholders and shaping strategic data-platform decisions.
+
+## Data Engineer - Business Intelligence - British Pregnancy Advisory Service (BPAS)
+
+Source: NHS Jobs advert and job description supplied by user.
+
+### Role Title Evidence
+
+- `Data Engineer - Business Intelligence`
+- Employer: `British Pregnancy Advisory Service (BPAS)`
+- Reporting to: `Business Intelligence Lead`
+- Salary: `£55,000 - £62,000`
+- Hours: `36` hours per week
+- Working pattern: Monday to Thursday `09:00` to `17:00`, Friday `09:00` to `15:30`
+- Location: hybrid working from home with travel to Head Office in Leamington Spa typically once or twice a month.
+- Head Office: Orion House, Athena Drive, Warwick.
+
+### Job Purpose Evidence
+
+BPAS frames this as a data engineering role within a growing centralised Business Intelligence function. The post exists to design, build, and maintain reliable, scalable data pipelines and integrations that ensure high-quality data is consistently available for:
+- operational reporting
+- strategic planning
+- analytics
+- future advanced analytics capability
+- BI reporting and dashboard development
+
+The role is explicitly focused on:
+- automation
+- data quality
+- seamless system integration
+- reducing manual data handling
+- improving accessibility
+- supporting a modern and sustainable analytics environment
+- embedding good engineering practice, documentation, and knowledge sharing across the BI team
+
+### Role Family Evidence
+
+This is a healthcare BI data engineering role. It sits at the intersection of:
+- modern cloud data engineering
+- Microsoft Fabric / Azure-style analytics platforms
+- BI enablement
+- pipeline automation
+- API and system integration
+- data modelling for reporting and analytical consumption
+- data quality, validation, reconciliation, and monitoring
+- data governance and secure handling of sensitive healthcare data
+- documentation, data dictionaries, and metadata
+- stakeholder collaboration with BI, clinical, operational, and corporate teams
+
+### Key Responsibility Evidence
+
+#### 1. Pipeline development and source integration
+
+- Design scalable automated data pipelines.
+- Maintain scalable automated data pipelines.
+- Ingest data from `SQL Server` and relational databases.
+- Ingest data from `Microsoft Dynamics 365`.
+- Ingest data from Excel-based tools and flat files.
+- Ingest data from cloud-based systems.
+- Ingest data from `APIs`, including finance, HR, and operational platforms.
+- Integrate data from multiple systems including `SQL`, `APIs`, and business platforms.
+- Build and maintain secure data integration solutions.
+- Configure and maintain `APIs`, custom connectors, and on-premises data gateways.
+- Enable secure and reliable data access for BI and analytics platforms.
+
+#### 2. Transformation, modelling, and BI-serving layer
+
+- Develop data transformation processes using `SQL`.
+- Develop data transformation processes using `Python` / `PySpark`.
+- Use notebooks and pipelines for transformations.
+- Transform and model datasets for analytical consumption.
+- Structure data to support efficient semantic modelling.
+- Structure data to support BI reporting.
+- Support dashboard development and insight generation during periods of high demand.
+- Promote consistency across reporting domains.
+
+#### 3. Modern data platform capability
+
+- Build automated data pipelines using modern cloud data platforms.
+- Relevant platforms include `Microsoft Fabric`, `Azure Data Factory`, and `Synapse`.
+- Work with `Microsoft Fabric`, `Lakehouse`, and `OneLake` architecture.
+- Contribute to the long-term development of BPAS's analytics platforms.
+- Contribute to the long-term development of the BPAS data ecosystem.
+- Enable future advanced analytics.
+- Enable future forecasting.
+- Enable future automation initiatives.
+
+#### 4. Data quality, validation, reconciliation, and monitoring
+
+- Implement data quality checks.
+- Implement validation.
+- Implement monitoring.
+- Ensure accuracy and reliability.
+- Implement data validation, cleansing, and reconciliation processes.
+- Embed monitoring, error handling, and quality controls within pipelines.
+- Understand validation, quality controls, and lineage tracking.
+- Maintain high attention to detail and commitment to data integrity.
+
+#### 5. Documentation, governance, security, and compliance
+
+- Produce and maintain technical documentation.
+- Maintain data mappings.
+- Maintain data dictionaries.
+- Maintain source mappings.
+- Maintain transformation documentation.
+- Support consistent data standards.
+- Support secure handling practices.
+- Align with BPAS data governance policies.
+- Support data governance, security, and compliance standards.
+- Adhere to BPAS information governance requirements.
+- Treat information as confidential.
+- Abide by the `Data Protection Act`.
+- Desirable signals include `GDPR`, `IG Toolkit`, NHS data standards, secure data management, `Microsoft Purview`, metadata, governance, and pseudonymisation.
+
+#### 6. Performance optimisation and continuous improvement
+
+- Improve automation.
+- Improve performance.
+- Improve scalability.
+- Reduce manual processes.
+- Monitor and optimise pipeline performance.
+- Monitor and optimise pipeline reliability.
+- Identify opportunities to reduce technical debt.
+- Improve reusability of data solutions.
+- Improve scalability of data solutions.
+- Participate in peer reviews.
+- Contribute to continuous improvement.
+
+#### 7. Collaboration, requirements, and capability building
+
+- Work closely with BI Analysts.
+- Work closely with the BI Lead.
+- Work with stakeholders across clinical, operational, and corporate teams.
+- Translate requirements into effective data solutions.
+- Support reporting needs.
+- Engage with operational, clinical, and corporate teams to understand data flows and opportunities.
+- Adapt pipelines as business needs evolve.
+- Share technical knowledge across the BI team.
+- Support documentation and training.
+- Contribute to knowledge sharing.
+- Present at team meetings or data forums to share learning and promote standards.
+
+### Person Specification Evidence
+
+#### 1. Qualifications and professional development
+
+- Degree in a relevant field such as `Data Engineering`, `Computer Science`, `Mathematics`, or `Information Systems`. Essential route.
+- Equivalent practical experience. Essential alternative route.
+- Demonstrable commitment to continuous professional development in data engineering or analytics. Essential.
+- Professional certification in `Azure Data Engineering`, `Microsoft Fabric`, or `Microsoft Certified: Data Engineer Associate`. Listed as essential in the advert and desirable in the job description pack.
+- Training in data governance, NHS data standards, or secure data management such as `GDPR` or `IG Toolkit`. Desirable.
+- Familiarity with `Agile` or `DevOps` delivery approaches. Desirable.
+- Relevant project management or agile delivery qualification such as `PRINCE2 Agile` or `Scrum`. Desirable.
+
+#### 2. Essential experience
+
+- Experience developing automated data pipelines using modern cloud data platforms.
+- Relevant examples include `Microsoft Fabric`, `Azure Data Factory`, `Synapse`, or similar.
+- Experience integrating data from multiple systems.
+- Relevant systems include `SQL`, `APIs`, and business platforms.
+- Demonstrated experience transforming and modelling datasets for analytical consumption.
+- Experience delivering reliable, well-documented data solutions.
+- Ability to describe what was built and the purpose of the pipeline.
+- Ability to describe how datasets were transformed and modelled for reporting or analytical use.
+
+#### 3. Desirable experience
+
+- Exposure to healthcare, NHS, clinical datasets, or regulated data environments.
+- Experience integrating `Dynamics 365` or similar systems.
+- Experience working in Agile delivery environments.
+- Exposure to advanced analytics and modern forecasting techniques.
+- Experience working in patient-centred organisations or reproductive healthcare services.
+- Familiarity with inclusive data practices and ethical use of sensitive data.
+
+#### 4. Essential technical knowledge
+
+- Strong `SQL` skills.
+- Ability to write complex queries.
+- Ability to perform joins and transformations.
+- Proficiency in `Python` or `PySpark`, especially in notebooks and transformation pipelines.
+- Working knowledge of `Microsoft Fabric`.
+- Working knowledge of `Lakehouse`.
+- Working knowledge of `OneLake` architecture.
+- Understanding of data validation.
+- Understanding of quality controls.
+- Understanding of lineage tracking.
+- Source control and `CI/CD` familiarity using `Git` and `Azure DevOps`.
+- Knowledge of star schema and snowflake schema design.
+- Knowledge of data warehousing best practices.
+
+#### 5. Desirable technical knowledge
+
+- Performance tuning and cost optimisation in `Fabric` or `Azure`.
+- `Microsoft Purview` or similar tools for metadata and governance.
+- NHS data reporting practices.
+- Privacy considerations such as pseudonymisation.
+- Infrastructure-as-code or deployment scripting tools in data projects.
+
+#### 6. Skills and operating style
+
+- Strong analytical and problem-solving mindset.
+- Delivery focus.
+- Ability to write clear technical documentation.
+- Ability to communicate pipeline logic.
+- High attention to detail.
+- Commitment to data integrity and governance.
+- Self-motivated and proactive.
+- Ability to work independently.
+- Ability to manage changing priorities.
+- Comfortable explaining technical concepts to non-technical colleagues.
+- Skilled in stakeholder engagement.
+- Skilled in identifying user requirements in BI contexts.
+- Enthusiastic about continuous improvement, innovation, and automation in data workflows.
+
+### Organisational and Values Evidence
+
+- BPAS is the UK's largest independent reproductive healthcare charity.
+- BPAS provides evidence-based, not-for-profit reproductive healthcare.
+- BPAS works mainly on behalf of the NHS.
+- Services include abortion care, contraception, and STI testing and treatment.
+- The advert frames the organisation as purpose-driven.
+- The role directly supports delivery of high-quality healthcare services.
+- BPAS values include compassion, professionalism, and choice.
+- All applicants must be pro-choice and support a woman's right to choose, in line with BPAS values and mission.
+- BPAS emphasises safeguarding and safer recruitment.
+- BPAS actively welcomes applications from people of all backgrounds, identities, and experiences.
+- BPAS commits to reasonable adjustments and accessible recruitment.
+
+### Selection and Assessment Evidence
+
+- The advert is listed on NHS Jobs.
+- The closing date is `06 May 2026`.
+- The role may close early if there is a high number of suitable applications.
+- The person specification includes application-style prompts asking candidates to describe:
+  - experience developing automated pipelines using modern cloud data platforms
+  - what was built and the purpose of the pipeline
+  - an example of transforming and modelling datasets for reporting or analytical use
+  - experience using `Python` or `PySpark` within pipelines or notebooks
+  - experience working with modern data platforms such as `Microsoft Fabric`, `Lakehouse`, or `OneLake`
+- The advert includes eligibility and values questions around supporting a woman's right to choose abortion, working hours, relationship to current BPAS employees, and ability to travel to Leamington Spa.
+- The role is subject to a `DBS` check.
+- Offers are conditional on satisfactory pre-employment checks and three years of employment references.
+- This is not a Civil Service Success Profiles advert and does not list Civil Service behaviours.
+
+### Hiring Signal Summary
+
+This posting is a strong healthcare BI data engineering role centred on:
+- centralised BI function development
+- `Microsoft Fabric`, `Azure Data Factory`, `Synapse`, `Lakehouse`, and `OneLake`
+- automated data pipelines across `SQL Server`, relational databases, `Dynamics 365`, Excel, flat files, cloud systems, and `APIs`
+- `SQL`, `Python`, `PySpark`, notebooks, and transformation pipelines
+- semantic modelling, star/snowflake schema design, and BI-ready data structures
+- data validation, cleansing, reconciliation, monitoring, error handling, and lineage
+- documentation, source mappings, transformations, and data dictionaries
+- `Git`, `Azure DevOps`, source control, and `CI/CD`
+- data governance, secure handling, `GDPR`, information governance, metadata, and pseudonymisation
+- automation, performance optimisation, scalability, and reduction of manual processes
+- collaboration with BI analysts and clinical, operational, and corporate stakeholders
+- contribution to future advanced analytics, forecasting, and automation
+
+It is a useful evidence point because it shows a data engineering role embedded in a healthcare BI function where the value is not just moving data. The employer wants someone who can build governed, documented, scalable pipelines that make sensitive healthcare data reliable, accessible, and usable for operational reporting, strategic planning, and future analytics.
+
+## Senior Data Scientist-Analytics Lead - East Suffolk and North Essex NHS Foundation Trust
+
+Source: NHS Jobs advert, role profile descriptor, and job description supplied by user.
+
+### Role Title Evidence
+
+- `Senior Data Scientist-Analytics Lead`
+- Employer: `East Suffolk and North Essex NHS Foundation Trust`
+- NHS AfC Band: `8a`
+- Accountable to: `Head of Analytics`
+- Team context: `Advanced Analytics Team`
+- Direct line below: `Associate Data Scientist`
+- Closing date: `10 May 2026`
+- Work pattern: hybrid, with a minimum of `40%` on site expected.
+- Locations: Ipswich / Colchester.
+
+### Job Purpose Evidence
+
+ESNEFT frames this as a senior data science and analytics leadership role. The post exists to help shape data-driven decision making across the Trust by using:
+- advanced analytics
+- machine learning
+- AI
+- applied mathematics
+- statistics
+- advanced computing
+- visualisation
+- data engineering
+
+The role supports real healthcare challenges and is explicitly tied to:
+- patient care improvement
+- staff experience improvement
+- operational improvement
+- clinical improvement
+- Trust-level priority projects
+- significant operational challenges
+- delivery of the Trust's Informatics Strategy
+- growing the Trust's data science capability
+
+### Role Family Evidence
+
+This is a Band 8a advanced analytics leadership role, not a standard data-science delivery role. It sits at the intersection of:
+- healthcare data science
+- machine learning and AI delivery
+- predictive modelling and statistical analysis
+- operational analytics and clinical improvement
+- advanced analytics project leadership
+- analyst management and capability building
+- quality assurance of analytical products
+- EPR and Azure Data Lake exploitation
+- stakeholder relationship management across operational and clinical services
+- GitHub-based documentation and validation
+
+### Key Responsibility Evidence
+
+#### 1. Advanced analytics, machine learning, and AI delivery
+
+- Lead analytical projects that improve patient care.
+- Use modern tools and techniques to turn complex data into clear, practical insights.
+- Enable greater use of machine-learning models.
+- Enable greater use of AI.
+- Deliver AI and machine learning projects focused on the Trust's most significant operational challenges.
+- Work with a variety of stakeholders to set up and deliver machine learning projects.
+- Apply supervised machine learning algorithms.
+- Apply unsupervised machine learning algorithms.
+- Relevant methods include regression modelling, decision trees, and classification.
+- Expand team capability in advanced analytical techniques including `Large Language Models`, time series forecasting, `Natural Language Processing`, and unsupervised learning.
+- Use automation with `Copilot` or other `LLMs`.
+
+#### 2. Forecasting, modelling, dashboards, and analytical products
+
+- Deliver analytical products and insights.
+- Deliver predictive analyses.
+- Deliver visual analysis dashboards.
+- Complete statistical analysis of activity data.
+- Ensure robust forecasting is available to stakeholders.
+- Develop and maintain activity planning and forecasting software.
+- Use benchmarking, modelling, and forecasting skills.
+- Manage tailored analysis and interactive reporting solutions for operational and clinical colleagues.
+- Ensure reports deliver outputs in the most accessible and efficient way.
+- Use `R` and `Python` to deliver analytics.
+- Use `SQL` as a commonly used analytical programming language.
+
+#### 3. Trust operational challenges and priority project delivery
+
+- Scope and manage analytical projects with the Head of Analytics.
+- Focus on Trust-level priority projects.
+- Focus on the most significant operational challenges.
+- Explicit operational challenge examples include waiting list management and service demand.
+- Manage medium-sized analytic projects.
+- Manage a small portfolio of projects within the Advanced Analytics Team.
+- Deliver projects to agreed deadlines.
+- Manage the timetable of work.
+- Ensure suitable cover at all times.
+- Escalate issues affecting achievement of Analytics Team responsibilities to the Head of Analytics.
+
+#### 4. Analytics team leadership and capability building
+
+- Shape the future of the analytics team.
+- Support and develop a small group of data scientists.
+- Manage a small team of data scientists, usually two to four.
+- Oversee the work of at least two analysts.
+- Support staff to deliver objectives.
+- Ensure clarity of expectations across tasks and performance.
+- Develop staff to meet their potential.
+- Identify training needs across technical analytical skills and interpersonal skills.
+- Build an inclusive culture.
+- Champion diversity.
+- Enable a feedback culture.
+- Lead, manage, and motivate staff.
+- Conduct performance development reviews and support talent management where applicable.
+
+#### 5. Quality assurance, governance, and accountability
+
+- Champion high-quality analysis.
+- Ensure work is accurate, accessible, and impactful.
+- Be responsible for quality assurance of analysis produced by the Advanced Analytics Team.
+- Be accountable for the accuracy of all analysis and reports produced by the analytics team.
+- Ensure the quality of data recorded.
+- Ensure data is accurate, timely, up to date, and appropriately filed.
+- Support effective governance arrangements.
+- Support performance management systems.
+- Identify and manage risks through organisational risk-register processes where appropriate.
+- Address complaints and incidents appropriately and lead learning from events.
+
+#### 6. EPR, Azure Data Lake, and analytical tool/process innovation
+
+- Drive innovation in analytical tools and processes.
+- Make the most of the Trust's `EPR`.
+- Make the most of `Azure Data Lake`.
+- Make the most of emerging machine-learning technologies.
+- Support the development team to identify where functionality changes are needed.
+- Get value from the Trust's `Electronic Patient Record System`.
+- Get value from `Azure Data Lake`.
+- Get value from `Python` and `R`.
+- Desirable experience includes working with `Epic EPR`.
+- Desirable qualifications include `Azure` certifications.
+
+#### 7. Stakeholder relationships and analytics demand generation
+
+- Work closely with colleagues across the Trust.
+- Build strong relationships.
+- Help teams understand how data can solve operational and strategic challenges.
+- Maintain relationships with key operational staff.
+- Deliver analytical work that meets stakeholder needs.
+- Ensure analysis focuses on pertinent operational challenges.
+- Work with customers and users of analysis to understand business needs, issues, and drivers.
+- Communicate those needs clearly within the Trust.
+- Communicate the benefits and opportunities for analytics.
+- Ensure there is a pipeline of analytical projects.
+- Promote and develop the role of analysis across all areas of the Trust.
+
+#### 8. Corporate leadership and service improvement responsibilities
+
+- Provide visible operational leadership.
+- Promote continual improvement in quality, performance, and delivery of Trust objectives.
+- Improve the analytical service offered to operational and clinical customers.
+- Support business and planning processes.
+- Support workforce planning and development with HR partners where relevant.
+- Help manage performance standards and performance indicators.
+- Identify unplanned variation in activity, income, expenditure, capacity, and performance.
+- Support cost improvement plans and financial recovery processes where relevant.
+- Participate in corporate and divisional performance through measurable objectives.
+- Follow the code of conduct for NHS managers.
+
+### Person Specification Evidence
+
+#### 1. Experience
+
+- Experience delivering analytical products and insights, including predictive analyses and visual analysis dashboards. Essential.
+- Experience analysing data in `R` and `Python`. Essential.
+- Experience working in a data science role. Essential.
+- Experience developing machine learning algorithms. Essential.
+- Experience managing medium-sized analytic projects. Essential.
+- Experience using `GitHub` for project documentation and validation. Essential.
+- Experience developing teams. Listed as desirable in the advert and essential in the job description person specification.
+- Experience working with `Copilot` and/or other `LLMs` such as `ChatGPT` or `Gemini` to develop automation tools. Desirable.
+- Experience working with `Epic EPR`. Desirable.
+
+#### 2. Qualifications
+
+- Educated to Master's level or equivalent experience in a numerical subject such as Maths, Statistics, Data Analysis, or Data Science. Essential.
+- Evidence of continued professional development. Essential.
+- Further training in analytics and statistical analysis where relevant. Essential in advert; desirable in job description pack.
+- Management or leadership qualification, or equivalent experience. Desirable.
+- Project management qualifications. Desirable.
+- `Azure` certifications. Desirable.
+
+#### 3. Knowledge
+
+- Advanced skills in programming languages commonly used for data analysis, including `R`, `Python`, and `SQL`. Essential.
+- Advanced user in `R` or `Python`. Essential.
+- Use of supervised and unsupervised machine learning algorithms. Essential.
+- Relevant methods include regression modelling, decision trees, and classification. Essential.
+- Benchmarking skills. Essential.
+- Modelling skills. Essential.
+- Forecasting skills. Essential.
+- Automation using `Copilot` or other `LLMs`. Essential in job description pack and desirable in advert.
+- Knowledge of NHS IT systems. Desirable.
+- Understanding of NHS data flows and information issues. Desirable.
+
+#### 4. Personal skills and operating style
+
+- High level of analytical and problem-solving skills.
+- Ability to analyse highly complex data, information, and problems.
+- Ability to make judgements and draw conclusions.
+- Ability to respond to unexpected demands.
+- Ability to work independently.
+- Ability to make autonomous decisions.
+- Ability to prioritise own workload.
+- Ability to direct the work of others.
+- Strong written and verbal communication skills.
+- Ability to provide and receive highly complex, sensitive information.
+- Ability to use persuasion, influencing, and negotiation with individuals and groups.
+- Ability to embrace and drive change in a complex environment.
+- Ability to organise and work flexibly.
+- Strong desire to improve performance and services.
+- Ability to manage others to accomplish organisational goals and objectives.
+
+### Organisational and Values Evidence
+
+- ESNEFT provides hospital and community health services to almost one million people across east Suffolk and north Essex.
+- ESNEFT employs more than `12,000` staff.
+- The Trust serves around `800,000` residents in the Informatics Strategy framing.
+- The Trust's philosophy is `Time Matters`.
+- The organisation uses technology, logistics, and innovation to free up staff time and improve patient experience and outcomes.
+- The Trust is implementing `Epic` as its electronic patient record supplier.
+- Informatics is central to the Trust's vision.
+- The Trust emphasises training, development, flexible working, health and wellbeing, equality and diversity, and carbon reduction.
+
+### Selection and Assessment Evidence
+
+- The advert is listed on NHS Jobs.
+- The closing date is `10 May 2026`.
+- The role is subject to a `DBS` check.
+- The advert does not use Civil Service Success Profiles or named Civil Service behaviours.
+- The assessment signal is concentrated in the NHS person specification across `Experience`, `Qualifications`, `Knowledge`, and `Personal Skills`.
+- The role is Band `8a`, so candidate evidence needs to show leadership, accountability, quality assurance, staff development, and organisational influence in addition to technical data-science delivery.
+
+### Hiring Signal Summary
+
+This posting is a strong senior NHS data-science and analytics-leadership role centred on:
+- advanced analytics, machine learning, and AI for operational and clinical improvement
+- `R`, `Python`, and `SQL`
+- supervised and unsupervised machine learning, regression, decision trees, classification, `NLP`, time series forecasting, and `LLMs`
+- predictive analyses, visual dashboards, activity planning, and forecasting software
+- `GitHub` for documentation and validation
+- `EPR`, `Epic`, `Azure Data Lake`, and emerging machine-learning technologies
+- waiting-list management, service demand, and Trust-level operational challenges
+- quality assurance and accountability for analytics-team outputs
+- managing two to four data scientists / analysts and developing team capability
+- stakeholder relationships with operational and clinical colleagues
+- Informatics Strategy delivery and `Time Matters` service-improvement philosophy
+
+It is a useful evidence point because it shows the advanced data-science leadership end of the analytics spectrum. The employer wants someone who can lead healthcare AI and machine-learning delivery, manage and develop analysts, assure analytical quality, and turn complex Trust data into operationally useful models, dashboards, forecasts, and decision-support products.

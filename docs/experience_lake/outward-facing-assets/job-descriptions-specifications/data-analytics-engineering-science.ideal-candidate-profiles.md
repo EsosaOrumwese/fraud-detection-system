@@ -4242,3 +4242,1634 @@ The strongest-fit candidate would likely go beyond generic civil-service analyst
 ### 7. Short Ideal-Candidate Portrait
 
 The ideal candidate for this post is a commercial data analyst who can clean, link, model, and analyse complex spend, supplier, and performance data, collaborate with engineers on data feeds, deliver clear `BI` and statistical insight, and brief senior stakeholders in a way that supports compliance, value for money, and operational delivery. They are useful because they combine commercial domain awareness, technical data handling, assurance discipline, and decision-focused communication in a high-impact government setting.
+
+---
+
+## Ideal Candidate Profile - Technical Risk & Issues Analyst - Ministry of Justice
+
+Source role:
+- `Technical Risk & Issues Analyst`
+- `Ministry of Justice`
+- <https://jobs.justice.gov.uk/careers/JobDetail/16976-Technical-Risk-Issues-Analyst/16976>
+
+Civil Service interpretation source:
+- `docs/experience_lake/outward-facing-assets/frameworks/civil_service_success_profiles/success_profiles_govuk_source_capture.md`
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not just someone who can update a risk log. The employer is looking for an `HEO` technical risk analyst who can help maintain the risk-management system for a complex digital directorate, use data and metrics to make risks visible, support assurance and controls, and work confidently with service owners, IT teams, governance bodies, and senior stakeholders.
+
+This person would likely present as someone who is comfortable moving between:
+- risk and issue identification, assessment, mitigation, tracking, and reporting
+- `RAID` governance, control validation, audit evidence, and remediation tracking
+- Service Management / `ITIL` ways of working
+- technical risk communication for mixed audiences
+- data and metrics for risk reporting and decision making
+- emerging technology risk, including `AI`, ethics, security, and operational controls
+- Civil Service `HEO` behaviours around quality service, collaboration, communication, and influence
+
+They would sound like someone who can make technical risk management practical, transparent, and decision-ready in a government digital environment.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has worked in a large, complex technology, service-management, governance, risk, assurance, or operational environment. Their story would show that they can coordinate risk and issue information, validate controls, use dashboards or metrics to support reporting, influence stakeholders, and promote consistent risk management practice across teams.
+
+They would likely have experience that sounds like this:
+- maintaining or improving risk, issue, action, or `RAID` registers
+- supporting regular risk assessments and remediation tracking
+- gathering evidence for audit, assurance, or compliance reviews
+- using metrics, dashboards, `KPI`s, or key indicators to support decisions
+- working with IT teams, service owners, and governance bodies
+- communicating technical risk information clearly to technical and non-technical stakeholders
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants practical risk and issue management capability
+
+The ideal candidate would sound like someone who can run the mechanics of risk management reliably while also understanding why the process matters. They would likely show that they can log, categorise, prioritise, track, report, and escalate risks and issues in a way that supports governance and decision making.
+
+The candidate's evidence would likely include:
+- risk and issue logging, categorisation, and prioritisation
+- risk assessment and mitigation tracking
+- maintenance of `RAID` or similar registers
+- timely escalation of unresolved issues
+- experience with risk-management frameworks or methodologies
+
+#### B. If the employer wants technical and service-management credibility
+
+The ideal candidate would sound like someone who can understand enough of the digital and service environment to interpret risks properly. They would likely show that they can work with service owners, IT teams, technology controls, and service-management frameworks rather than treating risks as abstract paperwork.
+
+The candidate's evidence would likely include:
+- Service Management or `ITIL` exposure
+- work with digital services, products, tools, or operational technology teams
+- understanding of controls such as access management or data integrity
+- ability to connect technical risks to business outcomes
+
+#### C. If the employer wants data-led risk reporting and analytical judgment
+
+The ideal candidate would sound like someone who can use data, dashboards, metrics, and key indicators to make risk more visible. They would likely show that they can identify trends, link exposures, assess interdependencies, and support decisions through evidence rather than opinion.
+
+The candidate's evidence would likely include:
+- use of metrics and `KPI`s in risk or service reporting
+- dashboard-based monitoring of risks, issues, or improvements
+- cause-and-effect analysis or investigation work
+- analysis of trends or potential risk scenarios
+- measurement of whether improvements delivered intended benefits
+
+#### D. If the employer wants assurance, controls, and compliance discipline
+
+The ideal candidate would sound like someone who understands that this role exists partly to protect organisational interests. They would likely show that they can gather evidence, validate controls, document outcomes, and support audit, assurance, and compliance activity under recognised standards.
+
+The candidate's evidence would likely include:
+- audit or assurance evidence gathering
+- control validation and documentation
+- remediation tracking
+- compliance with governance standards
+- awareness of frameworks such as the `Orange Book`, IT security standards, or service-level frameworks
+
+#### E. If the employer wants strong stakeholder management and risk culture building
+
+The ideal candidate would not only maintain documentation. They would also show that they can facilitate structured conversations, co-host risk reviews, act as a point of contact, and help teams adopt better risk-management practice.
+
+The candidate's evidence would likely include:
+- structured stakeholder discussions to identify and assess risks
+- risk-review meeting support or chairing
+- guidance to teams on risk-management practice
+- influence, negotiation, and audience handling
+- contribution to training or awareness around risk culture
+
+#### F. If the employer wants emerging technology and `AI` risk awareness
+
+The ideal candidate would sound like someone who understands that emerging technologies introduce ethical, security, operational, and control risks. They would likely show that they can identify and frame those risks clearly and support robust controls.
+
+The candidate's evidence would likely include:
+- risk assessment for new technology or digital change
+- awareness of `AI`-related ethical, security, or operational risks
+- control design or control validation for emerging technology
+- ability to translate uncertain risks into practical governance actions
+
+### 4. Civil Service Success Profile Translation
+
+This role is assessed through `Experience`, `Strengths`, and `Behaviours` at `HEO` level.
+
+For `Experience`, the strongest candidate should evidence practical work in risk and issue management, technology or service-management environments, metrics-based reporting, stakeholder influence, and governance or assurance activity.
+
+For `Strengths`, because the two strengths are not disclosed in advance, the profile should imply natural working patterns likely to score well: curiosity about risk signals, structured problem solving, calmness around ambiguity, collaborative working, accountability for quality, and comfort communicating across mixed audiences.
+
+For `Managing a Quality Service`, the strongest evidence should show maintained systems or services, stakeholder-set priorities, high-quality outcomes, efficient risk and issue resolution, improvement suggestions with stakeholders, and response to feedback.
+
+For `Working Together`, the strongest evidence should show joined-up work across teams, professional stakeholder relationships, information sharing, support across groups, and active use of diverse perspectives.
+
+For `Communicating and Influencing`, the strongest evidence should show clear, honest, purposeful communication, audience-appropriate style, checked understanding, respectful handling of different interests, and the ability to influence technical and non-technical stakeholders.
+
+### 5. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can maintain and improve risk and issue management processes, including `RAID` logging, prioritisation, action tracking, reporting, and escalation.
+- I can interpret technical and operational risks in digital services and communicate them clearly to both technical and non-technical stakeholders.
+- I use data, dashboards, metrics, key indicators, and cause-and-effect analysis to support risk reporting, decision making, and improvement tracking.
+- I can gather assurance evidence, validate controls, document outcomes, and support compliance with governance standards, risk frameworks, and IT security expectations.
+- I work effectively with service owners, IT teams, governance bodies, and wider government communities to build a shared view of risks and interdependencies.
+- I can promote a risk-aware culture through structured discussions, clear guidance, risk-review meetings, and practical support for teams.
+
+### 6. The Employer's Implied Non-Negotiables
+
+The posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- practical risk and issue management experience
+- `RAID` governance and risk-register discipline
+- technical understanding of digital products, services, controls, and operational risks
+- Service Management / `ITIL` awareness
+- data and metrics for risk reporting
+- audit, assurance, remediation, and compliance support
+- HEO-level communication, collaboration, and quality-service behaviours
+
+### 7. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic risk claims and show evidence of:
+- direct technology risk, operational risk, service-management, or digital-governance work
+- practical use of `JIRA`, dashboards, risk logs, issue logs, or `RAID` tooling
+- audit or assurance evidence collection and remediation tracking
+- control validation around access management, data integrity, IT security, or service controls
+- risk reporting for senior stakeholders using clear metrics and `KPI`s
+- experience with `ITIL`, `Orange Book`, risk-management frameworks, or government digital environments
+- examples that map cleanly to HEO `Managing a Quality Service`, `Working Together`, and `Communicating and Influencing`
+
+### 8. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a technical risk and issues analyst who can maintain disciplined `RAID` governance, interpret digital and operational risks, use metrics and dashboards to support decisions, validate controls and assurance evidence, and communicate risk clearly across service owners, IT teams, governance bodies, and senior stakeholders. They are useful because they combine risk-management method, technical understanding, analytical reporting, and HEO-level stakeholder behaviour in a way that helps a government digital directorate manage risk transparently and effectively.
+
+---
+
+## Ideal Candidate Profile - Geospatial Data Analyst - Valuation Office Agency
+
+Source role:
+- `Geospatial Data Analyst`
+- `Valuation Office Agency`
+- <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=c2VhcmNoc29ydD1zY29yZSZwYWdlYWN0aW9uPXZpZXd2YWNieWpvYmxpc3QmdXNlcnNlYXJjaGNvbnRleHQ9MTg2NTc0NjU5Jm93bmVydHlwZT1mYWlyJnBhZ2VjbGFzcz1Kb2JzJnNlYXJjaHBhZ2U9MSZqb2JsaXN0X3ZpZXdfdmFjPTE5OTUyMTAmb3duZXI9NTA3MDAwMCZyZXFzaWc9MTc3NzY5MDI1Ni0wZjdhMjM2ODEzZDQ5NzZkNjhjZjEwYzlhNWI4NzA0NThmNTYwNThm>
+
+Civil Service interpretation source:
+- `docs/experience_lake/outward-facing-assets/frameworks/civil_service_success_profiles/success_profiles_govuk_source_capture.md`
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not just a general analyst who has used maps occasionally. The employer is looking for a specialist geospatial data analyst who can work across the full geospatial data lifecycle, use `Python` or `R` to analyse and transform data, work confidently with `GIS` software, and apply rigorous quality assurance so property valuation services can rely on accurate spatial data.
+
+This person would likely present as someone who is comfortable moving between:
+- geospatial data sourcing, licensing, publishing, updating, and refinement
+- `Python` or `R` analysis and automated workflows
+- `GIS` tools such as `ArcGIS` or `QGIS`
+- spatial and non-spatial data integration
+- metadata, technical documentation, and data standards
+- geospatial QA, including completeness and topological integrity
+- stakeholder requirement gathering and knowledge transfer
+- Civil Service `HEO` behaviours around decisions, quality service, and communication
+
+They would sound like someone who can make geospatial data accurate, documented, reusable, and useful for public-sector property valuation work.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone who has practical experience analysing and transforming geospatial data using programming and GIS tooling. Their story would show that they can integrate spatial and non-spatial sources, automate processing workflows, document datasets and processes, carry out verification and validation, and communicate clearly with business users about geospatial requirements and outputs.
+
+They would likely have experience that sounds like this:
+- using `Python` or `R` for geospatial or data analysis
+- working with `ArcGIS`, `QGIS`, or similar `GIS` software
+- transforming and integrating spatial and non-spatial data from multiple sources
+- building automated workflows or repeatable geospatial processes
+- applying QA checks such as completeness, validation, and topological integrity
+- creating metadata, technical documentation, and knowledge-transfer material
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants the lead sift criterion proven strongly
+
+The ideal candidate must make `Python` or `R` analysis impossible to miss. Because the advert states that a high-volume initial sift may focus only on this criterion, the strongest candidate would lead with concrete examples of programming-led analysis rather than burying it beneath generic GIS experience.
+
+The candidate's evidence would likely include:
+- `Python` or `R` scripts used for analysis
+- automated geospatial data-processing workflows
+- reproducible transformation or QA routines
+- clear explanation of the problem, code approach, and result
+
+#### B. If the employer wants specialist GIS and geospatial capability
+
+The ideal candidate would sound like someone who understands spatial data as its own technical domain. They would likely show that they can work with `GIS` software, spatial relationships, geospatial products, and spatial data quality rather than treating geospatial work as ordinary table analysis.
+
+The candidate's evidence would likely include:
+- `ArcGIS`, `QGIS`, or similar tooling
+- spatial data preparation and processing
+- geospatial visualisation or mapping outputs
+- understanding of spatial accuracy, geometry, and topology concerns
+
+#### C. If the employer wants data transformation and integration capability
+
+The ideal candidate would sound like someone who can combine datasets intelligently. They would likely show that they can integrate spatial and non-spatial data from different sources using repeatable workflows and processes.
+
+The candidate's evidence would likely include:
+- spatial and non-spatial data integration
+- transformation pipelines or automated workflows
+- data-source reconciliation
+- processing outputs that made data easier to use for business decisions
+
+#### D. If the employer wants quality assurance and standards discipline
+
+The ideal candidate would sound like someone who understands that geospatial data quality has to be actively tested. They would likely show that they can define QA checks, carry out verification and validation, apply data standards, and resolve quality issues.
+
+The candidate's evidence would likely include:
+- verification, validation, or analytical review
+- completeness checks
+- topological integrity checks
+- implementation of data or analytical standards
+- documentation of quality issues and fixes
+
+#### E. If the employer wants metadata and technical documentation strength
+
+The ideal candidate would sound like someone who can make geospatial work maintainable. They would likely show that they document data, processes, workflows, and assumptions so that others can reuse, trust, and extend the work.
+
+The candidate's evidence would likely include:
+- metadata creation
+- technical documentation for workflows
+- documented data standards or processing steps
+- knowledge-transfer material for users or colleagues
+
+#### F. If the employer wants stakeholder-facing geospatial service support
+
+The ideal candidate would sound like someone who can work with customers across the business to understand geospatial requirements and transfer knowledge. They would likely show that they can communicate clearly, work at pace, and organise delivery around user timelines.
+
+The candidate's evidence would likely include:
+- requirements gathering with internal or external stakeholders
+- explanation of geospatial outputs to non-specialists
+- knowledge sharing or training
+- delivery to expected timelines
+
+### 4. Civil Service Success Profile Translation
+
+This role is assessed through `Experience` and `Behaviours` at `HEO` level, with a presentation at interview.
+
+For `Experience`, the strongest candidate should evidence practical geospatial data work, especially `Python` or `R` analysis, spatial/non-spatial data integration, GIS software use, automated workflows, QA, standards, metadata, and stakeholder communication.
+
+For the presentation, the strongest candidate should be ready to explain a geospatial analytical problem clearly, show method and judgement, discuss QA and limitations, and connect the output to user value or public-sector service improvement.
+
+For `Making Effective Decisions`, the strongest evidence should show credible use of internal and external data, consideration of options and risks, consultation with users, and timely recommendations.
+
+For `Managing a Quality Service`, the strongest evidence should show maintained data processes or services, stakeholder priorities and timescales, high-quality outputs meeting user needs, efficient risk or issue resolution, and feedback-driven improvement.
+
+For `Communicating and Influencing`, the strongest evidence should show clear, purposeful communication, audience-appropriate explanation of technical geospatial work, checked understanding, and respectful communication across stakeholder interests.
+
+### 5. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can use `Python` or `R` to analyse, transform, and quality-assure geospatial data through repeatable workflows.
+- I can work confidently with `GIS` software such as `ArcGIS` or `QGIS` and understand the specialist quality issues that come with spatial data.
+- I can integrate spatial and non-spatial data from multiple sources and prepare outputs that are accurate, documented, and useful for business users.
+- I can define and carry out QA activities, including verification, validation, analytical review, completeness checks, and topological integrity checks.
+- I can produce metadata and technical documentation that make data, processes, and workflows easier to trust and reuse.
+- I can engage stakeholders to understand geospatial requirements, communicate outputs clearly, and transfer knowledge effectively.
+
+### 6. The Employer's Implied Non-Negotiables
+
+The posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- `Python` or `R` analysis, especially because this is the lead sift criterion
+- `GIS` software such as `ArcGIS` or `QGIS`
+- geospatial data transformation and integration
+- automated workflows and processes
+- QA, validation, standards, and topological integrity
+- metadata and technical documentation
+- HEO-level decision making, quality service, and communication behaviours
+
+### 7. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic geospatial claims and show evidence of:
+- scripts or automated workflows for geospatial processing in `Python` or `R`
+- direct `ArcGIS` or `QGIS` work with spatial datasets
+- integration of property, administrative, or other non-spatial data with spatial layers
+- QA checks for geometry, completeness, topology, data standards, and analytical validity
+- metadata or documentation that supported reuse and knowledge transfer
+- stakeholder-facing work where geospatial outputs supported service improvement or transformation
+- examples that map cleanly to HEO `Making Effective Decisions`, `Managing a Quality Service`, and `Communicating and Influencing`
+
+### 8. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a geospatial data analyst who can use `Python` or `R`, `GIS` software, automated workflows, and rigorous QA to create accurate, well-documented spatial data products for property valuation services. They are useful because they combine geospatial technical depth, data-lifecycle discipline, stakeholder communication, and HEO-level judgement in a way that supports trusted public-sector geospatial services and wider business transformation.
+
+---
+
+## Ideal Candidate Profile - Data Manager - UK Health Security Agency
+
+Source role:
+- `Data Manager`
+- `UK Health Security Agency`
+- <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=b3duZXJ0eXBlPWZhaXImam9ibGlzdF92aWV3X3ZhYz0xOTk2MTgyJnVzZXJzZWFyY2hjb250ZXh0PTE4NjU3NDc3OCZzZWFyY2hzb3J0PXNjb3JlJnBhZ2VjbGFzcz1Kb2JzJnNlYXJjaHBhZ2U9MSZwYWdlYWN0aW9uPXZpZXd2YWNieWpvYmxpc3Qmb3duZXI9NTA3MDAwMCZyZXFzaWc9MTc3NzY5MDg5NC1kMWVlNGQ0NDYzNzE2MWY2OTZkZTIyMzAxOTZjNjQxMWU1YjU3NTc5>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not just a database administrator and not a generic public-health analyst. The employer is looking for a scientific data manager who can manage respiratory-virus surveillance databases, analyse and interpret complex scientific data, support enhanced surveillance systems, maintain patient-data confidentiality, and contribute to reports, publications, grants, and outbreak-related work.
+
+This person would likely present as someone who is comfortable moving between:
+- respiratory-virus surveillance data management
+- database development, maintenance, and redevelopment
+- `MS Access` and `SQL`-based analysis
+- scientific reporting, presentations, publications, and ad hoc analysis
+- pandemic preparedness, outbreak support, and research activity
+- liaison with clinical, scientific, NHS, UKHSA, and international stakeholders
+- patient-information confidentiality and secure data handling
+
+They would sound like someone who can keep surveillance data accurate and usable in a high-consequence reference-laboratory environment.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone with a science or health-related academic grounding and practical experience managing and analysing surveillance, laboratory, clinical, or public-health data in database systems. Their story would show strong attention to detail, comfort with `SQL`, ability to produce scientific reports, and understanding of why data accuracy and confidentiality matter in national public-health surveillance.
+
+They would likely have experience that sounds like this:
+- managing health, laboratory, surveillance, or research databases
+- using `MS Access`, `SQL`, or comparable database tools for data management and analysis
+- maintaining accurate datasets for reporting, surveillance, or research outputs
+- analysing complex scientific or health data and explaining findings
+- contributing to reports, publications, presentations, or grant outputs
+- handling sensitive patient or health data under confidentiality and security requirements
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants the lead sift criterion proven strongly
+
+The ideal candidate must make database management and analysis using `MS Access` and `SQL` visible immediately. Because this is the stated lead criterion for high-volume sift, the strongest profile would lead with concrete database examples, query-writing experience, and analysis outputs.
+
+The candidate's evidence would likely include:
+- database management using `MS Access`, `SQL`, or equivalent tools
+- query writing for surveillance, laboratory, or health datasets
+- data extraction, cleaning, validation, or analysis from relational tables
+- clear examples of database work improving reporting or surveillance outputs
+
+#### B. If the employer wants scientific surveillance credibility
+
+The ideal candidate would sound like someone who understands surveillance data as more than records in a database. They would likely show that they can support enhanced surveillance systems, interpret scientific data, and contribute to pandemic preparedness, respiratory-virus projects, or comparable public-health monitoring work.
+
+The candidate's evidence would likely include:
+- surveillance data experience
+- health, laboratory, infectious disease, or research data work
+- contribution to regular surveillance reporting
+- participation in surveillance-system development or improvement
+
+#### C. If the employer wants analysis, reporting, and publication support
+
+The ideal candidate would sound like someone who can turn database-held information into scientific outputs. They would likely show that they can analyse and interpret complex data, produce regular reports, support presentations, and contribute to publications or other dissemination.
+
+The candidate's evidence would likely include:
+- scientific or analytical report writing
+- presentations to technical or clinical audiences
+- ad hoc analysis for projects or decision needs
+- contribution to publications, research reports, or grant deliverables
+
+#### D. If the employer wants database development and system redevelopment capability
+
+The ideal candidate would sound like someone who can improve and maintain database systems, not just use existing forms. They would likely show that they can support database redevelopment, data migration, requirements planning, and collaboration with software experts or technical teams.
+
+The candidate's evidence would likely include:
+- developing or maintaining databases
+- improving database structure, usability, or data quality
+- supporting data transfer or migration to new systems
+- working with software or technical colleagues on system changes
+
+#### E. If the employer wants confidentiality and secure scientific-campus working
+
+The ideal candidate would sound like someone who understands that patient-level surveillance data is sensitive. They would likely show that they can follow confidentiality policies, protect patient information, and work within Data Protection Act, statutory, and security requirements.
+
+The candidate's evidence would likely include:
+- handling confidential patient, clinical, or health data
+- secure data storage and controlled access practices
+- compliance with data protection requirements
+- awareness of confidentiality in reporting and sharing information
+
+#### F. If the employer wants collaboration across clinical and scientific networks
+
+The ideal candidate would sound like someone who can work with clinical microbiologists, physicians, NHS colleagues, UKHSA teams, and wider public-health stakeholders. They would likely show that they can communicate technical data issues clearly and support surveillance or outbreak information needs.
+
+The candidate's evidence would likely include:
+- liaison with clinical or scientific stakeholders
+- collaboration across local, national, or international teams
+- support for outbreak, reference-laboratory, or surveillance queries
+- training or knowledge sharing within a scientific department
+
+### 4. Assessment and Selection Translation
+
+This role is assessed through a competency-based framework against qualifications, knowledge, experience, skills, and abilities in the essential criteria.
+
+The strongest application must directly address the three essential criteria:
+- Bachelor's degree in a science or health-related topic.
+- Experience in data management and analysis using database software packages such as `MS Access` and `SQL`.
+- Attention to detail with particular emphasis on accuracy of data.
+
+The lead sift criterion is database management and analysis using `MS Access` and `SQL`, so the strongest candidate should present that evidence early and concretely.
+
+The interview includes a `10-15` minute written `SQL` test, so the ideal candidate must be able to create SQL queries under assessment conditions, not just mention SQL familiarity.
+
+Desirable criteria can become differentiators in a large field:
+- surveillance experience and report writing
+- programming experience in `SQL`
+
+### 5. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can manage and analyse surveillance or health data using database tools such as `MS Access` and `SQL`, including creating queries and producing reliable outputs.
+- I work with strong attention to detail and understand that data accuracy is critical in public-health surveillance and scientific reporting.
+- I can develop, maintain, and improve databases that support hospital, laboratory, or enhanced surveillance systems.
+- I can analyse and interpret complex scientific or health data and contribute to reports, presentations, publications, and ad hoc analyses.
+- I understand confidentiality and data-security requirements for patient information and can work within Data Protection Act and organisational policies.
+- I can collaborate with scientific, clinical, NHS, and public-health stakeholders to support surveillance projects, outbreak information needs, and research activity.
+
+### 6. The Employer's Implied Non-Negotiables
+
+The posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- science or health-related academic grounding
+- database management and analysis using `MS Access` and `SQL`
+- query-writing ability strong enough for a written SQL test
+- high accuracy and attention to detail
+- surveillance, laboratory, public-health, or scientific data context
+- confidentiality and secure handling of patient information
+- scientific reporting and stakeholder liaison
+
+### 7. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic data-management claims and show evidence of:
+- respiratory-virus, infectious-disease, laboratory, epidemiology, or health-surveillance data experience
+- `MS Access` database development or maintenance
+- SQL querying for analytical reporting or database management
+- surveillance report writing, scientific presentations, publications, or grant contributions
+- database redevelopment, migration, or collaboration with software experts
+- patient-data confidentiality and security in a health setting
+- support for outbreak, pandemic preparedness, or national/international surveillance activity
+
+### 8. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a scientific data manager who can maintain and improve respiratory-virus surveillance databases, use `MS Access` and `SQL` to manage and analyse accurate health data, produce scientific outputs, and protect confidential patient information in a secure public-health reference-laboratory environment. They are useful because they combine database skill, surveillance understanding, scientific reporting, and confidentiality discipline in a role that supports national and international health security work.
+
+---
+
+## Ideal Candidate Profile - Portfolio Analyst - Crown Commercial Service
+
+Source role:
+- `Portfolio Analyst`
+- `Crown Commercial Service`
+- <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=dXNlcnNlYXJjaGNvbnRleHQ9MTg2NzA0MDg3JnBhZ2VhY3Rpb249dmlld3ZhY2J5am9ibGlzdCZwYWdlY2xhc3M9Sm9icyZzZWFyY2hzb3J0PXNjb3JlJm93bmVyPTUwNzAwMDAmc2VhcmNocGFnZT01Jm93bmVydHlwZT1mYWlyJmpvYmxpc3Rfdmlld192YWM9MTk5NjI4OSZyZXFzaWc9MTc3NzgyMjU3NC1hOWVhNTNiNzUwY2IxMDRlYzg1OWExMTI0ZWMwODNlZmM1MzA5YzJk>
+
+Civil Service interpretation source:
+- `docs/experience_lake/outward-facing-assets/frameworks/civil_service_success_profiles/success_profiles_govuk_source_capture.md`
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not just a project coordinator and not just someone who can maintain trackers. The employer is looking for a portfolio analyst who can turn complex project and programme data into trusted insight for senior leaders, support governance across a portfolio, identify risks and dependencies, and help a newly formed PMO build clearer, more effective ways of working.
+
+This person would likely present as someone who is comfortable moving between:
+- portfolio reporting and senior-board insight
+- project delivery lifecycle understanding
+- portfolio risk, issue, dependency, and resource analysis
+- governance standards and PMO process building
+- stakeholder challenge and support
+- strategic alignment and investment decision support
+- process simplification, tooling, and AI-enabled productivity improvement
+- Civil Service `HEO` behaviours and technical `Governance`
+
+They would sound like someone who can bring clarity to a complex change portfolio and make reporting useful for decisions, not just compliant.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as someone with project delivery, PMO, portfolio reporting, or governance experience who can analyse delivery data, identify trends, simplify complex information, and work constructively with project teams and senior stakeholders. Their story would show they understand how portfolio information supports prioritisation, investment decisions, risk management, and strategic delivery.
+
+They would likely have experience that sounds like this:
+- producing portfolio or programme reports for senior stakeholders
+- gathering and analysing project delivery data
+- identifying risks, issues, dependencies, trends, and resource pressures
+- supporting governance forums, boards, or decision points
+- working with project managers to improve reporting quality
+- simplifying processes or using tools to improve productivity and quality
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants strategic portfolio awareness
+
+The ideal candidate would sound like someone who can connect portfolio information to organisational priorities. They would likely show that they understand the big picture, recognise strategic drivers, and can explain how portfolio activity supports business objectives and value for the nation.
+
+The candidate's evidence would likely include:
+- portfolio or programme reporting linked to strategic objectives
+- analysis that informed prioritisation or investment decisions
+- understanding of how projects contribute to organisational outcomes
+- awareness of emerging risks and trends affecting delivery
+
+#### B. If the employer wants strong analytical reporting
+
+The ideal candidate would sound like someone who can gather complex project data, identify meaningful trends, and produce actionable reports. They would likely show that their analysis helped senior leaders understand status, risks, dependencies, resources, and delivery confidence.
+
+The candidate's evidence would likely include:
+- analysis of portfolio or project performance data
+- senior-board reporting
+- trend identification and conclusion forming
+- clear reports that supported decisions or interventions
+
+#### C. If the employer wants governance credibility
+
+The ideal candidate would sound like someone who understands governance as a practical decision and assurance system, not just meetings and templates. They would likely show that they can help projects meet standards, support governance forums, maintain a single version of the truth, and improve reporting discipline.
+
+The candidate's evidence would likely include:
+- PMO or governance support
+- board pack, checkpoint, or gateway reporting
+- reporting-quality improvement
+- maintenance of portfolio controls or standards
+- evidence aligned to the technical skill `Governance`
+
+#### D. If the employer wants risk, issue, and dependency insight
+
+The ideal candidate would sound like someone who can see across multiple projects and spot problems that individual teams may miss. They would likely show that they can identify dependencies, delivery risks, emerging issues, and resource constraints that could affect outcomes.
+
+The candidate's evidence would likely include:
+- risk, issue, and dependency tracking
+- portfolio-level trend analysis
+- escalation of delivery threats
+- resource or capacity insight
+- recommendations to protect delivery
+
+#### E. If the employer wants stakeholder challenge and collaboration
+
+The ideal candidate would not simply accept reporting at face value. They would also show that they can build strong relationships with project managers and stakeholders while challenging and supporting them to improve the quality and usefulness of information.
+
+The candidate's evidence would likely include:
+- stakeholder engagement with project teams
+- constructive challenge of reporting or assumptions
+- collaboration across teams and business areas
+- communication that simplifies complex delivery information
+
+#### F. If the employer wants process improvement and change capability
+
+The ideal candidate would sound like someone who can help a new PMO mature. They would likely show that they can simplify processes, use technology where helpful, and contribute to better ways of working without losing control or governance quality.
+
+The candidate's evidence would likely include:
+- process simplification
+- tooling or automation to improve reporting
+- use of AI or digital tools to increase productivity or quality
+- support for change capability in a PMO or delivery function
+
+### 4. Civil Service Success Profile Translation
+
+This role is assessed through `Behaviours` and `Technical skills`, with essential criteria assessed at application stage.
+
+For application-stage `Essential Criteria`, the strongest candidate should directly evidence strategic vision, analytical skill, collaboration, project lifecycle understanding, communication, and process improvement.
+
+For the technical skill `Governance`, the strongest candidate should show how they supported decision structures, standards, reporting discipline, board assurance, risk/dependency escalation, and project or portfolio controls.
+
+For `Seeing the Big Picture`, the strongest evidence should show understanding of strategic drivers, alignment to organisational priorities, awareness of emerging issues and trends, and how portfolio work creates value for stakeholders.
+
+For `Changing and Improving`, the strongest evidence should show process simplification, use of technology to improve efficiency, encouragement of ideas, clear explanation of change, safe challenge, and managed consideration of user impact.
+
+For `Working Together`, the strongest evidence should show joined-up work across groups, professional stakeholder relationships, information sharing, collaboration, and input from diverse perspectives.
+
+For `Communicating and Influencing`, the strongest evidence should show clear, honest, purposeful communication, audience-appropriate simplification of complex information, checked understanding, and respectful influence across stakeholder interests.
+
+### 5. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can gather and analyse complex portfolio data and turn it into clear, actionable reports for senior boards and investment decision makers.
+- I understand the project delivery lifecycle, including Agile and Waterfall, and can use that understanding to interpret portfolio performance and delivery risk.
+- I can identify risks, issues, dependencies, trends, and resource pressures across a portfolio and explain their impact on strategic outcomes.
+- I can support governance standards and maintain a single version of the truth across projects and programmes.
+- I can build strong relationships with project managers and stakeholders while constructively challenging reporting quality and assumptions.
+- I can simplify PMO processes and use tools, including AI where appropriate, to improve productivity, quality, and change capability.
+
+### 6. The Employer's Implied Non-Negotiables
+
+The posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- portfolio or PMO reporting
+- project delivery lifecycle knowledge
+- governance and board-level assurance
+- risk, issue, dependency, and resource insight
+- strong analytical ability and trend identification
+- stakeholder challenge and communication
+- HEO-level `Seeing the Big Picture`, `Changing and Improving`, `Working Together`, and `Communicating and Influencing`
+
+### 7. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic PMO claims and show evidence of:
+- portfolio reporting that influenced senior decisions
+- governance packs, board reporting, or investment-decision support
+- cross-project risk, issue, dependency, or resource analysis
+- work in a newly forming PMO or process-maturity environment
+- practical Agile and Waterfall delivery understanding
+- process simplification or tooling improvements, including responsible use of AI
+- examples that map cleanly to the four assessed HEO behaviours and technical `Governance`
+
+### 8. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a portfolio analyst who can turn complex project and programme data into trusted senior-board insight, support governance and single-version-of-truth reporting, identify portfolio risks and dependencies, and work constructively with project teams to improve reporting quality and delivery confidence. They are useful because they combine analytical judgement, PMO discipline, stakeholder influence, and HEO-level Civil Service behaviours in a newly forming portfolio function.
+
+---
+
+## Ideal Candidate Profile - Intergenerational Harm Analyst - Ministry of Justice
+
+Source role:
+- `Intergeneration Harm Analyst (1 role available) Justice Data, Ministry of Justice`
+- `Ministry of Justice`
+- <https://jobs.justice.gov.uk/careers/JobDetail/17301-Intergeneration-Harm-Analyst-1-role-available-Justice-Data-Ministry-of-Justice/17301>
+
+Civil Service interpretation source:
+- `docs/experience_lake/outward-facing-assets/frameworks/civil_service_success_profiles/success_profiles_govuk_source_capture.md`
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a generic policy analyst and not a narrow data technician. The employer is looking for an `SEO` analytical professional who can work with large, sensitive, cross-government datasets, lead data-sharing and methodological work, improve data matching, and deliver analysis that supports earlier intervention for children affected by parental imprisonment.
+
+This person would likely present as someone who is comfortable moving between:
+- complex government administrative data and quantitative analysis
+- cross-government data-sharing arrangements
+- data protection, ethics, and quality assurance
+- matching methodology and data coverage improvement
+- `R` or `Python` analysis and visualisation
+- AI or large-language-model enabled analytical discovery where appropriate
+- multidisciplinary delivery with social researchers, policy, operational, and data colleagues
+- professional analytical competencies and `SEO` Civil Service behaviours
+
+They would sound like someone who can handle sensitive linked data responsibly and turn it into actionable evidence for vulnerable-cohort policy and operational decision making.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as an experienced analyst who has managed analytical projects using large, complex datasets across organisational boundaries. Their story would show technical depth in `R` or `Python`, data linking or matching, visualisation, project scoping, stakeholder coordination, quality assurance, and clear communication to mixed technical and non-technical audiences.
+
+They would likely have experience that sounds like this:
+- manipulating large government, administrative, or similarly complex datasets
+- applying complex analytical methods to generate insight and visualisations
+- working on data sharing, data protection, ethics, or quality assurance
+- using `R` or `Python` for analytical delivery
+- managing analytical projects from scoping through delivery
+- communicating analysis in ways that influenced decisions or operational practice
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants large-scale cross-government data capability
+
+The ideal candidate would sound like someone who can work with linked or linkable administrative datasets across multiple organisations. They would likely show that they can handle scale, complexity, inconsistent definitions, data access constraints, and quality limitations.
+
+The candidate's evidence would likely include:
+- manipulation of large complex datasets
+- government, administrative, justice, education, benefits, or similar data
+- joining or matching data from multiple sources
+- handling data quality and coverage issues across organisations
+
+#### B. If the employer wants data sharing, ethics, and responsible use
+
+The ideal candidate would sound like someone who understands that this work is sensitive because it concerns vulnerable children and families. They would likely show that they can support data-sharing agreements, apply data protection principles, consider ethical risks, and ensure analytical work is proportionate and responsible.
+
+The candidate's evidence would likely include:
+- data-sharing or data-access governance
+- ethics, consent, disclosure, or responsible-use considerations
+- quality assurance under sensitive data conditions
+- ability to explain risks and safeguards clearly
+
+#### C. If the employer wants matching methodology and data coverage improvement
+
+The ideal candidate would sound like someone who can improve the way people or cases are identified across datasets. They would likely show that they can analyse matching quality, improve matching methodology, understand barriers to self-disclosure, and build monitoring outputs that track matching performance.
+
+The candidate's evidence would likely include:
+- data matching, linkage, entity resolution, or record linkage
+- methodology improvement
+- dashboarding or monitoring of matching quality
+- collaboration with researchers or domain experts to understand data gaps
+
+#### D. If the employer wants advanced analytical tools and innovation
+
+The ideal candidate would sound like someone who can apply analytical tools with judgement, not just run scripts. They would likely show `R` or `Python` capability, visualisation, and openness to AI or LLM approaches where they are ethically and methodologically appropriate.
+
+The candidate's evidence would likely include:
+- `R` or `Python` analysis
+- visualisations that communicate findings clearly
+- advanced analytical techniques suited to the problem
+- responsible exploration of `AI`, large language models, or live-data tools
+
+#### E. If the employer wants analytical project management
+
+The ideal candidate would sound like someone who can lead an analytical project through ambiguity. They would likely show that they can scope use cases, plan delivery, coordinate stakeholders, maintain quality and timeliness, and co-create deliverables across professions.
+
+The candidate's evidence would likely include:
+- analytical project scoping and planning
+- stakeholder coordination across organisations or professions
+- delivery management under uncertainty
+- quality assurance and timely completion of analytical outputs
+
+#### F. If the employer wants policy and operational impact
+
+The ideal candidate would sound like someone who can make analysis matter. They would likely show that their work influenced strategy, operations, frontline decision making, policy design, or service improvement rather than stopping at technical outputs.
+
+The candidate's evidence would likely include:
+- analysis used by decision makers or frontline teams
+- outputs supporting vulnerable cohorts or complex needs
+- clear communication to technical and non-technical audiences
+- evidence of impact, adoption, or changed understanding
+
+### 4. Civil Service and Professional Competency Translation
+
+This role is assessed through a combination of `Professional Competencies` and `Success Profiles`.
+
+For application-stage `Experience`, the strongest statement should cover all essential criteria: large complex datasets across government, complex analytical techniques, data sharing and ethics, `R` or `Python`, analytical project management, stakeholder coordination, quality and timeliness, and communication to technical and non-technical audiences.
+
+For `Professional Competency (1) Knowledge & Skills`, the strongest candidate should foreground analytical method. Depending on profession route, this should read as credible `GSS` data analysis, `GORS` operational research technique, `GES` data analysis, or `GSR` technical social research capability.
+
+For `Professional Competency (2) Influence & Impact`, the strongest candidate should show how analysis was presented, disseminated, communicated, adopted, or used to influence decisions. The role explicitly warns candidates to focus professional competency evidence on technical and methodology aspects where it overlaps with MoJ competencies.
+
+For `Changing and Improving`, the strongest evidence should show improving methodology, using technology or AI appropriately, simplifying or adapting analytical approaches, encouraging ideas, explaining change, and considering varied user impacts.
+
+For `Making Effective Decisions`, the strongest evidence should show use of credible internal and external evidence, challenge and consultation, consideration of end-user impacts, and timely recommendations with options, costs, benefits, and risks.
+
+For `Working Together`, the strongest evidence should show joined-up cross-government and multidisciplinary working, professional relationships, sharing information and support, common focus, and input from diverse perspectives.
+
+For the `5` minute presentation, the strongest candidate should be ready to explain a complex analytical project clearly: problem, data, methods, ethics, QA, limitations, findings, impact, and next steps.
+
+### 5. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can manipulate large complex government datasets and apply analytical techniques in `R` or `Python` to generate insight and visualisations for policy and operational decisions.
+- I understand data sharing, data protection, ethics, and quality assurance, especially when working with sensitive data about vulnerable cohorts.
+- I can improve matching methodology and data coverage, including monitoring matching quality and working with researchers to understand self-disclosure and data-gap issues.
+- I can manage analytical projects from scoping and planning through delivery, coordinating stakeholders across organisations and professions while maintaining quality and timeliness.
+- I can communicate findings clearly to technical and non-technical audiences and show how analytical work influenced decisions or frontline practice.
+- I can work in a multidisciplinary, cross-government environment using innovative approaches, including AI where appropriate, while keeping responsible data use at the centre.
+
+### 6. The Employer's Implied Non-Negotiables
+
+The posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- large complex data manipulation across government or comparable settings
+- `R` or `Python` analytical delivery
+- data sharing, ethics, and quality assurance
+- data linking, matching, or methodology improvement
+- analytical project management and stakeholder coordination
+- clear communication and demonstrable analytical impact
+- SEO-level `Changing and Improving`, `Making Effective Decisions`, and `Working Together`
+
+### 7. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- justice, offending, prison/probation, education, benefits, family, or vulnerable-cohort data experience
+- cross-government data-sharing or linked administrative data projects
+- record linkage, matching methodology, entity resolution, or coverage-quality monitoring
+- dashboards or visualisations used to monitor data quality or operational identification
+- responsible use of AI or LLMs in a sensitive analytical context
+- analytical outputs that influenced policy, operational delivery, or frontline tools
+- evidence that maps cleanly to professional analytical competencies as well as the three assessed Civil Service behaviours
+
+### 8. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is an experienced justice data analyst who can manage complex cross-government analytical projects, link and analyse sensitive administrative datasets, improve matching methodology, uphold data-sharing ethics and QA, and communicate high-impact findings for policy and operational use. They are useful because they combine advanced analytical capability, responsible data governance, stakeholder leadership, and SEO-level judgement in a role aimed at improving outcomes for vulnerable children and reducing intergenerational harm.
+
+---
+
+## Ideal Candidate Profile - Situational Awareness Analyst - UK Research and Innovation
+
+Source role:
+- `Situational Awareness Analyst`
+- `UK Research and Innovation`
+- <https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=c2VhcmNoc29ydD1zY29yZSZwYWdlYWN0aW9uPXZpZXd2YWNieWpvYmxpc3QmdXNlcnNlYXJjaGNvbnRleHQ9MTg2NTc0NjU5Jm93bmVydHlwZT1mYWlyJnBhZ2VjbGFzcz1Kb2JzJnNlYXJjaHBhZ2U9MSZqb2JsaXN0X3ZpZXdfdmFjPTE5OTY1MTAmb3duZXI9NTA3MDAwMCZyZXFzaWc9MTc3NzY5MDI1Ni0wZjdhMjM2ODEzZDQ5NzZkNjhjZjEwYzlhNWI4NzA0NThmNTYwNThm>
+
+### 1. What Kind of Candidate This Employer Is Actually Looking For
+
+The ideal candidate for this role is not a narrow reporting analyst and not a purely academic researcher. The employer is looking for a strategic research-system analyst who can use structured datasets, statistical methods, horizon scanning, and clear synthesis to help `ESRC` understand the UK's social science landscape and make better strategic decisions.
+
+This person would likely present as someone who is comfortable moving between:
+- structured research datasets such as bibliometrics, `HESA`, and `UKRI` grants
+- statistical analysis and problem solving
+- landscape summaries, dashboards, briefings, reports, visualisations, and presentations
+- horizon scanning, strategic foresight, and emerging-trend intelligence
+- synthesis of complex information for diverse audiences
+- independent initiation of analytical activities
+- collaboration across `ESRC`, `UKRI`, the `UK Metascience Unit`, and stakeholders
+
+They would sound like someone who can turn scattered research ecosystem evidence into usable strategic intelligence.
+
+### 2. Core Candidate Shape
+
+The matching candidate would likely describe themselves as an analyst who has worked with structured data to answer strategic questions, especially in research, education, grants, public policy, or evidence-system contexts. Their story would show statistical judgement, ability to handle complex datasets, strong synthesis and communication, and confidence producing outputs that support senior decision making.
+
+They would likely have experience that sounds like this:
+- analysing structured datasets with appropriate statistical methods
+- working with bibliometrics, higher education, grant, research, survey, or policy data
+- using `R`, `SQL`, or `Python` for analysis
+- producing dashboards, visualisations, reports, or briefings
+- identifying trends, gaps, or opportunities for further investigation
+- managing competing priorities while delivering clear outputs independently
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants statistical work with structured research datasets
+
+The ideal candidate would sound like someone who can choose and apply statistical methods appropriately rather than just describe datasets. They would likely show that they can work with structured research-system data and produce credible findings.
+
+The candidate's evidence would likely include:
+- statistical analysis of structured datasets
+- bibliometric, `HESA`, grants, research, or comparable administrative data
+- explanation of method choice and limitations
+- outputs that supported strategic understanding
+
+#### B. If the employer wants horizon scanning and situational awareness
+
+The ideal candidate would sound like someone who can move beyond retrospective reporting. They would likely show that they can identify emerging trends, knowledge gaps, and opportunities for deeper exploration in a way that helps leaders understand what may matter next.
+
+The candidate's evidence would likely include:
+- trend analysis or horizon scanning
+- strategic foresight contributions
+- emerging-issue briefings
+- synthesis of weak signals or disparate sources into practical intelligence
+
+#### C. If the employer wants strong synthesis and communication
+
+The ideal candidate would sound like someone who can make complex information usable for different audiences. They would likely show that they can produce concise briefings, dashboards, reports, visualisations, and presentations that preserve the key message without oversimplifying the evidence.
+
+The candidate's evidence would likely include:
+- clear written briefings or reports
+- visualisations for strategic audiences
+- presentations to internal or external stakeholders
+- communication of complex findings in concise form
+
+#### D. If the employer wants analytical tooling capability
+
+The ideal candidate would sound like someone who can use analytical tools productively or adopt them quickly. They would likely show credible use of `R`, `SQL`, or `Python`, ideally in a way that supports reproducible analysis and efficient insight production.
+
+The candidate's evidence would likely include:
+- `R`, `SQL`, or `Python` analysis
+- data preparation and structured analytical workflows
+- dashboard or visualisation production
+- fast adoption of new analytical tools where needed
+
+#### E. If the employer wants survey capability
+
+The ideal candidate would sound like someone who understands survey design and analysis where relevant. Because this is essential for one of the two roles only, it is a differentiator rather than a universal requirement across the vacancy.
+
+The candidate's evidence would likely include:
+- survey design or questionnaire development
+- survey data cleaning and analysis
+- interpretation of survey limitations or bias
+- reporting survey findings to decision makers
+
+#### F. If the employer wants independent judgement and priority management
+
+The ideal candidate would sound like someone who can operate in a new function where priorities are still being shaped. They would likely show that they can identify useful analytical activities, manage competing demands, and deliver outputs without needing every step prescribed.
+
+The candidate's evidence would likely include:
+- independent analytical scoping
+- prioritisation across competing requests
+- self-directed identification of new analysis
+- delivery in ambiguous or developing functions
+
+### 4. Selection and Assessment Translation
+
+The advert marks the essential criteria as assessed at shortlisting and interview, so the strongest candidate profile should directly evidence each one:
+
+- appropriate statistical methods with structured datasets such as bibliometrics, `HESA`, or `UKRI` grants
+- clear and concise synthesis and communication of complex information
+- strong analytical and problem-solving skills
+- `R`, `SQL`, or `Python`, or credible ability to adopt them quickly
+- survey design and analysis where relevant to the specific role
+- independent working and management of competing priorities
+
+The advert does not list named Civil Service behaviours, and states the post is not regulated by the Civil Service Commission. The competitive emphasis is therefore on scored technical, analytical, synthesis, and delivery criteria rather than behaviour examples.
+
+### 5. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can use statistical methods on structured research, education, grant, or bibliometric datasets to produce credible insight for strategic decision making.
+- I can synthesise complex evidence clearly and concisely into dashboards, reports, briefings, visualisations, and presentations for different audiences.
+- I can identify emerging trends, knowledge gaps, and opportunities for deeper analysis through monitoring, horizon scanning, and strategic intelligence work.
+- I can use tools such as `R`, `SQL`, or `Python`, or adopt them quickly, to deliver robust analysis.
+- I can work independently in a new or developing function, initiate useful analytical activity, and manage competing priorities.
+- I can collaborate across research, policy, analytical, and stakeholder groups to build organisational capability in intelligence gathering and data-informed decision making.
+
+### 6. The Employer's Implied Non-Negotiables
+
+The posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- structured data analysis using appropriate statistical methods
+- research-system, higher education, grants, bibliometric, or comparable evidence context
+- synthesis and concise communication
+- dashboard, briefing, report, visualisation, or presentation delivery
+- horizon scanning and emerging-trend identification
+- `R`, `SQL`, or `Python` capability or rapid adoption
+- independent working and prioritisation
+
+### 7. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analysis claims and show evidence of:
+- bibliometrics, `HESA`, `UKRI` grants, research funding, higher education, or research-policy data experience
+- horizon scanning, strategic foresight, or landscape intelligence work
+- dashboards and briefings used by senior research or policy decision makers
+- survey design and analysis if applying for the survey-relevant strand
+- independent initiation of analysis that shaped organisational understanding
+- work with research councils, universities, public funders, or metascience-style questions
+- ability to connect descriptive analytics to interpretive and strategic insight
+
+### 8. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a research-system intelligence analyst who can apply statistical methods to structured research datasets, synthesise complex evidence into concise strategic outputs, identify emerging trends and knowledge gaps, and work independently across ESRC, UKRI, and stakeholder groups. They are useful because they combine analytical rigour, horizon-scanning judgement, communication strength, and research-landscape awareness in a role designed to improve strategic decision making.
+
+## Ideal Candidate Profile - Advanced Information Analyst - Lewisham and Greenwich NHS Trust
+
+Role source: NHS Jobs advert and candidate information pack supplied by user.
+
+### 1. What the Employer Actually Wants
+
+Lewisham and Greenwich NHS Trust is looking for a senior NHS performance intelligence analyst, not a dashboard-only analyst. The strongest candidate would be able to support executives, divisional managers, clinicians, and corporate teams with accurate, timely, high-quality intelligence that improves operational delivery, planning, productivity, and service improvement.
+
+The centre of gravity is Band 7-level analytical leadership:
+- advanced `SQL`, `Python` / `R`, `Power BI`, `SSRS`, `Excel`, and complex data modelling
+- demand and capacity modelling
+- productivity and efficiency analysis
+- forecasting, predictive modelling, simulation, optimisation, and statistical analysis
+- NHS performance reporting, benchmarking, planning, contracting, and `KPI` development
+- data quality, information governance, `FOI`, `Caldicott`, and confidentiality
+- communication with executives, clinicians, operational managers, and technical peers
+- mentoring, training, deputising, and standard-setting within the analyst team
+
+### 2. Core Candidate Shape
+
+The ideal candidate would present as a senior healthcare information analyst who can turn highly complex, multi-stranded operational data into trusted decisions. They would show that they can work across the full analytical workflow: define the question, extract and link complex data, validate it, model demand/capacity or productivity, automate reporting, explain findings clearly, and support implementation through dashboards, documentation, training, and stakeholder engagement.
+
+They would not simply say they can use `Power BI` or `SQL`. They would show evidence that their analysis changed operational understanding, improved data quality, informed service planning, reduced manual reporting burden, or helped senior stakeholders manage performance.
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants NHS performance intelligence credibility
+
+The ideal candidate would sound like someone who understands how analytics supports service delivery in a complex healthcare organisation. They would connect performance reporting to operational decisions, clinical pathways, planning cycles, patient care, and improvement work.
+
+The candidate's evidence would likely include:
+- performance or information management analysis
+- operational reporting for clinical or divisional teams
+- activity, productivity, efficiency, or waiting-list analysis
+- national or local monitoring requirements
+- NHS data standards, policy context, or performance targets
+- benchmarking or Trust-performance intelligence
+
+#### B. If the employer wants demand and capacity modelling
+
+The ideal candidate would show credible modelling experience beyond descriptive reporting. They would be able to explain how they forecast demand, model capacity constraints, test scenarios, and translate outputs into practical planning recommendations.
+
+The candidate's evidence would likely include:
+- demand and capacity modelling
+- forecasting and predictive modelling
+- simulation or optimisation
+- statistical modelling in `Python` or `R`
+- elective, outpatient, diagnostic, or comparable operational capacity analysis
+- scenario modelling for business planning or service improvement
+
+#### C. If the employer wants expert technical delivery
+
+The ideal candidate would demonstrate advanced technical fluency across the Trust's reporting stack. They would be able to build reliable analytical assets, not just perform one-off analysis.
+
+The candidate's evidence would likely include:
+- expert `SQL`, including complex joins, interlinked models, and large datasets
+- `Python` or `R` for modelling, automation, and statistical analysis
+- `Power BI` dashboards and visual reporting products
+- `SSRS` or comparable operational reporting tools
+- advanced `Excel`
+- data extraction, linking, transformation, and validation
+- robust and reusable reporting solutions
+
+#### D. If the employer wants operational improvement and planning impact
+
+The ideal candidate would frame analysis as a tool for improving services, not just producing reports. They would show that they can support business cases, contract planning, service improvement programmes, and measurable performance change.
+
+The candidate's evidence would likely include:
+- analysis supporting operational improvement
+- productivity and efficiency analysis
+- cost, benefit, phasing, or tracking methodology for business cases
+- support for annual planning and contracting cycles
+- development of `KPIs` and monitoring mechanisms
+- reporting for service improvement initiatives
+- analysis that informed evidence-based decisions
+
+#### E. If the employer wants data quality and governance discipline
+
+The ideal candidate would show that they can be trusted with sensitive healthcare data. They would understand that analytics in this environment must be accurate, auditable, consistent with published information, and compliant with information governance requirements.
+
+The candidate's evidence would likely include:
+- data validation and quality assurance processes
+- resolving data quality issues with operational or data warehouse teams
+- documentation of data definitions, methods, and standard operating procedures
+- `FOI` or ad hoc responses aligned with published data
+- `GDPR`, `Data Protection`, information governance, `Caldicott`, or confidentiality awareness
+- external data flows or regulated reporting
+
+#### F. If the employer wants senior stakeholder communication and influence
+
+The ideal candidate would be able to explain complex analytics to non-technical managers, clinicians, and executives. They would also be comfortable raising performance or recording issues where the message may be sensitive.
+
+The candidate's evidence would likely include:
+- presenting performance or activity analysis to senior managers or clinicians
+- translating complex data into actionable messages
+- selecting the right format for dashboards, reports, briefings, or meetings
+- negotiating deadlines and requirements with divisional stakeholders
+- highlighting pressure points and future risks
+- influencing stakeholders where findings are contentious
+
+#### G. If the employer wants leadership, mentoring, and deputising
+
+The ideal candidate would look ready to operate as a Band 7 contributor who strengthens the wider analyst team. They would not need constant direction and would be able to lead work packages, mentor others, maintain documentation, and deputise when required.
+
+The candidate's evidence would likely include:
+- leading analytical projects from specification to delivery
+- mentoring junior analysts
+- training staff on `SQL`, data definitions, modelling, dashboards, or interpretation
+- developing standard operating procedures
+- peer support and knowledge sharing
+- representing a BI or performance function in meetings
+- deputising for senior colleagues
+
+### 4. Values and Culture Translation
+
+The Trust's ideal candidate should align with its vision `To be exceptional` and its values of `Respect`, `Compassion`, and `Inclusion`. In application evidence, this should not be treated as a generic values paragraph. It should be shown through how the candidate works with others and handles data that affects patient care.
+
+Strong alignment would include:
+- being accountable when data reveals uncomfortable performance or recording issues
+- listening to operational and clinical stakeholders before designing analytical outputs
+- succeeding together by building tools, documentation, and capability that others can use
+- reducing inequality or improving patient-care decisions through better intelligence
+- being respectful and clear when explaining complex or contentious findings
+
+### 5. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can extract, link, validate, and analyse large, complex healthcare or operational datasets using advanced `SQL`, `Python` / `R`, `Excel`, and BI tools.
+- I can build forecasting, predictive, demand-capacity, productivity, and efficiency models that support service planning and operational improvement.
+- I can develop reliable `Power BI`, `SSRS`, or comparable reporting solutions that reduce manual reporting and give stakeholders actionable performance insight.
+- I understand data quality, information governance, confidentiality, `FOI`, and `Caldicott` expectations when working with sensitive healthcare information.
+- I can communicate complex findings clearly to executives, clinicians, divisional managers, corporate functions, and technical peers.
+- I can lead analytical projects independently, manage competing priorities, document processes, mentor colleagues, and deputise for senior team members.
+
+### 6. The Employer's Implied Non-Negotiables
+
+The posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- senior analytical experience equivalent to Master's-level capability
+- significant performance or information management experience
+- expert `SQL` for complex, interlinked data models
+- `Python` and/or `R` for forecasting, predictive modelling, and advanced analytics
+- `Power BI` dashboard development and wider BI/reporting skills
+- substantial experience with large, complex datasets
+- ability to support operational improvement and informed decision making
+- strong data quality, validation, documentation, and governance discipline
+- ability to communicate with stakeholders across disciplines and seniority
+- ability to work independently in a fast-paced complex organisation
+
+### 7. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic analyst claims and show evidence of:
+- demand and capacity modelling in elective, outpatient, diagnostic, or comparable operational services
+- productivity and efficiency analysis linked to service improvement or cost improvement
+- NHS data standards, performance targets, planning cycles, or contract planning
+- robust reporting automation that replaced manual reports
+- use of `Python` / `R` for scenario modelling, forecasting, simulation, optimisation, or statistical analysis
+- working with clinicians and executives, including explaining contentious performance or data quality findings
+- improving data quality in ways that supported income, performance reporting, or safer decisions
+- mentoring analysts and improving team standards through documentation, training, and reusable methods
+
+### 8. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a Band 7 NHS performance intelligence analyst who combines expert technical analytics with operational judgement. They can use advanced `SQL`, `Python` / `R`, `Power BI`, `SSRS`, and statistical modelling to produce demand-capacity, productivity, efficiency, and performance insight. They are useful because they can turn complex Trust data into governed, actionable intelligence for executives, clinicians, divisional managers, and service improvement teams while also strengthening team capability through automation, documentation, mentoring, and clear communication.
+
+## Ideal Candidate Profile - Senior Data Engineer - Homes England
+
+Role source: Civil Service Jobs advert supplied by user.
+
+### 1. What the Employer Actually Wants
+
+Homes England is looking for a senior data engineer who can help operate and shape its `Azure Data Platform`. The strongest candidate would not be limited to building isolated pipelines. They would be able to design scalable platform patterns, deliver reliable data pipelines, translate business and analytical needs into technical solutions, and help a national public-purpose organisation become genuinely data-led.
+
+The centre of gravity is senior data-platform delivery:
+- `Azure` cloud data platform engineering
+- data pipelines from multiple sources
+- transformation and serving for analysis and business teams
+- scalable data modelling in large, complex environments
+- `Python`, `PySpark`, and `SQL`
+- software design principles and `Agile` delivery
+- data governance, security, and data quality management
+- stakeholder management at senior level
+- commercial and operational awareness
+- inclusive team contribution and colleague management
+
+### 2. Core Candidate Shape
+
+The ideal candidate would present as a senior cloud data engineer who can make data reliable, accessible, consistent, and usable for analysts and business teams. They would show evidence of building production-grade data pipelines and data models, supporting a shared platform, and making engineering decisions that balance scalability, maintainability, governance, and user needs.
+
+They would also sound comfortable operating in ambiguity. Homes England is explicit that the role involves strategic projects, platform challenges, senior stakeholders, and commercial or operational impact. The strongest candidate would therefore show both engineering depth and public-sector delivery judgement.
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants Azure data platform credibility
+
+The ideal candidate would show that they have delivered cloud data solutions, preferably in `Azure`, and understand the operational realities of supporting a shared data platform.
+
+The candidate's evidence would likely include:
+- `Azure` data platform delivery
+- cloud-native pipeline orchestration
+- data lake, warehouse, lakehouse, or platform engineering
+- production support or platform reliability work
+- scalable and reusable data engineering patterns
+- contribution to platform standards or future-state design
+
+#### B. If the employer wants pipeline engineering capability
+
+The ideal candidate would be able to design and deliver data pipelines that ingest from multiple sources, transform data according to user needs, and serve it in a consistent analytical layer.
+
+The candidate's evidence would likely include:
+- source-to-target data pipeline design
+- ingestion from multiple systems or data sources
+- transformation logic in `SQL`, `Python`, or `PySpark`
+- analytical data modelling
+- serving curated data to analysts or business users
+- data accessibility and consistency improvements
+
+#### C. If the employer wants scalable modelling in complex data environments
+
+The ideal candidate would not just move data. They would understand how to model data so it remains usable as volume, complexity, and stakeholder demand increase.
+
+The candidate's evidence would likely include:
+- scalable data models
+- large and complex data environments
+- model design for analytical use cases
+- performance-aware data transformation
+- maintainable schemas or semantic structures
+- reusable datasets for reporting, analytics, or data products
+
+#### D. If the employer wants engineering discipline
+
+The ideal candidate would show professional software-engineering habits in data work. This matters because the platform is expected to be scalable, reliable, and future-proof.
+
+The candidate's evidence would likely include:
+- software design principles applied to data pipelines
+- modular and maintainable code
+- version control and peer review
+- testing and validation
+- Agile delivery
+- documentation and operational handover
+- managing ambiguity independently
+
+#### E. If the employer wants governance, security, and quality
+
+The ideal candidate would understand that a public-sector data platform must be trustworthy. They would show that quality, access, security, and governance are built into the platform rather than treated as afterthoughts.
+
+The candidate's evidence would likely include:
+- data governance controls
+- security standards
+- data quality checks and monitoring
+- controlled access or role-based permissions
+- lineage, documentation, or metadata
+- issue resolution and root-cause analysis for data defects
+
+#### F. If the employer wants stakeholder translation and senior influence
+
+The ideal candidate would be able to work with business, analytical, and technical stakeholders, including senior stakeholders. They would translate business problems into technical delivery without losing sight of commercial and operational impact.
+
+The candidate's evidence would likely include:
+- translating business requirements into data engineering solutions
+- presenting data insights or platform trade-offs to varied audiences
+- senior stakeholder management
+- negotiation and persuasion
+- prioritisation across competing platform demands
+- explaining technical constraints in operational or commercial terms
+
+#### G. If the employer wants team contribution and colleague management
+
+The ideal candidate would show that they can work as part of a multidisciplinary team and support colleagues in a collaborative, inclusive way.
+
+The candidate's evidence would likely include:
+- working with data engineers, analysts, architects, or product teams
+- supporting or managing colleagues
+- contributing to team standards
+- inclusive collaboration
+- mentoring or knowledge sharing
+- balancing individual delivery with team outcomes
+
+### 4. Public-Sector Application Translation
+
+The advert appears on Civil Service Jobs but states that the post is `NOT regulated by the Civil Service Commission`. It does not list named Civil Service behaviours, strengths, ability tests, or a Success Profiles sift structure.
+
+The application should therefore concentrate on the evidence the advert actually asks for:
+- experience delivering cloud data solutions, preferably `Azure`
+- technical data engineering capability in `Python`, `PySpark`, and `SQL`
+- scalable data models in large and complex data environments
+- software design and Agile delivery
+- translation of business problems into technical solutions
+- data governance, security, and data quality
+- stakeholder management and presentation of insights
+- collaboration and colleague management
+
+### 5. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can design and deliver cloud data pipelines on `Azure`, using `Python`, `PySpark`, and `SQL` to ingest, transform, and serve data reliably.
+- I can work with large, complex data environments and design scalable data models that support analysis, reporting, and business decision making.
+- I can translate ambiguous business problems into technical data solutions and explain platform trade-offs to senior stakeholders.
+- I understand software design principles, Agile delivery, and maintainable engineering practice in data-platform work.
+- I build data governance, security, and data quality controls into pipelines and analytical data products.
+- I can collaborate inclusively with engineers, analysts, business stakeholders, and senior leaders while balancing delivery with strategic platform improvement.
+
+### 6. The Employer's Implied Non-Negotiables
+
+The posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- cloud data engineering, preferably in `Azure`
+- pipeline design and delivery across multiple sources
+- `Python`, `PySpark`, and `SQL`
+- scalable data modelling
+- large and complex data environments
+- software design principles
+- `Agile` methodologies
+- ambiguity management and business-to-technical translation
+- data governance, security, and data quality management
+- senior stakeholder communication and insight presentation
+- collaborative and inclusive team working
+
+### 7. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic data-engineering claims and show evidence of:
+- designing future-state platform architecture or reusable platform patterns
+- improving reliability, consistency, or accessibility of a shared data platform
+- building pipelines that served both analysts and business teams
+- using `PySpark` for scalable transformation workloads
+- implementing data quality checks, governance controls, or security standards
+- resolving platform incidents or recurring data engineering issues
+- influencing senior stakeholders by linking technical decisions to operational or commercial impact
+- supporting colleagues through standards, mentoring, code review, or delivery leadership
+
+### 8. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a senior Azure data engineer who can build reliable pipelines, scalable data models, and governed analytical data products for a national public-purpose organisation. They are useful because they combine cloud engineering depth, software discipline, data quality and security awareness, stakeholder translation, and collaborative leadership in a role focused on making Homes England a genuinely data-led organisation.
+
+## Ideal Candidate Profile - Data Engineer - Business Intelligence - British Pregnancy Advisory Service (BPAS)
+
+Role source: NHS Jobs advert and job description supplied by user.
+
+### 1. What the Employer Actually Wants
+
+BPAS is looking for a data engineer who can help build and mature a centralised Business Intelligence function. The strongest candidate would be able to design reliable, scalable, well-documented pipelines and integrations that make data consistently available for operational reporting, strategic planning, analytics, and future advanced analytics.
+
+The centre of gravity is healthcare BI data engineering:
+- `Microsoft Fabric`, `Azure Data Factory`, `Synapse`, `Lakehouse`, and `OneLake`
+- `SQL`, `Python`, `PySpark`, notebooks, and transformation pipelines
+- integrations across `SQL Server`, relational databases, `Dynamics 365`, Excel, flat files, cloud systems, and `APIs`
+- semantic modelling and BI-ready data structures
+- data quality, validation, cleansing, reconciliation, monitoring, and lineage
+- documentation, data mappings, data dictionaries, and source-to-target logic
+- data governance, secure handling, information governance, and sensitive healthcare data
+- automation, performance optimisation, scalability, and reduction of manual processes
+- collaboration with BI analysts and clinical, operational, and corporate stakeholders
+
+### 2. Core Candidate Shape
+
+The ideal candidate would present as a practical BI-focused data engineer who can build the foundations of a modern analytics function. They would show that they can turn fragmented operational systems into governed, reusable, reliable data assets that BI analysts and stakeholders can use with confidence.
+
+They would also show values fit. BPAS is explicit that applicants must support a woman's right to choose abortion and work in line with a mission based on compassion, professionalism, and choice. For this employer, technical competence and ethical alignment both matter.
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants modern cloud data-platform experience
+
+The ideal candidate would be able to describe real pipelines built on modern cloud data platforms, especially Microsoft-aligned platforms.
+
+The candidate's evidence would likely include:
+- `Microsoft Fabric`, `Azure Data Factory`, or `Synapse`
+- `Lakehouse` or `OneLake` architecture
+- cloud pipeline orchestration
+- notebooks and transformation pipelines
+- cloud data platform design decisions
+- purpose and outcome of each pipeline built
+
+#### B. If the employer wants pipeline and integration capability
+
+The ideal candidate would show experience integrating multiple source systems and making the data usable for BI and analytics.
+
+The candidate's evidence would likely include:
+- ingestion from `SQL Server` or relational databases
+- integration with `APIs`
+- integration with business platforms
+- `Dynamics 365` integration if available
+- flat-file or Excel ingestion
+- secure connectivity through gateways, custom connectors, or managed integrations
+- source-to-target mapping
+
+#### C. If the employer wants transformation and modelling for analytics
+
+The ideal candidate would not only move data. They would structure it for reporting, semantic modelling, and analytical consumption.
+
+The candidate's evidence would likely include:
+- `SQL` transformations
+- `Python` or `PySpark` transformations
+- complex queries, joins, and reusable transformation logic
+- star or snowflake schema design
+- data warehousing best practice
+- semantic models or BI-ready curated layers
+- examples of datasets transformed for reporting or analytics
+
+#### D. If the employer wants data quality and governance discipline
+
+The ideal candidate would show that data quality and secure handling are built into the engineering process. This is especially important because BPAS handles sensitive reproductive healthcare data.
+
+The candidate's evidence would likely include:
+- validation checks
+- cleansing and reconciliation
+- monitoring and error handling
+- lineage tracking
+- data dictionaries and mappings
+- secure handling and access controls
+- information governance, `GDPR`, or healthcare data privacy
+- pseudonymisation or regulated-data awareness where available
+
+#### E. If the employer wants engineering practice and maintainability
+
+The ideal candidate would show that they can deliver solutions that remain maintainable as the BI function grows.
+
+The candidate's evidence would likely include:
+- clear technical documentation
+- source control with `Git`
+- `Azure DevOps`
+- `CI/CD` familiarity
+- peer review
+- reusable pipeline patterns
+- reducing technical debt
+- performance optimisation and cost awareness in `Fabric` or `Azure`
+- infrastructure-as-code or deployment scripting if available
+
+#### F. If the employer wants stakeholder collaboration in a BI context
+
+The ideal candidate would be comfortable working directly with BI analysts, the BI Lead, and clinical, operational, and corporate stakeholders.
+
+The candidate's evidence would likely include:
+- translating reporting needs into data solutions
+- gathering requirements from non-technical users
+- explaining pipeline logic clearly
+- adapting pipelines as business needs change
+- supporting dashboard development during high demand
+- promoting consistency across reporting domains
+- presenting at team meetings or data forums
+
+#### G. If the employer wants capability building and continuous improvement
+
+The ideal candidate would strengthen the BI team rather than only deliver individual tasks.
+
+The candidate's evidence would likely include:
+- sharing technical knowledge
+- documenting standards
+- supporting training
+- improving automation
+- reducing manual handling
+- improving scalability and reusability
+- enabling future forecasting or advanced analytics
+
+### 4. Application Prompt Translation
+
+The advert contains screening-style questions. The strongest application evidence should be ready to answer these directly:
+
+- For automated pipelines: describe the platform used, the sources ingested, the transformations applied, the users served, and the operational purpose of the pipeline.
+- For transformed and modelled datasets: explain the modelling approach, the tools used, the reporting or analytical use case, and how quality or usability improved.
+- For `Python` or `PySpark`: give concrete examples of processing, transformation, cleansing, enrichment, or notebook-based pipeline work.
+- For modern data platforms: explain how `Microsoft Fabric`, `Lakehouse`, `OneLake`, `Azure Data Factory`, `Synapse`, or similar platforms were used in the solution.
+- For values and eligibility: confirm alignment with BPAS's pro-choice mission and ability to work the stated hybrid pattern.
+
+### 5. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can build automated cloud data pipelines using modern Microsoft data platforms such as `Fabric`, `Azure Data Factory`, `Synapse`, `Lakehouse`, or comparable tools.
+- I can integrate data from `SQL`, `APIs`, business systems, flat files, and platforms such as `Dynamics 365`.
+- I can transform and model datasets using `SQL`, `Python`, and `PySpark` so they are reliable for BI reporting and analytics.
+- I build validation, reconciliation, monitoring, error handling, and lineage into pipelines to improve data quality and trust.
+- I document data mappings, transformations, data dictionaries, and pipeline logic clearly enough for BI teams to maintain and reuse.
+- I understand the importance of governance, secure handling, confidentiality, and ethical use of sensitive healthcare data.
+- I can collaborate with BI analysts and clinical, operational, and corporate stakeholders to turn reporting needs into practical data solutions.
+
+### 6. The Employer's Implied Non-Negotiables
+
+The posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- automated data pipelines on modern cloud data platforms
+- `SQL`, `Python`, and/or `PySpark`
+- `Microsoft Fabric`, `Azure Data Factory`, `Synapse`, `Lakehouse`, `OneLake`, or similar
+- integration across multiple source systems, including `APIs` and business platforms
+- transformation and modelling for reporting and analytical consumption
+- data quality, validation, monitoring, and governance
+- clear technical documentation and data dictionaries
+- stakeholder collaboration in a BI context
+- commitment to BPAS values and a woman's right to choose abortion
+- ability to travel to Leamington Spa once or twice a month
+
+### 7. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic data engineering and show evidence of:
+- `Microsoft Fabric`, `Lakehouse`, and `OneLake` implementation experience
+- `Dynamics 365` integration
+- `Git`, `Azure DevOps`, and `CI/CD` in data projects
+- `Microsoft Purview`, metadata management, lineage, or governance tooling
+- star or snowflake schema modelling for BI
+- healthcare, NHS, clinical, or regulated data experience
+- pseudonymisation or privacy-by-design practice
+- performance tuning and cost optimisation in `Fabric` or `Azure`
+- reducing manual reporting or manual data handling through automation
+- enabling future forecasting, advanced analytics, or modern analytics capability
+
+### 8. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a healthcare BI data engineer who can build automated, governed, well-documented pipelines across Microsoft cloud platforms and operational systems. They are useful because they can reduce manual data handling, improve data quality, integrate sensitive healthcare data securely, and create BI-ready data structures that support reporting, strategic planning, and future analytics within a values-driven reproductive healthcare organisation.
+
+## Ideal Candidate Profile - Senior Data Scientist-Analytics Lead - East Suffolk and North Essex NHS Foundation Trust
+
+Role source: NHS Jobs advert, role profile descriptor, and job description supplied by user.
+
+### 1. What the Employer Actually Wants
+
+ESNEFT is looking for a Band 8a analytics leader who can expand the Trust's data science capability and deliver advanced analytics, machine learning, and AI against real operational and clinical challenges. The strongest candidate would not be only a technically strong data scientist. They would also be able to lead a small team, quality assure analytical outputs, manage a portfolio of projects, influence operational and clinical stakeholders, and align analytics work to the Trust's Informatics Strategy.
+
+The centre of gravity is senior NHS data-science leadership:
+- `R`, `Python`, and `SQL`
+- supervised and unsupervised machine learning
+- predictive modelling, statistical analysis, benchmarking, modelling, and forecasting
+- `NLP`, time series forecasting, `LLMs`, and automation using tools such as `Copilot`, `ChatGPT`, or `Gemini`
+- visual analytics dashboards and interactive reporting
+- `GitHub` for project documentation and validation
+- `Epic EPR`, `Azure Data Lake`, and healthcare data environments
+- waiting-list management, service demand, and Trust-level operational challenges
+- management and development of two to four data scientists or analysts
+- quality assurance and accountability for analytics-team outputs
+
+### 2. Core Candidate Shape
+
+The ideal candidate would present as a senior healthcare data scientist who can move between strategy, delivery, and leadership. They would show that they can scope analytical projects, select appropriate statistical or machine-learning methods, build or oversee reliable outputs, explain results to operational and clinical colleagues, and develop the analysts delivering the work.
+
+At Band 8a, the candidate must look ready to own outcomes. They should be able to say not only "I built a model", but also "I selected the right analytical approach, managed the work, assured the quality, helped stakeholders use the output, and developed the team's capability to repeat it."
+
+### 3. Requirement-to-Candidate Translation
+
+#### A. If the employer wants advanced healthcare data science
+
+The ideal candidate would show credible applied data science in a healthcare, operational, or similarly complex environment.
+
+The candidate's evidence would likely include:
+- predictive analysis
+- statistical modelling
+- machine learning algorithms
+- visual analytics dashboards
+- analysis of highly complex operational data
+- modelling linked to patient care, staff experience, or service improvement
+- advanced `R`, `Python`, and `SQL`
+
+#### B. If the employer wants machine learning and AI capability
+
+The ideal candidate would demonstrate knowledge of machine learning methods and the judgement to apply them to practical Trust problems.
+
+The candidate's evidence would likely include:
+- supervised learning
+- unsupervised learning
+- regression modelling
+- decision trees
+- classification
+- time series forecasting
+- `NLP`
+- `LLMs` or `Copilot`-assisted automation
+- examples of AI or ML moving from idea to useful product
+
+#### C. If the employer wants forecasting and operational analytics
+
+The ideal candidate would connect modelling to operational decisions. ESNEFT names waiting lists, service demand, activity data, and forecasting software, so the strongest evidence should show operational relevance.
+
+The candidate's evidence would likely include:
+- activity data analysis
+- demand and capacity or service demand forecasting
+- waiting-list analytics
+- benchmarking
+- activity planning tools
+- forecasting software
+- operational dashboards used by clinical or operational teams
+
+#### D. If the employer wants analytics project leadership
+
+The ideal candidate would show that they can manage analytical work through scope, delivery, quality assurance, stakeholder engagement, and deadlines.
+
+The candidate's evidence would likely include:
+- managing medium-sized analytic projects
+- scoping analysis with senior leaders
+- maintaining project timetables
+- ensuring suitable cover or continuity
+- escalating delivery risks early
+- managing a portfolio of advanced analytics projects
+- aligning work to organisational priorities
+
+#### E. If the employer wants team leadership and capability building
+
+The ideal candidate would show that they can develop a team, not just perform as a senior individual contributor.
+
+The candidate's evidence would likely include:
+- managing two to four analysts or data scientists
+- setting direction and expectations
+- quality assuring analysts' work
+- developing technical and interpersonal skills in staff
+- identifying training needs
+- creating an inclusive feedback culture
+- supporting performance development reviews
+- building capability in machine learning, forecasting, `NLP`, `LLMs`, or advanced analytics
+
+#### F. If the employer wants EPR and modern data-platform exploitation
+
+The ideal candidate would show they can get value from the Trust's digital infrastructure, especially `Epic EPR` and `Azure Data Lake`.
+
+The candidate's evidence would likely include:
+- EPR-linked analysis
+- `Epic` exposure if available
+- `Azure Data Lake` or cloud analytics experience
+- collaboration with development teams on analytical functionality
+- use of `Python` and `R` against operational healthcare data
+- experience turning platform capability into analytical products
+
+#### G. If the employer wants quality assurance and accountable analytics
+
+The ideal candidate would demonstrate that analytical outputs are trusted, validated, documented, and fit for operational decision making.
+
+The candidate's evidence would likely include:
+- `GitHub` for documentation and validation
+- reproducible analytical workflows
+- peer review or QA controls
+- accountable sign-off of dashboards, models, or reports
+- data-quality checks
+- documented assumptions and limitations
+- ensuring analysis is accurate, accessible, and impactful
+
+#### H. If the employer wants stakeholder influence
+
+The ideal candidate would be able to create demand for analytics by showing operational and clinical teams how data science can solve real problems.
+
+The candidate's evidence would likely include:
+- working with operational and clinical stakeholders
+- translating business needs, issues, and drivers into analytical projects
+- communicating benefits and opportunities for analytics
+- building a pipeline of analytical projects
+- persuasion, influencing, and negotiation
+- explaining highly complex or sensitive information clearly
+
+### 4. Values and Organisational Translation
+
+The strongest candidate should connect analytics to ESNEFT's `Time Matters` philosophy. This means showing how data science can free up staff time, reduce delays, improve patient experience, and support better outcomes.
+
+Strong alignment would include:
+- analytics that reduces operational friction
+- forecasting that supports better planning
+- automation that saves staff time
+- dashboards that make decisions faster and clearer
+- models that improve service demand management
+- leadership that helps teams learn and improve continuously
+
+### 5. The Candidate's Likely Strongest Claims
+
+If this employer read an ideal candidate profile, the strongest claims would probably sound like this:
+
+- I can lead advanced analytics projects using `R`, `Python`, `SQL`, statistical modelling, machine learning, and visual dashboards to address operational and clinical challenges.
+- I can develop predictive models, forecasting tools, and analytical products that support service demand planning, waiting-list management, and patient-care improvement.
+- I can manage and develop a small team of data scientists or analysts, quality assure their work, and build capability in advanced analytics, ML, AI, and automation.
+- I can use `GitHub` and reproducible workflows to document, validate, and govern analytical projects.
+- I can work with operational and clinical stakeholders to understand business needs and translate them into a pipeline of useful analytical projects.
+- I can help a Trust get value from `EPR`, `Epic`, `Azure Data Lake`, `Python`, `R`, and emerging AI technologies in a safe and practical way.
+
+### 6. The Employer's Implied Non-Negotiables
+
+The posting strongly implies that the ideal candidate must be credible in the following areas:
+
+- Master's-level or equivalent numerical/data-science capability
+- experience working in a data science role
+- `R`, `Python`, and `SQL`
+- predictive analysis and visual dashboards
+- machine learning algorithm development
+- supervised and unsupervised methods
+- benchmarking, modelling, and forecasting
+- medium-sized analytical project management
+- `GitHub` documentation and validation
+- team development and analyst management
+- stakeholder communication, persuasion, influencing, and negotiation
+- quality assurance and accountability for analytical outputs
+
+### 7. What Would Make a Candidate Look Especially Strong for This Role
+
+The strongest-fit candidate would likely go beyond generic data-science claims and show evidence of:
+- NHS operational analytics linked to waiting lists, service demand, capacity, or patient flow
+- `Epic EPR` or wider EPR data experience
+- `Azure Data Lake` or cloud analytics delivery
+- `LLM`, `Copilot`, `ChatGPT`, or `Gemini` automation use cases
+- `NLP`, time series forecasting, and unsupervised learning in operational settings
+- leading a team of analysts or data scientists
+- robust quality assurance of models, dashboards, and forecasts
+- analytics that visibly saved time, reduced delays, improved service performance, or supported better patient/staff experience
+- ability to create an inclusive analytical culture and develop staff capability
+
+### 8. Short Ideal-Candidate Portrait
+
+The ideal candidate for this post is a Band 8a NHS analytics lead who can combine advanced data science with team leadership and operational influence. They can use `R`, `Python`, `SQL`, machine learning, forecasting, dashboards, `GitHub`, `EPR`, and `Azure Data Lake` to deliver trusted analytical products for major Trust challenges. They are useful because they can lead projects, develop analysts, assure analytical quality, and turn AI and machine-learning capability into practical improvements for patient care, staff experience, waiting-list management, service demand, and the Trust's `Time Matters` Informatics Strategy.
