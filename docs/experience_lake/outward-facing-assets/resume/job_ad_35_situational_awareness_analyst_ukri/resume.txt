@@ -1,0 +1,66 @@
+Esosa Orumwese
+Situational Awareness Analyst | Structured Data, Horizon Scanning & Strategic Insight
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Analyst with strong Python, SQL, statistical analysis, evidence synthesis, visualisation, and decision-support capability across policy-facing, public-interest, and governed analytical projects. Evidence includes COVID-19 government-response analysis, network-based prioritisation, structured data quality review, trend interpretation, concise reporting, and independent analytical delivery.
+
+CORE SKILLS
+Strategic Intelligence: Horizon scanning, emerging-trend review, knowledge-gap identification, landscape summaries, decision support
+Structured Data Analysis: Statistical methods, Python, SQL, Excel, Power BI, Tableau, cohort analysis, network analysis, forecasting
+Evidence Synthesis: Policy context, external evidence review, concise interpretation, assumptions, limitations, cautious conclusions
+Survey & Research Awareness: Question design, sampling bias, response bias, representativeness, data limitations, responsible interpretation
+Data Quality & Assurance: Coverage checks, missingness, duplicates, validity checks, reconciliation, source traceability, documented methods
+Reporting & Communication: Visualisations, analytical reports, dashboards, briefings, presentations, technical and non-technical explanation
+Independent Delivery: Scoping, prioritisation, competing demands, reproducible workflows, Git, documentation, responsible AI use
+
+SELECTED RESEARCH, POLICY AND ANALYTICAL EVIDENCE
+
+COVID-19 Pandemic Policy and Activity Analysis
+MSc Data Science Project
+
+- Combined 1,004 daily CSV files using Python into 2,396,549 observations and 12 variables covering 220 countries over 1,004 days.
+- Integrated Facebook Business Activity Trends with Oxford COVID-19 policy data to analyse activity patterns in policy context.
+- Assessed coverage, missingness, duplicates, country/date validity, metric suitability, and limitations before comparing country trends.
+- Produced visual analysis linking unusual movements to containment policies, public-health events, and documented external evidence.
+- Treated the work as situational analysis: what changed, when it changed, the policy context, and what could be stated responsibly.
+
+Network Analysis and Surveillance Prioritisation
+MSc Data Science Project
+
+- Applied game-theoretic network analysis to a surveillance-prioritisation problem, using network structure to assess relationships and risk coverage.
+- Produced method-led findings explaining approach, prioritisation logic, assumptions, and decision implications rather than only reporting metrics.
+
+RELEVANT EXPERIENCE
+
+Data Analyst & Analytics Engineer
+Fraud Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
+
+- Built structured analytical datasets across events, decisions, entity histories, labels, case movement, controls, and reporting evidence.
+- Used Python, SQL, Excel, and reporting outputs to analyse trends, exceptions, data integrity, demand pressure, and prioritisation signals.
+- Monitored data quality through schema checks, completeness review, reconciliation, traceability, leakage controls, and validation outputs.
+- Produced decision-support evidence showing 2.29x baseline yield in the highest-risk band and 7.31% test MAPE for bounded demand planning.
+- Separated source-data issues from transformation, modelling, control, linkage, and interpretation issues before drawing conclusions.
+- Documented definitions, assumptions, limitations, validation outcomes, and handover notes so outputs remained reviewable and repeatable.
+- Used controlled AI-assisted support for drafting, coding, and documentation while retaining human judgement, testing, and governance.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+
+ADDITIONAL EXPERIENCE
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a safety-conscious technical environment where accurate readings, escalation, and handovers supported reliable delivery.
+- Monitored pressure, temperature, equipment, and field-condition signals, identifying irregular conditions early and supporting corrective action.
+
+Crew Member
+Five Guys - Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-moving live service environment where quality, pace, communication, and handover affect service performance every shift.
