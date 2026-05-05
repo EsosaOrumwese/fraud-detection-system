@@ -1,0 +1,58 @@
+Esosa Orumwese
+Data Engineer - Business Intelligence | SQL/Python Pipelines, BI Data Models & Data Quality
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Analyst and Analytics Engineer with strong evidence in SQL/Python data pipelines, multi-source integration, reusable datasets, BI reporting inputs, validation, lineage, documentation, and governed data handling. Strong fit for a healthcare BI data engineering role focused on reliable data flows, reduced manual handling, clear technical documentation, and careful use of sensitive information.
+
+CORE SKILLS
+Data Engineering: SQL, Python, notebooks, repeatable pipelines, transformation workflows, analytical datasets, flat-file ingestion
+Microsoft Data Platforms: Microsoft Fabric awareness, Azure Data Factory/Synapse concepts, Lakehouse and OneLake awareness, Azure DevOps and CI/CD awareness
+Source Integration: Relational data, SQL Server concepts, CSV/Excel files, public datasets, API integration concepts, Dynamics 365 integration awareness
+Data Modelling: Relational modelling, joins, entity histories, defined grains, keys, lineage, star and snowflake schema awareness, datasets prepared for BI reporting
+Data Quality: Validation, cleansing, reconciliation, completeness checks, duplicate review, monitoring logic, error investigation, source traceability
+Governance & Documentation: GDPR awareness, confidentiality, pseudonymisation awareness, data dictionaries, source mappings, transformation notes, Git, testing, handover
+BI & Reporting: Power BI, Tableau, Excel, KPI outputs, operational reporting inputs, dashboard data preparation, clear technical explanation
+
+RELEVANT EXPERIENCE
+
+Data Analyst & Analytics Engineer
+Open-source Fraud Risk Intelligence Platform - Exeter, UK | May 2025 - Present
+
+- Built SQL and Python data products across events, decisions, entity histories, labels, case movement, controls, and reporting evidence for repeatable analytics.
+- Designed linked data models with defined grains, documented keys, controlled joins, lineage, and well-structured datasets for consistent reporting and analysis.
+- Developed transformation and validation workflows covering source traceability, schema checks, completeness, reconciliation, duplicate review, leakage controls, and assumptions.
+- Investigated data defects by separating source-data issues from transformation, modelling, linkage, control, and interpretation issues before corrective action.
+- Documented data definitions, processing boundaries, source logic, validation outputs, and known limitations so analytical outputs could be reviewed and repeated.
+- Applied engineering discipline through modular Python/SQL workflows, Git-based traceability, testing, run documentation, and handover notes.
+- Built demand-planning and modelling outputs, including a 7.31% test MAPE forecast, translating model performance into planning reliability and operational risk.
+- Designed KPI and monitoring outputs for data integrity, model yield, case flow, exception signals, and operational pressure.
+
+Public Health Data Integration and Analysis
+MSc Data Science Project | Nov 2023
+
+- Combined 1,004 daily CSV files in Python into 2,396,549 observations across 220 countries, demonstrating multi-file ingestion and structured preparation at scale.
+- Integrated Facebook Business Activity Trends data with Oxford COVID-19 Government Response Tracker policy data using country/date logic and repeatable checks.
+- Assessed coverage, missingness, duplicates, country/date validity, metric suitability, outlier sensitivity, and source limitations before analysis.
+- Produced research-style visual analysis and written interpretation linking activity patterns to public-health policy context, with clear caveats where data could not fully explain variation.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+
+ADDITIONAL EXPERIENCE
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a controlled operational environment where accurate readings, documentation, escalation, and handovers supported safe and reliable delivery.
+- Monitored pressure, temperature, equipment, and field-condition signals, identifying irregular conditions early through structured evidence.
+
+Crew Member
+Five Guys - Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-moving live service environment where quality, prioritisation, communication, and reliable handover affect service performance every shift.
