@@ -92,6 +92,57 @@ This classification should guide tone and evidence choice. It should not make th
 
 ---
 
+## 3A) Structure Doc Before Prelim Responses
+
+Before creating a `prelim_response.md` for any supporting statement, personal statement, statement of suitability, cover letter, or long-form application answer, create or update a short structure/story document in the relevant job folder.
+
+Default filename:
+
+`statement_structure.md`
+
+The structure doc is mandatory when:
+
+- the answer is over 250 words
+- the form asks for evidence against criteria
+- the employer is public sector, Civil Service, NHS, university, charity, regulator, or similar
+- the statement must balance motivation and evidence
+- there are multiple essential criteria, behaviours, values, or technical skills
+
+The structure doc must decide the message before prose is drafted. It should not become a long essay.
+
+It should contain:
+
+- the exact question or prompt
+- the employer word limit and the internal target word range
+- the assessment type: motivation, criteria evidence, behaviour, technical, experience, cover letter, or mixed
+- the main story in one sentence
+- the paragraph plan
+- which criterion or requirement each paragraph is meant to satisfy
+- the evidence source for each paragraph
+- the truth boundary or overclaim risk
+- what must be avoided
+- the final scoring check the answer must pass
+
+Do not move into prelim responses until the structure doc makes the answer's spine clear.
+
+Good structure doc posture:
+
+> Paragraph 1 is not "intro". It establishes why this employer and role make sense.
+
+> Paragraph 2 is not "technical stuff". It proves the strongest technical criterion.
+
+> Paragraph 3 is not "more evidence". It proves quality, governance, and delivery discipline.
+
+> Paragraph 4 is not "closing". It links contribution, motivation, and role fit.
+
+Bad structure doc posture:
+
+> Write a flowing statement about why the candidate is interested and mention skills.
+
+That produces polished but weak prose.
+
+---
+
 ## 4) Candidate Positioning
 
 The candidate's base evidence identity is:
@@ -336,6 +387,23 @@ A CV should be fast to scan. It should show target identity, role-relevant skill
 A supporting statement should score against criteria. It is not a longer CV.
 
 A cover letter should explain fit, motivation, and 2 or 3 strongest proof points. It should not carry the full burden of evidence if a supporting statement exists.
+
+Internal word limits matter. Do not automatically use the full employer maximum.
+
+Default target ranges:
+
+- Employer limit `400`: write `330-380` unless the prompt genuinely needs the full limit.
+- Employer limit `500`: write `380-450`.
+- Employer limit `750`: write `550-650`.
+- Employer limit `1000`: write `700-850`.
+- Employer limit `1250`: write `850-1000`.
+- No stated limit: default to `650-850` for supporting statements.
+
+The standard is:
+
+> Long enough to mark. Short enough to finish.
+
+Every paragraph must earn its place. Every sentence should help the scorer tick a criterion, trust the evidence, understand motivation, or see role fit.
 
 For current CVs, usually prefer:
 
