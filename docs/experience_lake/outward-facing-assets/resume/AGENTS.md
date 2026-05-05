@@ -167,11 +167,11 @@ Safer platform labels include:
 - `Independent Data Scientist & Analytics Engineer`
 - `Governed Fraud Decisioning Platform`
 - `Applied Analytics Portfolio`
-- `Production-shaped fraud decisioning and analytics platform`
+- `Fraud decisioning and analytics platform built with production data standards`
 
 Good framing:
 
-> Built and analysed a production-shaped fraud decisioning platform to demonstrate applied data science, reproducible modelling, operational reporting, and decision-support analytics.
+> Built and analysed a fraud decisioning platform using production data standards to demonstrate applied data science, reproducible modelling, operational reporting, and decision-support analytics.
 
 Avoid:
 
@@ -196,11 +196,41 @@ If not, rewrite the framing.
 Examples of translation:
 
 - For a weather, climate, or defence science role, translate the evidence into environmental data, physical systems, impact analysis, uncertainty, scientific computing, user-relevant science, and decision support.
-- For an NHS information role, translate the evidence into validated information flows, data quality, governance, operational reporting, pathway-style logic, confidentiality, and service delivery.
+- For an NHS information role, translate the evidence into validated information flows, data quality, governance, operational reporting, service pathways, confidentiality, and service delivery.
 - For a commercial analytics role, translate the evidence into performance, spend, value, compliance, customer impact, dashboards, forecasting, and decision support.
 - For a distribution or operations role, translate the evidence into throughput, backlog, fulfilment, productivity, inefficiency, SLA, and operational MI.
 
 Do not dump the platform story and expect the employer to translate it.
+
+---
+
+## 5A) Natural Language and No Constructed Labels
+
+Final application wording must sound like a credible human candidate, not like internal agent shorthand.
+
+Do not use constructed labels or artificial adjacency phrases in final CVs, cover letters, supporting statements, or application answers.
+
+Avoid patterns such as:
+
+- `X-style`: `stakeholder-style`, `Power BI-style`, `NHS-style`, `pipeline-style`, `dashboard-style`
+- forced adjacency labels: `NHS-adjacent`, `healthcare-adjacent`, `SSRS-adjacent`, `Fabric-adjacent`
+- abstract invented links: `public-purpose link`, `role-native spine`, `platform posture`
+- over-engineered labels: `production-shaped`, `decision-ready`, `stakeholder-readable`, `governance-conscious`
+- inflated vague nouns: `impact awareness`, `platform thinking`, `operational relevance` when not tied to a concrete sentence
+
+Internal shorthand is allowed while planning if it helps protect truth boundaries, but it must be translated before final output.
+
+Prefer normal human wording:
+
+- `reports and dashboards in Power BI or Tableau`
+- `housing delivery and communities matter to me`
+- `standards I would expect in a production data environment`
+- `outputs that analysts and managers could understand and use`
+- `careful handling of sensitive data, confidentiality, and GDPR`
+
+Technical writing is not the same as jargon-heavy writing. Use technical terms when the advert uses them or when they prove real capability. Do not pad sentences with technical nouns that make the answer sound more complex but less grounded.
+
+Final review must include a check for constructed labels, weird abstractions, and jargon padding.
 
 ---
 
@@ -236,7 +266,7 @@ or:
 
 > Translated findings into workload, quality, prioritisation, and reporting implications.
 
-Use internal labels like `NHS-adjacent`, `Power BI-ready`, `SSRS-adjacent`, or `stakeholder-style` to protect truth boundaries while drafting. In final wording, use natural language unless the label genuinely helps clarity.
+Internal labels can be used while planning to protect truth boundaries, but final wording must use natural language and must not carry planning shorthand into the application.
 
 Do not overload the final material with caveats. The aim is truthful confidence, not defensive writing.
 
