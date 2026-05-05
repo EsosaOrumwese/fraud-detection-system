@@ -211,7 +211,7 @@ Do not dump the platform story and expect the employer to translate it.
 
 Final application wording must sound like a credible human candidate, not like internal agent shorthand.
 
-Do not use constructed labels or artificial adjacency phrases in final CVs, cover letters, supporting statements, or application answers.
+Do not use constructed labels, artificial adjacency phrases, or unexplained abstractions in final CVs, cover letters, supporting statements, or application answers.
 
 Avoid patterns such as:
 
@@ -220,6 +220,8 @@ Avoid patterns such as:
 - abstract invented links: `public-purpose link`, `role-native spine`, `platform posture`
 - over-engineered labels: `production-shaped`, `decision-ready`, `stakeholder-readable`, `governance-conscious`
 - inflated vague nouns: `impact awareness`, `platform thinking`, `operational relevance` when not tied to a concrete sentence
+- unexplained employer slogans or concepts: if a phrase such as `Time Matters`, `levelling up`, `digital transformation`, `patient flow`, or `operational excellence` is used, immediately explain what it means in practical terms for the role
+- broad conceptual claims: `service improvement mindset`, `strategic impact`, `data-driven culture`, `business value`, or `public purpose` unless the same sentence or paragraph ties them to a real action, output, user, decision, or outcome
 
 Internal shorthand is allowed while planning if it helps protect truth boundaries, but it must be translated before final output.
 
@@ -233,7 +235,7 @@ Prefer normal human wording:
 
 Technical writing is not the same as jargon-heavy writing. Use technical terms when the advert uses them or when they prove real capability. Do not pad sentences with technical nouns that make the answer sound more complex but less grounded.
 
-Final review must include a check for constructed labels, weird abstractions, and jargon padding.
+Final review must include a check for constructed labels, weird abstractions, unexplained employer slogans, and jargon padding. If a sentence sounds good but does not say what happened, what was produced, who it helped, or why it mattered, rewrite it or remove it.
 
 ---
 

@@ -2,11 +2,20 @@
 
 ## Exact Prompt
 
-Likely Trac/NHS supporting information prompt:
+Actual Trac/NHS supporting information prompt:
 
 > Demonstrate that you have read the published person specification and how you meet the essential and, where relevant, desirable criteria for this post. Include reasons for applying and highlight your talents and strengths. Do not duplicate personal details already provided elsewhere.
 
-If the live form gives a different exact prompt or word limit, update this document before drafting the final statement.
+User-supplied instruction:
+
+> Please read the job description and person specification carefully and make full use of this section, to provide further information in support of your application.
+>
+> Please be sure to include:
+>
+> i. The reasons why you are applying for the post.
+> ii. Details of any relevant experience gained either in a paid or voluntary capacity.
+> iii. Details of any training, education or other interests relevant to the post.
+> iv. Details of Personal Attributes you have to support your application.
 
 ## Word Limit and Internal Target
 
@@ -29,6 +38,8 @@ NHS supporting information:
 
 - criteria evidence
 - motivation
+- relevant experience
+- training and education
 - technical capability
 - seniority/readiness
 - personal skills
@@ -58,7 +69,7 @@ How to handle:
 
 ## Paragraph Plan
 
-### Paragraph 1 - Opening Fit and Motivation
+### Paragraph 1 - Reasons for Applying and Role Understanding
 
 Purpose:
 
@@ -72,6 +83,7 @@ Criteria covered:
 - service improvement motivation
 - communication of role understanding
 - alignment with ESNEFT's `Time Matters` philosophy
+- prompt item i
 
 Evidence source:
 
@@ -82,7 +94,7 @@ Truth boundary:
 
 - Do not write as if the candidate has already worked inside ESNEFT or NHS analytics.
 
-### Paragraph 2 - Advanced Analytics, Machine Learning, and Forecasting
+### Paragraph 2 - Relevant Experience: Advanced Analytics, Machine Learning, and Forecasting
 
 Purpose:
 
@@ -91,6 +103,7 @@ Purpose:
 
 Criteria covered:
 
+- prompt item ii
 - analytical products and insights
 - predictive analyses
 - visual dashboards
@@ -110,7 +123,7 @@ Truth boundary:
 - Do not imply NHS waiting-list or clinical model delivery.
 - Use operational/demand/planning language without falsely making it healthcare-specific.
 
-### Paragraph 3 - MSc Advanced Methods and Numerical Foundation
+### Paragraph 3 - Training, Education, and Advanced Methods
 
 Purpose:
 
@@ -119,6 +132,7 @@ Purpose:
 
 Criteria covered:
 
+- prompt item iii
 - Master's-level numerical subject
 - advanced analytics knowledge
 - supervised/unsupervised methods
@@ -169,7 +183,7 @@ Truth boundary:
 - Do not claim accountability for a team's outputs.
 - Frame as personal QA discipline and readiness to apply that discipline in a team setting.
 
-### Paragraph 5 - Project Ownership, Prioritisation, and Independent Judgement
+### Paragraph 5 - Relevant Experience and Personal Attributes: Project Ownership, Prioritisation, and Independent Judgement
 
 Purpose:
 
@@ -177,6 +191,7 @@ Purpose:
 
 Criteria covered:
 
+- prompt items ii and iv
 - managing medium-sized analytical projects
 - project scoping
 - project timetable/delivery awareness
@@ -198,7 +213,7 @@ Truth boundary:
 - Do not claim portfolio management inside an NHS Advanced Analytics Team.
 - Use project ownership and delivery discipline, not formal programme leadership.
 
-### Paragraph 6 - Communication, Influence, and Capability Building
+### Paragraph 6 - Personal Attributes: Communication, Influence, and Capability Building
 
 Purpose:
 
@@ -207,6 +222,7 @@ Purpose:
 
 Criteria covered:
 
+- prompt item iv
 - written and verbal communication
 - explaining complex/sensitive information
 - persuasion, influence, professional challenge
@@ -227,7 +243,7 @@ Truth boundary:
 - Do not claim line management, performance reviews, formal staff development, or managing two to four analysts.
 - Use truthful wording such as `supporting shared understanding`, `documenting work so others can review and reuse it`, and `sharing analytical reasoning clearly`.
 
-### Paragraph 7 - Modern NHS Data Infrastructure, AI, and Closing Contribution
+### Paragraph 7 - Interests, Modern NHS Data Infrastructure, AI, and Closing Contribution
 
 Purpose:
 
@@ -236,6 +252,7 @@ Purpose:
 
 Criteria covered:
 
+- prompt items i, iii and iv
 - EPR / Epic / Azure Data Lake awareness
 - emerging AI and automation tools
 - desire to improve performance and services
