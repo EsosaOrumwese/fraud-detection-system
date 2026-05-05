@@ -1,0 +1,57 @@
+Esosa Orumwese
+Senior Data Scientist / Analytics Lead | Machine Learning, Forecasting & Quality-Assured Analytics
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Scientist and Analytics Engineer with advanced analytics evidence across machine learning, forecasting, statistical modelling, dashboards, reproducible workflows, and quality-checked outputs. Strong in Python, SQL, R, Git/GitHub, Power BI, Tableau, and clear technical communication across complex operational and public-health datasets.
+
+CORE SKILLS
+Advanced Analytics: Predictive modelling, statistical analysis, forecasting, benchmarking, segmentation, prioritisation, activity and demand analysis
+Machine Learning & AI: Supervised and unsupervised learning, classification, regression, decision trees, clustering, NLP foundations, LLM-assisted workflow design
+Programming & Tools: Python, SQL, R, Git/GitHub, Jupyter, Excel, Power BI, Tableau, reproducible analytical workflows
+Forecasting & Dashboards: Time-series analysis, planning models, visual dashboards, KPI outputs, interactive reporting concepts, clear analytical narratives
+Quality Assurance: Model evaluation, validation, data-quality checks, reconciliation, documented assumptions, limitations, repeatable tests, reviewable outputs
+Project Delivery & QA: Analytical scoping, project planning, delivery risk tracking, validation, documentation, handover, independent judgement, knowledge sharing
+Healthcare & Service Context: COVID-19 public-health analysis, sensitive-data awareness, GDPR awareness, service improvement, patient experience, staff time, demand pressure
+
+RELEVANT EXPERIENCE
+
+Data Scientist & Analytics Engineer
+Open-source Fraud Risk Intelligence Platform - Exeter, UK | May 2025 - Present
+
+- Built predictive, statistical, and forecasting outputs in Python and SQL across complex operational datasets, including demand planning with 7.31% test MAPE.
+- Developed supervised modelling and prioritisation evidence showing 2.29x baseline yield in the highest-risk band, translating model behaviour into workload and planning implications.
+- Designed linked analytical datasets across events, decisions, entity histories, labels, case movement, controls, and reporting evidence for repeatable analysis.
+- Produced KPI, monitoring, and dashboard inputs covering data integrity, model yield, case flow, exception signals, demand pressure, and operational risk.
+- Applied quality assurance through train/test separation, leakage controls, schema checks, completeness checks, reconciliation, duplicate review, and documented assumptions.
+- Used Git/GitHub working practices, modular Python/SQL workflows, validation outputs, run documentation, and handover notes so analysis could be reviewed and repeated.
+- Managed ambiguous analytical work from question framing to output, deciding what the data could answer, which checks were needed, and how findings should be explained.
+- Communicated complex model results in plain terms, focusing on reliability, limitations, operational meaning, and what further review or action was justified.
+
+SELECTED ADVANCED ANALYTICS EVIDENCE
+
+- Prepared 81,938,560 raw 100Hz sensor records into 4,096,928 validated modelling records for multi-task learning on driver identification and transport mode classification.
+- Built deep-learning and classification workflows during MSc work, covering feature preparation, model evaluation, validation choices, and written technical reporting.
+- Combined 1,004 daily CSV files in Python into 2,396,549 observations across 220 countries for COVID-19 public-health and policy-context analysis.
+- Applied game-theoretic network analysis, optimisation methods, and business-recovery scoring to prioritisation and planning problems, documenting assumptions and trade-offs.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+
+ADDITIONAL EXPERIENCE
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a controlled operational environment where accurate readings, documentation, escalation, and handovers supported safe and reliable delivery.
+- Monitored pressure, temperature, equipment, and field-condition signals, identifying irregular conditions early through structured evidence.
+
+Crew Member
+Five Guys - Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-moving live service environment where quality, prioritisation, communication, and reliable handover affect service performance every shift.

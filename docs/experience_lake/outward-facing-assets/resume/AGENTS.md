@@ -57,10 +57,13 @@ Useful sources include:
 7. The candidate's real evidence base from the governed fraud decisioning platform, MSc, engineering experience, and service work.
 8. `application_postmortem_audit_2026-05-01.md` for lessons from prior applications.
 9. For Civil Service roles, `docs/experience_lake/outward-facing-assets/frameworks/civil_service_success_profiles/success_profiles_govuk_source_capture.md`
+10. For NHS roles, `docs/experience_lake/outward-facing-assets/frameworks/nhs_application_lessons/passed_nhs_supporting_statement_patterns.md`
 
 If a file is missing, proceed from the best available evidence and state any important assumption internally.
 
 For Civil Service roles, the Success Profiles capture is not optional background reading. It is a binding source for how the application must understand Success Profiles, assessment methods, behaviours, strengths, experience, technical, ability, and STAR/CAR evidence structure.
+
+For NHS roles, the passed NHS supporting-statement pattern guide is not optional. It should be used to keep applications direct, criteria-led, human, grounded in examples, and easy for a shortlisting panel to mark.
 
 ---
 
@@ -337,6 +340,23 @@ When criteria are listed:
 - avoid motivation-only paragraphs where evidence is needed
 
 Use STAR, CARL, or similar logic naturally, but do not label paragraphs mechanically unless the form asks.
+
+For NHS supporting information, follow the NHS pattern guide:
+
+`docs/experience_lake/outward-facing-assets/frameworks/nhs_application_lessons/passed_nhs_supporting_statement_patterns.md`
+
+NHS statements should be direct and markable. They should not be polished essays. Each paragraph should usually make one criterion or criterion-cluster easy to score.
+
+NHS paragraphs should normally show:
+
+- the criterion or requirement being answered
+- the real setting or evidence source
+- what the candidate did
+- the tool, method, or judgement used
+- the output or result
+- why it mattered for reporting, quality, service, users, governance, or patient/staff outcomes
+
+Do not copy the weaknesses in passed examples. Some passed despite long introductions, repetition, vague passion wording, or direct role experience carrying the application. Use the scoring mechanics, not the flaws.
 
 For a lead criterion or preliminary sift criterion:
 
