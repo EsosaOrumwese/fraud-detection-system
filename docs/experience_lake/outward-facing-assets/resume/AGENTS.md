@@ -324,6 +324,23 @@ Use fewer, better metrics. Explain what each metric means for the employer's pro
 
 Do not repeat the same metric block across multiple answers unless each use has a different scoring purpose.
 
+Technical specificity is not the same as practical meaning. A sentence can contain a strong metric and still be abstract if the scorer cannot tell what the metric helped plan, prioritise, check, explain, reduce, forecast, or improve.
+
+Bad pattern:
+
+> Developed demand-planning outputs with a 7.31% test MAPE and supervised prioritisation outputs with a 2.29x baseline yield.
+
+Better pattern:
+
+> Built a forecasting output that estimated future workload with 7.31% test error, giving a practical way to compare expected demand against available review capacity. Built a supervised prioritisation model that identified high-risk cases at 2.29 times the baseline rate, showing how limited review effort could be focused on the cases most likely to matter.
+
+Metric translation gate:
+
+- What did the metric measure?
+- What decision, capacity question, risk, quality issue, or user problem did it inform?
+- What became easier to plan, prioritise, explain, review, or improve?
+- Would a non-technical NHS, Civil Service, public-sector, or business scorer understand why the number matters without needing to know the model?
+
 ---
 
 ## 9) Public Sector, Civil Service, NHS, University, and Charity Applications
