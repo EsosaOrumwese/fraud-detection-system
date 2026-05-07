@@ -19,7 +19,7 @@ Credit Risk & Collections Strategy Analyst
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
 AWS-hosted open-source customer-credit risk platform analysing high-volume account and transaction data to support collections prioritisation, strategy review, and risk-monitoring decisions.
 
-- Produced complex analysis and regular reporting on high-volume customer-credit data across billions of rows, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 32%.
+- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 32%.
 - Improved customer credit-risk prioritisation by 31% by analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation.
 - Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 26%.
 - Delivered a coordinated customer-credit journey by turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes, reducing duplicated effort by 18 hours per month.
@@ -34,6 +34,7 @@ Applied machine learning to smartphone sensor data to classify transport behavio
 
 COVID-19 Business Recovery Trend Analysis
 MSc Data Science Project | Nov 2023
+Linked business activity movements to policy changes and external events to explain market disruption and recovery signals.
 
 - Analysed 1,004 daily Facebook Business Activity Trends files into a 2.4M-row dataset across 220 countries and 12 business verticals, identifying recovery and disruption trends during the COVID-19 pandemic.
 - Combined Facebook Business Activity Trends with Oxford policy-response data to explain business-activity changes, using trend analysis and visual evidence to present 3 recovery strategy recommendations.

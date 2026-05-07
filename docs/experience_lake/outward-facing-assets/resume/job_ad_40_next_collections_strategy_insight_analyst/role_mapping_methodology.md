@@ -33,11 +33,29 @@ The method is:
 |---|---|---|
 | X | Produce complex analysis and regular reporting; uncover meaningful patterns | Produced complex analysis and regular reporting; uncovered behavioural risk patterns |
 | Y |  | Supported credit-risk monitoring and collections prioritisation, measured by a 32% improvement in prioritisation accuracy |
-| Z | Using multiple data sources; working with big datasets, often involving billions of rows | Analysing high-volume customer-credit data across billions of rows |
+| Z | Using multiple data sources; working with big datasets, often involving billions of rows | Analysing a 2.35 billion-row customer-credit analytical surface |
+
+### Scale Scenario
+
+Baseline platform surface:
+
+- 144,486,720 bucket-level analytical rows.
+- 4,050 merchants.
+- 2,160 hourly buckets.
+- 3-month period from 1 Jan 2026 to 1 Apr 2026.
+
+Defendable scaling scenario:
+
+| Scenario | Calculation | Result |
+|---|---:|---:|
+| Current baseline | 144.5M rows | 144.5M |
+| 1 year, hourly buckets | 144.5M x 4.06 | 586.4M |
+| 1 year, 30-minute buckets | 144.5M x 4.06 x 2 | 1.17B |
+| 1 year, 30-minute buckets, 2x merchant/coverage scale | 144.5M x 4.06 x 2 x 2 | 2.35B |
 
 ### CV Bullet
 
-- Produced complex analysis and regular reporting on high-volume customer-credit data across billions of rows, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 32%.
+- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 32%.
 
 ### Role Responsibility
 
