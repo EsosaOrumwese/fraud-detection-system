@@ -32,7 +32,7 @@ The method is:
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
 | X | Produce complex analysis and regular reporting; uncover meaningful patterns | Produced complex analysis and regular reporting; uncovered behavioural risk patterns |
-| Y |  | Supported credit-risk monitoring and collections prioritisation, measured by a 32% improvement in prioritisation accuracy |
+| Y |  | Supported credit-risk monitoring and collections prioritisation, measured by a 12% improvement in prioritisation accuracy |
 | Z | Using multiple data sources; working with big datasets, often involving billions of rows | Analysing a 2.35 billion-row customer-credit analytical surface |
 
 ### Scale Scenario
@@ -55,7 +55,7 @@ Defendable scaling scenario:
 
 ### CV Bullet
 
-- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 32%.
+- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 12%.
 
 ### Role Responsibility
 
@@ -66,12 +66,12 @@ Defendable scaling scenario:
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
 | X | Solve challenges or improve processes | Improved customer credit-risk prioritisation |
-| Y |  | Improved high-risk case capture by 31% |
+| Y |  | Improved high-risk case capture by 14% |
 | Z | Comment on trends; contribute ideas | By analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation |
 
 ### CV Bullet
 
-- Improved customer credit-risk prioritisation by 31% by analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation.
+- Improved customer credit-risk prioritisation by 14% by analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation.
 
 ### Role Responsibility
 
@@ -81,13 +81,13 @@ Defendable scaling scenario:
 
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
-| X | Drive positive outcomes for customers | Drove positive outcomes for at-risk customers, reducing unnecessary escalation by 26% |
-| Y |  | Reduced unnecessary escalation by 26% |
+| X | Drive positive outcomes for customers | Drove positive outcomes for at-risk customers, reducing unnecessary escalation by 9% |
+| Y |  | Reduced unnecessary escalation by 9% |
 | Z | Continuously review collections strategies while staying compliant with regulations | Continuously reviewed collections strategies using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations |
 
 ### CV Bullet
 
-- Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 26%.
+- Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 9%.
 
 ### Role Responsibility
 
@@ -98,12 +98,12 @@ Defendable scaling scenario:
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
 | X | Deliver integrated solutions | Delivered a coordinated customer-credit journey |
-| Y |  | Reduced duplicated effort by 18 hours per month |
+| Y |  | Reduced duplicated effort by 8 hours per month |
 | Z | Work with colleagues in contact centres, marketing, and tech departments | By turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes |
 
 ### CV Bullet
 
-- Delivered a coordinated customer-credit journey by turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes, reducing duplicated effort by 18 hours per month.
+- Delivered a coordinated customer-credit journey by turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes, reducing duplicated effort by 8 hours per month.
 
 ## MSc Project Experience
 
@@ -138,10 +138,10 @@ Defendable scaling scenario:
 
 **Southwestern Oil & Gas - Trainee Completions Engineer:** Field engineering support in oil-and-gas completions.
 
-- Coordinated completions, safety, and field-operations inputs during rig activity, reducing avoidable handover delays by 20% and helping keep high-risk work moving to schedule.
+- Coordinated completions, safety, and field-operations inputs during rig activity, reducing avoidable handover delays by 10% and helping keep high-risk work moving to schedule.
 
 ## Five Guys Experience
 
 **Five Guys - Crew Member:** Fast-paced customer service and shift operations.
 
-- Worked at pace in a high-volume customer service environment, reducing order remake and escalation issues by 25% by balancing speed, accuracy, and calm customer handling during peak shifts.
+- Worked at pace in a high-volume customer service environment, reducing order remake and escalation issues by 12% by balancing speed, accuracy, and calm customer handling during peak shifts.

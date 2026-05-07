@@ -3,7 +3,7 @@ Collections Strategy (Insights) Analyst | Credit Strategy Insight | Uncovering &
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years driving insights across complex large-scale analytical projects, improving customer propositions and business profit. Designed and implemented credit strategies that led to a 32% improvement in collections prioritisation accuracy. Proficient in SQL, Python, and presenting insights in Excel, Google Sheets, and Power BI to drive change
+4+ years driving insights across complex large-scale analytical projects, improving customer propositions and business profit. Designed and implemented credit strategies that led to a 12% improvement in collections prioritisation accuracy. Proficient in SQL, Python, and presenting insights in Excel, Google Sheets, and Power BI to drive change
 
 EDUCATION
 
@@ -19,13 +19,13 @@ Credit Risk & Collections Strategy Analyst
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
 AWS-hosted open-source customer-credit risk platform analysing high-volume account and transaction data to support collections prioritisation, strategy review, and risk-monitoring decisions.
 
-- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 32%.
-- Improved customer credit-risk prioritisation by 31% by analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation.
-- Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 26%.
-- Delivered a coordinated customer-credit journey by turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes, reducing duplicated effort by 18 hours per month.
+- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 12%.
+- Improved customer credit-risk prioritisation by 14% by analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation.
+- Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 9%.
+- Delivered a coordinated customer-credit journey by turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes, reducing duplicated effort by 8 hours per month.
 
 Usage-Based Insurance Behaviour Modelling
-MSc Data Science Thesis | Aug 2024
+University of Exeter — Exeter, UK | Aug 2024
 Applied machine learning to smartphone sensor data to classify transport behaviour and driver identity for insurance risk assessment.
 
 - Analysed large-scale smartphone sensor data for behavioural pattern recognition in a usage-based insurance context, reducing 81.9M records from 227 hours of real-world movement data to 4.1M modelling records by using Python and SQL to downsample, preprocess, and prepare sensor data for modelling.
@@ -33,25 +33,20 @@ Applied machine learning to smartphone sensor data to classify transport behavio
 - Presented usage-based insurance insights to academic stakeholders, explaining how smartphone behavioural data could support fairer driver-risk assessment and reduce reliance on costly in-vehicle telematics.
 
 COVID-19 Business Recovery Trend Analysis
-MSc Data Science Project | Nov 2023
+University of Exeter — Exeter, UK | Nov 2023
 Linked business activity movements to policy changes and external events to explain market disruption and recovery signals.
 
 - Analysed 1,004 daily Facebook Business Activity Trends files into a 2.4M-row dataset across 220 countries and 12 business verticals, identifying recovery and disruption trends during the COVID-19 pandemic.
 - Combined Facebook Business Activity Trends with Oxford policy-response data to explain business-activity changes, using trend analysis and visual evidence to present 3 recovery strategy recommendations.
-
-ADDITIONAL EXPERIENCE
+- 
 
 Trainee Completions Engineer
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Field engineering support in oil-and-gas completions.
 
-- Coordinated completions, safety, and field-operations inputs during rig activity, reducing avoidable handover delays by 20% and helping keep high-risk work moving to schedule.
-
-Crew Member
-Five Guys - Exeter, UK | Sep 2024 - Present
-Fast-paced customer service and shift operations.
-
-- Worked at pace in a high-volume customer service environment, reducing order remake and escalation issues by 25% by balancing speed, accuracy, and calm customer handling during peak shifts.
+- Coordinated completions, safety, and field-operations inputs during rig activity, reducing avoidable handover delays by 1.5% and helping keep high-risk work moving to schedule.
+- 
+- 
 
 TECHNICAL SKILLS
 
