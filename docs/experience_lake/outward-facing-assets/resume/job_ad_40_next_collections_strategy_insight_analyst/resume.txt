@@ -1,9 +1,9 @@
 Esosa Orumwese 
-Collections Strategy (Insights) Analyst | Credit Strategy Specialist | Uncovering & Driving Insights with Python, SQL, PowerBI, Excel
+Collections Strategy (Insights) Analyst | Credit Strategy Insight | Uncovering & Driving Insights with Python, SQL, Power BI, Excel
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years driving insights across complex large-scale analytical projects, improving customer propositions and business profit. Designed and implemented credit strategies that lead to 5% improvement in case resolutions. Proficient in SQL, Python, and presenting insights in Excel, GoogleSheets and PowerBI to drive change
+4+ years driving insights across complex large-scale analytical projects, improving customer propositions and business profit. Designed and implemented credit strategies that led to a 32% improvement in collections prioritisation accuracy. Proficient in SQL, Python, and presenting insights in Excel, Google Sheets, and Power BI to drive change
 
 EDUCATION
 
@@ -55,10 +55,10 @@ Fast-paced customer service and shift operations.
 TECHNICAL SKILLS
 
 
-Technical & Analytical Skills: SQL, Python, Excel, Google Sheets, Power BI, complex data analysis, large-scale data analysis, big data analysis, multiple data-source analysis, regular reporting, trend analysis, pattern discovery, data visualisation, analytical reporting, insight generation.
+Technical & Analytical Skills: SQL, Python, Excel, Google Sheets, Power BI, complex data analysis, large-scale data analysis, multiple data-source analysis, regular reporting, trend analysis, pattern discovery, data visualisation, insight generation.
 
-Credit & Collections Strategy: Collections strategy, credit strategy, customer credit analysis, collections performance analysis, strategy review, process improvement, customer outcome analysis, regulatory compliance, fair and empathetic collections, credit risk insight.
+Credit & Collections Strategy: Collections strategy, credit strategy, customer credit analysis, collections performance analysis, strategy review, customer outcome analysis, regulatory compliance, fair and empathetic collections, credit risk insight.
 
-Business & Stakeholder Skills: Strategy recommendations, stakeholder presentations, internal stakeholder management, external stakeholder communication, cross-functional collaboration, gaining buy-in for change, communicating insights clearly, contact centre collaboration, marketing collaboration, technology team collaboration.
+Business & Stakeholder Skills: Strategy recommendations, stakeholder presentations, cross-functional collaboration, gaining buy-in for change, communicating insights clearly, contact centre collaboration, marketing collaboration, technology team collaboration.
 
-Problem-Solving & Soft Skills: Problem-solving, logical thinking, curiosity, working at pace, analytical mindset, communicating with purpose and respect, identifying opportunities, contributing improvement ideas, customer-focused decision-making.
+Problem-Solving & Soft Skills: Problem-solving, logical thinking, curiosity, working at pace, analytical mindset, identifying opportunities, contributing improvement ideas, customer-focused decision-making.
