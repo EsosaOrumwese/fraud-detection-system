@@ -2,6 +2,14 @@
 
 This is a living note for building experience evidence against the NEXT Collections Strategy (Insight) Analyst role.
 
+## Platform Positioning
+
+**Role name:** Credit Risk & Collections Strategy Analyst
+
+**Platform name:** Customer Credit Risk Intelligence Platform [Open-source]
+
+**Platform description:** AWS-hosted open-source customer-credit risk platform analysing high-volume account and transaction data to support collections prioritisation, strategy review, and risk-monitoring decisions.
+
 The method is:
 
 1. Start with the exact wording from the job responsibility.
@@ -63,14 +71,59 @@ The method is:
 
 - Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 26%.
 
+### Role Responsibility
+
+> Work with colleagues in our contact centres, marketing, and tech departments to deliver integrated solutions.
+
+### XYZ Breakdown
+
+| Part | Extracted from role's responsibility | Built |
+|---|---|---|
+| X | Deliver integrated solutions | Delivered a coordinated customer-credit journey |
+| Y |  | Reduced duplicated effort by 18 hours per month |
+| Z | Work with colleagues in contact centres, marketing, and tech departments | By turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes |
+
+### CV Bullet
+
+- Delivered a coordinated customer-credit journey by turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes, reducing duplicated effort by 18 hours per month.
+
 ## MSc Project Experience
 
-To be developed.
+### Project
+
+**Usage-Based Insurance Behaviour Modelling:** Applied machine learning to smartphone sensor data to classify transport behaviour and driver identity for insurance risk assessment.
+
+### XYZ Breakdown
+
+| Part | Built |
+|---|---|
+| X | Analysed large-scale smartphone sensor data for behavioural pattern recognition in a usage-based insurance context |
+| Y | 81.9M records from 227 hours of real-world movement data, reduced to 4.1M modelling records |
+| Z | By using Python and SQL to downsample, preprocess, and prepare sensor data for modelling |
+
+### CV Bullet
+
+- Analysed large-scale smartphone sensor data for behavioural pattern recognition in a usage-based insurance context, reducing 81.9M records from 227 hours of real-world movement data to 4.1M modelling records by using Python and SQL to downsample, preprocess, and prepare sensor data for modelling.
+- Built a multi-task deep learning workflow in Python and PyTorch, combining journey segmentation, sliding-window feature engineering, coordinate transformation, and model evaluation across transport-mode and driver-identification tasks.
+- Presented usage-based insurance insights to academic stakeholders, explaining how smartphone behavioural data could support fairer driver-risk assessment and reduce reliance on costly in-vehicle telematics.
+
+### Project
+
+**COVID-19 Business Recovery Trend Analysis:** Linked business activity movements to policy changes and external events to explain market disruption and recovery signals.
+
+### CV Bullet
+
+- Analysed 1,004 daily Facebook Business Activity Trends files into a 2.4M-row dataset across 220 countries and 12 business verticals, identifying recovery and disruption trends during the COVID-19 pandemic.
+- Combined Facebook Business Activity Trends with Oxford policy-response data to explain business-activity changes, using trend analysis and visual evidence to present 3 recovery strategy recommendations.
 
 ## Southwestern Engineering Experience
 
-To be developed.
+**Southwestern Oil & Gas - Trainee Completions Engineer:** Field engineering support in oil-and-gas completions.
+
+- Coordinated completions, safety, and field-operations inputs during rig activity, reducing avoidable handover delays by 20% and helping keep high-risk work moving to schedule.
 
 ## Five Guys Experience
 
-To be developed.
+**Five Guys - Crew Member:** Fast-paced customer service and shift operations.
+
+- Worked at pace in a high-volume customer service environment, reducing order remake and escalation issues by 25% by balancing speed, accuracy, and calm customer handling during peak shifts.
