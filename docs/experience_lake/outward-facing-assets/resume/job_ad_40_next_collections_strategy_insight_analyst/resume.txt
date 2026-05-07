@@ -17,42 +17,42 @@ RELEVANT EXPERIENCE
 
 Credit Risk & Collections Strategy Analyst
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
-AWS-hosted open-source customer credit risk platform analysing high volume account and transaction data to support collections prioritisation, strategy review, and risk monitoring decisions.
+AWS-hosted open-source customer credit risk platform supporting collections prioritisation, strategy review, and risk monitoring.
 
-- Produced complex analysis and regular reporting on a 2.35 billion row customer credit analytical surface, uncovering behavioural risk patterns that supported credit risk monitoring, collections strategy review, and business performance decisions.
-- Identified trends in flagged account activity and contributed improvement ideas, surfacing 3 improvement areas across review triggers, escalation logic, and account risk monitoring.
-- Continuously reviewed collections strategies to drive positive outcomes for at risk customers, using risk band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 9%.
-- Translated customer credit risk insight into integrated actions across review prioritisation, customer messaging, and decision workflow changes, supporting implementation of 3 strategy improvements across the customer credit journey.
+- Produced complex analysis and regular reporting on a 2.35 billion row customer credit surface, supporting credit risk monitoring and collections strategy review.
+- Identified trends in flagged account activity, surfacing 3 improvement areas across review triggers, escalation logic, and account risk monitoring.
+- Reviewed collections strategies using risk band movement, flagged account activity, and decision outcomes, reducing unnecessary escalation by 9% while staying compliant.
+- Translated customer credit risk insight into review, messaging, and workflow actions, supporting implementation of 3 strategy improvements.
 
 Usage-Based Insurance Behaviour Modelling
 University of Exeter — Exeter, UK | Aug 2024
 Applied machine learning to smartphone sensor data to classify transport behaviour and driver identity for insurance risk assessment.
 
-- Analysed large-scale smartphone sensor data for behavioural pattern recognition in a usage-based insurance context, reducing 81.9M records from 227 hours of real-world movement data to 4.1M modelling records by using Python and SQL to downsample, preprocess, and prepare sensor data for modelling.
-- Built a multi-task deep learning workflow in Python and PyTorch, combining journey segmentation, sliding-window feature engineering, coordinate transformation, and model evaluation across transport mode and driver identification tasks.
-- Presented usage-based insurance insights to academic stakeholders, explaining how smartphone behavioural data could support fairer driver-risk assessment and reduce reliance on costly in-vehicle telematics.
+- Analysed 81.9M smartphone sensor records from 227 hours of movement data, reducing them to 4.1M modelling records using Python and SQL.
+- Built a Python and PyTorch deep learning workflow covering journey segmentation, feature engineering, coordinate transformation, and model evaluation.
+- Presented usage-based insurance insights, showing how smartphone behaviour data could support fairer driver risk assessment.
 
 COVID-19 Business Recovery Trend Analysis
 University of Exeter — Exeter, UK | Nov 2023
-Linked business activity movements to policy changes and external events to explain market disruption and recovery signals.
+Linked business activity data to policy changes and external events to explain disruption and recovery signals.
 
-- Analysed 1,004 daily Facebook Business Activity Trends files into a 2.4M-row dataset across 220 countries and 12 business verticals, identifying recovery and disruption trends during the COVID-19 pandemic.
-- Combined Facebook Business Activity Trends with Oxford policy response data to explain business activity changes, identifying disruption and recovery patterns across 6 countries, 3 business verticals, and 8 containment policy areas.
-- Presented visual evidence and strategy recommendations on business resilience, linking 3 recurring recovery signals to policy timing, seasonal drops, and external events. 
+- Analysed 1,004 Facebook Business Activity Trends files into a 2.4M row dataset across 220 countries and 12 business verticals.
+- Combined Facebook Business Activity Trends with Oxford policy response data to identify recovery patterns across 6 countries and 8 policy areas.
+- Presented visual evidence and strategy recommendations, linking 3 recovery signals to policy timing, seasonal drops, and external events.
 
 Completions Engineer
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
 
-- Monitored completion-run data in Excel across tubing/casing tallies, equipment sequence, depths, and daily progress, improving the accuracy of daily handover records during rig activity.
-- Reconciled 4 operational reporting surfaces across field reports, HSE records, equipment checks, and daily activity updates to reduce avoidable clarification during completions operations.
-- Worked with completions, safety, and field operations colleagues to align equipment, reporting, and HSE requirements, supporting practical responses to changing stakeholder demands during rig activity.
+- Monitored completion run data in Excel, tracking tubing/casing tallies, equipment sequence, depths, and daily progress during rig activity.
+- Reconciled 4 operational records across field reports, HSE records, equipment checks, and daily activity updates.
+- Worked with completions, safety, and field operations colleagues to align equipment, reporting, and HSE requirements for changing stakeholder demands.
 
 TECHNICAL SKILLS
 
 
-Technical Skills: SQL, Python, Excel, Google Sheets, Power BI, data visualisation, analytical reporting, large-scale data analysis, multi-source data analysis, trend analysis, pattern discovery, insight generation.
+Technical Skills: SQL, Python, Excel, Google Sheets, Power BI, data visualisation, analytical reporting, large scale analysis, multiple data source analysis, trend analysis.
 
-Credit & Collections: Collections strategy, credit strategy, credit risk insight, customer credit analysis, collections performance analysis, strategy review, regulatory compliance, customer outcome analysis.
+Credit & Collections: Collections strategy, credit strategy, credit risk insight, customer credit analysis, collections performance analysis, strategy review, regulatory compliance.
 
-Business Skills: Strategy recommendations, stakeholder presentations, cross-functional collaboration, gaining buy-in for change, process improvement, customer-focused decision-making.
+Business Skills: Strategy recommendations, stakeholder presentations, cross functional collaboration, gaining buy-in, process improvement, customer focused decision making.
