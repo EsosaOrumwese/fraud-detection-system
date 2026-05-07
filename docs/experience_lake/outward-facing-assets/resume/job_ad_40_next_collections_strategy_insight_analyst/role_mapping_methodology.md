@@ -137,7 +137,7 @@ Defendable scaling scenario:
 
 ## Southwestern Engineering Experience
 
-**Southwestern Oil & Gas - Trainee Completions Engineer:** Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
+**Southwestern Oil & Gas - Completions Engineer:** Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
 
 - Monitored completion-run data in Excel across tubing/casing tallies, equipment sequence, depths, and daily progress, improving the accuracy of daily handover records during rig activity.
 - Reconciled 4 operational reporting surfaces across field reports, HSE records, equipment checks, and daily activity updates to reduce avoidable clarification during completions operations.

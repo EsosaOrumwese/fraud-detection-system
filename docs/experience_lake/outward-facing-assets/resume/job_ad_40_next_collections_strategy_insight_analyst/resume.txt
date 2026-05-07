@@ -40,7 +40,7 @@ Linked business activity movements to policy changes and external events to expl
 - Combined Facebook Business Activity Trends with Oxford policy response data to explain business activity changes, identifying disruption and recovery patterns across 6 countries, 3 business verticals, and 8 containment policy areas.
 - Presented visual evidence and strategy recommendations on business resilience, linking 3 recurring recovery signals to policy timing, seasonal drops, and external events. 
 
-Trainee Completions Engineer
+Completions Engineer
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
 
@@ -51,10 +51,8 @@ Field engineering support across completions execution, equipment tracking, HSE 
 TECHNICAL SKILLS
 
 
-Technical & Analytical Skills: SQL, Python, Excel, Google Sheets, Power BI, complex data analysis, large-scale data analysis, multiple data source analysis, regular reporting, trend analysis, pattern discovery, data visualisation, insight generation.
+Technical Skills: SQL, Python, Excel, Google Sheets, Power BI, data visualisation, analytical reporting, large-scale data analysis, multi-source data analysis, trend analysis, pattern discovery, insight generation.
 
-Credit & Collections Strategy: Collections strategy, credit strategy, customer credit analysis, collections performance analysis, strategy review, customer outcome analysis, regulatory compliance, fair and empathetic collections, credit risk insight.
+Credit & Collections: Collections strategy, credit strategy, credit risk insight, customer credit analysis, collections performance analysis, strategy review, regulatory compliance, customer outcome analysis.
 
-Business & Stakeholder Skills: Strategy recommendations, stakeholder presentations, cross-functional collaboration, gaining buy-in for change, communicating insights clearly, contact centre collaboration, marketing collaboration, technology team collaboration.
-
-Problem-Solving & Soft Skills: Problem-solving, logical thinking, curiosity, working at pace, analytical mindset, identifying opportunities, contributing improvement ideas, customer-focused decision-making.
+Business Skills: Strategy recommendations, stakeholder presentations, cross-functional collaboration, gaining buy-in for change, process improvement, customer-focused decision-making.
