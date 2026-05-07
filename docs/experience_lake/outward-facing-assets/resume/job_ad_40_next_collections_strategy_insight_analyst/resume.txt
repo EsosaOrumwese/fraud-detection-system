@@ -3,7 +3,7 @@ Collections Strategy (Insights) Analyst | Credit Strategy Insight | Uncovering &
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years driving insights across complex large-scale analytical projects, improving customer propositions and business profit. Designed and implemented credit strategies that led to a 12% improvement in collections prioritisation accuracy. Proficient in SQL, Python, and presenting insights in Excel, Google Sheets, and Power BI to drive change
+4+ years driving insights across complex large-scale analytical projects, improving customer propositions and business profit. Designed credit-risk and collections strategy analysis to improve customer proposition, identify at-risk customers earlier, and support business-profit decisions. Proficient in SQL, Python, and presenting insights in Excel, Google Sheets, and Power BI to drive change
 
 EDUCATION
 
@@ -19,8 +19,8 @@ Credit Risk & Collections Strategy Analyst
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
 AWS-hosted open-source customer-credit risk platform analysing high-volume account and transaction data to support collections prioritisation, strategy review, and risk-monitoring decisions.
 
-- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 12%.
-- Identified trends in flagged account activity and contributed improvement ideas for review and escalation processes, increasing high-risk case capture by 14%.
+- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring, collections strategy review, and business-performance decisions.
+- Identified trends in flagged account activity and contributed improvement ideas, surfacing 3 improvement areas across review triggers, escalation logic, and account-risk monitoring.
 - Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 9%.
 - Translated customer-credit risk insight into integrated actions across review prioritisation, customer messaging, and decision-workflow changes, supporting implementation of 3 strategy improvements across the customer-credit journey.
 
@@ -44,9 +44,9 @@ Trainee Completions Engineer
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
 
-- Monitored completion-run data in Excel, tracking tubing/casing tallies, equipment sequence, depths, and daily progress to improve handover accuracy by 10% during rig activity.
-- Reconciled field reports, HSE records, equipment checks, and daily activity updates, reducing avoidable clarification loops by 12% across completions operations.
-- Worked with completions, safety, and field-operations colleagues to align equipment, reporting, and HSE requirements, reducing stakeholder clarification loops by 12% during rig activity.
+- Monitored completion-run data in Excel across tubing/casing tallies, equipment sequence, depths, and daily progress, improving the accuracy of daily handover records during rig activity.
+- Reconciled 4 operational reporting surfaces across field reports, HSE records, equipment checks, and daily activity updates to reduce avoidable clarification during completions operations.
+- Worked with completions, safety, and field-operations colleagues to align equipment, reporting, and HSE requirements, supporting practical responses to changing stakeholder demands during rig activity.
 
 TECHNICAL SKILLS
 

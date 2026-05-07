@@ -32,7 +32,7 @@ The method is:
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
 | X | Produce complex analysis and regular reporting; uncover meaningful patterns | Produced complex analysis and regular reporting; uncovered behavioural risk patterns |
-| Y |  | Supported credit-risk monitoring and collections prioritisation, measured by a 12% improvement in prioritisation accuracy |
+| Y |  | Supported credit-risk monitoring, collections strategy review, and business-performance decisions |
 | Z | Using multiple data sources; working with big datasets, often involving billions of rows | Analysing a 2.35 billion-row customer-credit analytical surface |
 
 ### Scale Scenario
@@ -55,7 +55,7 @@ Defendable scaling scenario:
 
 ### CV Bullet
 
-- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 12%.
+- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring, collections strategy review, and business-performance decisions.
 
 ### Role Responsibility
 
@@ -66,12 +66,12 @@ Defendable scaling scenario:
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
 | X | Solve challenges or improve processes | Improved review and escalation processes |
-| Y |  | Improved high-risk case capture by 14% |
+| Y |  | Surfaced 3 improvement areas across review triggers, escalation logic, and account-risk monitoring |
 | Z | Comment on trends; contribute ideas | By analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation |
 
 ### CV Bullet
 
-- Identified trends in flagged account activity and contributed improvement ideas for review and escalation processes, increasing high-risk case capture by 14%.
+- Identified trends in flagged account activity and contributed improvement ideas, surfacing 3 improvement areas across review triggers, escalation logic, and account-risk monitoring.
 
 ### Role Responsibility
 
@@ -139,9 +139,9 @@ Defendable scaling scenario:
 
 **Southwestern Oil & Gas - Trainee Completions Engineer:** Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
 
-- Monitored completion-run data in Excel, tracking tubing/casing tallies, equipment sequence, depths, and daily progress to improve handover accuracy by 10% during rig activity.
-- Reconciled field reports, HSE records, equipment checks, and daily activity updates, reducing avoidable clarification loops by 12% across completions operations.
-- Worked with completions, safety, and field-operations colleagues to align equipment, reporting, and HSE requirements, reducing stakeholder clarification loops by 12% during rig activity.
+- Monitored completion-run data in Excel across tubing/casing tallies, equipment sequence, depths, and daily progress, improving the accuracy of daily handover records during rig activity.
+- Reconciled 4 operational reporting surfaces across field reports, HSE records, equipment checks, and daily activity updates to reduce avoidable clarification during completions operations.
+- Worked with completions, safety, and field-operations colleagues to align equipment, reporting, and HSE requirements, supporting practical responses to changing stakeholder demands during rig activity.
 
 ## Five Guys Experience
 
