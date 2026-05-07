@@ -1,9 +1,11 @@
 Esosa Orumwese 
-Collections Strategy Insights Analyst | Credit Strategy Insight Analyst | Python, SQL, Power BI, Excel
+Collections Strategy Insights Analyst | Credit Risk & Collections Strategy | Python, SQL, Power BI, Excel
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years driving insights across complex large-scale analytical projects, improving customer propositions and business profit. Designed credit risk and collections strategy analysis to improve customer proposition, identify at risk customers earlier, and support business profit decisions. Proficient in SQL, Python, and presenting insights in Excel, Google Sheets, and Power BI to drive change
+4+ years driving insights across credit risk, collections strategy, and large scale analytical projects.
+Designed credit risk and collections strategy analysis to identify at risk customers earlier, improve customer proposition, and support business profit decisions.
+Proficient in SQL, Python, Excel, Google Sheets, and Power BI.
 
 EDUCATION
 
@@ -49,7 +51,6 @@ Field engineering support across completions execution, equipment tracking, HSE 
 - Worked with completions, safety, and field operations colleagues to align equipment, reporting, and HSE requirements for changing stakeholder demands.
 
 TECHNICAL SKILLS
-
 
 Technical Skills: SQL, Python, Excel, Google Sheets, Power BI, data visualisation, analytical reporting, large scale analysis, multiple data source analysis, trend analysis.
 
