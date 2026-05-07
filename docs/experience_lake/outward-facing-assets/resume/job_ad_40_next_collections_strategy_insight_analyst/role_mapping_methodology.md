@@ -97,13 +97,13 @@ Defendable scaling scenario:
 
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
-| X | Deliver integrated solutions | Delivered a coordinated customer-credit journey |
-| Y |  | Reduced duplicated effort by 8 hours per month |
+| X | Deliver integrated solutions | Supported implementation of 3 strategy improvements across the customer-credit journey |
+| Y |  | 3 strategy improvements across the customer-credit journey |
 | Z | Work with colleagues in contact centres, marketing, and tech departments | By turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes |
 
 ### CV Bullet
 
-- Delivered a coordinated customer-credit journey by turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes, reducing duplicated effort by 8 hours per month.
+- Translated customer-credit risk insight into integrated actions across review prioritisation, customer messaging, and decision-workflow changes, supporting implementation of 3 strategy improvements across the customer-credit journey.
 
 ## MSc Project Experience
 

@@ -22,7 +22,7 @@ AWS-hosted open-source customer-credit risk platform analysing high-volume accou
 - Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 12%.
 - Identified trends in flagged account activity and contributed improvement ideas for review and escalation processes, increasing high-risk case capture by 14%.
 - Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 9%.
-- Delivered a coordinated customer-credit journey by turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes, reducing duplicated effort by 8 hours per month.
+- Translated customer-credit risk insight into integrated actions across review prioritisation, customer messaging, and decision-workflow changes, supporting implementation of 3 strategy improvements across the customer-credit journey.
 
 Usage-Based Insurance Behaviour Modelling
 University of Exeter — Exeter, UK | Aug 2024
