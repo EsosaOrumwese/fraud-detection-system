@@ -8,7 +8,7 @@ This is a living note for building experience evidence against the NEXT Collecti
 
 **Platform name:** Customer Credit Risk Intelligence Platform [Open-source]
 
-**Platform description:** AWS-hosted open-source customer-credit risk platform analysing high-volume account and transaction data to support collections prioritisation, strategy review, and risk-monitoring decisions.
+**Platform description:** AWS-hosted open-source customer credit risk platform analysing high volume account and transaction data to support collections prioritisation, strategy review, and risk monitoring decisions.
 
 The method is:
 
@@ -32,8 +32,8 @@ The method is:
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
 | X | Produce complex analysis and regular reporting; uncover meaningful patterns | Produced complex analysis and regular reporting; uncovered behavioural risk patterns |
-| Y |  | Supported credit-risk monitoring, collections strategy review, and business-performance decisions |
-| Z | Using multiple data sources; working with big datasets, often involving billions of rows | Analysing a 2.35 billion-row customer-credit analytical surface |
+| Y |  | Supported credit risk monitoring, collections strategy review, and business performance decisions |
+| Z | Using multiple data sources; working with big datasets, often involving billions of rows | Analysing a 2.35 billion row customer credit analytical surface |
 
 ### Scale Scenario
 
@@ -55,7 +55,7 @@ Defendable scaling scenario:
 
 ### CV Bullet
 
-- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring, collections strategy review, and business-performance decisions.
+- Produced complex analysis and regular reporting on a 2.35 billion row customer credit analytical surface, uncovering behavioural risk patterns that supported credit risk monitoring, collections strategy review, and business performance decisions.
 
 ### Role Responsibility
 
@@ -66,12 +66,12 @@ Defendable scaling scenario:
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
 | X | Solve challenges or improve processes | Improved review and escalation processes |
-| Y |  | Surfaced 3 improvement areas across review triggers, escalation logic, and account-risk monitoring |
+| Y |  | Surfaced 3 improvement areas across review triggers, escalation logic, and account risk monitoring |
 | Z | Comment on trends; contribute ideas | By analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation |
 
 ### CV Bullet
 
-- Identified trends in flagged account activity and contributed improvement ideas, surfacing 3 improvement areas across review triggers, escalation logic, and account-risk monitoring.
+- Identified trends in flagged account activity and contributed improvement ideas, surfacing 3 improvement areas across review triggers, escalation logic, and account risk monitoring.
 
 ### Role Responsibility
 
@@ -81,13 +81,13 @@ Defendable scaling scenario:
 
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
-| X | Drive positive outcomes for customers | Drove positive outcomes for at-risk customers, reducing unnecessary escalation by 9% |
+| X | Drive positive outcomes for customers | Drove positive outcomes for at risk customers, reducing unnecessary escalation by 9% |
 | Y |  | Reduced unnecessary escalation by 9% |
-| Z | Continuously review collections strategies while staying compliant with regulations | Continuously reviewed collections strategies using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations |
+| Z | Continuously review collections strategies while staying compliant with regulations | Continuously reviewed collections strategies using risk band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations |
 
 ### CV Bullet
 
-- Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 9%.
+- Continuously reviewed collections strategies to drive positive outcomes for at risk customers, using risk band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 9%.
 
 ### Role Responsibility
 
@@ -97,13 +97,13 @@ Defendable scaling scenario:
 
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
-| X | Deliver integrated solutions | Supported implementation of 3 strategy improvements across the customer-credit journey |
-| Y |  | 3 strategy improvements across the customer-credit journey |
-| Z | Work with colleagues in contact centres, marketing, and tech departments | By turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes |
+| X | Deliver integrated solutions | Supported implementation of 3 strategy improvements across the customer credit journey |
+| Y |  | 3 strategy improvements across the customer credit journey |
+| Z | Work with colleagues in contact centres, marketing, and tech departments | By turning customer credit risk insight into actions across review prioritisation, customer messaging logic, and decision workflow changes |
 
 ### CV Bullet
 
-- Translated customer-credit risk insight into integrated actions across review prioritisation, customer messaging, and decision-workflow changes, supporting implementation of 3 strategy improvements across the customer-credit journey.
+- Translated customer credit risk insight into integrated actions across review prioritisation, customer messaging, and decision workflow changes, supporting implementation of 3 strategy improvements across the customer credit journey.
 
 ## MSc Project Experience
 
@@ -122,7 +122,7 @@ Defendable scaling scenario:
 ### CV Bullet
 
 - Analysed large-scale smartphone sensor data for behavioural pattern recognition in a usage-based insurance context, reducing 81.9M records from 227 hours of real-world movement data to 4.1M modelling records by using Python and SQL to downsample, preprocess, and prepare sensor data for modelling.
-- Built a multi-task deep learning workflow in Python and PyTorch, combining journey segmentation, sliding-window feature engineering, coordinate transformation, and model evaluation across transport-mode and driver-identification tasks.
+- Built a multi-task deep learning workflow in Python and PyTorch, combining journey segmentation, sliding-window feature engineering, coordinate transformation, and model evaluation across transport mode and driver identification tasks.
 - Presented usage-based insurance insights to academic stakeholders, explaining how smartphone behavioural data could support fairer driver-risk assessment and reduce reliance on costly in-vehicle telematics.
 
 ### Project
@@ -132,7 +132,7 @@ Defendable scaling scenario:
 ### CV Bullet
 
 - Analysed 1,004 daily Facebook Business Activity Trends files into a 2.4M-row dataset across 220 countries and 12 business verticals, identifying recovery and disruption trends during the COVID-19 pandemic.
-- Combined Facebook Business Activity Trends with Oxford policy-response data to explain business-activity changes, identifying disruption and recovery patterns across 6 countries, 3 business verticals, and 8 containment-policy areas.
+- Combined Facebook Business Activity Trends with Oxford policy response data to explain business activity changes, identifying disruption and recovery patterns across 6 countries, 3 business verticals, and 8 containment policy areas.
 - Presented visual evidence and strategy recommendations on business resilience, linking 3 recurring recovery signals to policy timing, seasonal drops, and external events.
 
 ## Southwestern Engineering Experience
@@ -141,10 +141,10 @@ Defendable scaling scenario:
 
 - Monitored completion-run data in Excel across tubing/casing tallies, equipment sequence, depths, and daily progress, improving the accuracy of daily handover records during rig activity.
 - Reconciled 4 operational reporting surfaces across field reports, HSE records, equipment checks, and daily activity updates to reduce avoidable clarification during completions operations.
-- Worked with completions, safety, and field-operations colleagues to align equipment, reporting, and HSE requirements, supporting practical responses to changing stakeholder demands during rig activity.
+- Worked with completions, safety, and field operations colleagues to align equipment, reporting, and HSE requirements, supporting practical responses to changing stakeholder demands during rig activity.
 
 ## Five Guys Experience
 
 **Five Guys - Crew Member:** Fast-paced customer service and shift operations.
 
-- Worked at pace in a high-volume customer service environment, reducing order remake and escalation issues by 12% by balancing speed, accuracy, and calm customer handling during peak shifts.
+- Worked at pace in a high volume customer service environment, reducing order remake and escalation issues by 12% by balancing speed, accuracy, and calm customer handling during peak shifts.

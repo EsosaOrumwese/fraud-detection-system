@@ -3,7 +3,7 @@ Collections Strategy (Insights) Analyst | Credit Strategy Insight | Uncovering &
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years driving insights across complex large-scale analytical projects, improving customer propositions and business profit. Designed credit-risk and collections strategy analysis to improve customer proposition, identify at-risk customers earlier, and support business-profit decisions. Proficient in SQL, Python, and presenting insights in Excel, Google Sheets, and Power BI to drive change
+4+ years driving insights across complex large-scale analytical projects, improving customer propositions and business profit. Designed credit risk and collections strategy analysis to improve customer proposition, identify at risk customers earlier, and support business profit decisions. Proficient in SQL, Python, and presenting insights in Excel, Google Sheets, and Power BI to drive change
 
 EDUCATION
 
@@ -17,19 +17,19 @@ RELEVANT EXPERIENCE
 
 Credit Risk & Collections Strategy Analyst
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
-AWS-hosted open-source customer-credit risk platform analysing high-volume account and transaction data to support collections prioritisation, strategy review, and risk-monitoring decisions.
+AWS-hosted open-source customer credit risk platform analysing high volume account and transaction data to support collections prioritisation, strategy review, and risk monitoring decisions.
 
-- Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring, collections strategy review, and business-performance decisions.
-- Identified trends in flagged account activity and contributed improvement ideas, surfacing 3 improvement areas across review triggers, escalation logic, and account-risk monitoring.
-- Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 9%.
-- Translated customer-credit risk insight into integrated actions across review prioritisation, customer messaging, and decision-workflow changes, supporting implementation of 3 strategy improvements across the customer-credit journey.
+- Produced complex analysis and regular reporting on a 2.35 billion row customer credit analytical surface, uncovering behavioural risk patterns that supported credit risk monitoring, collections strategy review, and business performance decisions.
+- Identified trends in flagged account activity and contributed improvement ideas, surfacing 3 improvement areas across review triggers, escalation logic, and account risk monitoring.
+- Continuously reviewed collections strategies to drive positive outcomes for at risk customers, using risk band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 9%.
+- Translated customer credit risk insight into integrated actions across review prioritisation, customer messaging, and decision workflow changes, supporting implementation of 3 strategy improvements across the customer credit journey.
 
 Usage-Based Insurance Behaviour Modelling
 University of Exeter — Exeter, UK | Aug 2024
 Applied machine learning to smartphone sensor data to classify transport behaviour and driver identity for insurance risk assessment.
 
 - Analysed large-scale smartphone sensor data for behavioural pattern recognition in a usage-based insurance context, reducing 81.9M records from 227 hours of real-world movement data to 4.1M modelling records by using Python and SQL to downsample, preprocess, and prepare sensor data for modelling.
-- Built a multi-task deep learning workflow in Python and PyTorch, combining journey segmentation, sliding-window feature engineering, coordinate transformation, and model evaluation across transport-mode and driver-identification tasks.
+- Built a multi-task deep learning workflow in Python and PyTorch, combining journey segmentation, sliding-window feature engineering, coordinate transformation, and model evaluation across transport mode and driver identification tasks.
 - Presented usage-based insurance insights to academic stakeholders, explaining how smartphone behavioural data could support fairer driver-risk assessment and reduce reliance on costly in-vehicle telematics.
 
 COVID-19 Business Recovery Trend Analysis
@@ -37,7 +37,7 @@ University of Exeter — Exeter, UK | Nov 2023
 Linked business activity movements to policy changes and external events to explain market disruption and recovery signals.
 
 - Analysed 1,004 daily Facebook Business Activity Trends files into a 2.4M-row dataset across 220 countries and 12 business verticals, identifying recovery and disruption trends during the COVID-19 pandemic.
-- Combined Facebook Business Activity Trends with Oxford policy-response data to explain business-activity changes, identifying disruption and recovery patterns across 6 countries, 3 business verticals, and 8 containment-policy areas.
+- Combined Facebook Business Activity Trends with Oxford policy response data to explain business activity changes, identifying disruption and recovery patterns across 6 countries, 3 business verticals, and 8 containment policy areas.
 - Presented visual evidence and strategy recommendations on business resilience, linking 3 recurring recovery signals to policy timing, seasonal drops, and external events. 
 
 Trainee Completions Engineer
@@ -46,12 +46,12 @@ Field engineering support across completions execution, equipment tracking, HSE 
 
 - Monitored completion-run data in Excel across tubing/casing tallies, equipment sequence, depths, and daily progress, improving the accuracy of daily handover records during rig activity.
 - Reconciled 4 operational reporting surfaces across field reports, HSE records, equipment checks, and daily activity updates to reduce avoidable clarification during completions operations.
-- Worked with completions, safety, and field-operations colleagues to align equipment, reporting, and HSE requirements, supporting practical responses to changing stakeholder demands during rig activity.
+- Worked with completions, safety, and field operations colleagues to align equipment, reporting, and HSE requirements, supporting practical responses to changing stakeholder demands during rig activity.
 
 TECHNICAL SKILLS
 
 
-Technical & Analytical Skills: SQL, Python, Excel, Google Sheets, Power BI, complex data analysis, large-scale data analysis, multiple data-source analysis, regular reporting, trend analysis, pattern discovery, data visualisation, insight generation.
+Technical & Analytical Skills: SQL, Python, Excel, Google Sheets, Power BI, complex data analysis, large-scale data analysis, multiple data source analysis, regular reporting, trend analysis, pattern discovery, data visualisation, insight generation.
 
 Credit & Collections Strategy: Collections strategy, credit strategy, customer credit analysis, collections performance analysis, strategy review, customer outcome analysis, regulatory compliance, fair and empathetic collections, credit risk insight.
 
