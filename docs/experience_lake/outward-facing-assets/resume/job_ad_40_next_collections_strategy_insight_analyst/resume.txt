@@ -20,7 +20,7 @@ Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025
 AWS-hosted open-source customer-credit risk platform analysing high-volume account and transaction data to support collections prioritisation, strategy review, and risk-monitoring decisions.
 
 - Produced complex analysis and regular reporting on a 2.35 billion-row customer-credit analytical surface, uncovering behavioural risk patterns that supported credit-risk monitoring and improved collections prioritisation accuracy by 12%.
-- Improved customer credit-risk prioritisation by 14% by analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation.
+- Identified trends in flagged account activity and contributed improvement ideas for review and escalation processes, increasing high-risk case capture by 14%.
 - Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 9%.
 - Delivered a coordinated customer-credit journey by turning customer-credit risk insight into actions across review prioritisation, customer messaging logic, and decision-workflow changes, reducing duplicated effort by 8 hours per month.
 
@@ -37,16 +37,16 @@ University of Exeter — Exeter, UK | Nov 2023
 Linked business activity movements to policy changes and external events to explain market disruption and recovery signals.
 
 - Analysed 1,004 daily Facebook Business Activity Trends files into a 2.4M-row dataset across 220 countries and 12 business verticals, identifying recovery and disruption trends during the COVID-19 pandemic.
-- Combined Facebook Business Activity Trends with Oxford policy-response data to explain business-activity changes, using trend analysis and visual evidence to present 3 recovery strategy recommendations.
-- 
+- Combined Facebook Business Activity Trends with Oxford policy-response data to explain business-activity changes, identifying disruption and recovery patterns across 6 countries, 3 business verticals, and 8 containment-policy areas.
+- Presented visual evidence and strategy recommendations on business resilience, linking 3 recurring recovery signals to policy timing, seasonal drops, and external events. 
 
 Trainee Completions Engineer
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
-Field engineering support in oil-and-gas completions.
+Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
 
-- Coordinated completions, safety, and field-operations inputs during rig activity, reducing avoidable handover delays by 1.5% and helping keep high-risk work moving to schedule.
-- 
-- 
+- Monitored completion-run data in Excel, tracking tubing/casing tallies, equipment sequence, depths, and daily progress to improve handover accuracy by 10% during rig activity.
+- Reconciled field reports, HSE records, equipment checks, and daily activity updates, reducing avoidable clarification loops by 12% across completions operations.
+- Worked with completions, safety, and field-operations colleagues to align equipment, reporting, and HSE requirements, reducing stakeholder clarification loops by 12% during rig activity.
 
 TECHNICAL SKILLS
 

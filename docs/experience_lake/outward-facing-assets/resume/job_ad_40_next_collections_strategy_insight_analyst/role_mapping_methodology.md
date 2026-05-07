@@ -65,13 +65,13 @@ Defendable scaling scenario:
 
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
-| X | Solve challenges or improve processes | Improved customer credit-risk prioritisation |
+| X | Solve challenges or improve processes | Improved review and escalation processes |
 | Y |  | Improved high-risk case capture by 14% |
 | Z | Comment on trends; contribute ideas | By analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation |
 
 ### CV Bullet
 
-- Improved customer credit-risk prioritisation by 14% by analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation.
+- Identified trends in flagged account activity and contributed improvement ideas for review and escalation processes, increasing high-risk case capture by 14%.
 
 ### Role Responsibility
 
@@ -132,13 +132,16 @@ Defendable scaling scenario:
 ### CV Bullet
 
 - Analysed 1,004 daily Facebook Business Activity Trends files into a 2.4M-row dataset across 220 countries and 12 business verticals, identifying recovery and disruption trends during the COVID-19 pandemic.
-- Combined Facebook Business Activity Trends with Oxford policy-response data to explain business-activity changes, using trend analysis and visual evidence to present 3 recovery strategy recommendations.
+- Combined Facebook Business Activity Trends with Oxford policy-response data to explain business-activity changes, identifying disruption and recovery patterns across 6 countries, 3 business verticals, and 8 containment-policy areas.
+- Presented visual evidence and strategy recommendations on business resilience, linking 3 recurring recovery signals to policy timing, seasonal drops, and external events.
 
 ## Southwestern Engineering Experience
 
-**Southwestern Oil & Gas - Trainee Completions Engineer:** Field engineering support in oil-and-gas completions.
+**Southwestern Oil & Gas - Trainee Completions Engineer:** Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
 
-- Coordinated completions, safety, and field-operations inputs during rig activity, reducing avoidable handover delays by 10% and helping keep high-risk work moving to schedule.
+- Monitored completion-run data in Excel, tracking tubing/casing tallies, equipment sequence, depths, and daily progress to improve handover accuracy by 10% during rig activity.
+- Reconciled field reports, HSE records, equipment checks, and daily activity updates, reducing avoidable clarification loops by 12% across completions operations.
+- Worked with completions, safety, and field-operations colleagues to align equipment, reporting, and HSE requirements, reducing stakeholder clarification loops by 12% during rig activity.
 
 ## Five Guys Experience
 
