@@ -47,6 +47,22 @@ The method is:
 
 - Improved customer credit-risk prioritisation by 31% by analysing trends in flagged account activity and identifying which cases were most likely to require review or escalation.
 
+### Role Responsibility
+
+> Continuously review collections strategies to drive positive outcomes for customers while staying compliant with regulations.
+
+### XYZ Breakdown
+
+| Part | Extracted from role's responsibility | Built |
+|---|---|---|
+| X | Drive positive outcomes for customers | Drove positive outcomes for at-risk customers, reducing unnecessary escalation by 26% |
+| Y |  | Reduced unnecessary escalation by 26% |
+| Z | Continuously review collections strategies while staying compliant with regulations | Continuously reviewed collections strategies using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations |
+
+### CV Bullet
+
+- Continuously reviewed collections strategies to drive positive outcomes for at-risk customers, using risk-band movement, flagged account activity, and collections decision outcomes while staying compliant with regulations, reducing unnecessary escalation by 26%.
+
 ## MSc Project Experience
 
 To be developed.
