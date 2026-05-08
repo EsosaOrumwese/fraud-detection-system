@@ -1,0 +1,60 @@
+Esosa Orumwese
+Applied Data Scientist | Agentic-AI Early Adoptor | Utilizing Practical, Innovative Advanced Analytics Techniques to Drive Change
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+Extensive experience exploring the value proposition of the latest agentic-ai advancement to exploit data and improve workflows
+Utilize tried and tested AI, ML and Advanced Analytics techniques to drive business change
+Proficient in SQL, SAS, Python, Excel, Power BI, cloud-hosted data processing, and SaaS reporting tools.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+
+RELEVANT EXPERIENCE
+
+Applied Data Scientist
+Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
+AWS-hosted customer credit risk platform for batch/streaming data flows, SQL/SAS datasets, ML workflows, experimentation, and 2.35 billion row monitoring.
+
+- Improved early identification of customer credit risk movement by 18% over a Logistic Regression baseline by deploying an XGBoost scoring workflow across engineered customer, account, transaction, and decision features.
+- Identified behavioural levers behind customer credit risk movement by surfacing 4 key drivers across priority customer/account segments using SHAP explainability on top of XGBoost predictions.
+- Supported an agentic behavioural-driver discovery workflow for future customer credit risk-movement prediction, using OpenAI Codex to move from customer credit data exploration to candidate risk-factor hypotheses, SQL/Python feature tests, model comparison, and evidence summaries.
+- Improved evidence before adopting customer credit strategy changes by comparing 3 threshold strategies across 5 outcome measures: risk capture, review waste, escalation rate, time to detection, and operational load, using A/B and champion/challenger testing logic for model led decision strategies.
+- Kept predictive outputs reliable and trusted across customer credit scoring, feature refreshes, drift monitoring, threshold checks, reporting outputs, and model performance reviews by maintaining and improving BAU model processes.
+
+Usage-Based Insurance Behaviour Modelling
+University of Exeter — Exeter, UK | Aug 2024
+Applied machine learning to smartphone sensor data to simultaneously classify transport behaviour and driver identity for insurance risk assessment.
+
+- Analysed 81.9M smartphone sensor records from 227 hours of movement data, reducing them to 4.1M modelling records using Python and SQL.
+- Built a Python and PyTorch deep learning workflow covering journey segmentation, feature engineering, coordinate transformation, and model evaluation.
+- Presented usage-based insurance insights, showing how smartphone behaviour data could support fairer driver risk assessment.
+
+COVID-19 Business Recovery Trend Analysis
+University of Exeter — Exeter, UK | Nov 2023
+Linked business activity data to policy changes and external events to explain disruption and recovery signals.
+
+- Analysed 1,004 Facebook Business Activity Trends files into a 2.4M row dataset across 220 countries and 12 business verticals.
+- Combined Facebook Business Activity Trends with Oxford policy response data to identify recovery patterns across 6 countries and 8 policy areas.
+- Presented visual evidence and strategy recommendations, linking 3 recovery signals to policy timing, seasonal drops, and external events.
+
+Completions Engineer
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
+
+- Monitored completion run data in Excel, tracking tubing/casing tallies, equipment sequence, depths, and daily progress during rig activity.
+- Reconciled 4 operational records across field reports, HSE records, equipment checks, and daily activity updates.
+- Collaborated with completions, safety, and field operations colleagues to align equipment, reporting, and HSE requirements for changing stakeholder demands.
+
+KEY SKILLS
+
+Technical Skills: Python, R, SAS, SQL, PyTorch, XGBoost, SHAP, Excel, Power BI, machine learning, predictive modelling, model evaluation.
+
+Data Science Skills: customer behaviour analysis, feature engineering, segmentation, A/B testing, champion/challenger testing, drift monitoring, model maintenance.
+
+Business Skills: stakeholder communication, senior presentation, evidence summaries, strategy recommendations, commercial insight, responsible decision support.
