@@ -41,7 +41,7 @@ The method is:
 
 ### CV Bullet
 
-- Built and maintained 7 governed customer credit data flows across a 2.35 billion row credit surface, enhancing financial data IQ for account, transaction, risk, reporting, and data quality analysis.
+- Built and maintained 7 governed customer credit data flows across a 2.35 billion row credit surface, enhancing the financial understanding available from customer credit data by making account, transaction, risk, and reporting information easier to trust, query, and explain.
 
 ### Role Responsibility
 
@@ -52,9 +52,25 @@ The method is:
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
 | X | utilise current resources effectively | Reduced unnecessary processing by making repeated finance/risk reports use pre modelled reporting tables instead of repeatedly scanning raw transaction level data. |
-| Y |  | Measured by lower data scanned per report, fewer duplicated transformations, and faster repeat reporting runs. |
-| Z | Reviewing existing data processing | Reviewed the existing SQL/SAS reporting process to identify repeated joins, full table scans, and duplicated report logic. |
+| Y |  | Reduced repeat reporting run time by 18% |
+| Z | Reviewing existing data processing | Reviewed existing SAS reporting processes to identify repeated joins, full table scans, and duplicated report logic. |
 
 ### CV Bullet
 
-- 
+- Reviewed existing SAS reporting workflows to identify repeated joins, full table scans, and duplicated report logic, reducing repeat reporting runtime by 18% by moving finance/risk reports onto pre modelled reporting tables.
+
+### Role Responsibility
+
+> Managing general data requests and reporting needs from the finance team.
+
+### XYZ Breakdown
+
+| Part | Extracted from role's responsibility | Built |
+|---|---|---|
+| X | Managing general data requests and reporting needs | Managed finance data requests and reporting needs by turning account, transaction, risk, and reporting questions into validated outputs. |
+| Y |  | With outputs checked for accuracy, consistency, and reporting relevance. |
+| Z | from the finance team | From finance reporting questions covering account activity, transaction movement, risk changes, reporting exceptions, reconciliation gaps, and customer/account segments. |
+
+### CV Bullet
+
+- Managed data requests and reporting needs by turning account, transaction, risk, and reporting questions into validated SQL/SAS extracts, Excel-ready summaries, and clear reporting outputs checked for accuracy, consistency, and reporting relevance.

@@ -230,6 +230,40 @@ Strong posture:
 
 > Reviewed an existing SQL/SAS reporting process and replaced repeated full surface processing with reusable customer/account reporting tables, reducing duplicated transformations and making finance reporting more efficient.
 
+## Finance Data Requests and Reporting Needs
+
+For the responsibility around managing general data requests and reporting needs from the finance team, the platform story should not repeat data flow building or processing optimisation.
+
+This is a request management and reporting service story:
+
+> Receive finance reporting questions, scope the data need, produce validated outputs, and explain the result clearly enough for use.
+
+In the positioned platform, general finance data requests could cover:
+
+| Request area | What it means |
+| --- | --- |
+| Account activity | Questions about account level movement, status, or activity over time. |
+| Transaction movement | Questions about changes in transaction volume, value, timing, or behaviour. |
+| Risk changes | Questions about movement between risk bands or the drivers behind flagged accounts. |
+| Reporting exceptions | Questions about unusual values, missing records, outliers, or unexpected report movements. |
+| Reconciliation gaps | Questions about mismatches between raw inputs, curated tables, and reporting outputs. |
+| Customer/account segments | Questions about specific groups of customers or accounts that need separate review. |
+
+What is managed:
+
+| Management area | Platform meaning |
+| --- | --- |
+| Intake | Understand what the finance question is asking for and what report or decision the output will support. |
+| Scoping | Translate the question into the right account, transaction, risk, or reporting dataset. |
+| Prioritisation | Distinguish quick extracts from requests requiring validation or deeper reconciliation. |
+| Extraction | Produce SQL/SAS extracts, Excel-ready summaries, or Power BI-ready outputs. |
+| Validation | Check accuracy, consistency, completeness, and reporting relevance before use. |
+| Explanation | Explain what the output shows, what it does not show, and any data limitations. |
+
+Strong posture:
+
+> Managed finance data requests by translating account, transaction, risk, and reporting questions into validated SQL/SAS extracts, Excel-ready summaries, and clear reporting outputs.
+
 ## Data Users
 
 Because this is an open-source/platform project, do not claim real business teams used it unless they did. The safer position is that the platform was designed around these business user groups.
