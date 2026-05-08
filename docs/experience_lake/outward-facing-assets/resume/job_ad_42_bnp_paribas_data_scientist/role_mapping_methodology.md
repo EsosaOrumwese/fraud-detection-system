@@ -10,6 +10,14 @@ Full platform positioning is kept separately in:
 
 ## Platform Experience
 
+### Experience Header
+
+| Field | Built |
+|---|---|
+| Role title | Applied Data Scientist |
+| Platform name | Customer Credit Risk Intelligence Platform [Open-source] |
+| About line | AWS-hosted customer credit risk platform for batch/streaming data flows, SQL/SAS datasets, ML workflows, experimentation, and 2.35 billion row monitoring. |
+
 ### Business Problem
 
 > Understanding and predicting customer credit behaviour to identify risk movement earlier and support responsible financial decisions.

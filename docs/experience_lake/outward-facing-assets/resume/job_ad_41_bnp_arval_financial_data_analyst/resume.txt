@@ -28,7 +28,7 @@ AWS-hosted customer credit risk platform for batch/streaming data flows, SQL/SAS
 
 Usage-Based Insurance Behaviour Modelling
 University of Exeter — Exeter, UK | Aug 2024
-Applied machine learning to smartphone sensor data to classify transport behaviour and driver identity for insurance risk assessment.
+Applied machine learning to smartphone sensor data to simultaneously classify transport behaviour and driver identity for insurance risk assessment.
 
 - Analysed 81.9M smartphone sensor records from 227 hours of movement data, reducing them to 4.1M modelling records using Python and SQL.
 - Built a Python and PyTorch deep learning workflow covering journey segmentation, feature engineering, coordinate transformation, and model evaluation.
