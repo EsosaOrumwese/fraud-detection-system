@@ -3,9 +3,9 @@ Applied Data Scientist | Driving Change with ML, Agentic AI & Advanced Analytics
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years using advanced analytics, ML, and agentic AI workflows to understand data, improve analytical processes, and drive business change.
-Applied tried and tested AI/ML techniques to predict behaviour, explain model outputs, test decision strategies, and support practical solutions.
-Proficient in Python, R, SAS, SQL, PyTorch, XGBoost, SHAP, A/B testing, model monitoring, and stakeholder communication.
+4+ years using advanced analytics, ML, and agentic AI workflows to understand data and drive business change.
+Applied AI/ML techniques to predict behaviour, explain model outputs, test decision strategies, and support practical solutions.
+Proficient in Python, R, SAS, SQL, PyTorch, XGBoost, SHAP, A/B testing, and model monitoring.
 
 EDUCATION
 
@@ -19,13 +19,13 @@ RELEVANT EXPERIENCE
 
 Applied Data Scientist
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
-AWS-hosted customer credit risk platform for batch/streaming data flows, SQL/SAS datasets, ML workflows, experimentation, and 2.35 billion row monitoring.
+AWS-hosted customer credit risk platform with SQL/SAS datasets, ML workflows, experimentation, and 2.35 billion row monitoring.
 
-- Improved early identification of customer credit risk movement by 18% over a Logistic Regression baseline by deploying an XGBoost scoring workflow across engineered customer, account, transaction, and decision features.
-- Identified behavioural levers behind customer credit risk movement by surfacing 4 key drivers across priority customer/account segments using SHAP explainability on top of XGBoost predictions.
-- Supported an agentic behavioural-driver discovery workflow for future customer credit risk-movement prediction, using OpenAI Codex to move from customer credit data exploration to candidate risk-factor hypotheses, SQL/Python feature tests, model comparison, and evidence summaries.
-- Improved evidence before adopting customer credit strategy changes by comparing 3 threshold strategies across 5 outcome measures: risk capture, review waste, escalation rate, time to detection, and operational load, using A/B and champion/challenger testing logic for model led decision strategies.
-- Kept predictive outputs reliable and trusted across customer credit scoring, feature refreshes, drift monitoring, threshold checks, reporting outputs, and model performance reviews by maintaining and improving BAU model processes.
+- Improved early identification of customer credit risk movement by 18% over a Logistic Regression baseline using deployed XGBoost scoring.
+- Identified behavioural levers behind customer credit risk movement by surfacing 4 key drivers across priority customer segments using SHAP explainability on XGBoost predictions.
+- Used OpenAI Codex to support agentic behavioural-driver discovery, from customer data exploration to hypotheses, SQL/Python tests, model comparison, and evidence summaries.
+- Implemented A/B and champion/challenger testing across 3 model threshold strategies and 5 outcome measures to support credit strategy adoption.
+- Maintained and improved BAU model processes across scoring, feature refreshes, drift monitoring, threshold checks, and performance reviews to keep predictive outputs trusted.
 
 Usage-Based Insurance Behaviour Modelling
 University of Exeter — Exeter, UK | Aug 2024
