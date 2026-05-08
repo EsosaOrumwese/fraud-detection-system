@@ -1,11 +1,11 @@
 Esosa Orumwese
-Financial Data Analyst | Financial Data Flows, SAS Reporting & Data IQ | SQL, SAS, Python, Power BI
+Financial Data Analyst | Data Flows, SAS Reporting & Data Governance | SQL, SAS, Python, Power BI
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 4+ years driving business insights across complex data, reporting, and analytical workflows.
 Built and maintained data flows across large financial datasets for reporting, data quality, and decision support.
-Highly proficient in SQL, SAS, Python, Excel, Power BI, and cloud-hosted SaaS data workflows.
+Proficient in SQL, SAS, Python, Excel, Power BI, cloud-hosted data processing, and SaaS reporting tools.
 
 EDUCATION
 
@@ -19,12 +19,12 @@ RELEVANT EXPERIENCE
 
 Financial Data Analyst
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
-AWS-hosted open-source platform for customer credit risk reporting, SAS workflows, governed data flows, and data quality controls.
+AWS-hosted customer credit risk platform for batch/streaming data flows, SQL/SAS reporting datasets, ML workflows, and 2.35 billion row monitoring.
 
-- Built and maintained 7 governed customer credit data flows across a 2.35 billion row credit surface, enhancing financial data IQ for reporting and risk analysis.
+- Built and maintained 7 governed customer credit data flows across a 2.35 billion row credit surface, improving reporting visibility and risk analysis.
 - Reviewed existing SAS reporting workflows to identify repeated joins, full table scans, and duplicated report logic, reducing repeat reporting runtime by 18%.
 - Managed varied data requests across 6 recurring request areas, producing validated SQL/SAS extracts, Excel-ready summaries, and clear reporting outputs.
-- Applied BCBS 239, UK GDPR, ISO 27001, and DAMA-DMBOK awareness to improve traceability, consistency, and reporting readiness.
+- Built governance controls informed by BCBS 239, UK GDPR, ISO 27001, and DAMA-DMBOK, improving traceability, consistency, access control, and reporting readiness.
 
 Usage-Based Insurance Behaviour Modelling
 University of Exeter — Exeter, UK | Aug 2024
@@ -54,7 +54,7 @@ TECHNICAL SKILLS
 
 Technical Skills: SQL, SAS programming, SAS Studio, Python, Excel, Power BI, data modelling, complex dataset maintenance, large financial datasets, reporting data flows.
 
-Data & SaaS Tools: AWS S3, AWS Athena, Power BI Service, Microsoft Excel, SharePoint, Google Workspace, cloud-hosted data processing, SaaS data workflows.
+Cloud & SaaS Tools: AWS S3, AWS Athena, Power BI Service, Microsoft Excel, SharePoint, Google Workspace, cloud-hosted data processing, SaaS data workflows.
 
 Finance Data Skills: financial reporting datasets, customer credit data, account-level analysis, risk reporting, reconciliation checks, reporting extracts, data request handling.
 
