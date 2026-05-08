@@ -1,0 +1,44 @@
+# Role Mapping Methodology
+
+This is a living note for building experience evidence against the BNP / Arval Financial Data Analyst role.
+
+## Platform Positioning
+
+**Role name:** Financial Data Analyst / Customer Credit Data Analyst
+
+**Platform name:** Customer Credit Financial Data Platform [Open-source]
+
+**Platform description:** AWS hosted open-source financial/customer credit data platform transforming raw customer, account, and transaction data into governed SQL and SAS reporting datasets for finance reporting, credit risk analysis, data quality checks, and decision support.
+
+Full platform positioning is kept separately in:
+
+`platform_positioning.md`
+
+The method is:
+
+1. Start with the exact wording from the job responsibility.
+2. Break it into Google XYZ:
+   - X: what was accomplished or delivered.
+   - Y: how the result or business value was measured.
+   - Z: how it was done.
+3. If the job ad does not provide a measurable Y, build one that fits the role outcome.
+4. Map the experience to the role language before turning it into a CV bullet or supporting-statement evidence.
+5. Keep the sentence short enough to scan, but specific enough to show what was done and why it mattered.
+
+## Platform Experience
+
+### Role Responsibility
+
+> Building and maintaining data flows to enhance data IQ.
+
+### XYZ Breakdown
+
+| Part | Extracted from role's responsibility | Built |
+|---|---|---|
+| X | enhance data IQ |  |
+| Y |  |  |
+| Z | Building and maintaining data flows | Building and maintaining customer, account, transaction, risk signal, decision outcome, reporting, and data quality flows across a governed customer credit financial data platform. |
+
+### CV Bullet
+
+- 
