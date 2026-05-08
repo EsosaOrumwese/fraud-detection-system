@@ -1,11 +1,11 @@
 Esosa Orumwese
-Applied Data Scientist | Agentic-AI Early Adoptor | Utilizing Practical, Innovative Advanced Analytics Techniques to Drive Change
+Applied Data Scientist | Driving Change with ML, Agentic AI & Advanced Analytics | Python, SQL, SAS, R
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-Extensive experience exploring the value proposition of the latest agentic-ai advancement to exploit data and improve workflows
-Utilize tried and tested AI, ML and Advanced Analytics techniques to drive business change
-Proficient in SQL, SAS, Python, Excel, Power BI, cloud-hosted data processing, and SaaS reporting tools.
+4+ years using advanced analytics, ML, and agentic AI workflows to understand data, improve analytical processes, and drive business change.
+Applied tried and tested AI/ML techniques to predict behaviour, explain model outputs, test decision strategies, and support practical solutions.
+Proficient in Python, R, SAS, SQL, PyTorch, XGBoost, SHAP, A/B testing, model monitoring, and stakeholder communication.
 
 EDUCATION
 
