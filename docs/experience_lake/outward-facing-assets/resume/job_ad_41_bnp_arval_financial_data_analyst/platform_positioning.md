@@ -148,6 +148,88 @@ Maintenance story:
 
 > I can maintain complex data flows so finance and risk users can trust the datasets they query and report from.
 
+## Existing Data Processing and Resource Efficiency
+
+For the responsibility around reviewing existing data processing and utilising current resources effectively, the platform should not repeat the first "build data flows" story.
+
+This is a resource efficiency story:
+
+> Review an existing processing pattern, find wasted processing, and make the same data and tools work more efficiently.
+
+In the positioned platform, an existing process could be:
+
+> Finance/risk reports repeatedly run heavy joins or scans against the full customer credit surface.
+
+The problem is that too much raw transaction level data is scanned or reprocessed for repeated reporting questions.
+
+| Area | Platform positioning |
+| --- | --- |
+| Existing process | Finance/risk reports repeatedly ran heavy joins or scans against the full customer credit surface. |
+| Problem | Too much raw transaction level data was being scanned or reprocessed for repeated reporting questions. |
+| Waste | Compute, query time, analyst effort, duplicated transformations, and inconsistent reporting logic. |
+| Review | Checked SQL/SAS reporting logic, repeated joins, full surface scans, duplicated report logic, and reporting tables. |
+| Fix | Shifted repeated logic into reusable customer/account reporting tables or reporting marts. |
+| Resource benefit | Reports could reuse prepared datasets instead of rebuilding from raw data each time. |
+
+Potential existing data processing areas:
+
+| Existing processing area | What it does |
+| --- | --- |
+| Raw ingestion processing | Loads customer, account, transaction, risk, decision, and outcome data into cloud storage. |
+| Transformation processing | Converts raw records into cleaned customer credit tables. |
+| Join processing | Links customers, accounts, transactions, risk bands, flags, and decision outcomes. |
+| Aggregation processing | Creates account level, customer level, monthly, weekly, and risk band summaries. |
+| Reporting processing | Produces finance reporting tables for SQL, SAS, Power BI, Excel, or data requests. |
+| Data quality processing | Checks row counts, duplicates, missing values, schema changes, stale data, and broken joins. |
+| Risk signal processing | Creates flags, review triggers, escalation markers, and risk movement indicators. |
+
+Resource waste to look for:
+
+| Problem in existing process | Resource being wasted |
+| --- | --- |
+| Full 2.35 billion row surface scanned for repeated reports | Query cost, compute time, analyst waiting time. |
+| Raw files queried directly | Compute, storage read time, slow reporting. |
+| Same joins repeated across multiple reports | Analyst effort, compute, inconsistent outputs. |
+| No curated reporting layer | Every request starts from raw data again. |
+| No partitioning by date, product, or risk band | Queries scan unnecessary data. |
+| Duplicate intermediate tables | Storage and confusion. |
+| SAS/Python/SQL each rebuilding similar logic separately | Tooling effort and inconsistent definitions. |
+| Reports built from different versions of the same data | Trust, governance, reconciliation time. |
+| No freshness or row count checks | Time wasted investigating broken or stale reports. |
+| Manual extracts for finance requests | Analyst time and repeatability. |
+
+Practical solutions:
+
+| Problem found | Solution applied |
+| --- | --- |
+| Reports repeatedly scan raw 2.35 billion row data | Create curated reporting marts for common finance/risk questions. |
+| Data stored in inefficient formats | Convert raw outputs into partitioned Parquet for query efficiency. |
+| Repeated joins across SQL/Python/SAS | Create reusable modelled tables for customer, account, transaction, risk, and outcome data. |
+| Finance requests require manual rebuilds | Build reusable SQL views or reporting datasets. |
+| SAS programs process too much raw data | Feed SAS from governed reporting extracts/marts instead of the full raw surface. |
+| Queries scan unnecessary date ranges | Partition by reporting period/date and filter at query time. |
+| Inconsistent definitions across reports | Standardise business definitions such as active account, flagged account, risk band, escalation, and outcome. |
+| Poor trust in outputs | Add data quality checks such as row counts, duplicates, null checks, freshness checks, and reconciliation. |
+| Unclear data lineage | Add manifests/metadata showing source, processing time, schema, row counts, and output version. |
+| Duplicate intermediate outputs | Remove redundant tables and keep controlled raw, curated, and reporting layers. |
+
+Resources being used more effectively:
+
+| Resource | How it is used better |
+| --- | --- |
+| Compute | Avoid scanning or transforming unnecessary data. |
+| Storage | Reduce duplicate outputs and use efficient file formats. |
+| Query capacity | Make common reporting queries faster and cheaper. |
+| Analyst time | Stop rebuilding the same logic for every request. |
+| SAS/Python/SQL effort | Let each tool do the right job instead of duplicating work. |
+| Finance user time | Give users trusted reporting datasets faster. |
+| Governance effort | Make data lineage and quality checks visible instead of manually investigated. |
+| Reporting trust | Reduce conflicting numbers across outputs. |
+
+Strong posture:
+
+> Reviewed an existing SQL/SAS reporting process and replaced repeated full surface processing with reusable customer/account reporting tables, reducing duplicated transformations and making finance reporting more efficient.
+
 ## Data Users
 
 Because this is an open-source/platform project, do not claim real business teams used it unless they did. The safer position is that the platform was designed around these business user groups.

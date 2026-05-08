@@ -42,3 +42,19 @@ The method is:
 ### CV Bullet
 
 - Built and maintained 7 governed customer credit data flows across a 2.35 billion row credit surface, enhancing financial data IQ for account, transaction, risk, reporting, and data quality analysis.
+
+### Role Responsibility
+
+> Reviewing existing data processing and utilising current resources effectively.
+
+### XYZ Breakdown
+
+| Part | Extracted from role's responsibility | Built |
+|---|---|---|
+| X | utilise current resources effectively | Reduced unnecessary processing by making repeated finance/risk reports use pre modelled reporting tables instead of repeatedly scanning raw transaction level data. |
+| Y |  | Measured by lower data scanned per report, fewer duplicated transformations, and faster repeat reporting runs. |
+| Z | Reviewing existing data processing | Reviewed the existing SQL/SAS reporting process to identify repeated joins, full table scans, and duplicated report logic. |
+
+### CV Bullet
+
+- 
