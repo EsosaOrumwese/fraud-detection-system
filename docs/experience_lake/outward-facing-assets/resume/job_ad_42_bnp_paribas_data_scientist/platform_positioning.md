@@ -1,10 +1,296 @@
 # BNP Paribas Data Scientist - Platform Positioning
 
-## Platform Story Points
+## Role Posture
 
-- Deploy tried and tested advanced analytical techniques: predictive modelling, segmentation, time based validation, model comparison, uplift or A/B testing logic, risk scoring, behavioural feature engineering.
-- Solve business challenges: prioritising customers/accounts, identifying behavioural risk movement, reducing unnecessary review/escalation, improving responsible decision support.
-- Explore and innovate new solutions: GenAI/Codex-assisted analytical workflows, experiment design support, automated code/test generation, documentation, model evaluation helpers.
-- Implement A/B testing: comparing rule strategies, model thresholds, intervention groups, champion/challenger logic, before/after or holdout style evaluation.
-- Maintain BAU processes/model maintenance: monitoring drift, data refreshes, model performance, threshold stability, reruns, reporting outputs, QA checks.
-- Clear outputs for stakeholders: senior/business-facing explanations of customer behaviour, model drivers, trade-offs, and recommended actions.
+For this role, the platform should be positioned as a customer behaviour intelligence and predictive decisioning platform, with the resume emphasis placed on applied data science work inside that platform.
+
+The BNP Paribas Personal Finance role is about using advanced analytical methods to deliver commercial value, understand customer behaviours, test and predict behavioural levers, implement ML/AI business tools, maintain BAU model processes, and communicate clear outputs to senior and non-technical business users.
+
+The platform story should quietly answer:
+
+> Can this person use advanced analytics, ML, AI, and experimentation to understand, predict, test, and explain customer finance behaviour in a way that supports commercial value and responsible financial decisions?
+
+## Core Platform Positioning
+
+The first experience should be framed around:
+
+> AWS-hosted open-source customer credit behaviour platform using advanced analytics, ML workflows, experimentation, model monitoring, and explainable outputs to understand, predict, test, and explain customer behaviour and decisioning levers.
+
+This is not a final resume bullet. It is the role posture.
+
+It should communicate:
+
+- advanced analytical methods;
+- customer behaviour;
+- commercial value;
+- responsible finance decision support;
+- predictive modelling;
+- ML and AI business tools;
+- experimentation and A/B testing;
+- model maintenance and BAU confidence;
+- senior/non-technical communication;
+- innovation through GenAI/Codex-assisted workflows where defensible.
+
+## Customer Behaviour and Business Challenge
+
+The platform should not be presented as a generic fraud or reporting project. For this role, the platform is a customer finance behaviour environment.
+
+The business challenge is:
+
+> Move from reactive review of customer/account activity to earlier, model-supported understanding of behavioural risk movement, decision levers, and customer outcomes.
+
+The platform should be able to answer questions such as:
+
+- Which customers or accounts are changing behaviour?
+- Which behaviours signal future risk movement?
+- Which cases should be prioritised for review or action?
+- Which strategy, threshold, or intervention performs better?
+- Which customer behaviours are linked to responsible finance outcomes?
+- Can the model still be trusted in BAU?
+- Can the result be explained to senior and non-technical business users?
+
+Ranked business challenges to use:
+
+| Rank | Business challenge | Why it fits the platform posture |
+| --- | --- | --- |
+| 1 | Understanding and predicting customer credit behaviour to identify risk movement earlier and support responsible financial decisions. | Strongest fit for customer behaviour, predictive modelling, responsible finance, and commercial value. |
+| 2 | Prioritising customer/account reviews using ML risk signals so attention is focused on cases most likely to need action. | Fits risk scoring, segmentation, thresholding, and practical decision support. |
+| 3 | Testing model thresholds and decision strategies before adoption to understand which changes improve customer and business outcomes. | Fits A/B testing, champion/challenger, experimentation, and evidence-led change. |
+| 4 | Explaining behavioural levers behind customer risk movement so model outputs can be understood and acted on by non-technical users. | Fits explainability, feature importance, stakeholder communication, and senior-ready outputs. |
+| 5 | Maintaining model confidence in BAU by monitoring drift, performance, thresholds, and data refresh quality. | Fits model maintenance, BAU processes, and keeping outputs trusted after deployment. |
+
+## Advanced Analytics Deployment
+
+For the responsibility around deploying tried and tested advanced analytical techniques, the platform story should show named techniques, where they sit, what data they use, and which business challenge they solve.
+
+| Technique area | Named methods | Where it sits in the platform | Business challenge solved |
+| --- | --- | --- | --- |
+| Classification / risk prediction | Logistic Regression, Random Forest, XGBoost / gradient boosted trees, neural network classifier where defensible | Learning/model layer and decision support layer | Predict which customers/accounts are likely to move into higher risk or need intervention. |
+| Baseline modelling | Logistic Regression baseline, decision tree baseline, rule based baseline | Model evaluation layer | Prove whether more advanced methods outperform simpler existing logic. |
+| Segmentation | K-Means clustering, hierarchical clustering, behavioural cohorting, quantile/risk band segmentation | Offline analysis and strategy layer | Group customers by behaviour so strategies are not one-size-fits-all. |
+| Time behaviour features | Rolling window features, lag features, moving averages, trend slopes, time based validation | Feature engineering and validation layer | Capture how customer behaviour changes over time. |
+| Model comparison | Champion/challenger model comparison, baseline vs ML model lift comparison | Learning/model layer | Select stronger methods instead of relying on one untested approach. |
+| Explainability | SHAP values, feature importance, scorecard driver analysis | Stakeholder insight layer | Explain why customers/accounts are flagged, prioritised, or predicted to change. |
+| Experimentation / A-B logic | Holdout testing, champion/challenger testing, threshold testing, before/after comparison | Strategy evaluation layer | Compare strategy, threshold, or intervention changes before adoption. |
+| Anomaly / exception detection | Isolation Forest, z-score/IQR outlier detection, rule based exception flags | Monitoring and exception layer | Identify unusual customer/account movements or reporting exceptions. |
+| Calibration / thresholding | Precision-recall trade-off, ROC-AUC, lift curves, decile/gain charts, threshold optimisation | Model deployment and decisioning layer | Choose thresholds that balance commercial value, customer treatment, and review effort. |
+| Model maintenance | Drift monitoring, performance monitoring, retraining trigger checks | BAU model maintenance layer | Detect when behaviour or model performance changes and needs review. |
+
+Strong posture:
+
+> Deployed predictive modelling, behavioural segmentation, risk scoring, rolling window feature engineering, time based validation, champion/challenger comparison, threshold testing, and explainability analysis across customer credit behaviour workflows to solve challenges around risk movement, prioritisation, strategy testing, and responsible decision support.
+
+## Strongest Defensible Method Set
+
+Use these first because they are easier to defend and fit the platform story:
+
+- Logistic Regression.
+- Random Forest.
+- XGBoost / gradient boosted trees.
+- Risk band segmentation.
+- Rolling window feature engineering.
+- Time based validation.
+- Threshold testing.
+- Feature importance / SHAP explainability.
+- Champion/challenger comparison.
+
+## Gradient Boosting for Customer Credit Behaviour Prediction
+
+For the primary business challenge, gradient boosting should be positioned as the main predictive engine for customer credit behaviour.
+
+Business challenge:
+
+> Understanding and predicting customer credit behaviour to identify risk movement earlier and support responsible financial decisions.
+
+What gradient boosting is brought in to solve:
+
+| Problem | Platform positioning |
+| --- | --- |
+| Customer behaviour is complex | Risk movement is not driven by one variable; it comes from combinations of account activity, transaction behaviour, recent changes, flags, outcomes, and timing. |
+| Linear/rule logic may miss interactions | Simple rules or linear models can miss non-linear patterns such as risk rising only when several weak signals appear together. |
+| Need earlier risk movement detection | The model should identify accounts likely to worsen before they reach a later escalation stage. |
+| Need prioritisation | Predictions should help rank customers/accounts by likelihood of risk movement or need for review. |
+| Need commercial and responsible decisions | The output should support better targeting, not blanket treatment of all customers. |
+
+How gradient boosting fits the platform:
+
+| Platform layer | Use of gradient boosting |
+| --- | --- |
+| Feature layer | Uses engineered customer/account/transaction features: rolling activity, payment behaviour, risk band history, flags, decision outcomes, recent movement. |
+| Model layer | Trains XGBoost / gradient boosted trees to predict future risk movement or review need. |
+| Decision layer | Converts predicted probabilities into risk bands, prioritisation queues, or strategy groups. |
+| Testing layer | Compares model performance against baseline Logistic Regression or rule based scoring. |
+| Monitoring layer | Tracks model performance over time to ensure it remains useful in BAU. |
+
+Why gradient boosting specifically:
+
+- Handles non-linear relationships.
+- Captures feature interactions.
+- Performs well on tabular customer/account data.
+- Works with mixed behavioural and transactional features.
+- Stronger than simple rules where signals combine in complex ways.
+- Still explainable enough when paired with SHAP or feature importance.
+
+What data it uses:
+
+| Data area | Example signals |
+| --- | --- |
+| Customer/account history | Account age, status changes, previous flags, risk band movement. |
+| Transaction behaviour | Frequency, value, recency, volatility, repeated patterns, sudden changes. |
+| Payment/credit behaviour | Missed/late payment indicators, repayment pattern changes, utilisation movement if available. |
+| Decision outcomes | Previous reviews, escalations, interventions, outcome labels. |
+| Time based features | Rolling 7/14/30 day changes, lag features, trend slopes, recent vs historical behaviour. |
+
+What it replaces or improves:
+
+> A static rule based or baseline Logistic Regression approach that could rank obvious cases but may miss complex behavioural combinations and early risk movement.
+
+How it would be deployed:
+
+> The trained gradient boosting model scores customer/account records on a recurring basis, producing probability scores for future risk movement or review need. Those scores feed risk bands, prioritisation outputs, monitoring dashboards, and strategy testing workflows.
+
+Strong posture:
+
+> Used XGBoost / gradient boosted trees on engineered customer, account, transaction, and decision features to predict future credit risk movement, replacing static rule logic with a modelled probability score that supported earlier prioritisation and responsible decision support.
+
+Use these only where a clear platform need is defined:
+
+- Bayesian modelling.
+- Gaussian models.
+- KNN.
+- LightGBM.
+- Isolation Forest.
+- Partial dependence plots.
+- Population stability index.
+
+## Experimentation and A/B Testing
+
+For the responsibility around implementing A/B testing techniques, the platform story should be about evidence before adoption.
+
+The platform can position A/B testing as:
+
+> Testing strategy, threshold, model, or intervention changes against a baseline before recommending wider adoption.
+
+Potential comparison designs:
+
+| Testing approach | Platform meaning |
+| --- | --- |
+| Champion/challenger | Compare an existing rule/model against a new model or threshold strategy. |
+| Holdout testing | Reserve a comparison group to measure whether a new strategy produces better outcomes. |
+| Threshold testing | Compare different risk score cutoffs for review, escalation, or intervention. |
+| Before/after comparison | Compare outcome movement before and after a strategy or rule change. |
+| Segment testing | Compare whether different customer/account segments respond differently to the same strategy. |
+
+Strong posture:
+
+> Used A/B style evaluation and champion/challenger testing to compare model thresholds, risk strategies, and intervention logic before recommending decisioning changes.
+
+## BAU Model Maintenance
+
+For the responsibility around maintaining and improving BAU processes, the platform story should show that models and analytical processes remain trusted after initial build.
+
+BAU maintenance can include:
+
+| Maintenance area | Platform meaning |
+| --- | --- |
+| Model performance monitoring | Track whether model precision, recall, lift, or other evaluation measures are stable over time. |
+| Drift monitoring | Check whether input behaviour or customer/account distributions are changing. |
+| Threshold stability | Review whether score cutoffs still produce the intended case volumes or risk concentration. |
+| Data refresh checks | Confirm new data windows are processed correctly before model/reporting use. |
+| Rerun discipline | Keep model experiments and outputs reproducible. |
+| QA checks | Validate outputs before they are used in reporting, monitoring, or decision support. |
+| Documentation | Keep model logic, assumptions, metrics, and limitations explainable. |
+
+Strong posture:
+
+> Maintained BAU model confidence through model performance monitoring, drift checks, threshold review, data refresh validation, rerun discipline, QA checks, and documentation of model assumptions and limitations.
+
+## GenAI and Innovation
+
+For the responsibility around exploring and innovating new solutions using technologies such as generative AI, the platform story should focus on practical GenAI-assisted data science workflow, not hype.
+
+The defensible angle is:
+
+> Used OpenAI Codex / GenAI-assisted workflows to accelerate experimentation, code generation, QA, documentation, model evaluation support, and analytical iteration while retaining human review and control.
+
+Possible uses:
+
+| GenAI use | Platform meaning |
+| --- | --- |
+| Experiment scaffolding | Generate candidate notebook/code structures for model experiments. |
+| Code acceleration | Speed up SQL/Python/SAS-adjacent analytical code drafting where reviewed by the analyst. |
+| QA support | Generate or review checks for edge cases, leakage, input validation, and rerun consistency. |
+| Documentation | Draft model notes, assumptions, limitations, and stakeholder explanations. |
+| Evaluation support | Help compare candidate model outputs, metrics, and interpretation summaries. |
+| Workflow iteration | Explore alternative modelling or feature engineering routes faster. |
+
+Strong posture:
+
+> Explored GenAI/Codex-assisted workflows to accelerate experimentation, QA, documentation, and model evaluation support while keeping analytical judgement, validation, and final decisions under human control.
+
+## Stakeholder Outputs and Communication
+
+For the responsibility around clear outputs for stakeholders at all levels, the platform story should focus on explaining customer behaviour and model levers.
+
+Outputs should not look like raw technical reports. They should help business users understand:
+
+- what behaviour changed;
+- which levers matter;
+- why a model or segment is useful;
+- what trade-offs exist;
+- what action is recommended;
+- what the evidence does and does not prove.
+
+Potential outputs:
+
+| Output type | Purpose |
+| --- | --- |
+| Senior summary | Explain commercial value, customer impact, and recommended action. |
+| Behaviour driver analysis | Show which features or behaviours explain risk movement. |
+| Model comparison summary | Explain why one model/threshold is preferred over another. |
+| A/B test result summary | Show whether a strategy, threshold, or intervention performed better. |
+| Monitoring pack | Show whether model/process performance remains stable in BAU. |
+| Limitation note | Explain uncertainty, assumptions, and where the result should not be overused. |
+
+Strong posture:
+
+> Created clear business-facing outputs that explained customer behaviour, model drivers, test results, trade-offs, and recommended actions to senior and non-technical users.
+
+## Data Users
+
+Because this is an open-source/platform project, do not claim real business teams used it unless they did. The safer position is that the platform was designed around these business user groups.
+
+| Team/user type | What they would use the outputs for |
+| --- | --- |
+| Commercial leadership | Understand customer behaviour, commercial value, and recommended actions. |
+| Credit/risk team | Monitor risk movement, model outputs, thresholds, and customer/account prioritisation. |
+| Customer strategy team | Compare strategies, segments, and intervention logic. |
+| Operations/contact centre teams | Understand case priority, escalation reasons, and customer status. |
+| Data science/analytics team | Maintain models, monitor performance, compare methods, and improve processes. |
+| Governance/compliance stakeholders | Understand limitations, responsible decision support, data quality, and model traceability. |
+
+For BNP, the most relevant users are:
+
+> Commercial leadership, credit/risk, customer strategy, operations, data science/analytics, and governance.
+
+## Clean Mental Model
+
+Customer finance behaviour data comes in. It is transformed into behavioural features, segments, risk signals, model inputs, predictions, test groups, and monitoring outputs. Advanced analytics and ML are used to understand, predict, test, and explain customer behaviour. Experimentation compares strategies and thresholds before adoption. BAU monitoring checks whether models remain trusted. Outputs are translated into business-facing insight for commercial value and responsible financial decision support.
+
+## Working Boundaries
+
+| Area | Positioning rule |
+| --- | --- |
+| Platform identity | Customer behaviour intelligence and predictive decisioning platform |
+| Main problem solved | Using advanced analytics and ML to understand, predict, test, and explain customer finance behaviour |
+| Scale | Large customer/account/transaction/risk surfaces, including the 2.35 billion row credit surface where relevant |
+| Storage/query story | AWS-hosted platform with SQL/Python/SAS-capable analytical workflows |
+| ML role | Predictive modelling, segmentation, model comparison, threshold testing, and explainability |
+| AI/GenAI role | Practical Codex/GenAI-assisted experimentation, QA, documentation, and model evaluation support |
+| A/B testing role | Compare strategy, threshold, and intervention changes before adoption |
+| BAU role | Maintain model confidence through drift/performance checks, reruns, QA, and documentation |
+| Communication story | Translate customer behaviour, model drivers, trade-offs, and recommendations for senior/non-technical users |
+
+## One Line Platform Description Candidate
+
+AWS-hosted open-source customer credit behaviour platform using advanced analytics, ML workflows, experimentation, model monitoring, and explainable outputs to understand, predict, test, and explain customer behaviour and decisioning levers.
