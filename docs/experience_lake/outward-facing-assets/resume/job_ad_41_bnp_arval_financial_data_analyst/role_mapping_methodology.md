@@ -73,4 +73,4 @@ The method is:
 
 ### CV Bullet
 
-- Managed data requests and reporting needs by turning account, transaction, risk, and reporting questions into validated SQL/SAS extracts, Excel-ready summaries, and clear reporting outputs checked for accuracy, consistency, and reporting relevance.
+- Managed data requests and reporting needs across 6 recurring request areas by turning account, transaction, risk, and reporting questions into validated SQL/SAS extracts, Excel-ready summaries, and clear reporting outputs checked for accuracy, consistency, and reporting relevance.
