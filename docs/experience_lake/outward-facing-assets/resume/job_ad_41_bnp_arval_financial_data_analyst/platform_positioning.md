@@ -264,6 +264,45 @@ Strong posture:
 
 > Managed finance data requests by translating account, transaction, risk, and reporting questions into validated SQL/SAS extracts, Excel-ready summaries, and clear reporting outputs.
 
+## Financial Data Quality and Governance Alignment
+
+For the responsibility around data quality and governance, the platform story should show awareness of financial/customer credit data controls, not only basic missing value checks.
+
+The platform positioning should show:
+
+> I understand that financial/customer credit data needs controls around quality, lineage, security, privacy, reporting cutoffs, repeatability, and safe release into reporting.
+
+Use named standards carefully as awareness and alignment references, not as certified compliance claims.
+
+| Standard / framework | Why it fits this platform | How it shows up |
+| --- | --- | --- |
+| BCBS 239 risk data principles | Relevant to banking/risk reporting: accuracy, completeness, timeliness, traceability, and adaptability. | Lineage, point in time reporting, reconciliation, quality gates, trusted reporting outputs. |
+| UK GDPR / Data Protection Act principles | Relevant because the platform works with customer/account level credit data. | Pseudonymised customer IDs, data minimisation, access controls, retention awareness, encryption. |
+| ISO 27001 control awareness | Relevant for secure handling of financial/customer data. | Encryption at rest/in transit, least privilege access, logging, controlled storage zones. |
+| DAMA-DMBOK data governance concepts | Useful for general data governance language: ownership, definitions, metadata, and quality dimensions. | Data dictionary, agreed definitions, schema checks, completeness, validity, and consistency checks. |
+
+Do not lead with IFRS 9 unless the platform evidence specifically covers credit impairment, expected credit loss, probability of default, loss given default, exposure at default, or staging.
+
+Treat FCA Consumer Duty as context for fair customer outcomes, not the main data governance standard for this role.
+
+What alignment looks like in the platform:
+
+| Governance angle | Platform meaning |
+| --- | --- |
+| Lineage | Reporting outputs link back to source dataset, processing run, schema version, timestamp, and manifest fingerprint where available. |
+| Reporting cutoffs | Finance/risk reports use fixed reporting periods and as-of dates so numbers are repeatable. |
+| Point in time correctness | Risk signals and account states only use data available at that time, avoiding future leakage. |
+| Reconciliation | Row counts, transaction totals, account counts, and risk band movements are checked across raw, curated, and reporting layers. |
+| Data quality gates | Datasets are checked for completeness, validity, duplicates, nulls, schema drift, and stale inputs before release to reporting. |
+| Data definitions | Terms such as customer, account, transaction, flagged account, risk band, escalation, decision outcome, and reporting period are defined. |
+| Privacy controls | Customer/account identifiers are pseudonymised and reporting layers avoid unnecessary personal data. |
+| Security controls | AWS storage uses encryption, controlled access, separated raw/curated/reporting zones, and audit logs. |
+| Exception management | Failed checks create exception records so broken datasets are not silently used in reports. |
+
+Strong posture:
+
+> Maintained governed customer credit data flows with awareness of BCBS 239 risk data principles, UK GDPR data protection principles, ISO 27001 control expectations, and DAMA-DMBOK governance concepts, using lineage records, reporting cutoffs, reconciliation checks, pseudonymised identifiers, encryption, access controls, and data quality gates before reporting release.
+
 ## Data Users
 
 Because this is an open-source/platform project, do not claim real business teams used it unless they did. The safer position is that the platform was designed around these business user groups.

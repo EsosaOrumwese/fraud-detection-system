@@ -73,4 +73,20 @@ The method is:
 
 ### CV Bullet
 
-- Managed data requests and reporting needs across 6 recurring request areas by turning account, transaction, risk, and reporting questions into validated SQL/SAS extracts, Excel-ready summaries, and clear reporting outputs checked for accuracy, consistency, and reporting relevance.
+- Managed varied data requests and reporting needs across 6 recurring request areas by turning account, transaction, risk, and reporting questions into validated SQL/SAS extracts, Excel-ready summaries, and clear reporting outputs checked for accuracy, consistency, and reporting relevance.
+
+### Role Responsibility
+
+> Collaborating closely with team members to ensure data quality and governance practices are upheld.
+
+### XYZ Breakdown
+
+| Part | Extracted from role's responsibility | Built |
+|---|---|---|
+| X | ensure data quality and governance practices are upheld | Ensured data quality and governance practices were upheld. |
+| Y |  | Resulting in more traceable, consistent, and reporting ready data. |
+| Z | Collaborating closely with team members | With awareness of BCBS 239 risk data principles, UK GDPR / Data Protection Act principles, ISO 27001 control awareness, and DAMA-DMBOK data governance concepts. |
+
+### CV Bullet
+
+- Applied awareness of BCBS 239 risk data principles, UK GDPR / Data Protection Act principles, ISO 27001 control expectations, and DAMA-DMBOK governance concepts, resulting in more traceable, consistent, and reporting ready data while upholding data quality and governance practices.
