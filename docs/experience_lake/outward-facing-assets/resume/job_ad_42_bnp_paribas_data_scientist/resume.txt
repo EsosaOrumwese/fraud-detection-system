@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 4+ years across analytical, data, and ML projects, with recent agentic AI experience in customer-behaviour analysis and model evaluation.
-Applied AI/ML techniques to predict behaviour, explain model outputs, test decision strategies, and support practical solutions.
+Applied AI/ML techniques to predict behaviour, explain model outputs, test decision strategies, and support practical business decisions.
 Proficient in Python, R, SAS, SQL, PyTorch, XGBoost, SHAP, A/B testing, and model monitoring.
 
 EDUCATION
@@ -23,7 +23,7 @@ AWS-hosted customer-credit risk platform with SQL/SAS datasets, ML workflows, ex
 
 - Improved recall of customer-credit risk movement by 18% over a logistic regression baseline using XGBoost scoring and time-based validation.
 - Identified 4 behavioural drivers across priority customer segments, using SHAP explainability to interpret XGBoost model predictions.
-- Used OpenAI Codex to investigate behavioural risk drivers, generating SQL/Python checks, feature hypotheses, model-comparison tests, and evidence summaries from customer-credit data
+- Used OpenAI Codex to investigate behavioural risk drivers, generating SQL/Python checks, feature hypotheses, model-comparison tests, and evidence summaries.
 - Implemented A/B and champion/challenger testing across 3 model-threshold strategies and 5 outcome measures to compare risk-prioritisation approaches before adoption.
 - Maintained BAU model processes across scoring, feature refreshes, drift monitoring, threshold checks, and performance reviews to keep predictive outputs trusted.
 
