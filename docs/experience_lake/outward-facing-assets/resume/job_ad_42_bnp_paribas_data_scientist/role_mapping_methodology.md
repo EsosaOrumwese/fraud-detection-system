@@ -81,3 +81,19 @@ Full platform positioning is kept separately in:
 ### CV Bullet
 
 - Improved evidence before adopting customer credit strategy changes by comparing 3 threshold strategies across 5 outcome measures: risk capture, review waste, escalation rate, time to detection, and operational load, using A/B and champion/challenger testing logic for model led decision strategies.
+
+### Method Focus
+
+> BAU model process maintenance and improvement.
+
+### XYZ Breakdown
+
+| Part | Built |
+|---|---|
+| X | Kept predictive outputs reliable and trusted. |
+| Y | Across customer credit scoring, feature refreshes, drift monitoring, threshold checks, reporting outputs, and model performance reviews. |
+| Z | By maintaining and improving BAU model processes. |
+
+### CV Bullet
+
+- Kept predictive outputs reliable and trusted across customer credit scoring, feature refreshes, drift monitoring, threshold checks, reporting outputs, and model performance reviews by maintaining and improving BAU model processes.

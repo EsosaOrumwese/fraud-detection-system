@@ -385,6 +385,8 @@ Strong posture:
 
 For the responsibility around maintaining and improving BAU processes, the platform story should show that models and analytical processes remain trusted after initial build.
 
+The BAU process would include recurring customer credit scoring, feature refreshes, drift monitoring, threshold checks, reporting outputs, and model performance reviews. The improvement angle is that the platform does not just keep running; it makes the modelling workflow more stable, monitored, repeatable, and trusted.
+
 BAU maintenance can include:
 
 | Maintenance area | Platform meaning |
@@ -399,7 +401,7 @@ BAU maintenance can include:
 
 Strong posture:
 
-> Maintained BAU model confidence through model performance monitoring, drift checks, threshold review, data refresh validation, rerun discipline, QA checks, and documentation of model assumptions and limitations.
+> Maintained and improved BAU model processes across customer credit scoring, feature refreshes, drift monitoring, threshold checks, reporting outputs, and model performance reviews to keep predictive outputs reliable and trusted.
 
 ## GenAI and Innovation
 
