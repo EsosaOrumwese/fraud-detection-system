@@ -2,7 +2,7 @@
 
 ## Role Posture
 
-For this role, the platform should be positioned as a financial/customer credit data flow platform, not as a fraud analytics or machine learning project.
+For this role, the platform should be positioned as a customer credit risk intelligence platform, with the resume emphasis placed on the financial data analyst work inside that platform.
 
 The BNP / Arval role is about joining a finance team to build and maintain data flows, review existing data processing, manage finance reporting and data requests, and uphold data quality and governance practices.
 
@@ -14,7 +14,7 @@ The platform story should quietly answer:
 
 The first experience should be framed around:
 
-> Built and maintained an AWS hosted customer credit data platform processing a 2.35 billion row credit surface, transforming raw customer, account, and transaction data into governed SQL and SAS reporting datasets for financial analysis, risk monitoring, data quality checks, and general reporting requests.
+> AWS-hosted open-source platform supporting customer credit risk reporting, SAS workflows, governed data flows, and data quality controls.
 
 This is not a final resume bullet. It is the role posture.
 
@@ -329,7 +329,7 @@ Raw financial/customer activity data comes in. It is stored in AWS S3. It is tra
 
 | Area | Positioning rule |
 | --- | --- |
-| Platform identity | Financial/customer credit data flow platform |
+| Platform identity | Customer credit risk intelligence platform |
 | Main problem solved | Building and maintaining reliable data flows for finance and risk reporting and insight |
 | Scale | 2.35 billion row credit surface, plus supporting customer/account/transaction/risk/outcome/reporting datasets |
 | Storage story | AWS S3 for scale, partitioned Parquet/curated tables for queryability, SQL/Athena/Redshift querying |
@@ -340,4 +340,4 @@ Raw financial/customer activity data comes in. It is stored in AWS S3. It is tra
 
 ## One Line Platform Description Candidate
 
-AWS hosted open-source financial/customer credit data platform transforming raw customer, account, and transaction data into governed SQL and SAS reporting datasets for finance reporting, credit risk analysis, data quality checks, and decision support.
+AWS-hosted open-source platform supporting customer credit risk reporting, SAS workflows, governed data flows, and data quality controls.

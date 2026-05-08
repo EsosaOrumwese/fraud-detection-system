@@ -4,11 +4,11 @@ This is a living note for building experience evidence against the BNP / Arval F
 
 ## Platform Positioning
 
-**Role name:** Financial Data Analyst / Customer Credit Data Analyst
+**Role name:** Financial Data Analyst
 
-**Platform name:** Customer Credit Financial Data Platform [Open-source]
+**Platform name:** Customer Credit Risk Intelligence Platform [Open-source]
 
-**Platform description:** AWS hosted open-source financial/customer credit data platform transforming raw customer, account, and transaction data into governed SQL and SAS reporting datasets for finance reporting, credit risk analysis, data quality checks, and decision support.
+**Platform description:** AWS-hosted open-source platform supporting customer credit risk reporting, SAS workflows, governed data flows, and data quality controls.
 
 Full platform positioning is kept separately in:
 
