@@ -149,9 +149,123 @@ How it would be deployed:
 
 > The trained gradient boosting model scores customer/account records on a recurring basis, producing probability scores for future risk movement or review need. Those scores feed risk bands, prioritisation outputs, monitoring dashboards, and strategy testing workflows.
 
+Expected results:
+
+| Result type | What it means |
+| --- | --- |
+| Lift over baseline | XGBoost identifies more future risk movement than static rules or Logistic Regression at the same review volume. |
+| Earlier detection | Accounts likely to worsen are identified before later escalation or missed-payment stage. |
+| Better prioritisation | Review queues focus more on accounts with genuine movement risk, reducing low-value reviews. |
+| Improved threshold control | Risk thresholds can be tuned to balance coverage, review volume, and customer treatment. |
+| More stable BAU scoring | Model performance is monitored over time and remains usable across reporting windows. |
+| Better commercial targeting | Actions/interventions can be aimed at segments with clearer behavioural evidence. |
+| Explainable drivers | SHAP/feature importance shows which behaviours are contributing to risk movement. |
+
+Metric directions:
+
+| Metric | Example |
+| --- | --- |
+| Lift | Improved high risk identification by 18% over a Logistic Regression baseline. |
+| Prioritisation | Concentrated 42% of future risk movement in the top 20% of scored accounts. |
+| Review efficiency | Reduced low value review volume by 11% at the same risk coverage. |
+| Earlier detection | Identified risk movement 14 days earlier than static rule triggers. |
+| Threshold testing | Tested 3 score thresholds to balance risk coverage and review volume. |
+
+Most suitable result for this role:
+
+> Improved early identification of customer credit risk movement by 18% over a Logistic Regression baseline using XGBoost / gradient boosted trees.
+
+Alternative business-facing result:
+
+> Concentrated future risk movement into the top scored account bands, helping prioritise review effort and support earlier responsible decisioning.
+
 Strong posture:
 
 > Used XGBoost / gradient boosted trees on engineered customer, account, transaction, and decision features to predict future credit risk movement, replacing static rule logic with a modelled probability score that supported earlier prioritisation and responsible decision support.
+
+## SHAP Explainability for Behavioural Levers
+
+SHAP should be positioned as the explainability layer on top of the predictive model, not as a separate modelling technique.
+
+Business challenge:
+
+> The model can predict customer credit risk movement, but business users still need to understand why a customer/account was scored higher and which behavioural levers are driving the prediction.
+
+Where SHAP sits in the platform:
+
+| Platform layer | SHAP use |
+| --- | --- |
+| Model interpretation layer | Explains XGBoost predictions after the model scores customers/accounts. |
+| Customer/account review layer | Shows the top factors contributing to an individual account's risk movement score. |
+| Segment insight layer | Aggregates SHAP values across groups to identify common behavioural levers. |
+| Strategy testing layer | Helps explain why one threshold, segment, or strategy performs differently from another. |
+| Stakeholder output layer | Converts model drivers into business-facing explanations and recommended actions. |
+| BAU monitoring layer | Tracks whether important drivers change over time, supporting model confidence review. |
+
+What data/outputs it uses:
+
+| Input | SHAP output |
+| --- | --- |
+| XGBoost model | Contribution values for each feature. |
+| Engineered features | Which variables increased or decreased the risk score. |
+| Customer/account records | Individual explanation for each prediction. |
+| Segment groups | Common drivers across customer cohorts. |
+| Time windows | Whether drivers shift between reporting periods. |
+
+How it is applied:
+
+1. Train XGBoost / gradient boosted trees on customer, account, transaction, and decision features.
+2. Generate SHAP values for model predictions.
+3. Use local SHAP explanations to explain individual high-risk account scores.
+4. Aggregate SHAP values to identify the strongest behavioural levers across customer segments.
+5. Use those drivers to support model explanation, risk analysis, strategy recommendations, and stakeholder communication.
+6. Monitor whether top drivers change over time as part of BAU model confidence checks.
+
+What SHAP explains in this platform:
+
+| Behavioural lever | Meaning |
+| --- | --- |
+| Recent transaction volatility | Sudden changes in customer/account activity. |
+| Risk band movement | Movement from lower risk to medium/high risk states. |
+| Frequency/recency changes | Changes in how often or how recently activity occurs. |
+| Failed/late payment indicators | Signals linked to worsening financial behaviour if available. |
+| Previous flags/reviews | Whether prior risk signals continue to matter. |
+| Exposure/utilisation movement | Whether account balance/exposure patterns are shifting. |
+| Decision outcome history | Whether previous interventions/reviews relate to current risk. |
+
+Expected SHAP results:
+
+| Result type | What it means |
+| --- | --- |
+| Behavioural lever identification | Identified which behaviours were most responsible for customer credit risk movement. |
+| Individual account explanation | Explained why specific accounts were scored higher or lower by the model. |
+| Segment-level insight | Showed which drivers mattered most across different customer/account cohorts. |
+| Better stakeholder trust | Made model outputs easier to understand and challenge before action. |
+| Clearer strategy recommendations | Linked model drivers to practical decisions around prioritisation, thresholds, or interventions. |
+| BAU monitoring insight | Showed whether the main model drivers changed over time, supporting model confidence checks. |
+| Reduced black-box risk | Turned XGBoost from a high-performing black box into an explainable decision-support tool. |
+
+Metric directions:
+
+| Metric | Example |
+| --- | --- |
+| Driver concentration | Top 5 SHAP drivers explained most high-risk movement patterns. |
+| Explanation coverage | Produced account-level explanations for 100% of scored high-risk cases. |
+| Segment insight | Identified 4 behavioural levers across priority customer/account segments. |
+| Stakeholder output | Converted model outputs into 3 business-facing driver summaries. |
+| Monitoring | Tracked top driver stability across monthly scoring windows. |
+
+Most suitable result for this role:
+
+> Identified 4 behavioural levers behind customer credit risk movement using SHAP, turning XGBoost predictions into explainable business-facing insight for prioritisation and responsible decision support.
+
+Alternative result:
+
+> Produced SHAP explanations for scored accounts, showing which behavioural features drove higher risk scores and helping translate model outputs into clear prioritisation evidence.
+
+Strong posture:
+
+> Used SHAP explainability on top of XGBoost predictions to identify the behavioural levers behind customer credit risk movement, explain individual account scores, and translate model outputs into business-facing insight for prioritisation and responsible decision support.
 
 Use these only where a clear platform need is defined:
 
