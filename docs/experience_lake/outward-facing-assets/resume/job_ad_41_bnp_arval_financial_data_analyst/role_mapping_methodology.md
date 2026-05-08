@@ -35,10 +35,10 @@ The method is:
 
 | Part | Extracted from role's responsibility | Built |
 |---|---|---|
-| X | enhance data IQ |  |
-| Y |  |  |
+| X | enhance data IQ | Enhanced the financial understanding available from customer credit data by making account, transaction, risk, and reporting information easier to trust, query, and explain. |
+| Y |  | Across a 2.35 billion row credit surface and 7 governed customer credit data flows |
 | Z | Building and maintaining data flows | Building and maintaining customer, account, transaction, risk signal, decision outcome, reporting, and data quality flows across a governed customer credit financial data platform. |
 
 ### CV Bullet
 
-- 
+- Built and maintained 7 governed customer credit data flows across a 2.35 billion row credit surface, enhancing financial data IQ for account, transaction, risk, reporting, and data quality analysis.

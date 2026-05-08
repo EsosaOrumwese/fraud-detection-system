@@ -30,6 +30,51 @@ It should communicate:
 - finance and risk relevance;
 - maintainability.
 
+## Data IQ to Enhance
+
+For this role, "enhance data IQ" means improving stakeholders' ability to understand, trust, query, explain, and act on customer credit financial data.
+
+The platform should not be positioned as only storing a 2.35 billion row credit surface. The value is the intelligence layer built on top of the raw volume.
+
+Stakeholders would want clearer answers to questions such as:
+
+- What is happening across customer, account, transaction, risk, and reporting data?
+- Can we trust the numbers?
+- Which customers or accounts are changing?
+- What is driving the change?
+- Which cases, reports, or exceptions need attention?
+- Which reports are safe to use?
+- Where did this number come from?
+
+| Data IQ area | What stakeholders gain |
+| --- | --- |
+| Customer/account visibility | A clearer view of each customer, account, transaction activity, risk band, flags, and decision history. |
+| Financial reporting confidence | Reporting datasets that are clean, reconciled, queryable, and ready for finance analysis. |
+| Risk understanding | Ability to see which accounts are becoming riskier, improving, staying stable, or needing review. |
+| Trend intelligence | Ability to track changes over time across payment behaviour, account activity, risk movement, escalation patterns, and reporting exceptions. |
+| Data quality awareness | Visibility into missing values, duplicates, broken joins, stale data, schema changes, and unusual row count movements. |
+| Governance and lineage | Ability to trace where a dataset came from, when it was processed, what rules were applied, and whether it is safe to use. |
+| Decision support | Clearer evidence for prioritisation, review queues, customer messaging logic, escalation decisions, and reporting requests. |
+| Self-serve querying | SQL, SAS, Power BI, and Excel ready datasets so stakeholders do not need to rebuild raw logic every time they ask a question. |
+
+Stakeholder versions of data IQ:
+
+| Stakeholder group | What data IQ means to them |
+| --- | --- |
+| Finance team | Can I trust this dataset enough to use it for reporting and analysis? |
+| Credit risk team | Can I see which accounts are becoming riskier and why? |
+| Collections strategy team | Can we use the data to make better, fairer prioritisation decisions? |
+| Operations/contact centre teams | Can this data tell us what to do next? |
+| Governance/compliance stakeholders | Can we prove where the numbers came from and whether they were produced correctly? |
+
+In platform terms, the data IQ story is:
+
+> Raw customer/account/transaction/decision data becomes governed, queryable, reporting ready intelligence about customer credit behaviour, risk movement, data quality, and decision outcomes.
+
+Key phrase:
+
+> From raw volume to trusted intelligence.
+
 ## Data Flows in the Platform
 
 | Data flow | Platform meaning |
