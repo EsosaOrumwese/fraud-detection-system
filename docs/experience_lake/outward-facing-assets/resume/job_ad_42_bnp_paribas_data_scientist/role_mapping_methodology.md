@@ -49,3 +49,19 @@ Full platform positioning is kept separately in:
 ### CV Bullet
 
 - Identified behavioural levers behind customer credit risk movement by surfacing 4 key drivers across priority customer/account segments using SHAP explainability on top of XGBoost predictions.
+
+### Method Focus
+
+> Agentic behavioural-driver discovery using OpenAI Codex.
+
+### XYZ Breakdown
+
+| Part | Built |
+|---|---|
+| X | Supported an agentic behavioural-driver discovery workflow for future customer credit risk-movement prediction. |
+| Y | From customer credit data exploration to candidate risk-factor hypotheses, SQL/Python feature tests, model comparison, and evidence summaries. |
+| Z | Using OpenAI Codex. |
+
+### CV Bullet
+
+- Supported an agentic behavioural-driver discovery workflow for future customer credit risk-movement prediction, using OpenAI Codex to move from customer credit data exploration to candidate risk-factor hypotheses, SQL/Python feature tests, model comparison, and evidence summaries.

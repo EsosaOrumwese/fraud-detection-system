@@ -323,24 +323,65 @@ Strong posture:
 
 For the responsibility around exploring and innovating new solutions using technologies such as generative AI, the platform story should focus on practical GenAI-assisted data science workflow, not hype.
 
-The defensible angle is:
+The stronger defensible angle is:
 
-> Used OpenAI Codex / GenAI-assisted workflows to accelerate experimentation, code generation, QA, documentation, model evaluation support, and analytical iteration while retaining human review and control.
+> Use Codex/OpenAI to support an agentic behavioural-driver discovery workflow, moving from customer credit data exploration to candidate risk-factor hypotheses, SQL/Python feature tests, model comparison, and evidence summaries for future risk-movement prediction.
 
-Possible uses:
+This is stronger than only using GenAI to summarise SHAP values. SHAP explains what an existing model already learned. Agentic AI helps discover what the model should test next.
 
-| GenAI use | Platform meaning |
+Business problem:
+
+> The platform needs to discover which customer behaviours signal future risk early enough to support better, more responsible decisions.
+
+The old approach might be:
+
+> React when a customer crosses a fixed rule or threshold.
+
+The improved approach is:
+
+> Search for behavioural patterns that appear before the threshold is crossed, test whether those patterns improve prediction and prioritisation, and use the evidence to guide the next model or strategy experiment.
+
+Agentic investigation loop:
+
+> question -> data exploration -> hypothesis -> feature idea -> SQL/Python test -> model comparison -> evidence summary -> recommended next experiment
+
+What the AI workflow helps with:
+
+| Stage | What the AI helps with |
 | --- | --- |
-| Experiment scaffolding | Generate candidate notebook/code structures for model experiments. |
-| Code acceleration | Speed up SQL/Python/SAS-adjacent analytical code drafting where reviewed by the analyst. |
-| QA support | Generate or review checks for edge cases, leakage, input validation, and rerun consistency. |
-| Documentation | Draft model notes, assumptions, limitations, and stakeholder explanations. |
-| Evaluation support | Help compare candidate model outputs, metrics, and interpretation summaries. |
-| Workflow iteration | Explore alternative modelling or feature engineering routes faster. |
+| Explore | Inspect customer credit behaviour patterns, risk movement, account changes, threshold behaviour, recovery patterns, and early stress signals. |
+| Hypothesise | Suggest candidate behavioural drivers or risk-factor hypotheses. |
+| Feature design | Propose features such as payment consistency, utilisation acceleration, transaction volatility, recovery trend, repeated threshold near-misses, risk band momentum, and account stability. |
+| Test | Generate SQL/Python checks or feature tests to validate whether a hypothesis holds. |
+| Compare | Help structure model comparisons against baseline features or previous model versions. |
+| Summarise | Convert results into evidence notes and next experiment recommendations. |
+
+Examples of candidate behavioural drivers:
+
+| Driver idea | Platform meaning |
+| --- | --- |
+| Payment rhythm changes | A change in the consistency or timing of customer payment behaviour. |
+| Utilisation acceleration | Customer/account exposure rising faster than normal. |
+| Transaction volatility | Sudden changes in volume, value, or frequency of transaction activity. |
+| Activity drop-off | Reduced activity that may signal stress, disengagement, or changed behaviour. |
+| Recovery trend | Evidence that a previously risky account is stabilising or improving. |
+| Repeated near-threshold behaviour | Customers repeatedly close to risk thresholds before formal escalation. |
+| Risk band momentum | Direction and speed of movement across risk bands. |
+| Account stability index | Composite signal capturing whether behaviour is stable, worsening, or recovering. |
+
+Relationship to the wider data science workflow:
+
+| Step | Role |
+| --- | --- |
+| Agentic AI | Discovers candidate behavioural drivers and feature ideas. |
+| XGBoost / gradient boosted trees | Tests whether those drivers improve risk movement prediction. |
+| SHAP | Explains which drivers matter after the model learns them. |
+| Experimentation | Tests whether thresholds or strategies based on those drivers improve outcomes. |
+| Stakeholder outputs | Translate the evidence into business-facing recommendations. |
 
 Strong posture:
 
-> Explored GenAI/Codex-assisted workflows to accelerate experimentation, QA, documentation, and model evaluation support while keeping analytical judgement, validation, and final decisions under human control.
+> Used Codex/OpenAI to support an agentic behavioural-driver discovery workflow that explored customer credit data, generated candidate risk-factor hypotheses, produced SQL/Python feature tests, and evaluated which behavioural signals improved risk-movement prediction.
 
 ## Stakeholder Outputs and Communication
 
