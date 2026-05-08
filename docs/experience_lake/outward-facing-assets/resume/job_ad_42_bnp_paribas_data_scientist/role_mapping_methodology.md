@@ -65,3 +65,19 @@ Full platform positioning is kept separately in:
 ### CV Bullet
 
 - Supported an agentic behavioural-driver discovery workflow for future customer credit risk-movement prediction, using OpenAI Codex to move from customer credit data exploration to candidate risk-factor hypotheses, SQL/Python feature tests, model comparison, and evidence summaries.
+
+### Method Focus
+
+> A/B and champion/challenger testing for model led decision strategies.
+
+### XYZ Breakdown
+
+| Part | Built |
+|---|---|
+| X | Improved evidence before adopting customer credit strategy changes. |
+| Y | 3 threshold strategies compared across 5 outcome measures: risk capture, review waste, escalation rate, time to detection, and operational load. |
+| Z | By implementing A/B and champion/challenger testing logic for model led decision strategies. |
+
+### CV Bullet
+
+- Improved evidence before adopting customer credit strategy changes by comparing 3 threshold strategies across 5 outcome measures: risk capture, review waste, escalation rate, time to detection, and operational load, using A/B and champion/challenger testing logic for model led decision strategies.

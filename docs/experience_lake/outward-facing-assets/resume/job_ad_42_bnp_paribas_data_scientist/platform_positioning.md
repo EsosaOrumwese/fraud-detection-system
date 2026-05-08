@@ -283,7 +283,89 @@ For the responsibility around implementing A/B testing techniques, the platform 
 
 The platform can position A/B testing as:
 
-> Testing strategy, threshold, model, or intervention changes against a baseline before recommending wider adoption.
+> Testing whether a new customer credit decision strategy works better than the existing one before trusting it as a decision tool.
+
+The test is not only:
+
+> Does XGBoost work?
+
+It is:
+
+> Does a model led strategy produce better customer and business outcomes than the current rule/process?
+
+The object being tested is the decision strategy.
+
+| Test object | What it means |
+| --- | --- |
+| Current rules vs model led prioritisation | Does predictive scoring find risk movement earlier than static thresholds? |
+| Old threshold vs new threshold | Does changing the cutoff reduce unnecessary reviews without missing serious risk? |
+| Generic review queue vs segmented queue | Does treating different behavioural groups differently improve outcomes? |
+| No early-warning trigger vs early-warning trigger | Does acting earlier help identify accounts before risk worsens? |
+| Manual review logic vs champion/challenger model | Does the challenger model outperform the existing BAU decision process? |
+
+Strongest platform scenario:
+
+> A/B testing a model led prioritisation strategy against the existing rule based review strategy.
+
+Existing strategy: A / Champion
+
+| Existing strategy | Meaning |
+| --- | --- |
+| Rule based process | Flags accounts using fixed triggers such as missed-payment marker, balance threshold, risk band threshold, arrears/status change, or repeated account flags. |
+
+Why this may be weak:
+
+- It can be blunt.
+- It can flag too many accounts.
+- It can miss early behavioural risk.
+- It can send cases to review when they do not need it.
+
+New strategy: B / Challenger
+
+| New strategy | Meaning |
+| --- | --- |
+| Model led process | Uses XGBoost/LightGBM risk movement scores, behavioural features, threshold tuning, risk band movement, account activity patterns, and customer/account segmentation. |
+
+Clean business question:
+
+> Does the model led strategy identify higher risk accounts earlier and reduce unnecessary review/escalation compared with the existing rule based approach?
+
+Comparison design:
+
+| Group | Strategy |
+| --- | --- |
+| A / Champion | Current rule based prioritisation. |
+| B / Challenger | XGBoost/LightGBM risk score + tuned threshold + behavioural features. |
+
+Outcomes to compare:
+
+| Metric | Why it matters |
+| --- | --- |
+| Risk capture rate | Did the strategy catch accounts that later worsened? |
+| False positive/review waste rate | Did it avoid flagging accounts unnecessarily? |
+| Escalation rate | Did it reduce unnecessary escalation? |
+| Time to detection | Did it identify risk earlier? |
+| Customer outcome proxy | Did it support more appropriate treatment paths? |
+| Operational load | Did it reduce review queue pressure? |
+
+Where this sits in the platform:
+
+> model training -> scoring -> threshold strategy -> A/B or champion/challenger test -> outcome comparison -> decision on rollout
+
+| Platform layer | Role in A/B testing |
+| --- | --- |
+| Feature layer | Builds customer/account behavioural variables. |
+| Scoring layer | Produces model risk scores. |
+| Strategy layer | Applies current rule or challenger model threshold. |
+| Experiment layer | Assigns eligible accounts/cohorts to A or B. |
+| Outcome layer | Tracks risk movement, review outcomes, escalation, and customer outcome proxies. |
+| Monitoring layer | Checks whether results are stable and not harmful across segments. |
+
+Important wording:
+
+> A/B, holdout, and champion/challenger testing where appropriate.
+
+This matters because in consumer finance not every test should be a live randomised experiment. Safer testing routes can include historical replay, shadow testing, holdout validation, champion/challenger comparison, phased rollout, and live A/B only when safe and controlled.
 
 Potential comparison designs:
 
@@ -297,7 +379,7 @@ Potential comparison designs:
 
 Strong posture:
 
-> Used A/B style evaluation and champion/challenger testing to compare model thresholds, risk strategies, and intervention logic before recommending decisioning changes.
+> Implemented A/B, holdout, and champion/challenger testing logic to compare existing rule based account prioritisation against model led risk scoring, testing whether XGBoost/LightGBM thresholds improved early risk detection, reduced unnecessary reviews, and supported more responsible customer credit decisions.
 
 ## BAU Model Maintenance
 
