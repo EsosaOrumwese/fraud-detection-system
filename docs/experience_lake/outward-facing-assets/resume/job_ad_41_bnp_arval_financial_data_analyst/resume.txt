@@ -1,11 +1,11 @@
 Esosa Orumwese
-Financial Data Analyst | Maintaining Data Flow to Enhance Data IQ | <relevant SaaS tools>, SQL, SAS
+Financial Data Analyst | Financial Data Flows, SAS Reporting & Data IQ | SQL, SAS, Python, Power BI
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years driving business insights across complex and large-scale datasets.
-Built and maintained data flows of large financial datasets.
-Highly proficient in SQL, SAS, and skilled in SaaS tools like <relevant SaaS tools>.
+4+ years driving business insights across complex data, reporting, and analytical workflows.
+Built and maintained data flows across large financial datasets for reporting, data quality, and decision support.
+Highly proficient in SQL, SAS, Python, Excel, Power BI, and cloud-hosted SaaS data workflows.
 
 EDUCATION
 
