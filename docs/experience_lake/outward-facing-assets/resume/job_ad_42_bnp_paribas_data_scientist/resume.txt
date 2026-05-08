@@ -1,10 +1,10 @@
 Esosa Orumwese
-Applied Data Scientist | Customer Behaviour Modelling, ML & Agentic AI | Python, SQL, SAS, R
+Applied Data Scientist | Customer Behaviour ML, Experimentation & Responsible Decision Support | Python, SQL, SAS, R
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years across analytical, data, and ML projects, with recent agentic AI experience in customer-behaviour analysis and model evaluation.
-Applied AI/ML techniques to predict behaviour, explain model outputs, test decision strategies, and support practical business decisions.
+4+ years across analytical, data, and ML projects, using advanced analytics to predict, test, and explain customer behaviour.
+Built customer-credit ML workflows that turn behavioural data into actionable insight for commercial and responsible-finance decision support.
 Proficient in Python, R, SAS, SQL, PyTorch, XGBoost, SHAP, A/B testing, and model monitoring.
 
 EDUCATION
@@ -19,7 +19,7 @@ RELEVANT EXPERIENCE
 
 Applied Data Scientist
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
-AWS-hosted customer-credit risk platform with SQL/SAS datasets, ML workflows, experimentation, model monitoring, and a 2.35B-row credit surface.
+AWS-hosted customer-credit ML platform for risk prediction, behavioural insight, and model monitoring over 2.35B rows.
 
 - Improved recall of customer-credit risk movement by 18% over a logistic regression baseline using XGBoost scoring and time-based validation.
 - Identified 4 behavioural drivers across priority customer segments, using SHAP explainability to interpret XGBoost model predictions.
