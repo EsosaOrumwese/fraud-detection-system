@@ -22,10 +22,10 @@ Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025
 AWS-hosted customer credit risk platform with SQL/SAS datasets, ML workflows, experimentation, and 2.35 billion row monitoring.
 
 - Improved early identification of customer credit risk movement by 18% over a Logistic Regression baseline using deployed XGBoost scoring.
-- Identified behavioural levers behind customer credit risk movement by surfacing 4 key drivers across priority customer segments using SHAP explainability on XGBoost predictions.
-- Used OpenAI Codex to support agentic behavioural-driver discovery, from customer data exploration to hypotheses, SQL/Python tests, model comparison, and evidence summaries.
+- Identified 4 behavioural drivers across priority customer segments, using SHAP explainability to interpret XGBoost model predictions.
+- Used OpenAI Codex to support agentic behavioural-driver discovery across customer data exploration, SQL/Python tests, model comparison, and evidence summaries.
 - Implemented A/B and champion/challenger testing across 3 model threshold strategies and 5 outcome measures to support credit strategy adoption.
-- Maintained and improved BAU model processes across scoring, feature refreshes, drift monitoring, threshold checks, and performance reviews to keep predictive outputs trusted.
+- Maintained BAU model processes across scoring, feature refreshes, drift monitoring, threshold checks, and performance reviews to keep outputs trusted.
 
 Usage-Based Insurance Behaviour Modelling
 University of Exeter — Exeter, UK | Aug 2024
