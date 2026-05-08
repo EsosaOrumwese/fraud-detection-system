@@ -19,7 +19,7 @@ RELEVANT EXPERIENCE
 
 Financial Data Analyst
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
-AWS-hosted customer-credit data platform for SQL/SAS reporting, governed data flows, and data-quality controls over 2.35B rows.
+AWS-hosted customer-credit data platform supporting SQL/SAS reporting, governed data flows, and data-quality controls across a 2.35B-row credit surface.
 
 - Built and maintained 7 governed customer-credit data flows across a 2.35B-row credit surface, improving reporting visibility and risk analysis.
 - Reviewed existing SAS reporting workflows to identify repeated joins, full-table scans, and duplicated report logic, reducing repeat-reporting runtime by 18%.
