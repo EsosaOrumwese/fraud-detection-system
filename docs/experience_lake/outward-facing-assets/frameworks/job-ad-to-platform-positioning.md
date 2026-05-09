@@ -36,9 +36,48 @@ You split the role into scan-level questions.
 2. Can they communicate clearly?
 3. Can they work positively and constructively?
 
+The hierarchy is nested, not separate boxes.
+
+> **A-level = the main hiring problem.**
+> **B-level = the proof environment where the A-level happened.**
+> **C-level = the working behaviours that make the A/B evidence believable and usable.**
+
+So the first experience block should not only say:
+
+> I owned lifecycle stages.
+
+It should show:
+
+> I owned lifecycle stages inside work that delivered impact, improved products/processes/performance, and generated customer/business insights.
+
+For the first experience block, the bullet pattern should ideally carry both:
+
+> what was delivered or improved
+> and
+> how the lifecycle/model/pipeline/statistical work made it happen.
+
 That hierarchy is now reflected in the Tesco positioning doc. 
 
-## 4. We shaped the top third of the CV first
+## 4. Map the job requirements to the question hierarchy
+
+After defining the A/B/C questions, map the job ad’s requirements back to those questions so we know **how the hiring manager is measuring each answer**.
+
+For example:
+
+* **“Has this person delivered impactful outcomes?”**
+  Measured through customer data experience, understanding of sales/customer behaviour, and churn/fraud/propensity modelling.
+
+* **“Can they manage models and pipelines?”**
+  Measured through end-to-end ML delivery, production workflows, SQL/Python/PySpark, databases, CI/CD, OOP, unit testing, and cloud technologies.
+
+* **“Can they communicate clearly?”**
+  Measured through explaining complex ideas in non-technical language, communicating approach/rationale, stakeholder collaboration, and customer-focused communication.
+
+This step prevents guessing. It tells us:
+
+> **This is the question the recruiter has, and this is the evidence they will scan for to decide whether the answer is yes.**
+
+## 5. We shaped the top third of the CV first
 
 Before touching bullets, we worked on:
 
@@ -53,7 +92,7 @@ So we landed on a top-third posture around:
 
 > Data Scientist, end-to-end ML, customer analytics, data-driven solutions, business problems, customer experience, SQL, Python, PySpark, production practices.
 
-## 5. We protected the unified platform story
+## 6. We protected the unified platform story
 
 You clarified that we are not creating separate platforms for every role.
 
@@ -63,7 +102,7 @@ The platform remains one unified evidence tree:
 
 So Tesco does not get a fake “Tesco churn platform.” It gets the **production ML + customer analytics branch** of the same platform.
 
-## 6. We identified what the platform already proves
+## 7. We identified what the platform already proves
 
 Before expanding anything, we asked:
 
@@ -81,7 +120,7 @@ We found existing strong evidence:
 * AWS-hosted platform;
 * business decision support.
 
-## 7. We identified what still needed Tesco-specific expansion
+## 8. We identified what still needed Tesco-specific expansion
 
 Then we asked:
 
@@ -98,7 +137,7 @@ The gaps were:
 * stakeholder communication;
 * documentation/security.
 
-## 8. We expanded each branch in positioning-doc format
+## 9. We expanded each branch in positioning-doc format
 
 For each signal, we used the same pattern:
 
@@ -111,7 +150,7 @@ For each signal, we used the same pattern:
 
 That is how we expanded PySpark, production deployment, software engineering, hypothesis-driven analysis, customer experience improvement, multiple data sources, stakeholder communication, and documentation/security. 
 
-## 9. Where we are now
+## 10. Where we are now
 
 We now have:
 
@@ -127,13 +166,14 @@ That means we are now ready to move from **positioning** into **first experience
 
 For the next role, the repeatable flow is:
 
-1. Fetch/read job ad.
-2. You study and state the real hiring problem.
-3. Extract A/B/C scan questions.
-4. Decide what the top third must answer.
-5. Check which existing platform branches already fit.
-6. Identify missing signals.
-7. Expand only the missing branches.
-8. Then write bullets from the evidence tree.
+1. **Fetch/read the job ad.**
+2. **You study and define the real hiring problem.**
+3. **Extract the A/B/C question hierarchy.**
+4. **Map the job requirements to those questions.**
+5. **Shape the top third of the CV around the A-level questions.**
+6. **Use the first experience block to prove the B-level questions while still carrying the A-level outcome.**
+7. **Check which unified platform branches already answer the role.**
+8. **Expand only the missing branches.**
+9. **Then write bullets from the evidence tree.**
 
 That keeps the CV targeted without breaking the unified platform story.
