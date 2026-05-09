@@ -1,0 +1,139 @@
+Here’s the progression we followed — the reusable method.
+
+## 1. Open the job ad, but don’t position yet
+
+First, we fetched the Tesco Mobile Data Scientist job ad from Notion and read it only to understand the role surface: Data Scientist, Tesco Mobile, customer data, production ML, PySpark, pipelines, CI/CD, testing, customer experience, business outcomes. 
+
+At this stage, we did **not** jump into bullets.
+
+## 2. You studied the job ad and extracted the real hiring problem
+
+You then gave your own interpretation:
+
+> They are not just hiring a Data Scientist. They are hiring someone who can solve real business problems and improve customer experience using data science, customer data, statistical methods, and production ML.
+
+That became the anchor.
+
+## 3. We converted the job ad into a problem hierarchy
+
+You split the role into scan-level questions.
+
+**A-level questions** — must be answered by the headline and professional summary:
+
+1. Has this person delivered impactful outcomes?
+2. Have they identified opportunities to improve products, processes, and performance using data?
+3. Can they analyse customer/business data to generate insights that improve customer experience and business outcomes?
+
+**B-level questions** — must be proven by the first experience block:
+
+1. Have they owned key stages of the data science lifecycle?
+2. Can they manage data science models and data pipelines?
+3. Can they use statistical methods to generate insights?
+
+**C-level questions** — supporting/interview-level signals:
+
+1. Can they collaborate?
+2. Can they communicate clearly?
+3. Can they work positively and constructively?
+
+That hierarchy is now reflected in the Tesco positioning doc. 
+
+## 4. We shaped the top third of the CV first
+
+Before touching bullets, we worked on:
+
+> **Title → Headline → Professional Summary**
+
+The logic was:
+
+> **Headline = compressed professional summary.**
+> **Professional summary = answer to A-level questions.**
+
+So we landed on a top-third posture around:
+
+> Data Scientist, end-to-end ML, customer analytics, data-driven solutions, business problems, customer experience, SQL, Python, PySpark, production practices.
+
+## 5. We protected the unified platform story
+
+You clarified that we are not creating separate platforms for every role.
+
+The platform remains one unified evidence tree:
+
+> One customer behaviour / credit risk / ML platform, with different branches emphasised depending on the job.
+
+So Tesco does not get a fake “Tesco churn platform.” It gets the **production ML + customer analytics branch** of the same platform.
+
+## 6. We identified what the platform already proves
+
+Before expanding anything, we asked:
+
+> Looking at the platform, what already answers the A-level and B-level questions?
+
+We found existing strong evidence:
+
+* customer/account/transaction/risk data;
+* 2.35B-row credit surface;
+* XGBoost over logistic regression baseline;
+* SHAP behavioural drivers;
+* A/B / champion-challenger testing;
+* BAU model monitoring;
+* 7 governed data flows;
+* AWS-hosted platform;
+* business decision support.
+
+## 7. We identified what still needed Tesco-specific expansion
+
+Then we asked:
+
+> What does Tesco need that the current platform story does not yet make obvious?
+
+The gaps were:
+
+* PySpark;
+* production deployment;
+* software engineering best practices;
+* hypothesis-driven analysis;
+* customer experience / product-process-performance improvement;
+* multiple data sources;
+* stakeholder communication;
+* documentation/security.
+
+## 8. We expanded each branch in positioning-doc format
+
+For each signal, we used the same pattern:
+
+1. **Role Signal** — what Tesco is really asking for.
+2. **What it means in our platform** — how the unified platform answers it.
+3. **Where it sits in the platform** — pipeline layer, model layer, output layer, etc.
+4. **What it does / builds / improves** — concrete platform function.
+5. **Strong posture** — one strong positioning sentence.
+6. **Possible resume language later** — not final bullet, just candidate direction.
+
+That is how we expanded PySpark, production deployment, software engineering, hypothesis-driven analysis, customer experience improvement, multiple data sources, stakeholder communication, and documentation/security. 
+
+## 9. Where we are now
+
+We now have:
+
+> **A Tesco-specific platform positioning branch that still belongs to the same unified platform evidence tree.**
+
+The current platform posture for Tesco is:
+
+> **A production customer analytics and ML platform that turns large customer datasets into production ML workflows, insights, and business decisions.**
+
+That means we are now ready to move from **positioning** into **first experience bullet design**, using the expanded branches instead of inventing bullet points from scratch.
+
+## Reusable method for the next job ad
+
+For the next role, the repeatable flow is:
+
+1. Fetch/read job ad.
+2. You study and state the real hiring problem.
+3. Extract A/B/C scan questions.
+4. Decide what the top third must answer.
+5. Check which existing platform branches already fit.
+6. Identify missing signals.
+7. Expand only the missing branches.
+8. Then write bullets from the evidence tree.
+
+That keeps the CV targeted without breaking the unified platform story.
