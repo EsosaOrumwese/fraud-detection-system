@@ -421,6 +421,259 @@ After software engineering discipline:
 
 > Structured ML pipelines using Python, PySpark, Git, OOP, unit testing, and CI/CD checks to keep feature engineering, scoring, evaluation, and monitoring workflows reusable and maintainable.
 
+## Hypothesis-Driven Analysis Platform Positioning
+
+### Role Signal
+
+Tesco asks for the ability to translate ambiguous business questions into structured, hypothesis-driven analysis.
+
+For this role, hypothesis-driven analysis should not be presented as generic EDA.
+
+It should be positioned as:
+
+> Taking a broad business or customer problem, breaking it into testable hypotheses, testing those hypotheses against customer data, and turning the results into model features, strategy tests, or business recommendations.
+
+The platform does not just run models. It turns unclear business questions into testable analytical questions, features, models, comparisons, and decision evidence.
+
+### Why Hypothesis-Driven Analysis Exists in the Platform
+
+The platform has customer, account, transaction, risk, decision, and outcome data. Business questions are therefore rarely answered by one table, one metric, or one model run.
+
+Example ambiguous questions:
+
+- Why are some customers or accounts becoming higher risk?
+- Which behavioural signals appear before escalation?
+- Which customers are being reviewed unnecessarily?
+- Which threshold produces better customer and business outcomes?
+- Which segments behave differently over time?
+- Are model outputs still reliable after behaviour changes?
+
+The weak version of the platform would be:
+
+> Look at the data and report interesting patterns.
+
+The positioned version becomes:
+
+> Translate ambiguous customer behaviour questions into hypotheses, build features to test them, compare model and threshold results, and produce evidence for decision-making.
+
+The important point is not:
+
+> I analysed customer data.
+
+It is:
+
+> I converted a business uncertainty into a structured investigation, tested it with data, and produced evidence that could guide a product, process, or decision change.
+
+### Ambiguous Questions Converted Into Structured Analysis
+
+| Ambiguous business question | Structured analytical version |
+|---|---|
+| Why are some customers becoming riskier? | Which behavioural signals predict future risk-band movement over the next reporting window? |
+| Are we reviewing too many accounts? | Can model-led prioritisation reduce low-value reviews while maintaining risk coverage? |
+| Which customers need earlier attention? | Which customer/account behaviours appear before later risk movement or escalation? |
+| Are our current rules good enough? | Does XGBoost scoring outperform rule-based or Logistic Regression baselines under time-based validation? |
+| What should we change? | Which threshold, segment, or strategy performs better under champion/challenger testing? |
+
+### Hypothesis Loop in the Platform
+
+The platform analysis loop is:
+
+> business question -> hypothesis -> data sources -> feature design -> statistical/ML test -> model comparison -> evidence summary -> recommended action.
+
+| Stage | Platform meaning |
+|---|---|
+| Business question | Start with an unclear problem around customer behaviour, risk movement, prioritisation, or review volume. |
+| Hypothesis | Turn it into a testable statement, such as "transaction volatility predicts later risk movement." |
+| Data selection | Pull relevant customer, account, transaction, risk, decision, and outcome data. |
+| Feature design | Create behavioural features such as recency, frequency, volatility, risk momentum, or threshold-near-miss behaviour. |
+| Testing | Use statistical checks, baseline models, XGBoost, segmentation, or time-based validation. |
+| Comparison | Compare against rule-based logic, Logistic Regression baseline, or previous threshold strategy. |
+| Evidence | Summarise whether the hypothesis holds and where it is strongest or weakest. |
+| Decision support | Recommend whether to adopt, reject, monitor, or test the idea further. |
+
+### Where Hypothesis-Driven Analysis Sits in the Platform
+
+| Platform stage | Hypothesis-driven role |
+|---|---|
+| Business question framing | Convert a broad customer/business problem into testable analytical questions. |
+| Hypothesis design | Define possible behavioural causes, risk drivers, or process issues. |
+| Data mapping | Identify which customer, account, transaction, risk, decision, and outcome data is needed. |
+| Feature/test design | Create SQL/PySpark/Python tests or features to check whether the hypothesis holds. |
+| Model comparison | Test whether the hypothesis improves prediction, segmentation, or prioritisation. |
+| Experimentation | Compare thresholds or strategies using A/B, holdout, or champion/challenger logic. |
+| Evidence summary | Translate findings into recommendations, limitations, and next analytical actions. |
+
+### Platform Examples
+
+| Ambiguous question | Hypothesis | Test / analysis |
+|---|---|---|
+| Why are some accounts worsening? | Rising transaction volatility and risk-band momentum appear before deterioration. | Build rolling volatility and risk-momentum features, then test lift in XGBoost. |
+| Are some customers over-prioritised? | Static thresholds may flag customers whose recent behaviour suggests recovery. | Compare rule-based flags against recent recovery trend features and later outcomes. |
+| Which customers need earlier review? | Behavioural change appears before formal escalation. | Test recency/frequency/volatility features against future review or risk movement labels. |
+| Which strategy is safer to adopt? | A model threshold can reduce low-value reviews while maintaining risk capture. | Run champion/challenger threshold comparison across outcome measures. |
+| Can the model still be trusted? | Feature drift or score distribution shifts may explain performance movement. | Monitor feature drift, score changes, and performance metrics across refresh windows. |
+
+### Hypothesis Examples and Evidence Produced
+
+| Hypothesis | How it would be tested | Evidence produced |
+|---|---|---|
+| Customers with rising transaction volatility are more likely to move into higher risk. | Build rolling volatility features and test them in Logistic Regression/XGBoost. | Feature lift, SHAP contribution, recall change, segment-level effect. |
+| Static rules flag too many low-value review cases. | Compare rule-based prioritisation with XGBoost score thresholds. | Review volume, risk capture rate, false positive/review waste rate. |
+| Recent behaviour matters more than long-term history for some customers. | Compare 30-day, 60-day, and 90-day rolling features. | Model performance by window, threshold stability, driver importance. |
+| Some customer segments need different decision thresholds. | Segment customers and compare threshold performance by group. | Segment-level precision/recall, review load, risk concentration. |
+| Risk movement can be detected earlier than current triggers. | Use time-based validation to test whether model scores rise before rule triggers. | Earlier detection window, lift over baseline, top-band concentration. |
+
+### Why This Matters for Tesco
+
+Tesco does not only want someone who can build a model from a prepared dataset. They want someone who can deal with real business ambiguity.
+
+This branch answers:
+
+> Can this person take a vague customer or business problem and turn it into structured analysis that improves customer experience or business outcomes?
+
+For the platform, the answer is:
+
+> Yes. Customer behaviour questions are translated into hypotheses around risk movement, customer segments, behavioural signals, thresholds, and review strategies, then tested using statistical methods, ML models, and experiment logic.
+
+### What It Improves
+
+Before hypothesis-driven analysis:
+
+> Data science work risks becoming model-first or pattern-reporting without a clear business decision path.
+
+After hypothesis-driven analysis:
+
+> Each model, feature, test, or insight is tied to a business/customer question and produces evidence that can support a decision.
+
+### Strong Posture
+
+> Translated ambiguous customer behaviour questions into structured hypotheses, engineered testable behavioural features, compared baseline and ML models, and turned the evidence into decision recommendations for customer risk prioritisation.
+
+### Possible Resume Language Later
+
+Not final wording:
+
+> Translated ambiguous customer behaviour questions into hypothesis-driven analysis, using engineered behavioural features, baseline comparisons, and XGBoost models to generate evidence for risk-prioritisation decisions.
+
+## Customer Experience / Product-Process-Performance Improvement Platform Positioning
+
+### Role Signal
+
+Tesco describes the role as solving real business problems, improving customer experiences, personalising customer communications, improving marketing effectiveness, optimising stock management, reducing customer churn, improving products, processes and performance through innovative data-driven solutions, and delivering impactful outcomes.
+
+For this role, customer experience and business improvement should not be positioned as:
+
+> I built a model.
+
+It should be positioned as:
+
+> I used customer data and ML to identify where customer decisions, review processes, or prioritisation strategies could be improved, then tested and explained those improvements through model outputs, thresholds, segments, and evidence summaries.
+
+The platform does not just predict risk. It uses customer behaviour insight to improve how decisions, processes, and outcomes are handled.
+
+In the positioned platform, this means:
+
+> Using customer behaviour data to identify where decision processes are too blunt, too late, too manual, or poorly targeted, then improving them through model-led prioritisation, segmentation, threshold testing, and monitoring.
+
+The customer experience link is not:
+
+> We directly advised customers.
+
+It is:
+
+> We improved the decision-support process so customers/accounts could be understood earlier, prioritised better, and handled with more relevant evidence.
+
+### Why This Exists in the Platform
+
+The platform has customer/account behaviour data, transaction activity, risk signals, decisions, outcomes, model scores, thresholds, SHAP drivers, and monitoring outputs.
+
+This allows the platform to ask:
+
+- Which customers are changing behaviour?
+- Which customer groups need earlier attention?
+- Which rules or thresholds create unnecessary review?
+- Which decision path is too blunt?
+- Which behaviour patterns explain risk, recovery, or deterioration?
+- Which process is creating wasted effort or poor timing?
+- Which model threshold better balances customer and business outcomes?
+
+### What Customer Experience Improvement Means Here
+
+Do not claim direct Tesco Mobile customer experience unless the evidence exists. In this platform, customer experience improvement means making customer decisioning more timely, proportionate, explainable, and evidence-led.
+
+| Customer experience angle | Platform meaning |
+|---|---|
+| Better timing | Identify behavioural risk before later escalation, so action can happen earlier and more proportionately. |
+| Better prioritisation | Focus review/action on accounts with stronger evidence of need, reducing blunt treatment. |
+| More relevant treatment | Segment customers/accounts by behaviour rather than applying one rule to all. |
+| Fewer unnecessary interventions | Reduce low-value or false-positive reviews from static rules. |
+| Clearer decision rationale | Use SHAP and evidence summaries to explain why a customer/account is prioritised. |
+| More responsible decisions | Balance risk capture, review load, and customer treatment through threshold testing. |
+| More stable outputs | Monitor models and thresholds so decisions remain trusted over time. |
+
+### Product / Process / Performance Improvement
+
+| Improvement area | Platform opportunity | Platform response |
+|---|---|---|
+| Product | Static customer treatment may not reflect actual behaviour. | Use behavioural segmentation and predictive scores to support more targeted decision paths. |
+| Process | Rule-based review queues may be overloaded or poorly prioritised. | Use model-led prioritisation, thresholds, and champion/challenger testing. |
+| Performance | Existing strategies may not balance customer outcome and business outcome well. | Compare thresholds using risk capture, review waste, escalation rate, time to detection, and operational load. |
+| Insight process | Model outputs may not be trusted if they cannot be explained. | Use SHAP and evidence summaries to explain behavioural drivers. |
+| BAU process | Models may degrade as behaviour changes. | Use drift checks, scoring refreshes, threshold stability checks, and performance monitoring. |
+
+### Product, Process, and Performance Improvements
+
+| Area | What improves in the platform | Example |
+|---|---|---|
+| Product | The customer decision-support product becomes more predictive and explainable. | Static risk flags become model scores, behavioural drivers, and prioritisation bands. |
+| Process | Review/prioritisation moves from manual or rule-only logic to repeatable ML-supported workflows. | Accounts are scored, thresholded, tested, and monitored through a recurring pipeline. |
+| Performance | The platform improves prediction, review efficiency, detection timing, or threshold stability. | XGBoost improves recall over Logistic Regression; threshold testing reduces low-value reviews. |
+
+### Opportunities Identified Using Data
+
+| Opportunity found | Why it matters | Platform response |
+|---|---|---|
+| Static rules were too blunt | They may flag obvious cases but miss early behavioural patterns. | Introduce XGBoost risk scoring using behavioural features. |
+| Some accounts were reviewed unnecessarily | This wastes effort and may create poor customer handling. | Tune thresholds and compare strategies through champion/challenger testing. |
+| Customer behaviour differed by segment | One-size-fits-all thresholds may not work equally well. | Use segmentation and segment-level model evaluation. |
+| Risk movement appeared before formal triggers | Waiting for late triggers delays action. | Build rolling-window features to detect earlier movement. |
+| Model outputs needed business interpretation | Predictions alone do not tell stakeholders what to do. | Use SHAP and evidence summaries to explain behavioural drivers. |
+| Model performance could drift | A model that worked once may weaken over time. | Add BAU monitoring for drift, performance, and threshold stability. |
+
+### Business Question Examples
+
+| Business question | Platform improvement route |
+|---|---|
+| Which customers are likely to become higher risk? | Predict risk movement with XGBoost and behavioural features. |
+| Are we reviewing the right accounts? | Compare rule-based review against model-led prioritisation. |
+| Can we reduce unnecessary escalation? | Tune thresholds and monitor false-positive/review waste. |
+| Which customer groups need different treatment? | Use segmentation and segment-level model performance checks. |
+| Can we trust this model next month? | Monitor drift, score movement, feature refresh quality, and performance. |
+
+### What It Improves
+
+Before:
+
+> Customer decisions or review processes rely heavily on static rules, delayed signals, or unclear model outputs.
+
+After:
+
+> Customer behaviour data is used to predict risk movement earlier, segment customers more intelligently, test decision strategies, explain model outputs, and monitor whether the process remains useful over time.
+
+### Strong Posture
+
+> Identified opportunities to improve customer decision processes by using behavioural data, XGBoost scoring, segmentation, threshold testing, and BAU monitoring to support earlier risk detection, better prioritisation, and more relevant customer/account treatment.
+
+### Possible Resume Language Later
+
+Not final wording:
+
+> Identified opportunities to improve customer decision processes, using behavioural features, XGBoost scoring, segmentation, and threshold testing to support earlier risk detection and better account prioritisation.
+
+Alternative concise wording:
+
+> Improved customer decision workflows by replacing blunt rule-based prioritisation with model-led scoring, behavioural segmentation, and monitored threshold testing.
+
 ## Unified Platform Evidence Tree Link
 
 This positioning must remain part of the wider platform evidence tree.
