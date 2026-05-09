@@ -809,6 +809,216 @@ Alternative concise wording:
 
 > Combined multiple customer data sources into point-in-time ML datasets, creating behavioural features and outcome labels for risk-movement modelling.
 
+## Stakeholder Communication Platform Positioning
+
+### Role Signal
+
+Tesco asks for clear presentation and communication to senior leaders, confidence explaining complex ideas in clear non-technical language, strong listening and communication skills, a customer-focused approach, ownership of decisions, clear communication of approach and rationale, and collaboration within product delivery teams and squads.
+
+For this role, stakeholder communication should not be positioned as:
+
+> Presented findings.
+
+It should be positioned as:
+
+> Explaining complex data science work clearly enough for product, commercial, technical, operational, and senior stakeholders to understand the decision, trust the evidence, and act on it.
+
+The platform does not just produce models. It produces explanations, trade-offs, evidence summaries, and recommendations that different stakeholders can understand and act on.
+
+### Who the Stakeholders Are in the Positioned Platform
+
+Because this is an open-source platform, do not claim real Tesco teams used it. The platform can be designed around equivalent stakeholder groups.
+
+| Stakeholder type | What they care about |
+|---|---|
+| Product / customer strategy users | Does this improve customer experience? Which customer groups need different treatment? |
+| Commercial/business users | Does this improve outcomes, reduce wasted effort, or support better prioritisation? |
+| Risk / decisioning users | Which customers/accounts are likely to move into higher risk, and why? |
+| Operations users | Which cases need attention? Why are they prioritised? What action path makes sense? |
+| Data science / technical users | How was the model built, validated, monitored, and compared against baselines? |
+| Governance / compliance-style reviewers | Is the model explainable, traceable, documented, and safe enough to support decisions? |
+
+### How This Maps to Tesco Stakeholders
+
+| Tesco stakeholder | Equivalent platform concern |
+|---|---|
+| Product squads | How does this improve the customer journey or product performance? |
+| Marketing / CRM teams | Which customers should receive different communications or offers? |
+| Commercial teams | What is the business impact? Does it improve retention, sales, or efficiency? |
+| Operations / stock / service teams | What should be prioritised or changed operationally? |
+| Data science chapter / engineers | Is the model workflow robust, tested, deployed, and maintainable? |
+| Senior leaders | What decision should we make, and what evidence supports it? |
+
+### What Gets Communicated
+
+The communication should not be raw model output. It should answer:
+
+| Question | Communication output |
+|---|---|
+| What problem are we solving? | Plain-English problem statement and business context. |
+| What data did we use? | Short explanation of customer/account/transaction/risk/outcome sources. |
+| What method did we use? | Simple explanation of the model, baseline, validation, and experiment design. |
+| What did we find? | Behavioural drivers, customer segments, risk movement patterns, or performance changes. |
+| Why should we trust it? | Validation results, monitoring checks, limitations, and comparison against baseline. |
+| What should happen next? | Recommendation: adopt, test further, monitor, change threshold, or reject. |
+| What are the trade-offs? | Customer impact, review volume, risk coverage, false positives, and operational load. |
+
+### Technical and Non-Technical Communication
+
+| Audience | Communication style |
+|---|---|
+| Technical users | Metrics, data splits, validation windows, feature logic, model version, drift checks, and CI/CD status. |
+| Non-technical users | Behaviour changed, why it matters, what decision is recommended, and what trade-offs exist. |
+| Senior users | Impact, risk, customer effect, confidence level, recommendation, and next step. |
+| Operational users | Which cases/groups need attention and why. |
+
+### Platform Outputs
+
+| Output type | Purpose |
+|---|---|
+| Evidence summary | Short business-facing explanation of the finding and recommended action. |
+| Model comparison note | Explains why XGBoost/challenger outperformed Logistic Regression/rule baseline. |
+| Behavioural driver summary | Converts SHAP/feature findings into understandable customer behaviour themes. |
+| Experiment result summary | Shows whether a threshold or strategy performed better and what trade-offs appeared. |
+| Monitoring pack | Shows whether model performance, drift, and thresholds remain stable in BAU. |
+| Model card / documentation | Records model purpose, inputs, limitations, validation, monitoring, and intended use. |
+
+### Example Translation
+
+| Technical finding | Business-facing explanation |
+|---|---|
+| XGBoost recall improved by 18% over Logistic Regression. | The new model identifies more customers likely to move into higher risk before the existing baseline. |
+| SHAP shows transaction volatility and risk-band momentum are top drivers. | Recent changes in account activity and worsening risk movement are the strongest warning signs. |
+| Threshold B improves risk capture but increases review volume. | This option finds more risky cases, but it creates more work for the review team. |
+| PSI increased on transaction-volatility features. | Customer behaviour has shifted, so the model needs closer review before relying on the latest scores. |
+
+### Why This Matters for Tesco
+
+Tesco wants a data scientist who can work in product delivery teams, explain complex ideas clearly, and help shape decisions across the business.
+
+This branch should show:
+
+> I can turn technical ML work into clear evidence that product, commercial, operational, and senior stakeholders can understand and use.
+
+### What It Improves
+
+Before stakeholder communication discipline:
+
+> Data science outputs may be technically correct but hard for stakeholders to understand, challenge, or act on.
+
+After stakeholder communication discipline:
+
+> Model outputs, statistical evidence, risks, and recommendations are translated into audience-specific decision evidence that supports customer and business outcomes.
+
+### Strong Posture
+
+> Created stakeholder-ready outputs that translated customer behaviour models, validation results, experiment trade-offs, and monitoring signals into clear recommendations for technical and non-technical users.
+
+### Possible Resume Language Later
+
+Not final wording:
+
+> Created stakeholder-ready evidence summaries explaining customer behaviour drivers, model performance, experiment trade-offs, and recommended actions for technical and non-technical users.
+
+Alternative concise wording:
+
+> Translated model results, behavioural drivers, and experiment trade-offs into clear recommendations for technical and non-technical stakeholders.
+
+## Documentation / Security Platform Positioning
+
+### Role Signal
+
+Tesco mentions deployment to production, documentation, and security in the same lifecycle responsibility. This is not only about writing notes. It is about whether production ML workflows are controlled, explainable, and safe enough to operate around customer data.
+
+For this role, documentation and security should be positioned as:
+
+> Controls around customer data, model artefacts, pipelines, outputs, access, and operational evidence, so the workflow can be reviewed, trusted, and safely maintained.
+
+Security in this platform means:
+
+> Customer, account, transaction, model, and reporting data are handled through controlled storage, controlled access, protected secrets, safe outputs, and traceable workflows.
+
+It should not be positioned as:
+
+> I am a cybersecurity engineer.
+
+It should be positioned as:
+
+> I understand how to build ML/data workflows that protect customer data, credentials, model artefacts, and business outputs.
+
+### What Security Means in the Platform
+
+Do not overclaim enterprise certification or real company production access. The safe positioning is security-aware production workflow design.
+
+| Security area | Platform meaning |
+|---|---|
+| Customer data protection | Customer/account identifiers are pseudonymised where possible, and raw sensitive fields are kept out of modelling/reporting layers unless needed. |
+| Storage security | AWS S3 buckets/prefixes are separated for raw, curated, feature, model, and reporting outputs, with encryption and public access blocked. |
+| Access control | IAM roles/policies restrict who or what can read/write raw data, curated data, model artefacts, logs, and reports. |
+| Least privilege | Pipeline jobs and users only access the data/resources needed for their role. |
+| Secrets management | API keys, database credentials, and deployment secrets are kept out of code and handled through environment variables or a secrets manager. |
+| Pipeline permissions | CI/CD and scheduled jobs use scoped permissions rather than broad admin access. |
+| Output safety | Reporting extracts and stakeholder outputs avoid unnecessary customer-level sensitive data. |
+| Model artefact protection | Model files, metrics, thresholds, and configs are versioned and stored in controlled locations. |
+| Auditability | Pipeline runs, dataset versions, model versions, and output timestamps are logged so outputs can be traced. |
+| Safe model release | Model changes go through tests, validation checks, and documented approval/rerun logic. |
+| Leakage prevention | Point-in-time datasets prevent future data leaking into training or scoring. |
+
+### Where Security Sits in the Platform
+
+| Platform layer | Security concern |
+|---|---|
+| Raw data layer | Protect high-volume customer/account/transaction data. |
+| Curated data layer | Control access to joined customer behaviour datasets. |
+| Feature layer | Prevent leakage and avoid unnecessary sensitive fields. |
+| Model artefact layer | Track model versions and prevent uncontrolled replacement. |
+| Scoring layer | Control who can access customer/account-level scores. |
+| SHAP/explainability layer | Avoid exposing sensitive customer details in explanations. |
+| Monitoring layer | Log drift/performance outputs without leaking unnecessary personal data. |
+| Output layer | Store evidence summaries and business outputs in controlled locations. |
+| CI/CD layer | Prevent untested code from changing production model workflows. |
+
+### Documentation Side
+
+Documentation should support safe use, not just describe the model.
+
+| Documentation artefact | Purpose |
+|---|---|
+| Model card | Purpose, inputs, outputs, metrics, limitations, intended use, and risks. |
+| Pipeline run instructions | Allows someone to rerun ingestion, feature building, training, scoring, and monitoring safely. |
+| Pipeline documentation | Data sources, transformation logic, run order, dependencies, and rerun process. |
+| Feature documentation | Definitions, windows, leakage rules, and source mapping. |
+| Data dictionary | Defines customer, account, transaction, risk, outcome, and feature fields. |
+| Validation notes | Train/test design, time-based validation, baseline comparison, and threshold choices. |
+| Monitoring notes | Drift checks, performance measures, trigger points, and review cadence. |
+| Security notes | Records how secrets, access, storage, and sensitive outputs are handled. |
+| Deployment notes | Explains CI/CD checks, environment setup, dependencies, and rollback/rerun steps. |
+| Decision log | Why a model, threshold, or strategy was adopted, monitored, or rejected. |
+
+### What It Improves
+
+Before documentation and security controls:
+
+> The model workflow may produce useful outputs, but it is hard to review safely, control access, explain assumptions, or prove how outputs were generated.
+
+After documentation and security controls:
+
+> Customer data, model artefacts, scoring outputs, monitoring evidence, and decision summaries are controlled, documented, versioned, and safer to operate.
+
+### Strong Posture
+
+> Built production-shaped ML workflows with controlled AWS storage, scoped access, protected secrets, versioned model artefacts, safe reporting outputs, and documentation covering model assumptions, pipeline runs, deployment steps, and limitations.
+
+### Possible Resume Language Later
+
+Not final wording:
+
+> Built secure, documented ML workflows with controlled AWS storage, protected secrets, versioned model artefacts, and safe reporting outputs across customer data pipelines.
+
+Alternative concise wording:
+
+> Added security and documentation controls across AWS-hosted ML workflows, covering access, secrets, model artefacts, pipeline runs, and safe reporting outputs.
+
 ## Unified Platform Evidence Tree Link
 
 This positioning must remain part of the wider platform evidence tree.
