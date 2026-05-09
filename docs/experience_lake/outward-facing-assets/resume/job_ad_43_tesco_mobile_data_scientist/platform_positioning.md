@@ -674,6 +674,141 @@ Alternative concise wording:
 
 > Improved customer decision workflows by replacing blunt rule-based prioritisation with model-led scoring, behavioural segmentation, and monitored threshold testing.
 
+## Multiple Data Sources for Modelling and Analysis Platform Positioning
+
+### Role Signal
+
+Tesco asks for experience working with databases and combining multiple data sources for modelling and analysis.
+
+For this role, multiple data sources should not be presented as:
+
+> Worked with multiple datasets.
+
+It should be positioned as:
+
+> Combining different customer, account, transaction, risk, decision, outcome, and monitoring sources into modelling-ready customer behaviour surfaces because customer behaviour cannot be understood from one table alone.
+
+The platform does not model from one flat dataset. It combines different customer, account, transaction, risk, decision, and outcome sources to build a fuller picture of customer behaviour.
+
+This is different from the PySpark branch:
+
+| Branch | Meaning |
+|---|---|
+| PySpark | How the data is processed at scale. |
+| Multiple data sources | Why the sources need to be combined and what insight they create. |
+
+### Why Multiple Data Sources Exist in the Platform
+
+Customer behaviour questions need multiple sources.
+
+A transaction table may show activity, but not:
+
+- who the customer/account is;
+- current account state;
+- prior risk band;
+- whether the account was reviewed;
+- what decision was made;
+- what happened afterwards.
+
+A decision table may show an action, but not:
+
+- the behaviour before the decision;
+- the outcome after the decision;
+- whether similar accounts behaved differently;
+- whether the model would have prioritised it differently.
+
+So the platform needs source combination.
+
+### Data Sources in the Platform
+
+| Data source | What it contributes |
+|---|---|
+| Customer data | Customer/account identifiers, customer status, account ownership, and segment information. |
+| Account data | Account age, status, balance/exposure movement, and current account state. |
+| Transaction/activity data | High-volume behavioural signals: activity level, recency, frequency, volatility, and value movement. |
+| Risk signal data | Risk bands, flags, review triggers, and risk movement history. |
+| Decision data | Previous review decisions, thresholds applied, prioritisation outputs, and strategy assignment. |
+| Outcome data | Later risk movement, escalation, review outcome, recovery signal, or stability indicators. |
+| Monitoring data | Feature distributions, score distributions, drift, scoring history, and model performance outputs. |
+
+### Why These Sources Must Be Combined
+
+No single source fully explains customer behaviour.
+
+| If only using... | What is missing |
+|---|---|
+| Customer/account data | You know who the customer is, but not how behaviour is changing. |
+| Transaction data | You see activity, but not the customer/account context or later outcome. |
+| Risk flags only | You see current risk, but not the behaviours that led there. |
+| Decision data only | You know what action was taken, but not whether it worked. |
+| Outcome data only | You know what happened later, but not which earlier signals predicted it. |
+
+The modelling value comes from joining them.
+
+### What Combining Sources Enables
+
+| Combined view | What it enables |
+|---|---|
+| Customer + transaction data | Behavioural features such as activity drop-off, volatility, recency, and frequency. |
+| Account + risk data | Risk-band movement, account-state change, and risk momentum. |
+| Transaction + outcome data | Testing whether earlier behaviour predicts later risk movement. |
+| Decision + outcome data | Evaluating whether a strategy, threshold, or prioritisation rule worked. |
+| Risk + monitoring data | Checking whether model outputs remain stable across BAU scoring windows. |
+| Customer + segment + outcome data | Understanding which groups behave differently and may need different thresholds. |
+| Model score + SHAP + segment | Explainable prioritisation and customer group insight. |
+
+### Analytical Questions It Answers
+
+| Business question | Sources needed |
+|---|---|
+| Which customers are likely to become higher risk? | Customer, account, transaction, risk, and outcome data. |
+| What behaviours appear before risk movement? | Transaction/activity history, risk-band history, and outcome labels. |
+| Are current thresholds prioritising the right accounts? | Scores, decision outputs, review outcomes, and risk movement. |
+| Are some customer groups behaving differently? | Customer/account segments, behavioural features, and outcome data. |
+| Did the model-led strategy improve prioritisation? | Decision data, experiment groups, outcome data, and monitoring outputs. |
+
+### Key Modelling Issue: Time Alignment
+
+For this platform, combining sources also needs point-in-time discipline.
+
+That means:
+
+> Features must only use information available before the prediction date, while outcome data is used later to create labels or evaluate results.
+
+| Requirement | Why it matters |
+|---|---|
+| As-of dates | Ensures customer/account features reflect what was known at the time. |
+| Prediction windows | Defines what future outcome the model is trying to predict. |
+| Outcome windows | Links later risk movement or review outcomes back to earlier behaviour. |
+| No future leakage | Prevents the model from accidentally learning from data it would not have had in production. |
+| Snapshot tables | Creates repeatable training/scoring views for each reporting period. |
+
+This is a strong Tesco signal because it shows proper modelling discipline, not just joining tables.
+
+### What It Improves
+
+Before combining sources:
+
+> Each dataset gives only a partial view of customer behaviour.
+
+After combining sources:
+
+> The platform creates a joined customer/account modelling surface that links behaviour, risk, decisions, and outcomes, making prediction, explanation, and strategy testing possible.
+
+### Strong Posture
+
+> Combined customer, account, transaction, risk, decision, and outcome data to create point-in-time modelling datasets, behavioural features, risk-movement labels, and evaluation outputs for customer ML workflows.
+
+### Possible Resume Language Later
+
+Not final wording:
+
+> Combined customer, account, transaction, risk, decision, and outcome sources into point-in-time modelling datasets for behavioural feature engineering, risk-movement prediction, and model evaluation.
+
+Alternative concise wording:
+
+> Combined multiple customer data sources into point-in-time ML datasets, creating behavioural features and outcome labels for risk-movement modelling.
+
 ## Unified Platform Evidence Tree Link
 
 This positioning must remain part of the wider platform evidence tree.
