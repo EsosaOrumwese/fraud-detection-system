@@ -1,11 +1,11 @@
 Esosa Orumwese
-Data Scientist | Customer Behaviour Modelling, PySpark Pipelines & End-to-End ML Delivery
+Data Scientist | Customer Behaviour & Risk/Propensity Modelling | PySpark Pipelines & End-to-End ML
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years using statistical analysis and ML to solve customer and business problems across large behavioural datasets.
-Delivered end-to-end data-driven solutions that improve customer experience, generate business insight, and support evidence-led decisions.
-Proficient in SQL, Python, PySpark, version control, OOP, unit testing, CI/CD, and cloud technologies.
+4+ years applying data analysis, statistical modelling, and machine learning to customer, operational, and business datasets.
+Builds end-to-end data solutions that help teams target the right customers earlier, reduce wasted operational effort, and test decision strategies before rollout.
+Proficient in SQL, Python, PySpark, AWS, Git, OOP, unit testing, CI/CD, model monitoring, drift checks, and documentation.
 
 EDUCATION
 
@@ -19,7 +19,7 @@ RELEVANT EXPERIENCE
 
 Applied Data Scientist
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
-AWS-hosted customer-behaviour ML platform turning customer-credit data into predictive risk scores, prioritised review queues, threshold experiments, and monitoring signals across a 2.35B-row credit-risk surface.
+AWS-hosted customer-behaviour ML platform identifying high-risk customer patterns earlier, prioritising review capacity, and testing decision strategies across a 2.35B-row credit-risk surface.
 
 - Built PySpark feature pipelines combining customer, account, transaction, risk, decision, and outcome data to support pre-escalation risk scoring and segmented review prioritisation.
 - Improved early-risk detection by 18% in backtested evaluation, surfacing more pre-escalation risk cases through customer-behaviour modelling and XGBoost-based scoring.
@@ -58,4 +58,4 @@ Data Science & ML: Python, SQL, PySpark, PyTorch, XGBoost, Logistic Regression, 
 
 Production ML & Engineering: AWS, data pipelines, production ML workflows, Git, object-oriented programming, unit testing, CI/CD, model monitoring, drift checks, documentation, security-aware workflows.
 
-Customer & Business Analytics: customer behaviour analysis, segmentation, propensity/risk modelling, A/B testing, champion/challenger testing, hypothesis-driven analysis, business insight, stakeholder communication.
+Customer & Business Analytics: customer behaviour analysis, segmentation, churn/fraud/propensity modelling, risk scoring, A/B testing, champion/challenger testing, hypothesis-driven analysis, business insight, stakeholder communication.
