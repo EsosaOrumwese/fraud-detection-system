@@ -3,9 +3,9 @@ Data Scientist | Customer Behaviour & Risk/Propensity Modelling | PySpark Pipeli
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years applying data analysis, statistical modelling, and machine learning to customer, operational, and business datasets.
-Builds end-to-end data solutions that help teams target the right customers earlier, reduce wasted operational effort, and test decision strategies before rollout.
-Proficient in SQL, Python, PySpark, AWS, Git, OOP, unit testing, CI/CD, model monitoring, drift checks, and documentation.
+Data Scientist focused on using customer-behaviour data to identify risk patterns earlier, prioritise action, and support better business decisions.
+Built end-to-end ML and analytics workflows across large behavioural datasets, combining predictive modelling, PySpark pipelines, experiment evaluation, monitoring, and stakeholder-ready insight.
+Proficient in SQL, Python, PySpark, AWS, XGBoost, PyTorch, Git, OOP, unit testing, CI/CD, model monitoring, drift checks, and documentation.
 
 EDUCATION
 
