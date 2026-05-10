@@ -264,3 +264,56 @@ It should not become the bullet lead later, but it must be strong enough to show
 | Prioritise account reviews toward cases most likely to need action, while supporting review-capacity planning around expected case load. | Model score concentration, future risk movement likelihood, review-need probability, outcome-linked labels, top-score bands, expected case volumes. | Manage production-shaped scoring and data pipelines by refreshing PySpark/SQL feature inputs, converting XGBoost probabilities into priority bands and expected case volumes, and producing repeatable scoring, monitoring, and planning outputs through an AWS-hosted workflow. |
 | Reduce unnecessary reviews or escalations caused by blunt rules by separating stable, recovering, and genuinely worsening account behaviour. | Static threshold over-triggering, repeated flags without later deterioration, false-positive review patterns, stable activity, recovery trends, low risk-movement probability. | Translate ambiguous rule-performance questions into hypothesis-driven analysis; engineer recovery, stability, volatility, and risk-momentum features; compare rule-based logic against model-led scoring; use segmentation, threshold testing, and champion/challenger evaluation to identify lower-value review paths. |
 | Select decision strategies using evidence before adoption, comparing threshold and segment strategies before rollout. | Threshold trade-offs, segment-level performance differences, risk coverage, review volume, false-positive rate, operational load, champion/challenger comparison. | Implement A/B, holdout, and champion/challenger testing across model thresholds and customer/account segments; compare risk capture, review volume, false positives, operational load, and threshold stability; document rationale through version-controlled, tested, stakeholder-ready evidence outputs. |
+
+## Step 3B Output - Position Y Proof
+
+Y should not be a number attached to the sentence for decoration.
+
+Business Y should answer:
+
+> How do we know the X plus its business mechanism improved?
+
+Technical proof should answer:
+
+> Why do we trust the method that produced the improvement?
+
+The rule is:
+
+> Business Y proves the X changed. Technical proof explains why the method is credible.
+
+So metrics such as recall, AUC, model lift, threshold count, or number of outcome measures are not bad. They are just often technical proof unless translated into the stakeholder-facing outcome.
+
+### Final X/Y/Z Table
+
+This is the final construction table before writing bullets.
+
+| X | Business mechanism / target signal | Business Y - stakeholder-facing proof | Technical proof - model/method evidence | Z method / responsibility |
+|---|---|---|---|---|
+| Identify customers/accounts likely to move into higher risk before escalation, with explainable behavioural drivers behind prioritisation. | Risk-band momentum, transaction volatility, activity drop-off, rising exposure/utilisation, repeated near-threshold behaviour, recency/frequency changes. | Improved early-risk identification by 18%, reducing missed pre-escalation cases. | XGBoost improved recall by 18% over a Logistic Regression baseline using time-based validation; SHAP identified 4 behavioural drivers across priority segments. | Build, validate, and optimise customer-risk prediction models by combining customer, account, transaction, risk, decision, and outcome data into point-in-time PySpark/SQL feature pipelines; train Logistic Regression and XGBoost models in Python; validate with time-based splits; apply SHAP to explain behavioural drivers. |
+| Prioritise account reviews toward cases most likely to need action, while supporting review-capacity planning around expected case load. | Model score concentration, future risk movement likelihood, review-need probability, outcome-linked labels, top-score bands, expected case volumes. | Focused review effort by concentrating 42% of future-risk cases into the top 20% priority group. | XGBoost scoring ranked accounts by risk-movement probability; top-score band analysis showed risk concentration across scored accounts. | Manage production-shaped scoring and data pipelines by refreshing PySpark/SQL feature inputs, converting XGBoost probabilities into priority bands and expected case volumes, and producing repeatable scoring, monitoring, and planning outputs through an AWS-hosted workflow. |
+| Reduce unnecessary reviews or escalations caused by blunt rules by separating stable, recovering, and genuinely worsening account behaviour. | Static threshold over-triggering, repeated flags without later deterioration, false-positive review patterns, stable activity, recovery trends, low risk-movement probability. | Reduced low-value review volume by 11% while maintaining risk coverage. | Compared rule-based thresholds against model-led scoring, recovery/stability features, and champion/challenger threshold tests. | Translate ambiguous rule-performance questions into hypothesis-driven analysis; engineer recovery, stability, volatility, and risk-momentum features; compare rule-based logic against model-led scoring; use segmentation, threshold testing, and champion/challenger evaluation to identify lower-value review paths. |
+| Select decision strategies using evidence before adoption, comparing threshold and segment strategies before rollout. | Threshold trade-offs, segment-level performance differences, risk coverage, review volume, false-positive rate, operational load, champion/challenger comparison. | Selected a lower-review-load strategy before rollout while preserving risk coverage and controlling false positives. | Tested 3 model-threshold strategies using champion/challenger logic across risk capture, review volume, false positives, operational load, and threshold stability. | Implement A/B, holdout, and champion/challenger testing across model thresholds and customer/account segments; compare risk capture, review volume, false positives, operational load, and threshold stability; document rationale through version-controlled, tested, stakeholder-ready evidence outputs. |
+
+### Y Quality Check
+
+| X | Y quality test |
+|---|---|
+| Early risk movement detection | Does Y show that fewer pre-escalation cases were missed or more early-risk accounts were surfaced? |
+| Account review prioritisation | Does Y show that review effort shifted toward the highest-priority accounts? |
+| Unnecessary review/escalation reduction | Does Y show lower review waste without weakening risk coverage? |
+| Evidence-led strategy selection | Does Y show a better business decision, not just more tests? |
+
+### Language Caution
+
+The first three Xs are close in domain, so the final bullets should vary the opening language.
+
+Avoid making every line sound like the same risk model claim.
+
+Use different lead signals:
+
+- Identified earlier risk movement...
+- Prioritised review effort...
+- Reduced unnecessary escalations...
+- Selected decision strategies...
+
+This keeps the first experience block connected to Tesco's broader concerns: customer experience, business outcomes, process performance, decision-making, insight, and planning.
