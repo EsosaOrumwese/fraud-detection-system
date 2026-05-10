@@ -18,12 +18,14 @@ The resume should answer the role in layers.
 |---|---|
 | Headline | What is the compressed professional identity? |
 | Professional summary | Can this person solve real business problems and improve customer experience using data science? |
-| First experience block | Has this person owned meaningful data science lifecycle work with models, pipelines, statistical methods, and production workflow signals? |
+| First experience block | Has this person owned meaningful data science lifecycle work that delivered impact, improved products/processes/performance, and generated customer/business insight? |
 | Supporting experience blocks | Do the wider experiences reinforce large data, modelling, communication, collaboration, and analytical judgement? |
 
 ## A-Level Questions
 
-The A-level questions are the top scan questions. They should be answered by the headline and professional summary, then proven by the first experience block.
+The A-level questions are the top scan questions. They should be answered quickly by the headline and professional summary, then proven more deeply by the first experience block.
+
+The A/B/C hierarchy is nested, not separate. The first experience block should mainly prove the B-level environment, but it must still carry the A-level outcome. B-level proof only matters if it shows that lifecycle ownership, model/pipeline management, and statistical methods produced impact, improved products/processes/performance, and generated customer/business insight.
 
 ### 1. Has this person delivered impactful outcomes?
 
@@ -71,6 +73,12 @@ Core answer:
 ## B-Level Questions
 
 The B-level questions should be answered by the first experience block. They prove that the A-level claims happened in a credible data science environment.
+
+For bullet design, the B-level answer should not become isolated technical proof. Each strong bullet should ideally connect:
+
+> what was delivered or improved
+> and
+> how lifecycle/model/pipeline/statistical work made it happen.
 
 ### 1. Was this in an environment where key stages of the data science lifecycle were owned?
 
