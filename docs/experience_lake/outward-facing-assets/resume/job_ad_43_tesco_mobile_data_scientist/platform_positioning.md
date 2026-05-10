@@ -47,25 +47,27 @@ These are the main ways the umbrella X appears in the job ad.
 | Resolve business challenges | Take ambiguous problems and define a structured analytical path to investigation, evidence, and action. |
 | Support project and resource planning | Help teams decide what should be prioritised, tested, resourced, rolled out, or monitored. |
 
-### Level 2 - Business Outcome Examples From The Ad
+### Level 2 - Business Outcome Examples From The Ad And Role Context
 
 Tesco gives examples that make the broad X less vague. At this level, the labels should stay short and scan-friendly, because they are still business outcome areas rather than full scenarios.
+
+Some Level 2 labels come directly from the job ad examples. Others are inferred from the wider role context, responsibilities, and requirements. This is acceptable as long as the hierarchy is clear about the difference.
 
 These examples are still not fully bullet-ready because they do not yet name the exact customer situation, behaviour, timing, or decision point. They sit between the broad Level 1 outcome facets and the highly specific Level 3 scenarios.
 
 Level 2 should not become long concern statements. A phrase such as "personalise customer communications" lands faster than "customer communications may be too generic, poorly timed, or insufficiently personalised." The concern/mechanism can be unpacked at Level 3.
 
-| Level 2 business outcome example | What it reveals |
-|---|---|
-| Personalise customer communications | Customer experience improvement is expected to be specific, targeted, and behaviour-led. |
-| Improve marketing effectiveness | Business outcome improvement may mean better targeting, campaign performance, customer engagement, or commercial return. |
-| Optimise stock management | Data science impact can be operational, not only customer-facing. |
-| Reduce customer churn | Customer experience and business outcome can meet in retention, loyalty, and reduced customer loss. |
-| Improve product decisions | Product decisions should be shaped by customer data, behavioural evidence, and measured outcomes. |
-| Shape customer and business strategy | Decision-making should be shaped by evidence, not assumption or one-size-fits-all treatment. |
-| Improve operational prioritisation | Business impact can come from helping teams decide where attention, resource, or action should go first. |
-| Detect fraud or unusual behaviour | Customer and business outcomes can be affected by abnormal usage, account activity, or transaction patterns. |
-| Improve decision confidence | Teams need clearer evidence before changing campaigns, products, processes, thresholds, or customer strategies. |
+| Level 2 business outcome example | Source | What it reveals |
+|---|---|---|
+| Personalise customer communications | Direct ad example | Customer experience improvement is expected to be specific, targeted, and behaviour-led. |
+| Improve marketing effectiveness | Direct ad example | Business outcome improvement may mean better targeting, campaign performance, customer engagement, or commercial return. |
+| Optimise stock management | Direct ad example | Data science impact can be operational, not only customer-facing. |
+| Reduce customer churn | Direct ad example | Customer experience and business outcome can meet in retention, loyalty, and reduced customer loss. |
+| Improve product decisions | Inferred from role context | Product decisions should be shaped by customer data, behavioural evidence, and measured outcomes. |
+| Shape customer and business strategy | Inferred from role context | Decision-making should be shaped by evidence, not assumption or one-size-fits-all treatment. |
+| Improve operational prioritisation | Inferred from role context | Business impact can come from helping teams decide where attention, resource, or action should go first. |
+| Detect fraud or unusual behaviour | Inferred from role context | Customer and business outcomes can be affected by abnormal usage, account activity, or transaction patterns. |
+| Improve decision confidence | Inferred from role context | Teams need clearer evidence before changing campaigns, products, processes, thresholds, or customer strategies. |
 
 ### Level 3 - Tesco-Specific Concrete Scenarios
 
@@ -178,6 +180,19 @@ At this level, the labels should not become long concern statements, technical s
 | Trusted recurring model outputs | Deliver impactful outcomes; improve performance; shape business decisions. | This is an enabling outcome because unreliable outputs cannot support decisions. |
 
 Level 2 should remain business-facing and scan-friendly. It should not yet become a list of tools, model types, feature windows, metrics, or long problem descriptions. Those details belong in Level 3, Y, or Z.
+
+For later resume bullet selection, these Level 2 outcomes should not be treated as equally important.
+
+| Priority | Platform Level 2 outcome | Use in resume |
+|---|---|---|
+| Primary | Early risk movement detection | Strong first-bullet candidate because it links customer insight, business outcomes, and customer experience. |
+| Primary | Account review prioritisation | Strong first-block candidate because it shows a clear process and business decision problem. |
+| Primary | Reduce unnecessary reviews/escalations | Strong first-block candidate because it connects customer treatment, process improvement, and responsible decisioning. |
+| Primary | Evidence-led strategy selection | Strong first-block candidate because it maps to decision shaping, testing, thresholds, and business evidence. |
+| Secondary | Explainable account prioritisation | Strong support signal, best attached to prediction, prioritisation, or strategy evidence. |
+| Secondary | Segmented decision strategies | Strong support signal, best attached to threshold strategy or prioritisation. |
+| Secondary | Review capacity planning | Useful operational angle, but less likely to lead the first bullet. |
+| Enabling | Trusted recurring model outputs | Important for production confidence, but should usually support rather than lead the first experience block. |
 
 ### Level 3 - Platform Concrete Scenarios With Business Mechanisms
 
