@@ -10,6 +10,34 @@ The platform story should quietly answer:
 
 > Can this person take messy and high volume financial data, organise it into reliable flows, maintain queryable datasets, support reporting requests, and make the data more usable for finance and risk decisions?
 
+## Employer X Hierarchy / Role Problem Tree
+
+### Level 0 - Umbrella Employer Problem
+
+### Level 1 - Main Outcome Facets
+
+### Level 2 - Business Outcome Areas
+
+### Level 3 - Concrete Role Scenarios With Business Mechanisms
+
+## Platform X Hierarchy / Platform Problem Tree
+
+### Level 0 - Platform Umbrella Problem
+
+### Level 1 - Platform Outcome Facets
+
+### Level 2 - Platform Business Outcome Areas
+
+### Level 3 - Concrete Platform Scenarios With Business Mechanisms
+
+## Selected Rich Xs
+
+### Candidate Main Xs
+
+### Supporting Xs / Context Angles
+
+### Final Rich Xs To Carry Into Y, Technical Proof, And Z
+
 ## Core Platform Positioning
 
 The first experience should be framed around:
