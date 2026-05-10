@@ -1,5 +1,21 @@
 Here’s the progression we followed — the reusable method.
 
+## Latest correction: X-first role mapping
+
+The method below should now be read with the X-first correction in mind.
+
+The earlier workflow was useful for extracting job signals and platform evidence, but it could become too Z-led: starting from duties, tools, models, lifecycle stages, and platform capabilities before clearly naming the employer's problem.
+
+The corrected method is captured in:
+
+> `docs\experience_lake\outward-facing-assets\frameworks\x_first_role_mapping_methodology.md`
+
+The current rule is:
+
+> concrete customer/business problem -> business mechanism or target signal -> Y proof -> Z method
+
+This means the job ad's X hierarchy must be established before platform mapping. The platform evidence tree is then used to find the equivalent platform concrete X, platform business mechanism, proof, and method.
+
 ## 1. Open the job ad, but don’t position yet
 
 First, we fetched the Tesco Mobile Data Scientist job ad from Notion and read it only to understand the role surface: Data Scientist, Tesco Mobile, customer data, production ML, PySpark, pipelines, CI/CD, testing, customer experience, business outcomes. 

@@ -2,9 +2,9 @@
 
 ## Role Posture
 
-For this role, the platform should be positioned as a production customer analytics and ML platform.
+For this role, the platform should be positioned around Tesco's employer problem first: solving real business problems, improving customer experience, and shaping better business decisions through data science.
 
-The Tesco Mobile role is about using data science to solve real business problems, improve customer experience, and shape business decisions. The strongest platform emphasis is not only modelling, but end-to-end data science delivery: customer data, statistical methods, production ML workflows, data pipelines, testing, deployment, and clear business communication.
+The production customer analytics and ML platform is the evidence base for that claim. It should not be the lead signal by itself. The platform matters because it shows how customer data, statistical methods, production ML workflows, data pipelines, testing, deployment, and clear business communication can be used to create customer and business outcomes.
 
 The platform story should quietly answer:
 
@@ -47,9 +47,9 @@ These are the main ways the umbrella X appears in the job ad.
 | Resolve business challenges | Take ambiguous problems and define a structured analytical path to investigation, evidence, and action. |
 | Support project and resource planning | Help teams decide what should be prioritised, tested, resourced, rolled out, or monitored. |
 
-### Level 2 - Concrete Business Examples From The Ad
+### Level 2 - Business Examples From The Ad
 
-Tesco gives examples that make the broad X more concrete. These examples show the level of specificity that strong resume bullets should eventually aim for.
+Tesco gives examples that make the broad X less vague. These examples are still not fully bullet-ready because they do not yet name the exact customer situation, behaviour, timing, or decision point.
 
 | Concrete X from the ad | What it reveals |
 |---|---|
@@ -61,25 +61,50 @@ Tesco gives examples that make the broad X more concrete. These examples show th
 | Improve processes | Operational or decision workflows should be made more effective through data-driven solutions. |
 | Improve performance | The role expects measurable improvement in a model, process, product, operation, or business outcome. |
 
-### Level 3 - Platform-Specific X Comes Later
+### Level 3 - Tesco-Specific Concrete Scenarios
 
-The platform mapping should happen after the Tesco X hierarchy is understood.
+Level 2 is still not fully concrete. Phrases such as "reduce customer churn" or "personalise customer communications" are more specific than the umbrella problem, but they still do not say which customer situation, which business moment, which behaviour, or which decision point is being improved.
 
-The goal is not to write bullets that say:
+Level 3 extrapolates Tesco Mobile-specific scenarios from the job ad's business context. This is still Tesco's X hierarchy, not the platform mapping.
 
-> Solved real business problems...
+Level 3 should contain both:
 
-That is too broad.
+| Element | Meaning |
+|---|---|
+| Concrete X | The specific customer or business outcome. |
+| Business mechanism / target signal | The behaviour, condition, segment, timing, or issue that explains how the outcome shows up in Tesco Mobile's business world. |
 
-The goal is to identify the platform's equivalent of Tesco's concrete examples. In other words:
+The business mechanism can look like Z because it often uses phrases such as "by identifying" or "by detecting". It is not the final Z. It is the business context that makes the X specific enough to map properly later. The final Z still comes from the role responsibilities: modelling, pipelines, statistical analysis, PySpark, production workflows, testing, deployment, communication, and so on.
 
-> What is this platform's equivalent of reducing churn, improving marketing effectiveness, optimising stock management, or personalising customer communications?
+| Level 2 area | Level 3 concrete X | Business mechanism / target signal |
+|---|---|---|
+| Reduce customer churn | Reduce churn risk among customers approaching contract renewal | Usage drop-off, price sensitivity, service issues, upgrade intent, contract-end behaviour. |
+| Reduce customer churn | Reduce early-life churn among new Tesco Mobile customers | Poor onboarding signals, low usage, failed setup patterns, early dissatisfaction indicators. |
+| Personalise customer communications | Personalise renewal, upgrade, or SIM-only offer messages | Lifecycle stage, usage behaviour, device age, likely response, price sensitivity. |
+| Personalise customer communications | Improve relevance of customer messages across customer groups | High-data usage, low engagement, roaming behaviour, upgrade readiness, price sensitivity. |
+| Improve marketing effectiveness | Improve campaign targeting for tariff changes, handset upgrades, add-ons, or retention offers | Propensity to respond, customer value, product fit, prior campaign behaviour, usage patterns. |
+| Improve marketing effectiveness | Reduce wasted marketing spend by excluding poor-fit customers from campaigns | Low response probability, offer mismatch, churn risk, unsuitable lifecycle stage. |
+| Optimise stock management | Improve handset or SIM stock planning | Upgrade cycles, product popularity, location demand, campaign periods, seasonal patterns. |
+| Improve product decisions | Identify customer segments underserved by existing plans, bundles, or add-ons | Usage behaviour, churn risk, response patterns, plan suitability, customer value. |
+| Improve customer experience | Reduce blunt or poorly timed customer interventions | Behaviour signals showing whether a customer needs an offer, support message, retention action, or no action. |
+| Improve customer experience | Identify customers likely to experience bill shock or poor plan fit | Usage spikes, tariff mismatch, data overuse, low value from current plan, unusual spend movement. |
+| Improve operational prioritisation | Prioritise customer groups where intervention is most likely to matter | Retention likelihood, expected value, service friction, risk movement, response probability. |
+| Detect fraud or unusual behaviour | Detect abnormal usage, account activity, or transaction patterns earlier | Usage anomalies, sudden account changes, unusual transactions, device/SIM behaviour, suspicious activity patterns. |
+| Shape business decisions | Compare customer strategies before rollout | Different thresholds, offer rules, campaign eligibility, timing rules, customer segments. |
+| Improve decision confidence | Give teams clearer evidence before changing campaigns, products, or processes | Model lift, test results, behavioural drivers, segment differences, trade-off analysis. |
 
-That platform-specific X should be concrete enough to lead a bullet, while still connecting back to Tesco's umbrella problem.
+The key point:
+
+> Level 0 explains why Tesco is hiring.  
+> Level 1 explains the broad outcomes they care about.  
+> Level 2 gives job-ad examples of those outcomes.  
+> Level 3 makes those examples specific enough by naming both the concrete outcome and the business mechanism behind it.
+
+Only after the full Tesco X hierarchy is clear should the platform be mapped to an equivalent hierarchy.
 
 The working hierarchy is:
 
-> Company problem -> outcome facet -> concrete business example -> platform-specific X -> Y proof -> Z method
+> Tesco company problem -> Tesco outcome facet -> Tesco example outcome -> Tesco concrete scenario plus business mechanism -> platform equivalent concrete X plus platform mechanism -> Y proof -> Z method
 
 ## X-First Resume Rule
 
@@ -98,7 +123,7 @@ Prefer leading with the business/customer problem or outcome first, then prove i
 
 The resume should therefore read as:
 
-> solved what problem -> proved by what evidence -> achieved through what method
+> specific customer/business problem -> business mechanism or target signal -> proved by what evidence -> achieved through what method
 
 Not:
 
