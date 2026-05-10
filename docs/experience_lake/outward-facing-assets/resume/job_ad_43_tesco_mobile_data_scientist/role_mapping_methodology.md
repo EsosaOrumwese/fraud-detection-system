@@ -1,0 +1,232 @@
+# Tesco Mobile Data Scientist - Role Mapping Methodology
+
+This document starts after the platform has already been positioned against the job ad.
+
+The platform positioning work defines the X hierarchy:
+
+> Level 0 -> Level 1 -> Level 2 -> Level 3
+
+The role mapping work turns that hierarchy into resume-ready evidence.
+
+## Actual Role Mapping Steps
+
+### 1. Lock Platform Level 2 / Level 3
+
+Before attaching proof or writing bullets, confirm the platform's business outcome labels and concrete scenarios are stable.
+
+This means checking:
+
+- final Platform Level 2 labels;
+- which Level 2 labels are primary, secondary, or enabling;
+- whether each Level 3 scenario belongs under the right Level 2 label;
+- whether any Level 3 scenario is too technical, too vague, or too weak;
+- whether any important platform X is missing.
+
+Why this matters:
+
+> If a Level 2 label is weak or a Level 3 scenario is misplaced, every bullet written from it will inherit that weakness.
+
+### 2. Select The Strongest First-Experience Xs
+
+The first experience block cannot carry every possible platform scenario.
+
+Existing evidence strength should not be the limiter.
+
+The rule is:
+
+> Do not choose Xs only because the platform already proves them. Choose Xs because they best match the employer's problem, then position or expand the platform evidence tree so the X can be defended.
+
+The boundary is:
+
+> We can position, expand, or build toward the evidence. We should not fabricate claims that cannot be explained or demonstrated if challenged.
+
+So the question is not:
+
+> Which Xs already have the strongest written evidence?
+
+It is:
+
+> Which Xs best solve Tesco's problem, and can the platform carry a credible Z method and measurable Y proof for them?
+
+Select the strongest 4-6 platform Xs based on:
+
+- direct fit to Tesco's main problem: does this X clearly relate to solving business problems, improving customer experience, or shaping business decisions?
+- specificity of the X plus business mechanism: is the X concrete enough, with a clear target signal or customer/business mechanism?
+- evidence-buildability / defensibility: can we position the platform to carry this X with a credible Z and measurable Y?
+- coverage of the B-level questions: across the chosen Xs, do we show lifecycle ownership, model/pipeline management, statistical methods, production workflow, PySpark, testing, and communication?
+- scanability: does the first phrase instantly show a business/customer problem solved?
+- non-overlap: do the chosen Xs show different dimensions of value instead of repeating the same idea?
+- interview defensibility: can the platform story be explained cleanly if challenged: what data, what method, what result, what trade-off?
+
+The practical direction is:
+
+> Pick the best Xs for Tesco first, then build the platform positioning, Z method, and Y proof around them.
+
+For this Tesco role, the likely strongest Xs should come from:
+
+- Early risk movement detection;
+- Account review prioritisation;
+- Reduce unnecessary reviews/escalations;
+- Evidence-led strategy selection;
+- Explainable account prioritisation;
+- Trusted recurring decision outputs.
+
+### 3. Attach Y Proof And Z Method
+
+For each selected X, attach the measurable proof and method.
+
+Use the structure:
+
+> Concrete X -> business mechanism / target signal -> Y proof -> Z method
+
+For each selected X, answer:
+
+- What customer or business outcome was improved?
+- What business mechanism or target signal makes it specific?
+- How was it measured, qualified, or evidenced?
+- What method, duty, model, workflow, tool, or responsibility created it?
+
+### 4. Write The First Experience Block
+
+Only after X, mechanism, Y, and Z are clear should bullets be written.
+
+The bullet should lead with X, not Z.
+
+Preferred direction:
+
+> business/customer outcome -> measured proof -> method
+
+Avoid drifting back into:
+
+> built model -> used tool -> managed pipeline
+
+Those are valid Z signals, but they should not be the lead unless the role specifically makes method ownership the headline problem.
+
+## Step 1 Output - Lock Platform Level 2 / Level 3
+
+### Level 2 Label Lock
+
+| Current label | Lock decision | Reason |
+|---|---|---|
+| Early risk movement detection | Keep | Strong, scan-friendly, central to customer/business insight. |
+| Account review prioritisation | Keep | Clear business/process outcome. |
+| Reduce unnecessary reviews/escalations | Keep | Strong customer/process/responsible-treatment signal. |
+| Segmented decision strategies | Keep as secondary | Useful, but better as support to thresholds/prioritisation. |
+| Evidence-led strategy selection | Keep | Strong Tesco fit because it maps to decisions, testing, thresholds. |
+| Explainable account prioritisation | Keep | Strong support signal for insight and stakeholder communication. |
+| Review capacity planning | Keep as secondary | Useful operational/resource-planning angle, but not a lead outcome. |
+| Trusted recurring model outputs | Rename to Trusted recurring decision outputs | Less model-centric and more business-facing. |
+
+### Level 3 Fit Check
+
+| Platform Level 2 label | Fit verdict |
+|---|---|
+| Early risk movement detection | Both scenarios fit well. Keep both. |
+| Account review prioritisation | First scenario fits perfectly; second overlaps with unnecessary review reduction, but can stay because low-value reviews are also a prioritisation problem. |
+| Reduce unnecessary reviews/escalations | Both scenarios fit well. Keep both. |
+| Segmented decision strategies | Both scenarios fit well. Keep as secondary/support. |
+| Evidence-led strategy selection | Both scenarios fit well. Strong bullet candidate. |
+| Explainable account prioritisation | Both scenarios fit well. Best as support or later bullet. |
+| Review capacity planning | Both scenarios fit, but this should remain secondary. |
+| Trusted recurring decision outputs | Scenarios fit. Use the renamed label instead of Trusted recurring model outputs. |
+
+### Missing X Check
+
+No additional Platform Level 2 labels are needed right now.
+
+The current set already covers:
+
+- prediction;
+- prioritisation;
+- reduced waste/escalation;
+- segmentation;
+- strategy testing;
+- explainability;
+- resource planning;
+- BAU trust.
+
+Adding more labels now would weaken focus.
+
+### Locked Primary Set
+
+Use these as the primary candidates for bullet construction:
+
+| Priority | Platform Level 2 outcome |
+|---|---|
+| Primary | Early risk movement detection |
+| Primary | Account review prioritisation |
+| Primary | Reduce unnecessary reviews/escalations |
+| Primary | Evidence-led strategy selection |
+
+Use these as secondary/supporting signals:
+
+| Priority | Platform Level 2 outcome |
+|---|---|
+| Secondary | Explainable account prioritisation |
+| Secondary | Segmented decision strategies |
+| Secondary | Review capacity planning |
+| Enabling | Trusted recurring decision outputs |
+
+## Step 2 Output - Select First-Experience Xs
+
+### Main Rule
+
+The first experience block should use a small number of main Xs as bullet anchors.
+
+Supporting Xs should not automatically become extra bullets.
+
+They should usually be folded into the main Xs as colour, context, mechanism, or secondary proof so that each bullet signals the right Level 1 problem more clearly.
+
+The distinction is:
+
+| Layer | Purpose |
+|---|---|
+| Main X | The bullet anchor. This is the business/customer problem solved. |
+| Supporting X / angle | Extra business context that sharpens the X, but does not become the main claim unless promoted into its own bullet. |
+| Business mechanism / target signal | The behaviour, signal, segment, threshold, or operational issue that explains why the X matters. |
+| Y proof and Z method | Added later to prove and operationalise the X. |
+
+So the working rule is:
+
+> 4 main Xs = bullet anchors. Supporting Xs = colour, mechanism, or secondary proof inside those bullets.
+
+### Main Xs
+
+These are the four main Xs to carry into Y/Z construction.
+
+| Main X / bullet anchor | Level 1 problem it signals |
+|---|---|
+| Identify customers/accounts likely to move into higher risk before escalation | Improve customer experience; improve business outcomes; generate customer insight. |
+| Prioritise account reviews toward cases most likely to need action | Improve processes/performance; support resource planning; improve business outcomes. |
+| Reduce unnecessary reviews or escalations caused by blunt rules | Improve customer experience; improve processes; deliver impactful outcomes. |
+| Select decision strategies using evidence before adoption | Shape business decisions; improve performance; deliver impactful outcomes. |
+
+### Supporting Xs
+
+These are not extra bullets by default.
+
+They should be folded into the four main Xs where they strengthen the business signal.
+
+| Supporting X / angle | Where it supports |
+|---|---|
+| Explain why accounts are prioritised | Supports early risk movement detection, review prioritisation, and evidence-led strategy selection. |
+| Segment accounts for different decision paths | Supports review prioritisation, unnecessary review/escalation reduction, and evidence-led strategy selection. |
+| Plan review capacity around expected case load | Supports review prioritisation and evidence-led strategy selection. |
+| Maintain trusted recurring decision-support outputs | Supports evidence-led strategy selection, or can become a separate production/BAU bullet if the block needs one. |
+
+### Rich X Forms
+
+Before attaching Y and Z, the main Xs can be enriched with supporting angles and business mechanism.
+
+This gives each X enough business context without turning it into a full bullet too early.
+
+| Main X | Rich X form before Y/Z |
+|---|---|
+| Identify customers/accounts likely to move into higher risk before escalation | Identify customers/accounts likely to move into higher risk before escalation, with explainable behavioural drivers for why they were prioritised. |
+| Prioritise account reviews toward cases most likely to need action | Prioritise account reviews toward cases most likely to need action, while supporting review-capacity planning around expected case load. |
+| Reduce unnecessary reviews or escalations caused by blunt rules | Reduce unnecessary reviews or escalations caused by blunt rules by separating stable, recovering, and genuinely worsening account behaviour. |
+| Select decision strategies using evidence before adoption | Select decision strategies using evidence before adoption, comparing threshold and segment strategies before rollout. |
+
+The point is not to create more bullets.
+
+The point is to make the four selected Xs carry enough specificity that they immediately signal Tesco's Level 1 problems before any tools, models, or pipeline methods are mentioned.
