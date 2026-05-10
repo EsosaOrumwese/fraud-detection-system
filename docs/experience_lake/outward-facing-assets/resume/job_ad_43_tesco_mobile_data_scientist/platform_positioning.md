@@ -152,6 +152,29 @@ The aim is to bring the platform up into the employer's problem hierarchy so the
 
 At this level, the platform-specific differentiation should not be forced too early. It should start appearing at Level 2 and become concrete at Level 3 through platform-specific scenarios and business mechanisms.
 
+### Level 2 - Platform Business Concerns
+
+Level 2 is where the platform lens starts to appear.
+
+This layer should not mechanically translate Tesco's examples into platform labels. Tesco's Level 2 examples are business areas in Tesco Mobile's world. The platform's Level 2 should instead ask:
+
+> Given the same Level 0 and Level 1 outcomes, what business concerns would stakeholders in this platform world actually care about?
+
+These should be written as business concern statements, not as technical solution labels and not necessarily as questions. The concern statement makes the problem visible while still keeping the hierarchy polished.
+
+| Platform Level 2 business concern | Main Level 1 facet it supports | Why it belongs |
+|---|---|---|
+| Customers/accounts may become higher risk before escalation is visible. | Improve customer experience; improve business outcomes; generate customer insight. | Earlier identification supports better timing, better decisions, and clearer understanding of customer behaviour. |
+| Account review effort may be wasted on low-value cases. | Improve processes and performance; improve business outcomes; support resource planning. | This is about review efficiency, prioritisation, and where effort should go. |
+| Current rules may create unnecessary reviews or escalations. | Improve customer experience; improve processes; deliver impactful outcomes. | This links directly to reducing blunt or poorly timed customer/account treatment. |
+| Different customer/account groups may need different thresholds, review paths, or decision strategies. | Improve products/processes; shape business decisions; generate customer insight. | This is segmentation as a business concern, not just a modelling activity. |
+| Strategy adoption may lack evidence on which model threshold or decision route performs best. | Shape business decisions; deliver impactful outcomes; improve performance. | This connects to testing, champion/challenger logic, and evidence before rollout. |
+| Customer/account prioritisation may be difficult to explain to stakeholders. | Generate customer and business insight; shape business decisions. | This is the explainability and stakeholder understanding concern. |
+| Review capacity may not be focused where it has the strongest customer or business impact. | Support project/resource planning; improve process performance; improve business outcomes. | This is the resource planning and operational prioritisation angle. |
+| Recurring model outputs may lose trust without BAU monitoring. | Deliver impactful outcomes; improve performance; shape business decisions. | This is an enabling concern because unreliable outputs cannot support decisions. |
+
+Level 2 should remain business-facing. It should not yet become a list of tools, model types, feature windows, or metrics. Those details belong in Level 3, Y, or Z.
+
 ## X-First Resume Rule
 
 For this role, the headline, professional summary, and experience bullets should be achievement/problem-led rather than method-led.
