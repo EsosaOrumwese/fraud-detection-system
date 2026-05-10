@@ -63,6 +63,9 @@ Level 2 should not become long concern statements. A phrase such as "personalise
 | Reduce customer churn | Customer experience and business outcome can meet in retention, loyalty, and reduced customer loss. |
 | Improve product decisions | Product decisions should be shaped by customer data, behavioural evidence, and measured outcomes. |
 | Shape customer and business strategy | Decision-making should be shaped by evidence, not assumption or one-size-fits-all treatment. |
+| Improve operational prioritisation | Business impact can come from helping teams decide where attention, resource, or action should go first. |
+| Detect fraud or unusual behaviour | Customer and business outcomes can be affected by abnormal usage, account activity, or transaction patterns. |
+| Improve decision confidence | Teams need clearer evidence before changing campaigns, products, processes, thresholds, or customer strategies. |
 
 ### Level 3 - Tesco-Specific Concrete Scenarios
 
@@ -89,11 +92,11 @@ The business mechanism can look like Z because it often uses phrases such as "by
 | Improve marketing effectiveness | Reduce wasted marketing spend by excluding poor-fit customers from campaigns | Low response probability, offer mismatch, churn risk, unsuitable lifecycle stage. |
 | Optimise stock management | Improve handset or SIM stock planning | Upgrade cycles, product popularity, location demand, campaign periods, seasonal patterns. |
 | Improve product decisions | Identify customer segments underserved by existing plans, bundles, or add-ons | Usage behaviour, churn risk, response patterns, plan suitability, customer value. |
-| Improve customer experience | Reduce blunt or poorly timed customer interventions | Behaviour signals showing whether a customer needs an offer, support message, retention action, or no action. |
-| Improve customer experience | Identify customers likely to experience bill shock or poor plan fit | Usage spikes, tariff mismatch, data overuse, low value from current plan, unusual spend movement. |
+| Personalise customer communications | Reduce blunt or poorly timed customer interventions | Behaviour signals showing whether a customer needs an offer, support message, retention action, or no action. |
+| Improve product decisions | Identify customers likely to experience bill shock or poor plan fit | Usage spikes, tariff mismatch, data overuse, low value from current plan, unusual spend movement. |
 | Improve operational prioritisation | Prioritise customer groups where intervention is most likely to matter | Retention likelihood, expected value, service friction, risk movement, response probability. |
 | Detect fraud or unusual behaviour | Detect abnormal usage, account activity, or transaction patterns earlier | Usage anomalies, sudden account changes, unusual transactions, device/SIM behaviour, suspicious activity patterns. |
-| Shape business decisions | Compare customer strategies before rollout | Different thresholds, offer rules, campaign eligibility, timing rules, customer segments. |
+| Shape customer and business strategy | Compare customer strategies before rollout | Different thresholds, offer rules, campaign eligibility, timing rules, customer segments. |
 | Improve decision confidence | Give teams clearer evidence before changing campaigns, products, or processes | Model lift, test results, behavioural drivers, segment differences, trade-off analysis. |
 
 The key point:
@@ -165,20 +168,20 @@ At this level, the labels should not become long concern statements, technical s
 
 | Platform Level 2 business outcome example | Main Level 1 facet it supports | Why it belongs |
 |---|---|---|
-| Earlier risk movement detection | Improve customer experience; improve business outcomes; generate customer insight. | Earlier identification supports better timing, better decisions, and clearer understanding of customer behaviour. |
+| Early risk movement detection | Improve customer experience; improve business outcomes; generate customer insight. | Earlier identification supports better timing, better decisions, and clearer understanding of customer behaviour. |
 | Account review prioritisation | Improve processes and performance; improve business outcomes; support resource planning. | This is about review efficiency, prioritisation, and where effort should go. |
-| Unnecessary review and escalation reduction | Improve customer experience; improve processes; deliver impactful outcomes. | This links directly to reducing blunt or poorly timed customer/account treatment. |
+| Reduce unnecessary reviews/escalations | Improve customer experience; improve processes; deliver impactful outcomes. | This links directly to reducing blunt or poorly timed customer/account treatment. |
 | Segmented decision strategies | Improve products/processes; shape business decisions; generate customer insight. | This is segmentation as a business concern, not just a modelling activity. |
-| Strategy and threshold evidence | Shape business decisions; deliver impactful outcomes; improve performance. | This connects to testing, champion/challenger logic, and evidence before rollout. |
-| Explainable customer/account prioritisation | Generate customer and business insight; shape business decisions. | This is the explainability and stakeholder understanding concern. |
+| Evidence-led strategy selection | Shape business decisions; deliver impactful outcomes; improve performance. | This connects to testing, champion/challenger logic, and evidence before rollout. |
+| Explainable account prioritisation | Generate customer and business insight; shape business decisions. | This is the explainability and stakeholder understanding concern. |
 | Review capacity planning | Support project/resource planning; improve process performance; improve business outcomes. | This is the resource planning and operational prioritisation angle. |
-| BAU decision confidence | Deliver impactful outcomes; improve performance; shape business decisions. | This is an enabling outcome because unreliable outputs cannot support decisions. |
+| Trusted recurring model outputs | Deliver impactful outcomes; improve performance; shape business decisions. | This is an enabling outcome because unreliable outputs cannot support decisions. |
 
 Level 2 should remain business-facing and scan-friendly. It should not yet become a list of tools, model types, feature windows, metrics, or long problem descriptions. Those details belong in Level 3, Y, or Z.
 
 ### Level 3 - Platform Concrete Scenarios With Business Mechanisms
 
-Level 3 is where the platform's stakeholder concerns become concrete.
+Level 3 is where the platform's business outcome examples become concrete.
 
 At this level, each X should name:
 
@@ -188,22 +191,22 @@ This is still not final bullet writing. Y proof and Z method are added later. Le
 
 | Platform Level 2 business outcome example | Level 3 concrete X | Business mechanism / target signal |
 |---|---|---|
-| Earlier risk movement detection | Identify customers/accounts likely to move into a higher risk band before formal escalation triggers. | Risk-band momentum, transaction volatility, activity drop-off, repeated near-threshold behaviour. |
-| Earlier risk movement detection | Detect early behavioural deterioration in accounts that still look acceptable under static rules. | Recent behaviour shift, worsening payment rhythm, rising exposure/utilisation, changing transaction patterns. |
+| Early risk movement detection | Identify customers/accounts likely to move into a higher risk band before formal escalation triggers. | Risk-band momentum, transaction volatility, activity drop-off, repeated near-threshold behaviour. |
+| Early risk movement detection | Detect early behavioural deterioration in accounts that still look acceptable under static rules. | Recent behaviour shift, worsening payment rhythm, rising exposure/utilisation, changing transaction patterns. |
 | Account review prioritisation | Prioritise review queues toward accounts most likely to show future risk movement. | Model score concentration, risk movement likelihood, review need probability, outcome-linked labels. |
 | Account review prioritisation | Reduce low-value reviews where account behaviour suggests stability or recovery. | Recovery trend, stable activity, low risk-movement probability, previous false-positive review patterns. |
-| Unnecessary review and escalation reduction | Reduce unnecessary escalation caused by blunt rule-based thresholds. | Static threshold over-triggering, repeated flags without later deterioration, poor threshold precision. |
-| Unnecessary review and escalation reduction | Replace late or blunt rule triggers with earlier model-led risk signals. | Rule trigger delay, earlier behavioural warning signs, model-led probability scores. |
+| Reduce unnecessary reviews/escalations | Reduce unnecessary escalation caused by blunt rule-based thresholds. | Static threshold over-triggering, repeated flags without later deterioration, poor threshold precision. |
+| Reduce unnecessary reviews/escalations | Replace late or blunt rule triggers with earlier model-led risk signals. | Rule trigger delay, earlier behavioural warning signs, model-led probability scores. |
 | Segmented decision strategies | Identify customer/account segments where the same threshold performs differently. | Segment-level precision/recall, risk concentration, behaviour differences, review load variation. |
 | Segmented decision strategies | Separate worsening, stable, volatile, and recovering account behaviour groups for different decision paths. | Behavioural clustering, risk-band movement, transaction trend, recovery/stability signals. |
-| Strategy and threshold evidence | Compare model-threshold strategies before adoption to balance risk capture and review effort. | Threshold trade-offs, risk coverage, review volume, false-positive rate, operational load. |
-| Strategy and threshold evidence | Test whether model-led prioritisation outperforms existing rule-led prioritisation. | Champion/challenger comparison, baseline vs XGBoost, outcome measures, time-based validation. |
-| Explainable customer/account prioritisation | Explain why high-priority accounts were scored as likely to move into higher risk. | SHAP drivers, transaction volatility, risk momentum, recency/frequency changes, previous outcomes. |
-| Explainable customer/account prioritisation | Translate model outputs into business-facing behavioural explanations. | Top driver summaries, segment-level explanations, feature contribution patterns, decision rationale. |
+| Evidence-led strategy selection | Compare model-threshold strategies before adoption to balance risk capture and review effort. | Threshold trade-offs, risk coverage, review volume, false-positive rate, operational load. |
+| Evidence-led strategy selection | Test whether model-led prioritisation outperforms existing rule-led prioritisation. | Champion/challenger comparison, baseline vs XGBoost, outcome measures, time-based validation. |
+| Explainable account prioritisation | Explain why high-priority accounts were scored as likely to move into higher risk. | SHAP drivers, transaction volatility, risk momentum, recency/frequency changes, previous outcomes. |
+| Explainable account prioritisation | Translate model outputs into business-facing behavioural explanations. | Top driver summaries, segment-level explanations, feature contribution patterns, decision rationale. |
 | Review capacity planning | Focus review capacity on customer/account groups with the strongest evidence of future risk movement. | Top-score bands, risk concentration, review load, expected outcome movement. |
 | Review capacity planning | Support planning around review load created by different model thresholds. | Threshold scenario volumes, expected case counts, operational capacity, monitoring outputs. |
-| BAU decision confidence | Detect when customer behaviour or model performance changes enough to require review. | Drift signals, score distribution shifts, feature refresh quality, threshold instability. |
-| BAU decision confidence | Keep recurring scoring outputs stable enough for repeated decision support. | Performance monitoring, drift checks, feature refresh checks, validation results, documented model runs. |
+| Trusted recurring model outputs | Detect when customer behaviour or model performance changes enough to require review. | Drift signals, score distribution shifts, feature refresh quality, threshold instability. |
+| Trusted recurring model outputs | Keep recurring scoring outputs stable enough for repeated decision support. | Performance monitoring, drift checks, feature refresh checks, validation results, documented model runs. |
 
 This Level 3 layer prevents later bullet writing from collapsing back into vague statements such as:
 
