@@ -106,6 +106,33 @@ The working hierarchy is:
 
 > Tesco company problem -> Tesco outcome facet -> Tesco example outcome -> Tesco concrete scenario plus business mechanism -> platform equivalent concrete X plus platform mechanism -> Y proof -> Z method
 
+## Platform X Hierarchy
+
+This section maps the platform into an equivalent problem hierarchy.
+
+The purpose is not to make Level 0 sound platform-specific too early. At the top of the hierarchy, the platform should match the employer's umbrella problem closely. The platform-specific differentiation should appear lower down, especially at Level 2 and Level 3, where the broad problem becomes a concrete platform situation with a business mechanism.
+
+### Level 0 - Umbrella X
+
+| Side | Level 0 |
+|---|---|
+| Tesco Level 0 | Use data science to solve real business problems and improve customer experiences. |
+| Platform Level 0 | Use data science to solve real business problems and improve customer experiences. |
+
+Level 0 should stay close to the employer's wording because this is the broad problem being matched. It should not yet lead with platform-specific mechanics such as customer behaviour/risk intelligence, model workflows, PySpark, thresholds, or monitoring.
+
+Incorrect Level 0 posture:
+
+> Use customer behaviour and risk intelligence to improve business decision-making and customer treatment outcomes.
+
+That wording may become useful lower in the hierarchy, but at Level 0 it is too platform-flavoured and too far removed from the employer's own problem statement.
+
+Correct Level 0 posture:
+
+> Use data science to solve real business problems and improve customer experiences.
+
+This creates the top-level match. The platform-specific meaning of that statement should be developed in Level 1, Level 2, and Level 3.
+
 ## X-First Resume Rule
 
 For this role, the headline, professional summary, and experience bullets should be achievement/problem-led rather than method-led.
