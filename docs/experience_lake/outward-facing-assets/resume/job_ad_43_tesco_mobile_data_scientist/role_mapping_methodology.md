@@ -342,3 +342,99 @@ They combine the final table into full raw bullets without compressing the subst
 - Reduced unnecessary reviews or escalations caused by blunt rules by separating stable, recovering, and genuinely worsening account behaviour, using static threshold over-triggering, repeated flags without later deterioration, false-positive review patterns, stable activity, recovery trends, and low risk-movement probability to reduce low-value review volume by 11% while maintaining risk coverage; rule-based thresholds were compared against model-led scoring, recovery/stability features, and champion/challenger threshold tests by translating ambiguous rule-performance questions into hypothesis-driven analysis, engineering recovery, stability, volatility, and risk-momentum features, comparing rule-based logic against model-led scoring, and using segmentation, threshold testing, and champion/challenger evaluation to identify lower-value review paths.
 
 - Selected decision strategies using evidence before adoption, comparing threshold and segment strategies before rollout through threshold trade-offs, segment-level performance differences, risk coverage, review volume, false-positive rate, operational load, and champion/challenger comparison to select a lower-review-load strategy while preserving risk coverage and controlling false positives; tested 3 model-threshold strategies using champion/challenger logic across risk capture, review volume, false positives, operational load, and threshold stability by implementing A/B, holdout, and champion/challenger testing across model thresholds and customer/account segments, comparing outcome trade-offs, and documenting rationale through version-controlled, tested, stakeholder-ready evidence outputs.
+
+## Step 4B Output - Commercial-Facing First Experience Block
+
+The raw bullets above preserve the full platform evidence, but they still read like a report on the platform.
+
+The final experience block should not summarise the platform report. It should translate the platform evidence into the kind of fast-scan business/customer outcomes Tesco is hiring for, while still carrying the technical signals required by the job ad.
+
+The shift is:
+
+> platform-facing evidence -> business-facing achievement -> resume bullet
+
+In practice, that means the bullet lead should show the outcome first:
+
+- improved early customer-risk detection;
+- focused operational review capacity;
+- reduced low-value customer/account reviews;
+- improved evidence-led strategy selection;
+- maintained trusted recurring decision-support outputs.
+
+The technical signals then support the outcome rather than becoming the lead signal.
+
+### Final First Experience Block
+
+**Data Scientist / ML Platform Engineer - Independent Open-source Project**  
+**Customer Credit Risk Intelligence Platform - Exeter, UK | May 2025 - Present**  
+AWS-hosted, production-shaped customer-behaviour ML platform for risk propensity modelling, PySpark feature pipelines, experiment comparison, scoring workflows, validation, and model monitoring across a 2.35B-row credit-risk surface.
+
+- Built PySpark feature pipelines combining customer, account, transaction, risk, decision, and outcome data to support pre-escalation risk scoring and segmented review prioritisation.
+
+- Improved early-risk detection by **18%** in backtested evaluation, surfacing more pre-escalation risk cases through customer-behaviour modelling and XGBoost-based scoring.
+
+- Concentrated **42% of future-risk cases** into the **top 20% priority group**, helping focus review capacity on the highest-risk customer/account segments.
+
+- Reduced low-value review volume by **11%** while maintaining risk coverage, replacing blunt rule thresholds with model-led prioritisation and segmented decision thresholds.
+
+- Compared **3 model-threshold strategies** across **5 outcome measures** - risk coverage, review volume, false positives, operational load, and threshold stability - to support evidence-led rollout decisions.
+
+- Maintained recurring decision-support workflows with AWS-hosted scoring jobs, feature refreshes, drift checks, validation tests, model monitoring, and version-controlled documentation.
+
+## Step 5 Output - Remaining Experience Blocks
+
+The first experience block carries the main Tesco signal: customer data, production ML, PySpark, prioritisation, experimentation, monitoring, and business outcomes.
+
+The remaining experience blocks should support, not compete with, the first experience block.
+
+They should reinforce:
+
+- large/complex datasets;
+- modelling and feature engineering;
+- customer/behavioural insight;
+- hypothesis-driven analysis;
+- clear communication;
+- operational/reporting discipline;
+- collaboration.
+
+The content below preserves the remaining resume experience blocks in the order they should support the first block.
+
+```text
+Usage-Based Insurance Behaviour Modelling
+University of Exeter - Exeter, UK | Aug 2024
+Applied machine learning to smartphone sensor data to classify transport behaviour and driver identity for insurance risk assessment.
+
+- Supported fairer usage-based insurance risk assessment by reducing 81.9M smartphone sensor records from 227 hours of movement data into 4.1M model-ready records using Python and SQL.
+
+- Built a Python and PyTorch deep learning workflow for dual behaviour classification, covering journey segmentation, feature engineering, coordinate transformation, and model evaluation.
+
+- Presented behavioural modelling insights to academic stakeholders, explaining how smartphone movement data could support driver-risk assessment beyond costly in-vehicle telematics.
+```
+
+```text
+COVID-19 Business Recovery Trend Analysis
+University of Exeter - Exeter, UK | Nov 2023
+Linked business activity data to policy changes and external events to explain disruption and recovery signals.
+
+- Generated business recovery insight by analysing 1,004 Facebook Business Activity Trends files into a 2.4M-row dataset across 220 countries and 12 business verticals.
+
+- Combined business activity and Oxford policy-response data to identify recovery patterns across 6 countries and 8 policy areas, linking movement to policy timing and external events.
+
+- Presented visual evidence and 3 strategy recommendations, translating disruption and recovery signals into clear business-facing insight.
+```
+
+```text
+Completions Engineer
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
+
+- Improved operational reporting visibility by monitoring completion run data in Excel, tracking tubing/casing tallies, equipment sequence, depths, and daily progress during rig activity.
+
+- Reconciled 4 operational record types across field reports, HSE records, equipment checks, and daily activity updates to support accurate handovers and operational decisions.
+
+- Collaborated with completions, safety, and field operations colleagues to align equipment, reporting, and HSE requirements under changing stakeholder demands.
+```
+
+These blocks should make the supporting case:
+
+> I have repeated evidence of large-data analysis, behavioural modelling, business insight, communication, reporting, and collaboration.

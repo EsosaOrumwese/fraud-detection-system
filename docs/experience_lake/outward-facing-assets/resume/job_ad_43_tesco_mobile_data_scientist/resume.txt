@@ -1,0 +1,56 @@
+Esosa Orumwese
+Data Scientist | Customer Behaviour ML, Production Decision Support & PySpark Pipelines
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+
+RELEVANT EXPERIENCE
+
+Applied Data Scientist
+Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
+AWS-hosted customer-behaviour ML platform for PySpark pipelines, risk scoring, experimentation, validation, and monitoring across a 2.35B-row credit-risk surface.
+
+- Built PySpark feature pipelines combining customer, account, transaction, risk, decision, and outcome data to support pre-escalation risk scoring and segmented review prioritisation.
+- Improved early-risk detection by 18% in backtested evaluation, surfacing more pre-escalation risk cases through customer-behaviour modelling and XGBoost-based scoring.
+- Concentrated 42% of future-risk cases into the top 20% priority group, helping focus review capacity on the highest-risk customer/account segments.
+- Reduced low-value review volume by 11% while maintaining risk coverage, replacing blunt rule thresholds with model-led prioritisation and segmented decision thresholds.
+- Compared 3 model-threshold strategies across 5 outcome measures - risk coverage, review volume, false positives, operational load, and threshold stability - to support evidence-led rollout decisions.
+- Maintained recurring decision-support workflows with AWS-hosted scoring jobs, feature refreshes, drift checks, validation tests, model monitoring, and version-controlled documentation.
+
+Usage-Based Insurance Behaviour Modelling
+University of Exeter - Exeter, UK | Aug 2024
+Applied machine learning to smartphone sensor data to classify transport behaviour and driver identity for insurance risk assessment.
+
+- Supported fairer usage-based insurance risk assessment by reducing 81.9M smartphone sensor records from 227 hours of movement data into 4.1M model-ready records using Python and SQL.
+- Built a Python and PyTorch deep learning workflow for dual behaviour classification, covering journey segmentation, feature engineering, coordinate transformation, and model evaluation.
+- Presented behavioural modelling insights to academic stakeholders, explaining how smartphone movement data could support driver-risk assessment beyond costly in-vehicle telematics.
+
+COVID-19 Business Recovery Trend Analysis
+University of Exeter - Exeter, UK | Nov 2023
+Linked business activity data to policy changes and external events to explain disruption and recovery signals.
+
+- Generated business recovery insight by analysing 1,004 Facebook Business Activity Trends files into a 2.4M-row dataset across 220 countries and 12 business verticals.
+- Combined business activity and Oxford policy-response data to identify recovery patterns across 6 countries and 8 policy areas, linking movement to policy timing and external events.
+- Presented visual evidence and 3 strategy recommendations, translating disruption and recovery signals into clear business-facing insight.
+
+Completions Engineer
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
+
+- Improved operational reporting visibility by monitoring completion run data in Excel, tracking tubing/casing tallies, equipment sequence, depths, and daily progress during rig activity.
+- Reconciled 4 operational record types across field reports, HSE records, equipment checks, and daily activity updates to support accurate handovers and operational decisions.
+- Collaborated with completions, safety, and field operations colleagues to align equipment, reporting, and HSE requirements under changing stakeholder demands.
+
+KEY SKILLS
+
+Data Science & ML: Python, SQL, PySpark, PyTorch, XGBoost, Logistic Regression, SHAP, predictive modelling, statistical modelling, feature engineering, model evaluation.
+
+Production ML & Engineering: AWS, data pipelines, production ML workflows, Git, object-oriented programming, unit testing, CI/CD, model monitoring, drift checks, documentation, security-aware workflows.
+
+Customer & Business Analytics: customer behaviour analysis, segmentation, propensity/risk modelling, A/B testing, champion/challenger testing, hypothesis-driven analysis, business insight, stakeholder communication.
