@@ -10,6 +10,100 @@ The platform story should quietly answer:
 
 > Can this person solve business problems and improve customer experience by turning large customer datasets into production ML workflows, insights, and business decisions?
 
+## Tesco X Hierarchy
+
+Before mapping the platform to the role, the employer's X must be understood first.
+
+For this job ad, X means the business/customer problem Tesco is hiring the Data Scientist to help solve. The responsibilities, tools, lifecycle ownership, pipelines, models, and software engineering practices are not the lead signal. They are the way Tesco expects the person to achieve X.
+
+The corrected positioning order is:
+
+> X = employer problem solved or outcome achieved  
+> Y = proof of how well it was solved  
+> Z = method, duty, tool, workflow, or responsibility used to solve it
+
+This matters because a fast scan does not usually wait for the end of a sentence. If the resume leads with Z, the reader first sees tools, methods, or activities. If it leads with X, the reader first sees the business/customer problem they are hiring for.
+
+### Level 0 - Umbrella X
+
+This is the broad company problem:
+
+> Use data science to solve real business problems and improve customer experiences.
+
+This is the top-level frame of the role. It should shape the whole CV, especially the headline and professional summary, but it is usually too vague to repeat as the lead phrase in individual bullets.
+
+### Level 1 - Main Outcome Facets
+
+These are the main ways the umbrella X appears in the job ad.
+
+| Facet | Meaning |
+|---|---|
+| Improve customer experience | Make customer journeys, communications, decisions, or service interactions more relevant, timely, targeted, or useful. |
+| Improve business outcomes | Use customer data and analytics to improve commercial, operational, retention, marketing, or decision outcomes. |
+| Shape business decisions | Produce evidence that influences how teams prioritise, act, test, allocate resources, or change strategy. |
+| Improve products, processes, and performance | Identify opportunities where data science can make products, workflows, decision systems, or operating performance better. |
+| Deliver impactful outcomes | Show that the work produced measurable or meaningful value, not just analysis, modelling, or reporting activity. |
+| Generate customer and business insight | Turn complex customer and behavioural data into findings that explain what is happening, why it matters, and what should change. |
+| Resolve business challenges | Take ambiguous problems and define a structured analytical path to investigation, evidence, and action. |
+| Support project and resource planning | Help teams decide what should be prioritised, tested, resourced, rolled out, or monitored. |
+
+### Level 2 - Concrete Business Examples From The Ad
+
+Tesco gives examples that make the broad X more concrete. These examples show the level of specificity that strong resume bullets should eventually aim for.
+
+| Concrete X from the ad | What it reveals |
+|---|---|
+| Personalise customer communications | Customer experience improvement is expected to be specific, targeted, and behaviour-led. |
+| Improve marketing effectiveness | Business outcome improvement may mean better targeting, campaign performance, customer engagement, or commercial return. |
+| Optimise stock management | Data science impact can be operational, not only customer-facing. |
+| Reduce customer churn | Customer experience and business outcome can meet in retention, loyalty, and reduced customer loss. |
+| Improve products | Product decisions should be shaped by customer data, behavioural evidence, and measured outcomes. |
+| Improve processes | Operational or decision workflows should be made more effective through data-driven solutions. |
+| Improve performance | The role expects measurable improvement in a model, process, product, operation, or business outcome. |
+
+### Level 3 - Platform-Specific X Comes Later
+
+The platform mapping should happen after the Tesco X hierarchy is understood.
+
+The goal is not to write bullets that say:
+
+> Solved real business problems...
+
+That is too broad.
+
+The goal is to identify the platform's equivalent of Tesco's concrete examples. In other words:
+
+> What is this platform's equivalent of reducing churn, improving marketing effectiveness, optimising stock management, or personalising customer communications?
+
+That platform-specific X should be concrete enough to lead a bullet, while still connecting back to Tesco's umbrella problem.
+
+The working hierarchy is:
+
+> Company problem -> outcome facet -> concrete business example -> platform-specific X -> Y proof -> Z method
+
+## X-First Resume Rule
+
+For this role, the headline, professional summary, and experience bullets should be achievement/problem-led rather than method-led.
+
+Avoid leading with:
+
+> Built models...  
+> Managed pipelines...  
+> Used PySpark...  
+> Owned lifecycle stages...
+
+Those are Z signals. They matter, but they should usually come after the X.
+
+Prefer leading with the business/customer problem or outcome first, then prove it and explain how it was achieved.
+
+The resume should therefore read as:
+
+> solved what problem -> proved by what evidence -> achieved through what method
+
+Not:
+
+> used what method -> produced what metric -> hopefully implies what problem was solved
+
 ## Resume Signal Hierarchy
 
 The resume should answer the role in layers.
