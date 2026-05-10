@@ -71,9 +71,9 @@ For this Tesco role, the likely strongest Xs should come from:
 - Explainable account prioritisation;
 - Trusted recurring decision outputs.
 
-### 3. Attach Z Method And Y Proof
+### 3. Attach Z Method, Business Y, And Technical Proof
 
-For each selected X, attach the role-duty method first, then the measurable proof.
+For each selected X, attach the role-duty method first as a construction step, then separate business Y from technical proof.
 
 Z comes before Y at this stage because it should reflect Tesco's "what you'll be responsible for" duties:
 
@@ -85,16 +85,23 @@ Z comes before Y at this stage because it should reflect Tesco's "what you'll be
 - applying testing, version control, CI/CD, documentation, and security discipline;
 - communicating evidence and recommendations to technical and non-technical stakeholders.
 
-Use the structure:
+Use this construction structure:
 
-> Concrete X -> business mechanism / target signal -> Z method -> Y proof
+> Concrete X -> business mechanism / target signal -> Z method -> business Y -> technical proof
 
 For each selected X, answer:
 
 - What customer or business outcome was improved?
 - What business mechanism or target signal makes it specific?
 - What method, duty, model, workflow, tool, or responsibility created it?
-- How was it measured, qualified, or evidenced?
+- What stakeholder-facing business measure proves the X improved?
+- What technical evidence supports confidence in the method?
+
+The final bullet-writing logic should still be X-first:
+
+> X -> Business Y -> Z
+
+Technical proof should support the bullet where useful, but it should not replace the business Y.
 
 ### 4. Write The First Experience Block
 
@@ -258,6 +265,8 @@ At this stage, Z should describe the role-aligned work used to carry each X.
 
 It should not become the bullet lead later, but it must be strong enough to show that the X was achieved through the responsibilities Tesco cares about.
 
+This is an intermediate construction layer, not the final bullet table. The final table is in Step 3B.
+
 | Final X | Business mechanism / target signal | Z method / responsibility |
 |---|---|---|
 | Identify customers/accounts likely to move into higher risk before escalation, with explainable behavioural drivers for why they were prioritised. | Risk-band momentum, transaction volatility, activity drop-off, rising exposure/utilisation, repeated near-threshold behaviour, recency/frequency changes. | Build, validate, and optimise customer-risk prediction models by combining customer, account, transaction, risk, decision, and outcome data into point-in-time PySpark/SQL feature pipelines; train Logistic Regression and XGBoost models in Python; validate with time-based splits; apply SHAP to explain behavioural drivers. |
@@ -285,7 +294,9 @@ So metrics such as recall, AUC, model lift, threshold count, or number of outcom
 
 ### Final X/Y/Z Table
 
-This is the final construction table before writing bullets.
+This is the authoritative construction table before writing bullets.
+
+Step 3A explains how the Z was built. This table controls the final bullet ingredients.
 
 | X | Business mechanism / target signal | Business Y - stakeholder-facing proof | Technical proof - model/method evidence | Z method / responsibility |
 |---|---|---|---|---|
@@ -317,3 +328,17 @@ Use different lead signals:
 - Selected decision strategies...
 
 This keeps the first experience block connected to Tesco's broader concerns: customer experience, business outcomes, process performance, decision-making, insight, and planning.
+
+## Step 4A Output - Raw Substance-First Bullet Drafts
+
+These are not final resume bullets yet.
+
+They combine the final table into full raw bullets without compressing the substance too early. The next step can then convert this substance into sharper commercial/job-ad language without losing the evidence.
+
+- Identified customers/accounts likely to move into higher risk before escalation, using risk-band momentum, transaction volatility, activity drop-off, rising exposure/utilisation, repeated near-threshold behaviour, and recency/frequency changes to improve early-risk identification by 18% and reduce missed pre-escalation cases; built, validated, and optimised customer-risk prediction models by combining customer, account, transaction, risk, decision, and outcome data into point-in-time PySpark/SQL feature pipelines, training Logistic Regression and XGBoost models in Python, validating with time-based splits, and applying SHAP to explain 4 behavioural drivers across priority segments.
+
+- Prioritised account reviews toward cases most likely to need action while supporting review-capacity planning around expected case load, using model score concentration, future risk movement likelihood, review-need probability, outcome-linked labels, top-score bands, and expected case volumes to focus review effort by concentrating 42% of future-risk cases into the top 20% priority group; managed production-shaped scoring and data pipelines by refreshing PySpark/SQL feature inputs, converting XGBoost probabilities into priority bands and expected case volumes, and producing repeatable scoring, monitoring, and planning outputs through an AWS-hosted workflow.
+
+- Reduced unnecessary reviews or escalations caused by blunt rules by separating stable, recovering, and genuinely worsening account behaviour, using static threshold over-triggering, repeated flags without later deterioration, false-positive review patterns, stable activity, recovery trends, and low risk-movement probability to reduce low-value review volume by 11% while maintaining risk coverage; translated ambiguous rule-performance questions into hypothesis-driven analysis, engineered recovery/stability/volatility/risk-momentum features, compared rule-based thresholds against model-led scoring, and used segmentation, threshold testing, and champion/challenger evaluation to identify lower-value review paths.
+
+- Selected decision strategies using evidence before adoption by comparing threshold and segment strategies across threshold trade-offs, segment-level performance differences, risk coverage, review volume, false-positive rate, operational load, and threshold stability, selecting a lower-review-load strategy before rollout while preserving risk coverage and controlling false positives; implemented A/B, holdout, and champion/challenger testing across 3 model-threshold strategies and 5 outcome measures, documenting rationale through version-controlled, tested, stakeholder-ready evidence outputs.
