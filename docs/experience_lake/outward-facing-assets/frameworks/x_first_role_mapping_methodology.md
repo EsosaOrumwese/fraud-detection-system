@@ -183,26 +183,26 @@ Before mapping the platform, build the employer's X hierarchy:
 |---|---|
 | Level 0 | Umbrella company problem. |
 | Level 1 | Main outcome facets. |
-| Level 2 | Stakeholder concern statements: business/customer areas a stakeholder would care about before the work becomes scenario-specific. |
+| Level 2 | Short business outcome examples or business areas that make Level 1 less vague while staying scan-friendly. |
 | Level 3 | Specific role-context scenarios with business mechanisms / target signals. |
 
-Level 2 should not be a mechanical list of solution labels or a repeat of Level 1 wording. It should be written as stakeholder concern statements. These statements can come directly from the job ad's examples or be carefully extrapolated from the employer's business context.
+Level 2 should not be a repeat of Level 1 wording, but it also should not become long stakeholder concern sentences. It should use short, recognisable business outcome labels that land quickly on a fast scan.
 
 Preferred Level 2 style:
 
-> Customers may leave before the business identifies the right retention signal or intervention point.
+> Reduce customer churn.
 
 Less useful Level 2 style:
 
-> Reduce customer churn.
+> Customers may leave before the business identifies the right retention signal or intervention point.
 
-The second version is shorter, but it is still too slogan-like. The first version exposes the stakeholder concern while remaining less specific than Level 3.
+The second version contains useful thinking, but it is too long for Level 2 and starts to do Level 3's job. Level 3 is where the customer situation, timing, mechanism, and target signal should be unpacked.
 
 Only after this hierarchy exists should the platform be mapped.
 
 The mapping flow is:
 
-> employer umbrella problem -> employer outcome facet -> employer stakeholder concern statement -> employer concrete scenario plus business mechanism -> platform equivalent concrete X plus platform mechanism -> Y proof -> Z method
+> employer umbrella problem -> employer outcome facet -> employer business outcome example -> employer concrete scenario plus business mechanism -> platform equivalent concrete X plus platform mechanism -> Y proof -> Z method
 
 ## Bullet Construction Rule
 

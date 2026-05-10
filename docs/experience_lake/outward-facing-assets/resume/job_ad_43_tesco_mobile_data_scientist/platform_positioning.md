@@ -47,20 +47,22 @@ These are the main ways the umbrella X appears in the job ad.
 | Resolve business challenges | Take ambiguous problems and define a structured analytical path to investigation, evidence, and action. |
 | Support project and resource planning | Help teams decide what should be prioritised, tested, resourced, rolled out, or monitored. |
 
-### Level 2 - Stakeholder Concern Statements From The Ad
+### Level 2 - Business Outcome Examples From The Ad
 
-Tesco gives examples that make the broad X less vague. At this level, they are best treated as stakeholder concern statements: the kinds of business/customer areas a non-technical stakeholder could plausibly raise before the data science work becomes specific.
+Tesco gives examples that make the broad X less vague. At this level, the labels should stay short and scan-friendly, because they are still business outcome areas rather than full scenarios.
 
-These statements are still not fully bullet-ready because they do not yet name the exact customer situation, behaviour, timing, or decision point. They sit between the broad Level 1 outcome facets and the highly specific Level 3 scenarios.
+These examples are still not fully bullet-ready because they do not yet name the exact customer situation, behaviour, timing, or decision point. They sit between the broad Level 1 outcome facets and the highly specific Level 3 scenarios.
 
-| Level 2 stakeholder concern statement | What it reveals |
+Level 2 should not become long concern statements. A phrase such as "personalise customer communications" lands faster than "customer communications may be too generic, poorly timed, or insufficiently personalised." The concern/mechanism can be unpacked at Level 3.
+
+| Level 2 business outcome example | What it reveals |
 |---|---|
-| Customer communications may be too generic, poorly timed, or insufficiently personalised. | Customer experience improvement is expected to be specific, targeted, and behaviour-led. |
-| Marketing activity may not be reaching the customers most likely to respond, renew, upgrade, or engage. | Business outcome improvement may mean better targeting, campaign performance, customer engagement, or commercial return. |
-| Stock or resource planning may not match customer demand across products, locations, campaigns, or seasons. | Data science impact can be operational, not only customer-facing. |
-| Customers may leave before the business identifies the right retention signal or intervention point. | Customer experience and business outcome can meet in retention, loyalty, and reduced customer loss. |
-| Customer offers, plans, journeys, or service actions may not fit different customer groups equally well. | Product and customer decisions should be shaped by customer data, behavioural evidence, and measured outcomes. |
-| Business teams may lack evidence on which customer strategy, campaign route, or operational action to prioritise. | Decision-making should be shaped by evidence, not assumption or one-size-fits-all treatment. |
+| Personalise customer communications | Customer experience improvement is expected to be specific, targeted, and behaviour-led. |
+| Improve marketing effectiveness | Business outcome improvement may mean better targeting, campaign performance, customer engagement, or commercial return. |
+| Optimise stock management | Data science impact can be operational, not only customer-facing. |
+| Reduce customer churn | Customer experience and business outcome can meet in retention, loyalty, and reduced customer loss. |
+| Improve product decisions | Product decisions should be shaped by customer data, behavioural evidence, and measured outcomes. |
+| Shape customer and business strategy | Decision-making should be shaped by evidence, not assumption or one-size-fits-all treatment. |
 
 ### Level 3 - Tesco-Specific Concrete Scenarios
 
@@ -98,14 +100,14 @@ The key point:
 
 > Level 0 explains why Tesco is hiring.  
 > Level 1 explains the broad outcomes they care about.  
-> Level 2 gives job-ad examples of those outcomes.  
+> Level 2 gives short business outcome examples from the job ad.  
 > Level 3 makes those examples specific enough by naming both the concrete outcome and the business mechanism behind it.
 
 Only after the full Tesco X hierarchy is clear should the platform be mapped to an equivalent hierarchy.
 
 The working hierarchy is:
 
-> Tesco company problem -> Tesco outcome facet -> Tesco stakeholder concern statement -> Tesco concrete scenario plus business mechanism -> platform equivalent concrete X plus platform mechanism -> Y proof -> Z method
+> Tesco company problem -> Tesco outcome facet -> Tesco business outcome example -> Tesco concrete scenario plus business mechanism -> platform equivalent concrete X plus platform mechanism -> Y proof -> Z method
 
 ## Platform X Hierarchy
 
@@ -153,28 +155,65 @@ The aim is to bring the platform up into the employer's problem hierarchy so the
 
 At this level, the platform-specific differentiation should not be forced too early. It should start appearing at Level 2 and become concrete at Level 3 through platform-specific scenarios and business mechanisms.
 
-### Level 2 - Platform Business Concerns
+### Level 2 - Platform Business Outcome Examples
 
 Level 2 is where the platform lens starts to appear.
 
-This layer should not mechanically translate Tesco's examples into platform labels. Tesco's Level 2 examples are business areas in Tesco Mobile's world. The platform's Level 2 should instead ask:
+This layer should not mechanically translate Tesco's examples into platform labels. Tesco's Level 2 examples are business outcome areas in Tesco Mobile's world. The platform's Level 2 should identify the equivalent short, scan-friendly business outcome areas in this platform world.
 
-> Given the same Level 0 and Level 1 outcomes, what business concerns would stakeholders in this platform world actually care about?
+At this level, the labels should not become long concern statements, technical solution labels, or full scenarios. They should name the business area clearly enough that a stakeholder can recognise the problem quickly. Level 3 will then unpack the specific customer/account situation and business mechanism.
 
-These should be written as business concern statements, not as technical solution labels and not necessarily as questions. The concern statement makes the problem visible while still keeping the hierarchy polished.
-
-| Platform Level 2 business concern | Main Level 1 facet it supports | Why it belongs |
+| Platform Level 2 business outcome example | Main Level 1 facet it supports | Why it belongs |
 |---|---|---|
-| Customers/accounts may become higher risk before escalation is visible. | Improve customer experience; improve business outcomes; generate customer insight. | Earlier identification supports better timing, better decisions, and clearer understanding of customer behaviour. |
-| Account review effort may be wasted on low-value cases. | Improve processes and performance; improve business outcomes; support resource planning. | This is about review efficiency, prioritisation, and where effort should go. |
-| Current rules may create unnecessary reviews or escalations. | Improve customer experience; improve processes; deliver impactful outcomes. | This links directly to reducing blunt or poorly timed customer/account treatment. |
-| Different customer/account groups may need different thresholds, review paths, or decision strategies. | Improve products/processes; shape business decisions; generate customer insight. | This is segmentation as a business concern, not just a modelling activity. |
-| Strategy adoption may lack evidence on which model threshold or decision route performs best. | Shape business decisions; deliver impactful outcomes; improve performance. | This connects to testing, champion/challenger logic, and evidence before rollout. |
-| Customer/account prioritisation may be difficult to explain to stakeholders. | Generate customer and business insight; shape business decisions. | This is the explainability and stakeholder understanding concern. |
-| Review capacity may not be focused where it has the strongest customer or business impact. | Support project/resource planning; improve process performance; improve business outcomes. | This is the resource planning and operational prioritisation angle. |
-| Recurring model outputs may lose trust without BAU monitoring. | Deliver impactful outcomes; improve performance; shape business decisions. | This is an enabling concern because unreliable outputs cannot support decisions. |
+| Earlier risk movement detection | Improve customer experience; improve business outcomes; generate customer insight. | Earlier identification supports better timing, better decisions, and clearer understanding of customer behaviour. |
+| Account review prioritisation | Improve processes and performance; improve business outcomes; support resource planning. | This is about review efficiency, prioritisation, and where effort should go. |
+| Unnecessary review and escalation reduction | Improve customer experience; improve processes; deliver impactful outcomes. | This links directly to reducing blunt or poorly timed customer/account treatment. |
+| Segmented decision strategies | Improve products/processes; shape business decisions; generate customer insight. | This is segmentation as a business concern, not just a modelling activity. |
+| Strategy and threshold evidence | Shape business decisions; deliver impactful outcomes; improve performance. | This connects to testing, champion/challenger logic, and evidence before rollout. |
+| Explainable customer/account prioritisation | Generate customer and business insight; shape business decisions. | This is the explainability and stakeholder understanding concern. |
+| Review capacity planning | Support project/resource planning; improve process performance; improve business outcomes. | This is the resource planning and operational prioritisation angle. |
+| BAU decision confidence | Deliver impactful outcomes; improve performance; shape business decisions. | This is an enabling outcome because unreliable outputs cannot support decisions. |
 
-Level 2 should remain business-facing. It should not yet become a list of tools, model types, feature windows, or metrics. Those details belong in Level 3, Y, or Z.
+Level 2 should remain business-facing and scan-friendly. It should not yet become a list of tools, model types, feature windows, metrics, or long problem descriptions. Those details belong in Level 3, Y, or Z.
+
+### Level 3 - Platform Concrete Scenarios With Business Mechanisms
+
+Level 3 is where the platform's stakeholder concerns become concrete.
+
+At this level, each X should name:
+
+> specific customer/account situation -> business mechanism or target signal -> decision point
+
+This is still not final bullet writing. Y proof and Z method are added later. Level 3 creates the concrete platform-side problem that Y and Z can attach to.
+
+| Platform Level 2 business outcome example | Level 3 concrete X | Business mechanism / target signal |
+|---|---|---|
+| Earlier risk movement detection | Identify customers/accounts likely to move into a higher risk band before formal escalation triggers. | Risk-band momentum, transaction volatility, activity drop-off, repeated near-threshold behaviour. |
+| Earlier risk movement detection | Detect early behavioural deterioration in accounts that still look acceptable under static rules. | Recent behaviour shift, worsening payment rhythm, rising exposure/utilisation, changing transaction patterns. |
+| Account review prioritisation | Prioritise review queues toward accounts most likely to show future risk movement. | Model score concentration, risk movement likelihood, review need probability, outcome-linked labels. |
+| Account review prioritisation | Reduce low-value reviews where account behaviour suggests stability or recovery. | Recovery trend, stable activity, low risk-movement probability, previous false-positive review patterns. |
+| Unnecessary review and escalation reduction | Reduce unnecessary escalation caused by blunt rule-based thresholds. | Static threshold over-triggering, repeated flags without later deterioration, poor threshold precision. |
+| Unnecessary review and escalation reduction | Replace late or blunt rule triggers with earlier model-led risk signals. | Rule trigger delay, earlier behavioural warning signs, model-led probability scores. |
+| Segmented decision strategies | Identify customer/account segments where the same threshold performs differently. | Segment-level precision/recall, risk concentration, behaviour differences, review load variation. |
+| Segmented decision strategies | Separate worsening, stable, volatile, and recovering account behaviour groups for different decision paths. | Behavioural clustering, risk-band movement, transaction trend, recovery/stability signals. |
+| Strategy and threshold evidence | Compare model-threshold strategies before adoption to balance risk capture and review effort. | Threshold trade-offs, risk coverage, review volume, false-positive rate, operational load. |
+| Strategy and threshold evidence | Test whether model-led prioritisation outperforms existing rule-led prioritisation. | Champion/challenger comparison, baseline vs XGBoost, outcome measures, time-based validation. |
+| Explainable customer/account prioritisation | Explain why high-priority accounts were scored as likely to move into higher risk. | SHAP drivers, transaction volatility, risk momentum, recency/frequency changes, previous outcomes. |
+| Explainable customer/account prioritisation | Translate model outputs into business-facing behavioural explanations. | Top driver summaries, segment-level explanations, feature contribution patterns, decision rationale. |
+| Review capacity planning | Focus review capacity on customer/account groups with the strongest evidence of future risk movement. | Top-score bands, risk concentration, review load, expected outcome movement. |
+| Review capacity planning | Support planning around review load created by different model thresholds. | Threshold scenario volumes, expected case counts, operational capacity, monitoring outputs. |
+| BAU decision confidence | Detect when customer behaviour or model performance changes enough to require review. | Drift signals, score distribution shifts, feature refresh quality, threshold instability. |
+| BAU decision confidence | Keep recurring scoring outputs stable enough for repeated decision support. | Performance monitoring, drift checks, feature refresh checks, validation results, documented model runs. |
+
+This Level 3 layer prevents later bullet writing from collapsing back into vague statements such as:
+
+> Improved customer insight using ML.
+
+Instead, the resume can start from a specific platform-side X, such as:
+
+> Identified accounts likely to move into higher risk before escalation...
+
+Then Y and Z can be attached cleanly.
 
 ## X-First Resume Rule
 

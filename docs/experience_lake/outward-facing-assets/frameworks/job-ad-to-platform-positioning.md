@@ -16,7 +16,7 @@ The current rule is:
 
 This means the job ad's X hierarchy must be established before platform mapping. The platform evidence tree is then used to find the equivalent platform concrete X, platform business mechanism, proof, and method.
 
-Within that X hierarchy, Level 2 should be treated as stakeholder concern statements, not as vague solution labels or a repeat of Level 1 outcome facets. The concern statement should expose the business/customer area a stakeholder would care about while staying less specific than the Level 3 scenario.
+Within that X hierarchy, Level 2 should be treated as short business outcome examples or business areas, not long concern statements and not a repeat of Level 1 outcome facets. Level 2 should land quickly on a fast scan; Level 3 is where the customer situation, business mechanism, and target signal are unpacked.
 
 ## 1. Open the job ad, but don’t position yet
 
