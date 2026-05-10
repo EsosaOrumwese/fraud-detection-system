@@ -1,8 +1,8 @@
 Esosa Orumwese
-Data Scientist | Customer Behaviour ML, Production Decision Support & PySpark Pipelines
+Data Scientist | Customer Behaviour Modelling, PySpark Pipelines & End-to-End ML Delivery
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
-PERSONAL SUMMARY
+PROFESSIONAL SUMMARY
 4+ years using statistical analysis and ML to solve customer and business problems across large behavioural datasets.
 Delivered end-to-end data-driven solutions that improve customer experience, generate business insight, and support evidence-led decisions.
 Proficient in SQL, Python, PySpark, version control, OOP, unit testing, CI/CD, and cloud technologies.
@@ -19,7 +19,7 @@ RELEVANT EXPERIENCE
 
 Applied Data Scientist
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
-AWS-hosted customer-behaviour ML platform turning customer-credit data into predictive scores, prioritisation outputs, experiments, and monitoring over 2.35B rows.
+AWS-hosted customer-behaviour ML platform turning customer-credit data into predictive risk scores, prioritised review queues, threshold experiments, and monitoring signals across a 2.35B-row credit-risk surface.
 
 - Built PySpark feature pipelines combining customer, account, transaction, risk, decision, and outcome data to support pre-escalation risk scoring and segmented review prioritisation.
 - Improved early-risk detection by 18% in backtested evaluation, surfacing more pre-escalation risk cases through customer-behaviour modelling and XGBoost-based scoring.
@@ -32,7 +32,7 @@ Usage-Based Insurance Behaviour Modelling
 University of Exeter - Exeter, UK | Aug 2024
 Applied machine learning to smartphone sensor data to classify transport behaviour and driver identity for insurance risk assessment.
 
-- Supported fairer usage-based insurance risk assessment by reducing 81.9M smartphone sensor records from 227 hours of movement data into 4.1M model-ready records using Python and SQL.
+- Processed 81.9M smartphone sensor records from 227 hours of movement data into 4.1M model-ready records using Python and SQL for behavioural risk modelling.
 - Built a Python and PyTorch deep learning workflow for dual behaviour classification, covering journey segmentation, feature engineering, coordinate transformation, and model evaluation.
 - Presented behavioural modelling insights to academic stakeholders, explaining how smartphone movement data could support driver-risk assessment beyond costly in-vehicle telematics.
 
