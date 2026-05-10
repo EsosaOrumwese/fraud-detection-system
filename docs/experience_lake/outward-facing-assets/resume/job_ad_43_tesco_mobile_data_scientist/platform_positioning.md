@@ -133,6 +133,25 @@ Correct Level 0 posture:
 
 This creates the top-level match. The platform-specific meaning of that statement should be developed in Level 1, Level 2, and Level 3.
 
+### Level 1 - Main Outcome Facets
+
+At Level 1, the platform is still being positioned into the same problem structure as the job ad. This means the platform should carry the same outcome facets and meanings, rather than being reduced to what the current platform already proves.
+
+The aim is to bring the platform up into the employer's problem hierarchy so the evidence tree can be expanded and mapped properly later.
+
+| Platform Level 1 facet | Platform meaning at this level |
+|---|---|
+| Improve customer experience | Make customer journeys, communications, decisions, or service interactions more relevant, timely, targeted, or useful. |
+| Improve business outcomes | Use customer data and analytics to improve commercial, operational, retention, marketing, or decision outcomes. |
+| Shape business decisions | Produce evidence that influences how teams prioritise, act, test, allocate resources, or change strategy. |
+| Improve products, processes, and performance | Identify opportunities where data science can make products, workflows, decision systems, or operating performance better. |
+| Deliver impactful outcomes | Show that the work produced measurable or meaningful value, not just analysis, modelling, or reporting activity. |
+| Generate customer and business insight | Turn complex customer and behavioural data into findings that explain what is happening, why it matters, and what should change. |
+| Resolve business challenges | Take ambiguous problems and define a structured analytical path to investigation, evidence, and action. |
+| Support project and resource planning | Help teams decide what should be prioritised, tested, resourced, rolled out, or monitored. |
+
+At this level, the platform-specific differentiation should not be forced too early. It should start appearing at Level 2 and become concrete at Level 3 through platform-specific scenarios and business mechanisms.
+
 ## X-First Resume Rule
 
 For this role, the headline, professional summary, and experience bullets should be achievement/problem-led rather than method-led.
