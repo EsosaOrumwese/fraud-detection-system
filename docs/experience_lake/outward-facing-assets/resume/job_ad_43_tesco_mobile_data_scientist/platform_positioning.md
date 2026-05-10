@@ -47,19 +47,20 @@ These are the main ways the umbrella X appears in the job ad.
 | Resolve business challenges | Take ambiguous problems and define a structured analytical path to investigation, evidence, and action. |
 | Support project and resource planning | Help teams decide what should be prioritised, tested, resourced, rolled out, or monitored. |
 
-### Level 2 - Business Examples From The Ad
+### Level 2 - Stakeholder Concern Statements From The Ad
 
-Tesco gives examples that make the broad X less vague. These examples are still not fully bullet-ready because they do not yet name the exact customer situation, behaviour, timing, or decision point.
+Tesco gives examples that make the broad X less vague. At this level, they are best treated as stakeholder concern statements: the kinds of business/customer areas a non-technical stakeholder could plausibly raise before the data science work becomes specific.
 
-| Concrete X from the ad | What it reveals |
+These statements are still not fully bullet-ready because they do not yet name the exact customer situation, behaviour, timing, or decision point. They sit between the broad Level 1 outcome facets and the highly specific Level 3 scenarios.
+
+| Level 2 stakeholder concern statement | What it reveals |
 |---|---|
-| Personalise customer communications | Customer experience improvement is expected to be specific, targeted, and behaviour-led. |
-| Improve marketing effectiveness | Business outcome improvement may mean better targeting, campaign performance, customer engagement, or commercial return. |
-| Optimise stock management | Data science impact can be operational, not only customer-facing. |
-| Reduce customer churn | Customer experience and business outcome can meet in retention, loyalty, and reduced customer loss. |
-| Improve products | Product decisions should be shaped by customer data, behavioural evidence, and measured outcomes. |
-| Improve processes | Operational or decision workflows should be made more effective through data-driven solutions. |
-| Improve performance | The role expects measurable improvement in a model, process, product, operation, or business outcome. |
+| Customer communications may be too generic, poorly timed, or insufficiently personalised. | Customer experience improvement is expected to be specific, targeted, and behaviour-led. |
+| Marketing activity may not be reaching the customers most likely to respond, renew, upgrade, or engage. | Business outcome improvement may mean better targeting, campaign performance, customer engagement, or commercial return. |
+| Stock or resource planning may not match customer demand across products, locations, campaigns, or seasons. | Data science impact can be operational, not only customer-facing. |
+| Customers may leave before the business identifies the right retention signal or intervention point. | Customer experience and business outcome can meet in retention, loyalty, and reduced customer loss. |
+| Customer offers, plans, journeys, or service actions may not fit different customer groups equally well. | Product and customer decisions should be shaped by customer data, behavioural evidence, and measured outcomes. |
+| Business teams may lack evidence on which customer strategy, campaign route, or operational action to prioritise. | Decision-making should be shaped by evidence, not assumption or one-size-fits-all treatment. |
 
 ### Level 3 - Tesco-Specific Concrete Scenarios
 
@@ -104,7 +105,7 @@ Only after the full Tesco X hierarchy is clear should the platform be mapped to 
 
 The working hierarchy is:
 
-> Tesco company problem -> Tesco outcome facet -> Tesco example outcome -> Tesco concrete scenario plus business mechanism -> platform equivalent concrete X plus platform mechanism -> Y proof -> Z method
+> Tesco company problem -> Tesco outcome facet -> Tesco stakeholder concern statement -> Tesco concrete scenario plus business mechanism -> platform equivalent concrete X plus platform mechanism -> Y proof -> Z method
 
 ## Platform X Hierarchy
 

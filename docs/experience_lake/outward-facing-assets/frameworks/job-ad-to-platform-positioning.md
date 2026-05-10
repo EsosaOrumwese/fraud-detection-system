@@ -16,6 +16,8 @@ The current rule is:
 
 This means the job ad's X hierarchy must be established before platform mapping. The platform evidence tree is then used to find the equivalent platform concrete X, platform business mechanism, proof, and method.
 
+Within that X hierarchy, Level 2 should be treated as stakeholder concern statements, not as vague solution labels or a repeat of Level 1 outcome facets. The concern statement should expose the business/customer area a stakeholder would care about while staying less specific than the Level 3 scenario.
+
 ## 1. Open the job ad, but don’t position yet
 
 First, we fetched the Tesco Mobile Data Scientist job ad from Notion and read it only to understand the role surface: Data Scientist, Tesco Mobile, customer data, production ML, PySpark, pipelines, CI/CD, testing, customer experience, business outcomes. 
