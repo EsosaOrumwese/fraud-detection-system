@@ -230,3 +230,14 @@ This gives each X enough business context without turning it into a full bullet 
 The point is not to create more bullets.
 
 The point is to make the four selected Xs carry enough specificity that they immediately signal Tesco's Level 1 problems before any tools, models, or pipeline methods are mentioned.
+
+### Final Xs With Business Mechanisms
+
+These are the locked Xs to carry into Y proof and Z method construction.
+
+| Final X | Business mechanism / target signal |
+|---|---|
+| Identify customers/accounts likely to move into higher risk before escalation, with explainable behavioural drivers for why they were prioritised. | Risk-band momentum, transaction volatility, activity drop-off, rising exposure/utilisation, repeated near-threshold behaviour, recency/frequency changes. |
+| Prioritise account reviews toward cases most likely to need action, while supporting review-capacity planning around expected case load. | Model score concentration, future risk movement likelihood, review-need probability, outcome-linked labels, top-score bands, expected case volumes. |
+| Reduce unnecessary reviews or escalations caused by blunt rules by separating stable, recovering, and genuinely worsening account behaviour. | Static threshold over-triggering, repeated flags without later deterioration, false-positive review patterns, stable activity, recovery trends, low risk-movement probability. |
+| Select decision strategies using evidence before adoption, comparing threshold and segment strategies before rollout. | Threshold trade-offs, segment-level performance differences, risk coverage, review volume, false-positive rate, operational load, champion/challenger comparison. |
