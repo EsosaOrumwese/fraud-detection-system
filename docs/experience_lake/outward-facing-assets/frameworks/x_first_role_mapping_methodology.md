@@ -104,6 +104,77 @@ This contains:
 
 The target signals should not be discarded. They make the X specific. But they should not replace the actual Z duties.
 
+## Approved Case Stories
+
+These case stories are not claims about the current platform. They are approved structure examples showing the level of information a strong role-mapping answer should carry.
+
+They show how to separate:
+
+> Concrete X -> business mechanism / target signal -> Y proof -> Z method
+
+### Case Story 1 - Renewal-Stage Churn
+
+Original Level 3 scenario:
+
+> Reduce churn risk among customers approaching contract renewal by identifying usage drops, price sensitivity, service issues, or upgrade intent before they leave.
+
+Better split:
+
+| Layer | Content |
+|---|---|
+| Concrete X | Reduce churn risk among customers approaching contract renewal. |
+| Business mechanism / target signal | Usage drop-off, price sensitivity, service issues, upgrade intent, contract-end behaviour. |
+| Y | Churn reduction, retention uplift, response uplift, earlier detection, recall/precision of churn-risk identification. |
+| Z | Build a churn or propensity model; combine usage, billing, service, contract, and customer data; engineer behavioural features; validate the model; deploy scoring outputs. |
+
+Clean bullet structure:
+
+> Reduced churn risk among renewal-stage customers by X%, by building a propensity model across usage, billing, service, and contract data to identify usage drop-off, price sensitivity, service issues, and upgrade intent.
+
+What this teaches:
+
+- The X is not "built a propensity model".
+- The X is reducing churn risk among renewal-stage customers.
+- The business mechanism is the customer behaviour or condition that explains the churn risk.
+- The Z is the actual duty or method used to solve it: modelling, data combination, feature engineering, validation, and scoring.
+
+### Case Story 2 - Early-Life Churn
+
+Original Level 3 scenario:
+
+> Reduce early-life churn among new Tesco Mobile customers by detecting poor onboarding signals, low usage, failed setup patterns, or early dissatisfaction indicators.
+
+Better split:
+
+| Layer | Content |
+|---|---|
+| Concrete X | Reduce early-life churn among new customers. |
+| Business mechanism / target signal | Poor onboarding signals, low usage, failed setup patterns, early dissatisfaction indicators. |
+| Y | Reduction in early-life churn, earlier detection window, improved recall of at-risk new customers, increased successful onboarding rate. |
+| Z | Analyse onboarding, usage, service, and account-activity data; engineer early-life behavioural features; build and test a churn-risk model. |
+
+Clean bullet structure:
+
+> Reduced early-life churn among new customers by X%, by analysing onboarding, usage, service, and account-activity data to build early-risk features and test a churn-risk model.
+
+What this teaches:
+
+- The X is not "analysed onboarding data".
+- The X is reducing early-life churn among new customers.
+- The business mechanism is the onboarding or early dissatisfaction signal that makes the churn problem specific.
+- The Z is the analytical and modelling work used to detect, test, and operationalise the signal.
+
+## Case Story Guideline
+
+When creating a role-mapping answer, carry enough information to answer four questions:
+
+1. What exact customer or business outcome is being improved?
+2. What behaviour, condition, segment, timing, or decision point makes that outcome specific?
+3. How could that improvement be measured or evidenced?
+4. What duty, method, model, pipeline, analysis, or workflow creates the improvement?
+
+If any one of these is missing, the bullet or positioning line will likely become vague, Z-led, or unsupported.
+
 ## Job-Ad X Hierarchy
 
 Before mapping the platform, build the employer's X hierarchy:
