@@ -2,6 +2,11 @@ Esosa Orumwese
 Data Scientist | Customer Behaviour ML, Production Decision Support & PySpark Pipelines
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
+PERSONAL SUMMARY
+4+ years using statistical analysis and ML to solve customer and business problems across large behavioural datasets.
+Delivered end-to-end data-driven solutions that improve customer experience, generate business insight, and support evidence-led decisions.
+Proficient in SQL, Python, PySpark, version control, OOP, unit testing, CI/CD, and cloud technologies.
+
 EDUCATION
 
 University of Exeter
@@ -14,13 +19,13 @@ RELEVANT EXPERIENCE
 
 Applied Data Scientist
 Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
-AWS-hosted customer-behaviour ML platform for PySpark pipelines, risk scoring, experimentation, validation, and monitoring across a 2.35B-row credit-risk surface.
+AWS-hosted customer-behaviour ML platform turning customer-credit data into predictive scores, prioritisation outputs, experiments, and monitoring over 2.35B rows.
 
 - Built PySpark feature pipelines combining customer, account, transaction, risk, decision, and outcome data to support pre-escalation risk scoring and segmented review prioritisation.
 - Improved early-risk detection by 18% in backtested evaluation, surfacing more pre-escalation risk cases through customer-behaviour modelling and XGBoost-based scoring.
 - Concentrated 42% of future-risk cases into the top 20% priority group, helping focus review capacity on the highest-risk customer/account segments.
 - Reduced low-value review volume by 11% while maintaining risk coverage, replacing blunt rule thresholds with model-led prioritisation and segmented decision thresholds.
-- Compared 3 model-threshold strategies across 5 outcome measures - risk coverage, review volume, false positives, operational load, and threshold stability - to support evidence-led rollout decisions.
+- Compared 3 model-threshold strategies across 5 outcome measures including risk coverage, review volume, false positives, operational load, and threshold stability to support evidence-led rollout decisions.
 - Maintained recurring decision-support workflows with AWS-hosted scoring jobs, feature refreshes, drift checks, validation tests, model monitoring, and version-controlled documentation.
 
 Usage-Based Insurance Behaviour Modelling
