@@ -10,15 +10,44 @@ The platform story should quietly answer:
 
 > Can this person take messy and high volume financial data, organise it into reliable flows, maintain queryable datasets, support reporting requests, and make the data more usable for finance and risk decisions?
 
-## Employer X Hierarchy / Role Problem Tree
+## Arval X Hierarchy
+
+Before mapping the platform to the role, Arval's X must be understood first.
+
+For this job ad, X means the finance/data problem Arval is hiring the Financial Data Analyst to help solve. The data flows, SAS workflows, SQL extracts, reporting outputs, governance checks, reconciliation logic, and data quality controls are not the lead signal. They are the way Arval expects the analyst to achieve X.
+
+The corrected positioning order is:
+
+> X = employer problem solved or outcome achieved  
+> Y = proof of how well it was solved  
+> Z = method, duty, tool, workflow, or responsibility used to solve it
+
+This matters because a fast scan does not usually wait for the end of a sentence. If the resume leads with Z, the reader first sees tools, methods, or activities. If it leads with X, the reader first sees the finance/data problem Arval is hiring for.
+
+For this role, the hierarchy should be derived from Arval's responsibilities first:
+
+- building and maintaining data flows to enhance data IQ;
+- reviewing existing data processing and using current resources effectively;
+- managing general data requests and reporting needs from the finance team;
+- collaborating with the data team to uphold data quality and governance practices.
+
+So the Arval X hierarchy should not start from:
+
+> Built SAS workflows and governed reporting tables.
+
+It should start closer to:
+
+> Improved finance reporting confidence, data usability, request handling, processing efficiency, and governed data quality.
+
+Only after the Arval X hierarchy is clear should the platform's SAS, SQL, cloud, reporting, reconciliation, and governance evidence be mapped into it.
 
 ### Level 0 - Umbrella Employer Problem
 
 ### Level 1 - Main Outcome Facets
 
-### Level 2 - Business Outcome Areas
+### Level 2 - Business Outcome Examples From The Ad And Role Context
 
-### Level 3 - Concrete Role Scenarios With Business Mechanisms
+### Level 3 - Arval-Specific Concrete Scenarios
 
 ## Platform X Hierarchy / Platform Problem Tree
 
