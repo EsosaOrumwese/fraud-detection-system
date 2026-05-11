@@ -1,5 +1,42 @@
-flowchart LR
-  A["Authority inputs<br/>s5_site_tile_assignment<br/>tile_index geometry<br/>world_countries<br/>s0_gate_receipt_1B"] --> B["Owned transformation<br/>Generate in-cell jitter<br/>reconstruct candidate point inside assigned pixel<br/>enforce point-in-country<br/>spend one event per attempt until acceptance or bounded abort"]
-  B --> C["Authority outputs<br/>s6_site_jitter<br/>rng_event_in_cell_jitter<br/>accepted in-country per-site spatial realization"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S5 site-to-tile assignments<br/>one certified tile_id per site"]
+    I2["S1 tile_bounds and tile_index<br/>the lawful in-tile spatial support surface"]
+    I3["world_countries geometry and jitter policy<br/>mode, max_attempts, selection_blend, component weights"]
+    I4["Run identity + Philox master material<br/>in_cell_jitter substream"]
+  end
 
-  D["Implemented design shifts<br/>S6 stayed semantically strict while performance pressure moved here later<br/>mixture-jitter experimentation happened in remediation<br/>but the accepted design remained governed acceptance,<br/>not convenience coordinate generation"] -.-> B
+  subgraph core["Actual S6 design"]
+    C1["Derive site-scoped RNG substream for in-cell realization<br/>separate from S5 assignment authority"]
+    C2["Sample candidate lon/lat inside the assigned tile<br/>using the governed jitter mode and component policy"]
+    C3["Accept only points that satisfy country legality<br/>bounded retry under point-in-country checks"]
+    C4["Publish one lawful in-country point per site<br/>plus full RNG evidence for the jitter realization"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S6 is richer than uniform_v1-only reading suggests<br/>the code carries governed component-blend structure even when default posture is simple"]
+    S2["Component-weighted jitter turned S6 into a real realism lane<br/>core, secondary, and sparse tails can be disclosed and audited"]
+    S3["Bounded acceptance became the key design law<br/>the state may retry within policy, but it may not publish a point outside country legality"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["s6_site_jitter"]
+    O2["rng_event_in_cell_jitter"]
+    O3["rng_trace_log and rng_audit_log updates for the S6 substream"]
+    O4["Downstream contract:<br/>each site has one lawful lon/lat tied to its assigned tile and jitter evidence"]
+  end
+
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  I4 --> C1
+  C1 --> C2 --> C3 --> C4
+
+  C4 --> O1
+  C3 --> O2
+  C3 --> O3
+  O1 --> O4
+
+  S1 -.-> C2
+  S2 -.-> C2
+  S3 -.-> C3

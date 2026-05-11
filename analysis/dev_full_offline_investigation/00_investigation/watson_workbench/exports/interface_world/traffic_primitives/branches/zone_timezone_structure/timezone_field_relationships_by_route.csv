@@ -1,0 +1,4 @@
+route_mode,timezone_relationship,rows,share_within_route,merchants,zones
+physical,all_three_equal,216136107,1.0,3893,339
+virtual,primary_equals_operational_only,17822314,0.8670301655700711,157,267
+virtual,all_three_equal,2733273,0.13296983442992896,95,205

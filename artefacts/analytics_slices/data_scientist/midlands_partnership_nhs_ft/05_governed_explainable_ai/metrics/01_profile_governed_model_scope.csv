@@ -1,0 +1,2 @@
+flow_rows,distinct_flow_id,min_flow_ts_utc,max_flow_ts_utc,fraud_truth_rate,bank_view_rate,case_open_rate,truth_bank_mismatch_rate,amount_null_rate,arrival_seq_null_rate,merchant_id_null_rate,party_id_null_rate,account_id_null_rate,instrument_id_null_rate,device_id_null_rate,ip_id_null_rate
+3455613,3455613,2026-01-01 00:00:03.574898,2026-03-31 23:59:57.760953,0.027020097447254653,0.05723528647449816,0.10461356639183844,0.07149816834234621,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

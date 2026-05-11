@@ -1,0 +1,2 @@
+buckets,min_rows_per_bucket,p05_rows_per_bucket,p25_rows_per_bucket,median_rows_per_bucket,mean_rows_per_bucket,p75_rows_per_bucket,p95_rows_per_bucket,max_rows_per_bucket,min_merchants_per_bucket,median_merchants_per_bucket,mean_merchants_per_bucket,max_merchants_per_bucket
+2160,68584,73242.0,84558.75,108028.0,109579.48796296296,137248.25,145046.55,160084,3203,3753.0,3676.5662037037036,3982

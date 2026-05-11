@@ -1,0 +1,2 @@
+fraud_flows,min_amount_delta,p05_amount_delta,p25_amount_delta,median_amount_delta,mean_amount_delta,p75_amount_delta,p95_amount_delta,max_amount_delta
+7132,0.08264294549999995,1.4713371435,6.355118823374999,15.666825045500003,30.674866423758484,36.415876613624995,112.891365186075,497.128330676

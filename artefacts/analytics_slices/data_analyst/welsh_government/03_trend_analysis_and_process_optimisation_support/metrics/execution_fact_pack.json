@@ -1,0 +1,17 @@
+{
+  "slice": "welsh_government/03_trend_analysis_and_process_optimisation_support",
+  "trend_window": "current_plus_prior_week",
+  "recurring_cycles_compared": 2,
+  "recurring_trend_output_count": 1,
+  "optimisation_support_output_count": 1,
+  "targeted_recommendation_count": 1,
+  "traceability_stages_reused": 4,
+  "current_case_opened_rows": 1780031,
+  "current_absolute_gap_pp": 4.796649323937525,
+  "prior_absolute_gap_pp": 4.810612811477452,
+  "absolute_gap_change_pp": -0.013963487539927044,
+  "current_authoritative_to_control_delta_pp": -0.03692230495745963,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.18728680000640452
+}

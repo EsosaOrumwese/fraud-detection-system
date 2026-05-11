@@ -1,0 +1,41 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0-S4 state outputs<br/>gate receipt, sealed inputs, grid, realised intensities, counts, arrivals"]
+    I2["RNG evidence surfaces<br/>event logs, audit log, trace log"]
+    I3["5B validation and bundle policies<br/>validation_policy_5B and bundle_layout_policy_5B"]
+  end
+
+  subgraph core["Actual S5 design"]
+    C1["Replay the 5B contract chain as validation law<br/>sealed world, count conservation, civil-time legality, routing legality, RNG accounting"]
+    C2["Assemble the validation bundle for the manifest world<br/>report, issue table, bundle index, and selected evidence members"]
+    C3["Compute the HashGate digest and decide PASS or FAIL<br/>for the entire arrival layer"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["The actual validator became tiered rather than brittle-all-at-once<br/>strict on real invariants, but explicit about schema and evidence edge cases"]
+    S2["Digest and schema handling had to be corrected around sealed_inputs arrays and idempotent publish semantics<br/>so S5 judged the world instead of tripping on its own bundle mechanics"]
+    S3["Wave-style remediation kept S5 fail-closed on civil-time and realism defects<br/>it remained HashGate authority instead of becoming an auto-fix surface"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["validation_bundle_5B"]
+    O2["validation_bundle_index_5B"]
+    O3["validation_report_5B and issue surfaces"]
+    O4["validation_passed_flag_5B"]
+    O5["The sole 5B PASS authority<br/>Layer-3 may read arrivals only after this gate"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  C1 --> C2 --> C3
+
+  C2 --> O1
+  C2 --> O2
+  C2 --> O3
+  C3 --> O4
+  O4 --> O5
+
+  S1 -.-> C1
+  S2 -.-> C2
+  S3 -.-> C3

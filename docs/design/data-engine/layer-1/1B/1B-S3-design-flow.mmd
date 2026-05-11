@@ -1,5 +1,40 @@
-flowchart LR
-  A["Authority inputs<br/>s0_gate_receipt_1B<br/>1A outlet_catalogue<br/>tile_weights coverage<br/>iso3166_canonical_2024"] --> B["Owned transformation<br/>Derive exact n_sites per merchant-country pair<br/>preserve outlet_catalogue site-order legality<br/>assert every active country is covered by tile_weights<br/>remain order-free across countries"]
-  B --> C["Authority outputs<br/>s3_requirements<br/>country-level site-count frame<br/>for S4 integer allocation"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0-authorized 1A outlet_catalogue<br/>merchant, country, and site_order authority"]
+    I2["S2 tile_weights coverage surface<br/>countries with demand must exist in the tile world"]
+    I3["Requirements policy and denylist rules<br/>allowed countries, exclusions, and exact n_sites law"]
+  end
 
-  D["Implemented design shifts<br/>requirements became policy-sensitive in later lanes<br/>staged runs had to respect active S3 policy state<br/>so S3 is not just a thin count table,<br/>it is the controlled country-requirements boundary"] -.-> B
+  subgraph core["Actual S3 design"]
+    C1["Read 1A outlet demand by merchant and legal country<br/>without reopening 1A ordering or count intent"]
+    C2["Derive exact per-(merchant,country) n_sites requirements<br/>deterministically from the lawful upstream outlet frame"]
+    C3["Assert coverage against S2 tile_weights<br/>so no demand country survives without downstream spatial support"]
+    C4["Publish requirements as the exact count contract<br/>for integer allocation and later parity checks"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S3 stayed intentionally narrow<br/>it is a count and coverage contract, not a realism lane"]
+    S2["Requirements policy became run-local and governance-sensitive<br/>so denylist changes force rerun rather than silent staging reuse"]
+    S3["Later fast-lane staging exposed that S3 outputs cannot be blindly linked across policy changes<br/>because S7 parity depends on exact effective outlet coverage"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["s3_requirements"]
+    O2["Exact n_sites per merchant-country pair"]
+    O3["Coverage contract tying 1A outlet demand to 1B spatial support"]
+    O4["Non-authority rule:<br/>S3 must not create inter-country order or spatial allocation"]
+  end
+
+  I1 --> C1
+  I2 --> C3
+  I3 --> C2
+  C1 --> C2 --> C3 --> C4
+
+  C4 --> O1
+  O1 --> O2
+  O1 --> O3
+  C2 --> O4
+
+  S1 -.-> C2
+  S2 -.-> C2
+  S3 -.-> C4

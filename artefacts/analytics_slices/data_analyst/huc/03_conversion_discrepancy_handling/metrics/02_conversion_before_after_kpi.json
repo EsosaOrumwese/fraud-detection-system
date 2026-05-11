@@ -1,0 +1,32 @@
+[
+  {
+    "week_role":"current",
+    "metric_version":"absolute_gap",
+    "conversion_rate":0.0479664932
+  },
+  {
+    "week_role":"current",
+    "metric_version":"corrected_flow_view",
+    "conversion_rate":0.0959329865
+  },
+  {
+    "week_role":"current",
+    "metric_version":"original_discrepant_view",
+    "conversion_rate":0.0479664932
+  },
+  {
+    "week_role":"prior",
+    "metric_version":"absolute_gap",
+    "conversion_rate":0.0481061281
+  },
+  {
+    "week_role":"prior",
+    "metric_version":"corrected_flow_view",
+    "conversion_rate":0.0962122562
+  },
+  {
+    "week_role":"prior",
+    "metric_version":"original_discrepant_view",
+    "conversion_rate":0.0481061281
+  }
+]

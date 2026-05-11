@@ -1,0 +1,26 @@
+[
+  {
+    "metric_name":"case_flows_with_bank_view",
+    "metric_value":361504.0
+  },
+  {
+    "metric_name":"case_flows_with_truth",
+    "metric_value":361504.0
+  },
+  {
+    "metric_name":"event_flows_with_anchor",
+    "metric_value":3455613.0
+  },
+  {
+    "metric_name":"event_flows_with_bank_view",
+    "metric_value":3455613.0
+  },
+  {
+    "metric_name":"event_flows_with_case",
+    "metric_value":361504.0
+  },
+  {
+    "metric_name":"event_flows_with_truth",
+    "metric_value":3455613.0
+  }
+]

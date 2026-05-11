@@ -1,25 +1,16 @@
-flowchart LR
-  subgraph intent["Recovered Segment 6A design"]
-    A0["S0 Gate and seal<br/>Verifies Layer-1 and Layer-2 PASS authority<br/>and freezes the Layer-3 input world"]
-    A1["S1 Party-base authority<br/>Realises the customer and party universe"]
-    A2["S2 Account and product authority<br/>Turns parties into accounts and holdings"]
-    A3["S3 Instrument authority<br/>Turns accounts into credentials and payment handles"]
-    A4["S4 Device/IP graph authority<br/>Turns entities into a static access graph"]
-    A5["S5 Static fraud posture and final gate<br/>Assigns roles and seals segment legitimacy"]
-  end
+flowchart TD
+  A0["6A.S0<br/>Seal the entity-world contract<br/>upstream gates plus Layer-3 priors and linkage law"]
+  A1["6A.S1<br/>Realise who exists<br/>the closed party universe"]
+  A2["6A.S2<br/>Realise what accounts and products exist<br/>and who owns them"]
+  A3["6A.S3<br/>Extend that world into payment credentials"]
+  A4["6A.S4<br/>Wire devices and IPs into the static entity graph"]
+  A5["6A.S5<br/>Assign static fraud posture and publish the 6A HashGate"]
 
-  A0 --> A1 --> A2 --> A3 --> A4 --> A5
+  B1["Authority gained<br/>closed Layer-3 read universe"]
+  B2["Authority gained<br/>party existence and segmentation"]
+  B3["Authority gained<br/>account/product ownership topology"]
+  B4["Authority gained<br/>credential topology"]
+  B5["Authority gained<br/>static device/IP network realism"]
+  B6["Authority gained<br/>static fraud posture plus 6A PASS legitimacy"]
 
-  B0["Actual design shifts that matter"] --> B1["S0 became a real Layer-3 multi-law gate:<br/>it had to verify all upstream bundle forms while keeping sealing lightweight for large row-level inputs"]
-  B0 --> B2["S1 remained the party-universe authority,<br/>but adopted lean execution choices such as aggregated RNG evidence and deterministic region mapping"]
-  B0 --> B3["S2 became the first major remediation owner surface:<br/>hard post-merge K_max enforcement changed what account realism actually means"]
-  B0 --> B4["S3 stayed narrower than S2 and S4:<br/>it extends the product world into credential reality without becoming the main realism repair lane"]
-  B0 --> B5["S4 became the main network-realism owner surface:<br/>IP prior alignment, linkage coverage, and bounded reuse tails are what made the graph credible"]
-  B0 --> B6["S5 became both static fraud-posture authority and the final risk-propagation gate,<br/>not just a receipt writer"]
-
-  B1 -.-> A0
-  B2 -.-> A1
-  B3 -.-> A2
-  B4 -.-> A3
-  B5 -.-> A4
-  B6 -.-> A5
+  A0 --> B1 --> A1 --> B2 --> A2 --> B3 --> A3 --> B4 --> A4 --> B5 --> A5 --> B6

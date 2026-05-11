@@ -1,0 +1,26 @@
+{
+  "model": "statsmodels_glm_binomial",
+  "train_rows_full": 2073369,
+  "train_rows_sampled": 333852,
+  "validation_rows": 691122,
+  "test_rows": 691122,
+  "features": [
+    "log_amount",
+    "log_arrival_seq",
+    "flow_hour_utc",
+    "flow_dow_utc",
+    "flow_month_utc",
+    "log_merchant_flow_count",
+    "log_party_flow_count",
+    "log_account_flow_count",
+    "log_instrument_flow_count",
+    "log_device_flow_count",
+    "log_ip_flow_count",
+    "merchant_train_fraud_rate",
+    "party_train_fraud_rate",
+    "account_train_fraud_rate",
+    "instrument_train_fraud_rate",
+    "device_train_fraud_rate",
+    "ip_train_fraud_rate"
+  ]
+}

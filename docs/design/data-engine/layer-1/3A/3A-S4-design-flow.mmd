@@ -1,16 +1,37 @@
-flowchart LR
-  I1["Reads<br/>s3_zone_shares<br/>1A outlet totals for each merchant-country"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 escalation queue"]
+    I2["S2 country-zone priors"]
+    I3["S3 zone shares"]
+    I4["site_count totals from outlet world"]
+  end
 
-  S4["S4<br/>Conserved integerisation"]
+  subgraph core["Actual S4 design"]
+    C1["Project escalated merchant-country pairs<br/>into integer zone counts"]
+    C2["Preserve exact site-count conservation while realizing stochastic shares"]
+    C3["Emit integer zone-count outcomes that remain auditable back to S1-S3"]
+    C4["Publish the authoritative realized multi-zone behavior<br/>for egress allocation"]
+  end
 
-  O1["Outputs<br/>s4_zone_counts"]
-  O2["Authority<br/>S4 turns share truth into integer zone counts<br/>without breaking total conservation"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S4 is the realized-outcome authority; it does not invent new priors or new escalation law"]
+    S2["P3 proved many feared anti-collapse fixes were unnecessary once S2 and S3 had been corrected;<br/>S4 stayed a realization state rather than a hidden rescue lane"]
+    S3["Audit fields like alpha_sum_country were kept because S4 must stay explainable, not merely integer-correct"]
+  end
 
-  R1["Implemented shift<br/>S4 stayed narrow: it is not a new realism surface,<br/>it must preserve upstream dispersion while enforcing<br/>integer closure"]
-  R2["Implemented shift<br/>P3 anti-collapse work ended as a NOOP lock;<br/>S4 mainly serves as deterministic conservation authority"]
+  subgraph outputs["Owned authority"]
+    O1["s4_zone_counts"]
+    O2["conserved realized zone-count authority<br/>for S5 and later validation"]
+  end
 
-  I1 --> S4
-  S4 --> O1
-  S4 --> O2
-  R1 -.-> S4
-  R2 -.-> S4
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C2
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1
+  C3 --> O2
+
+  S1 -.-> C2
+  S2 -.-> C4
+  S3 -.-> C3

@@ -1,0 +1,48 @@
+**Esosa Orumwese**
+Payroll Data Analyst | Validation, Reconciliation & Operational Control
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience validating detailed operational data, resolving material discrepancies, and supporting recurring control cycles in high-accuracy environments. Strong in Excel, SQL, Power BI, Tableau, Python, and DAX, with experience producing reconciliation-ready outputs, supporting audit-sensitive review, analysing recurring control issues, and using operational evidence to support process optimisation and next-cycle readiness.
+
+**CORE SKILLS**
+Validation, Reconciliation & Control: Data validation, discrepancy resolution, reconciliation reporting, recurring control cycles, balancing outputs, high-accuracy operational support
+Compliance & Audit Support: Audit-readiness, rule traceability, defensible outputs, review-ready reporting, control-sensitive analysis
+Trend Analysis & Optimisation Support: Repeated-pattern analysis, process optimisation support, operational inefficiency review, targeted recommendation development
+Forward Impact & Readiness: Forward-impact review, readiness support, next-cycle action planning, forward-looking analysis support
+Data Analysis & Working Tools: Excel, SQL, Power BI, Tableau, Python, DAX, analytical interpretation, structured reporting outputs
+Stakeholder Support & Communication: Clear explanation of findings, action-focused reporting, operational support, cross-functional collaboration, high-consequence issue handling
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Worked with large, detailed operational data to identify discrepancies, validate outputs, and improve recurring accuracy, fixing a clear control rule and surfacing one material discrepancy class across two retained cycles.
+- Supported cyclical reconciliation reporting by turning a repeated discrepancy into a reconciliation-ready output that kept the validated view inside the trusted control range before recurring release.
+- Worked in a compliance- and audit-sensitive control environment, producing review-ready outputs with clear rule traceability, defensible release logic, and practical audit-support evidence.
+- Conducted trend analysis on recurring operational data to identify repeated issues, showing that the same discrepancy pattern persisted across cycles and supporting one targeted optimisation review rather than broad escalation.
+- Identified inefficiencies in recurring control processes and proposed focused improvement action, translating repeated reconciliation effort into a clear recommendation to review denominator consistency and control handoff rules.
+- Used recurring operational evidence to support forward-impact and next-cycle readiness review, showing what should be checked before the next cycle if the same discrepancy condition remained unresolved.
+- Explained outputs clearly in a high-accuracy control environment, turning discrepancy, reconciliation, audit-readiness, and readiness-support findings into practical guidance for review and operational decision-making.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy, pace, and service quality in a control-heavy operational environment where small mistakes affect cash handling, stock, and customer experience.
+- Follow strict hygiene, till, and shift procedures to support timely, reliable, and repeatable daily operations.
+- Support colleagues through clear handovers and practical problem-solving, helping issues get resolved quickly during busy operating cycles.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a high-consequence operational environment where accurate readings, disciplined procedures, and timely escalation mattered to safe and reliable delivery.
+- Monitored telemetry to identify discrepancies or abnormal conditions early and support corrective action.
+- Documented operational readings and handovers clearly to support review, traceability, and coordinated execution across teams.

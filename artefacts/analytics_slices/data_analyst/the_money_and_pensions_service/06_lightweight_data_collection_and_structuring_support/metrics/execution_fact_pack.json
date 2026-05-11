@@ -1,0 +1,14 @@
+{
+  "slice": "the_money_and_pensions_service/06_lightweight_data_collection_and_structuring_support",
+  "aligned_reporting_window": "Mar 2026",
+  "mechanism_output_count": 2,
+  "standardised_capture_row_count": 3,
+  "standardised_capture_field_count": 19,
+  "standardised_stage_count": 3,
+  "downstream_surfaces_supported": 3,
+  "shared_focus_band": "50_plus",
+  "shared_focus_confirming_streams": 3,
+  "release_checks_passed": 7,
+  "release_check_count": 7,
+  "regeneration_seconds": 0.1886819000064861
+}

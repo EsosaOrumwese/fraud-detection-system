@@ -1,0 +1,20 @@
+[
+  {
+    "check_name":"two_period_rows_present",
+    "passed_flag":1,
+    "observed_value":2.0,
+    "expected_value":2.0
+  },
+  {
+    "check_name":"material_gap_detected",
+    "passed_flag":1,
+    "observed_value":0.0479664932,
+    "expected_value":0.01
+  },
+  {
+    "check_name":"before_after_rows_present",
+    "passed_flag":1,
+    "observed_value":6.0,
+    "expected_value":6.0
+  }
+]

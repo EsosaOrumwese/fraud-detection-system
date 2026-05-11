@@ -1,0 +1,66 @@
+Esosa Orumwese
+Intergenerational Harm Analyst | Linked Data, QA & Public-Interest Decision Support
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Analyst with strong Python, SQL, linked-data thinking, quality assurance, documentation, and decision-support analytics across governed systems and public-interest data projects. Evidence includes multi-source operational data handled with administrative-data discipline: entity, event, case, label, and reporting records; matching-quality review; responsible AI/LLM-assisted workflows; and policy-facing COVID-19 government-response analysis.
+
+CORE SKILLS
+Linked Data & Matching: Record linkage, entity resolution, relationship logic, case/event/label linking, matching quality, coverage, missingness
+Complex Analysis & Visualisation: Python, SQL, Excel, Power BI, Tableau, network analysis, cohort analysis, forecasting, monitoring dashboards
+Data Quality & Assurance: Reconciliation, schema checks, source traceability, completeness checks, leakage prevention, documented assumptions
+Ethics & Governance: Sensitive-data mindset, data-protection awareness, responsible use, controlled access, public-interest safeguards
+Public-Interest Insight: Policy context, prevention logic, vulnerable-cohort aware evidence, operational decision support, evidence limitations
+Analytical Delivery: Scoping, planning, delivery tracking, quality and timeliness, Git, responsible AI/LLM-assisted productivity
+Communication & Behaviours: Technical explanation, non-technical summaries, Changing and Improving, Making Effective Decisions, Working Together
+
+RELEVANT EXPERIENCE
+
+Data Analyst & Analytics Engineer
+Fraud Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
+
+- Built linked datasets across events, decisions, entity histories, labels, case movement, controls, and reporting evidence.
+- Applied record-relationship and matching logic to connect upstream events, decisions, entities, and downstream outcomes while preserving lineage.
+- Monitored linkage quality through schema checks, completeness review, reconciliation, source traceability, leakage controls, and validation outputs.
+- Used Python, SQL, Excel, and reporting outputs to analyse workload exposure, case flow, data integrity, demand pressure, trends, and exceptions.
+- Produced decision-support evidence showing 2.29x baseline yield in the highest-risk band and 7.31% test MAPE for bounded demand planning.
+- Separated source-data issues from transformation, modelling, control, matching, and interpretation issues before drawing conclusions.
+- Documented definitions, assumptions, limitations, validation outcomes, and handover notes so analysis remained reviewable and repeatable.
+- Used controlled AI-assisted support for drafting, coding, and documentation while retaining human judgement, testing, and governance.
+
+SELECTED PUBLIC-INTEREST AND ANALYTICAL PROJECT EVIDENCE
+
+Network Analysis and Surveillance Prioritisation
+MSc Data Science Project
+
+- Applied game-theoretic network analysis to a surveillance-prioritisation problem, using network structure to reason about hidden relationships and risk coverage.
+- Produced method-led findings that explained both analytical approach and decision implications rather than treating network metrics as self-explanatory.
+
+COVID-19 Pandemic Policy and Activity Analysis
+MSc Data Science Project
+
+- Combined 1,004 daily CSV files using Python into 2,396,549 observations and 12 variables covering 220 countries over 1,004 days.
+- Integrated Facebook Business Activity Trends with Oxford COVID-19 Government Response Tracker policy data to examine activity patterns in policy context.
+- Assessed coverage, missingness, duplicates, country/date validity, metric suitability, and limitations before comparing country trends.
+- Produced visual analysis linking unusual movements to containment policies, public-health events, and documented external evidence.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+
+ADDITIONAL EXPERIENCE
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a safety-conscious operational environment where accurate readings, escalation, and handovers supported reliable delivery.
+- Monitored pressure, temperature, equipment, and field-condition signals, identifying irregular conditions early and supporting corrective action.
+
+Crew Member
+Five Guys - Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-moving live service environment where quality, pace, communication, and handover affect service performance every shift.

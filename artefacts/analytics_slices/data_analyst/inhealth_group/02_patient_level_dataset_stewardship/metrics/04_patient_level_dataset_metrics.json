@@ -1,0 +1,9 @@
+[
+  {
+    "maintained_rows":7835199,
+    "distinct_flow_id":7835199,
+    "distinct_case_id":7835199,
+    "avg_raw_case_event_rows":2.6268521068,
+    "max_raw_case_event_rows":6
+  }
+]

@@ -1,0 +1,3 @@
+stream_name,event_rows,seq0_request_rows,seq1_response_rows,seq0_minus_seq1_rows,implied_flows_from_balanced_sequence,event_rows_per_implied_flow,event_types,min_event_seq,max_event_seq,distinct_event_seq
+baseline,473383388,236691694,236691694,0,236691694,2.0,2,0,1,2
+with_fraud,473383388,236691694,236691694,0,236691694,2.0,2,0,1,2

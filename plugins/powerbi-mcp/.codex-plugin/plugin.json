@@ -1,0 +1,39 @@
+{
+  "name": "powerbi-mcp",
+  "version": "0.1.0",
+  "description": "Power BI MCP server for service metadata, semantic-model blueprints, and reporting-pack generation.",
+  "author": {
+    "name": "Esosa Orumwese",
+    "email": "masked-in-repo@example.com",
+    "url": "https://github.com/example/fraud-detection-system"
+  },
+  "homepage": "https://github.com/example/fraud-detection-system",
+  "repository": "https://github.com/example/fraud-detection-system",
+  "license": "MIT",
+  "keywords": [
+    "powerbi",
+    "mcp",
+    "dax"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Power BI MCP",
+    "shortDescription": "Generate Power BI-ready blueprints and inspect service metadata.",
+    "longDescription": "Supports local semantic-model/report blueprints plus live Power BI service metadata inspection for interview-prep proof surfaces.",
+    "developerName": "Esosa Orumwese",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/example/fraud-detection-system",
+    "privacyPolicyURL": "https://github.com/example/fraud-detection-system",
+    "termsOfServiceURL": "https://github.com/example/fraud-detection-system",
+    "defaultPrompt": [
+      "Generate a Power BI semantic model blueprint for this slice.",
+      "List reports and datasets in my Power BI workspace.",
+      "Create DAX measures and page specs for this dataset."
+    ],
+    "brandColor": "#F2C811"
+  }
+}

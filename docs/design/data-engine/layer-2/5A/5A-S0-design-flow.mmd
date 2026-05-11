@@ -1,20 +1,40 @@
-flowchart LR
-  U1["Required upstream authority<br/>1A through 3B validation bundles and PASS flags"]
-  U2["Pinned Layer-1 egress surfaces<br/>merchant, location, civil-time,<br/>routing, zone, and virtual-world inputs"]
-  U3["Pinned Layer-2 policy world<br/>classing, scaling, shapes,<br/>scenario horizon, overlays, validation configs"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["upstream PASS bundles and flags:<br/>1A through 3B"]
+    I2["sealed Layer-1 egress surfaces:<br/>merchant, location, civil-time,<br/>routing, zone and virtual-world outputs"]
+    I3["Layer-2 policy and scenario doctrine:<br/>merchant class, demand scale, shape modifiers,<br/>baseline intensity, scenario horizon, overlay and validation configs"]
+  end
 
-  S0["S0<br/>Gate and sealed inputs"]
+  subgraph core["Actual S0 design"]
+    C1["Re-verify upstream gate authority across all required prior segments"]
+    C2["Resolve exact Layer-1 egress and Layer-2 doctrine<br/>for this manifest and parameter root"]
+    C3["Seal one demand-world environment spanning upstream certified worlds,<br/>Layer-2 policies and scenario configuration"]
+    C4["Bind all later 5A demand and scenario evidence<br/>to one sealed operating world"]
+    C5["Publish gate receipt, sealed inventory and scenario manifest"]
+  end
 
-  O1["Outputs<br/>s0_gate_receipt_5A<br/>sealed_inputs_5A<br/>optional scenario_manifest_5A"]
-  O2["Authority<br/>S0 alone defines what 5A may read<br/>and whether S1+ may start"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S0 became a real multi-law Layer-2 gate with segment-specific verification, especially the 3B members-style bundle law"]
+    S2["The final design uses a split rule: S0 may record FAIL or MISSING upstream states, but S1+ must fail fast unless required segments are PASS"]
+    S3["Optional scenario and modifier artefacts were later authored and sealed so the segment owns one explicit demand doctrine rather than partial local defaults"]
+  end
 
-  R1["Implemented shift<br/>S0 became a real multi-law gate:<br/>it needed segment-specific verification,<br/>including the 3B members-based bundle form"]
-  R2["Implemented shift<br/>The final design locks a split rule:<br/>S0 may record FAIL or MISSING upstream states,<br/>but S1+ must fail-fast unless all required segments are PASS"]
+  subgraph outputs["Owned authority"]
+    O1["sealed_inputs_5A"]
+    O2["s0_gate_receipt_5A"]
+    O3["scenario_manifest_5A"]
+    O4["sealed demand-world authority<br/>for S1-S5"]
+  end
 
-  U1 --> S0
-  U2 --> S0
-  U3 --> S0
-  S0 --> O1
-  S0 --> O2
-  R1 -.-> S0
-  R2 -.-> S0
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  C1 --> C2 --> C3 --> C4 --> C5
+  C5 --> O1
+  C5 --> O2
+  C5 --> O3
+  C4 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C5
+  S3 -.-> C3

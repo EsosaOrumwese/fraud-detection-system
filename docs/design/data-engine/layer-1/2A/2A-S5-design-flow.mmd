@@ -1,28 +1,39 @@
-flowchart LR
-  I1["s0_gate_receipt_2A"]
-  I2["tz_timetable_cache"]
-  I3["site_timezones partitions<br/>used only to discover seeds"]
-  I4["s4_legality_report<br/>one PASS report per discovered seed"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S3 timetable cache, S4 legality report, and S2 site_timezones<br/>the final 2A evidence surfaces"]
+    I2["Validation-bundle contract law<br/>checks file, index, digest, flag, and partition purity"]
+    I3["Run identity<br/>seed and manifest_fingerprint discover the final publish scope"]
+  end
 
-  S5["S5 Publish-legitimacy authority<br/>Discover all seeds for this manifest<br/>Require S4 PASS for each one<br/>Seal the segment with bundle plus flag"]
+  subgraph core["Actual S5 design"]
+    C1["Assemble the 2A evidence story<br/>cache evidence, legality evidence, site_timezones checks, and digest/index material"]
+    C2["Judge whether the evidence set is internally coherent and fail-closed safe<br/>before any PASS claim is emitted"]
+    C3["Publish validation bundle, index, and PASS flag only when the final civil-time story is lawful"]
+  end
 
-  O1["validation_bundle_2A"]
-  O2["index.json"]
-  O3["_passed.flag<br/>No PASS -> No Read"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S5 became the real downstream contract for 2A<br/>no PASS means no later consumer should trust site_timezones"]
+    S2["A deterministic existing-bundle reuse path was added for warm lanes<br/>but only when evidence bytes and digest are exactly unchanged"]
+    S3["The state remains a full-strength correctness gate<br/>performance work accelerated packaging, not legal or governance judgment"]
+  end
 
-  I1 --> S5
-  I2 --> S5
-  I3 --> S5
-  I4 --> S5
+  subgraph outputs["Owned authority"]
+    O1["validation_bundle_2A"]
+    O2["validation_bundle_index_2A"]
+    O3["validation_passed_flag_2A"]
+    O4["Final consumer rule:<br/>site_timezones is only a lawful downstream authority surface after S5 PASS"]
+  end
 
-  S5 --> O1
-  S5 --> O2
-  S5 --> O3
+  I1 --> C1
+  I2 --> C2
+  I3 --> C1
+  C1 --> C2 --> C3
 
-  R1["Actual design recovery<br/>S5 is the real downstream contract for 2A"]
-  R2["It turns per-seed legality evidence and cache readiness<br/>into one manifest-scoped consumer gate"]
-  R3["Performance work later accelerated reuse and hashing,<br/>but the semantic burden stayed full-strength:<br/>all discovered seeds, all PASS, then publish"]
+  C3 --> O1
+  C3 --> O2
+  C3 --> O3
+  O3 --> O4
 
-  R1 -.-> S5
-  R2 -.-> S5
-  R3 -.-> S5
+  S1 -.-> C3
+  S2 -.-> C1
+  S3 -.-> C2

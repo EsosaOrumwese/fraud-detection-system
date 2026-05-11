@@ -1,0 +1,3 @@
+route_mode,rows,rows_zone_equals_primary,share_zone_equals_primary,rows_zone_equals_operational,share_zone_equals_operational,zones,primary_timezones,operational_timezones
+physical,216136107,90368398,0.4181087521854921,90368398,0.4181087521854921,339,222,222
+virtual,20555587,2703737,0.13153295014148708,2703737,0.13153295014148708,267,197,197

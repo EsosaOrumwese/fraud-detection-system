@@ -1,0 +1,70 @@
+{
+  "assumption": "Character count excludes line breaks and blank lines. Scan time estimated at 300 wpm. Benchmark is job_ad_40 resume_fast_scan_benchmark.txt.",
+  "sections": [
+    {
+      "name": "entire_doc_excl_header",
+      "actual": "4062 chars / 105s",
+      "benchmark": "3912 chars / 99s",
+      "delta": "+150 chars / +6s",
+      "status": "fail"
+    },
+    {
+      "name": "professional_summary",
+      "actual": "312 chars / 9s",
+      "benchmark": "330 chars / 9s",
+      "delta": "-18 chars / 0s",
+      "status": "pass"
+    },
+    {
+      "name": "education",
+      "actual": "188 chars / 5s",
+      "benchmark": "188 chars / 5s",
+      "delta": "0 chars / 0s",
+      "status": "pass"
+    },
+    {
+      "name": "relevant_experience",
+      "actual": "2804 chars / 74s",
+      "benchmark": "2795 chars / 72s",
+      "delta": "+9 chars / +2s",
+      "status": "minor fail"
+    },
+    {
+      "name": "platform_experience",
+      "actual": "894 chars / 24s",
+      "benchmark": "891 chars / 22s",
+      "delta": "+3 chars / +2s",
+      "status": "minor fail"
+    },
+    {
+      "name": "usage_based_insurance_project",
+      "actual": "638 chars / 17s",
+      "benchmark": "638 chars / 17s",
+      "delta": "0 chars / 0s",
+      "status": "pass"
+    },
+    {
+      "name": "covid_business_recovery_project",
+      "actual": "614 chars / 17s",
+      "benchmark": "614 chars / 17s",
+      "delta": "0 chars / 0s",
+      "status": "pass"
+    },
+    {
+      "name": "completions_engineer",
+      "actual": "655 chars / 16s",
+      "benchmark": "649 chars / 16s",
+      "delta": "+6 chars / 0s",
+      "status": "minor char fail / time pass"
+    },
+    {
+      "name": "technical_skills",
+      "actual": "504 chars / 13s",
+      "benchmark": "528 chars / 12s",
+      "delta": "-24 chars / +1s",
+      "status": "char pass / minor time fail"
+    }
+  ],
+  "certifications_extra": "167 chars / 3s",
+  "overall_note": "The only real whole-doc fail is caused by adding certifications. Core resume sections are essentially benchmark-aligned, with only minor timing drift in platform and skills."
+}

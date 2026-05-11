@@ -1,0 +1,18 @@
+{
+  "slice": "guys_and_st_thomas_nhs_foundation_trust/03_project_coordination_and_impact_measurement",
+  "aligned_reporting_window": "Mar 2026",
+  "project_coordination_output_count": 1,
+  "project_control_stage_count": 4,
+  "impact_measurement_output_count": 1,
+  "progress_update_output_count": 1,
+  "protected_group_dimension": "age_band_style",
+  "protected_group_focus": "50_plus",
+  "reused_reporting_pack_count": 1,
+  "reused_quality_pack_count": 1,
+  "current_focus_case_gap_pp": 1.32999264145527,
+  "current_focus_truth_gap_pp": -1.985315845179922,
+  "review_trigger_metric_count": 2,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.13938880000205245
+}

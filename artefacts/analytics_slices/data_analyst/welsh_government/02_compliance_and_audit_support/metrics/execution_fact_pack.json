@@ -1,0 +1,15 @@
+{
+  "slice": "welsh_government/02_compliance_and_audit_support",
+  "audit_window": "current_plus_prior_week",
+  "audit_ready_summary_count": 1,
+  "traceability_stage_count": 4,
+  "review_cycles_covered": 2,
+  "authoritative_rule_count": 1,
+  "current_case_opened_rows": 1780031,
+  "current_authoritative_to_control_delta_pp": -0.03692230495745963,
+  "current_discrepant_to_control_delta_pp": -4.833571628894985,
+  "current_absolute_gap_pp": 4.796649323937525,
+  "release_checks_passed": 7,
+  "release_check_count": 7,
+  "regeneration_seconds": 0.1526649000006728
+}

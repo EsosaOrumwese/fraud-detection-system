@@ -1,16 +1,41 @@
-flowchart LR
-  I1["Reads<br/>s4_zone_counts<br/>sealed_inputs_3A"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 escalation queue"]
+    I2["S2 priors"]
+    I3["S3 zone shares"]
+    I4["S4 zone counts"]
+    I5["sealed policy digests and outlet lineage"]
+  end
 
-  S5["S5<br/>Deterministic egress and universe closure"]
+  subgraph core["Actual S5 design"]
+    C1["Project realized zone counts into bounded egress rows<br/>for downstream consumption"]
+    C2["Carry lineage fields that tie each allocation back to<br/>escalation, priors, stochastic shares and integer realization"]
+    C3["Compute routing-universe closure artefact<br/>over canonicalized zone_alloc output"]
+    C4["Publish outlet-zone egress only when universe-hash closure is coherent"]
+  end
 
-  O1["Outputs<br/>zone_alloc<br/>zone_alloc_universe_hash"]
-  O2["Authority<br/>S5 is the readable egress surface,<br/>but in v1 it intentionally publishes<br/>escalated pairs only"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S5 is not a cosmetic export; it is the bounded egress contract for 3A"]
+    S2["The routing_universe_hash masking rule is a real design law that resolved the digest recursion between egress bytes and universe closure"]
+    S3["Later performance work removed redundant upstream schema loops, but S5 remained the outlet-zone publication boundary"]
+  end
 
-  R1["Implemented shift<br/>S5 binds the downstream universe-hash contract;<br/>consumers must not infer a larger world than it publishes"]
-  R2["Implemented shift<br/>S5 is not the validation authority;<br/>it materialises egress but legitimacy stays downstream"]
+  subgraph outputs["Owned authority"]
+    O1["zone_alloc"]
+    O2["zone_alloc_universe_hash"]
+    O3["bounded outlet-zone egress authority<br/>for S6 and downstream layers"]
+  end
 
-  I1 --> S5
-  S5 --> O1
-  S5 --> O2
-  R1 -.-> S5
-  R2 -.-> S5
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  I4 --> C1
+  I5 --> C3
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1
+  C4 --> O2
+  C4 --> O3
+
+  S1 -.-> C1
+  S2 -.-> C3
+  S3 -.-> C4

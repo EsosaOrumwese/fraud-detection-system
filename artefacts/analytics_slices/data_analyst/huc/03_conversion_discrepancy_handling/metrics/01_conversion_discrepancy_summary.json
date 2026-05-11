@@ -1,0 +1,22 @@
+[
+  {
+    "week_role":"current",
+    "flow_rows":18554942.0,
+    "entry_event_rows":37109884.0,
+    "case_opened_rows":1780031.0,
+    "corrected_flow_conversion_rate":0.0959329865,
+    "discrepant_conversion_rate":0.0479664932,
+    "absolute_gap":0.0479664932,
+    "rate_ratio":2.0
+  },
+  {
+    "week_role":"prior",
+    "flow_rows":18319745.0,
+    "entry_event_rows":36639490.0,
+    "case_opened_rows":1762584.0,
+    "corrected_flow_conversion_rate":0.0962122562,
+    "discrepant_conversion_rate":0.0481061281,
+    "absolute_gap":0.0481061281,
+    "rate_ratio":2.0
+  }
+]

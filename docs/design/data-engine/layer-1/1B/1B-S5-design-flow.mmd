@@ -1,5 +1,40 @@
-flowchart LR
-  A["Authority inputs<br/>s4_alloc_plan quotas<br/>tile_index universe<br/>iso3166_canonical_2024<br/>seed plus parameter_hash plus manifest identity"] --> B["Owned transformation<br/>Assign each site_order to a tile_id<br/>spend exactly one draw per site<br/>preserve S4 counts exactly<br/>remain the sole site-to-tile randomization boundary"]
-  B --> C["Authority outputs<br/>s5_site_tile_assignment<br/>rng_event_site_tile_assign<br/>quota-exact assignment truth"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S4 alloc_plan<br/>exact integer quotas per merchant-country pair"]
+    I2["S1 tile_index support universe<br/>used for membership validation or attested signature check"]
+    I3["Run identity + Philox master material<br/>manifest_fingerprint and seed"]
+  end
 
-  D["Implemented design shifts<br/>S5 became a major performance surface<br/>validation mode split strict vs signature vs off<br/>buffered event emission and reduced read amplification<br/>changed implementation sharply without changing semantic authority"] -.-> B
+  subgraph core["Actual S5 design"]
+    C1["Derive pair-scoped RNG substream<br/>site_tile_assign is the sole site-to-tile randomness boundary"]
+    C2["Expand each pair's integer quota into an exact tile multiset<br/>then assign one tile_id per site_order deterministically from that quota world"]
+    C3["Emit RNG events, trace, and audit alongside assignment rows<br/>so every site-to-tile draw is replayable and accountable"]
+    C4["Publish site-tile assignment without altering counts or quotas<br/>S5 realizes topology; it does not redesign it"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S5 became an explicit RNG truth boundary<br/>one draw per site on a named substream, not incidental randomness"]
+    S2["Membership validation was repinned into strict, signature, and off modes<br/>to separate real contract checks from avoidable tile-index read amplification"]
+    S3["Performance fixes stayed semantics-preserving<br/>buffered writes, log throttling, and signature attestation removed waste without changing assignments"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["s5_site_tile_assignment"]
+    O2["rng_event_site_tile_assign"]
+    O3["rng_trace_log and rng_audit_log updates for the S5 substream"]
+    O4["Downstream contract:<br/>every emitted site has exactly one assigned tile_id and matching RNG evidence"]
+  end
+
+  I1 --> C1
+  I2 --> C2
+  I3 --> C1
+  C1 --> C2 --> C3 --> C4
+
+  C4 --> O1
+  C3 --> O2
+  C3 --> O3
+  O1 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C2
+  S3 -.-> C3

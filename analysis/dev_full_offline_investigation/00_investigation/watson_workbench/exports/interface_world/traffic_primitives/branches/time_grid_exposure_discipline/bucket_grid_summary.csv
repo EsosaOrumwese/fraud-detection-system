@@ -1,0 +1,2 @@
+rows,merchants,min_bucket_index,max_bucket_index,observed_buckets,expected_buckets,missing_buckets,rows_bucket_hour_mismatch,buckets_with_hour_mismatch,first_ts_utc,last_ts_utc
+236691694,4050,0,2159,2160,2160,0,0,0,2026-01-01T00:00:00.001940Z,2026-03-31T23:59:59.944516Z

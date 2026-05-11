@@ -1,0 +1,16 @@
+{
+  "slice": "university_of_cambridge/04_committee_ready_analysis_and_recommendations",
+  "aligned_reporting_window": "Mar 2026",
+  "committee_ready_briefing_output_count": 1,
+  "recommendations_output_count": 1,
+  "non_specialist_translation_note_count": 1,
+  "recommendation_count": 3,
+  "shared_focus_band": "50_plus",
+  "confirming_stream_count": 3,
+  "comparator_rows_used": 2,
+  "current_case_pressure_gap_pp": 1.32999264145527,
+  "current_truth_quality_gap_pp": -1.985315845179922,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.09820890001719818
+}

@@ -1,27 +1,42 @@
-flowchart LR
-  I1["s0_gate_receipt_2A"]
-  I2["site_locations<br/>seed + manifest_fingerprint"]
-  I3["sealed tz_world polygons"]
-  I4["sealed tz_nudge policy"]
-  I5["tz_overrides<br/>ambiguity fallback only"]
-  I6["merchant_mcc_map<br/>only when MCC fallback is active"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 sealed civil-time world<br/>site_locations, tz_world, tz_nudge, tz_overrides, optional merchant_mcc_map"]
+    I2["Geometry lookup law<br/>one provisional tzid per site, no RNG, path and CRS invariants"]
+    I3["Cutoff-date and override activity law<br/>derived from S0 verified_at_utc"]
+  end
 
-  S1["S1 Provisional timezone authority<br/>Point-in-polygon first<br/>Single deterministic epsilon nudge second<br/>Fallback only when ambiguity persists"]
+  subgraph core["Actual S1 design"]
+    C1["Look up provisional tzid from site geometry against tz_world polygons<br/>as the primary civil-time assignment path"]
+    C2["Apply bounded ambiguity handling when geometry alone is insufficient<br/>nudge, ambiguity fallback, country-singleton, or nearest same-country polygon"]
+    C3["Use sealed overrides only as a provisional rescue surface when the governed ambiguity path requires them<br/>while keeping final override authority for S2"]
+    C4["Publish exactly one provisional timezone row per site<br/>with source, nudge, and override trace fields intact"]
+  end
 
-  O1["s1_tz_lookup<br/>One provisional tzid per site<br/>with nudge and provenance fields"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S1 started as a brittle geometry-only fail-closed state<br/>but production runs forced bounded deterministic rescue paths for real border/gap cases"]
+    S2["Country-singleton and nearest-polygon fallbacks were added to keep coverage complete<br/>without inventing new schema or hiding uncertainty"]
+    S3["Governance counters became part of the state<br/>fallback rate, override rate, and country-level violations are emitted and hard-gated here"]
+    S4["S1 remains provisional authority only<br/>even when it consults overrides for ambiguity, canonical finalization still belongs to S2"]
+  end
 
-  I1 --> S1
-  I2 --> S1
-  I3 --> S1
-  I4 --> S1
-  I5 --> S1
-  I6 --> S1
-  S1 --> O1
+  subgraph outputs["Owned authority"]
+    O1["s1_tz_lookup"]
+    O2["Provisional tzid per site with source and ambiguity evidence"]
+    O3["Governance/fallback diagnostics in s1_run_report"]
+    O4["Downstream contract:<br/>S2 may finalize or veto this result, but later states must not bypass it"]
+  end
 
-  R1["Actual design recovery<br/>S1 is not just geometry lookup;<br/>it became the first governance choke-point"]
-  R2["Fallback and override behavior were hardened,<br/>measured, capped, and fail-closed"]
-  R3["The implemented design also added<br/>country-singleton rescue and explicit reason codes<br/>so unresolved border logic could not hide"]
+  I1 --> C1
+  I2 --> C1
+  I3 --> C3
+  C1 --> C2 --> C3 --> C4
 
-  R1 -.-> S1
-  R2 -.-> S1
-  R3 -.-> S1
+  C4 --> O1
+  O1 --> O2
+  C4 --> O3
+  O1 --> O4
+
+  S1 -.-> C2
+  S2 -.-> C2
+  S3 -.-> C4
+  S4 -.-> C3

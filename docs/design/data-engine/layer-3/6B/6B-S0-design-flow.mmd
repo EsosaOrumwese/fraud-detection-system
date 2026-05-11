@@ -1,20 +1,40 @@
-flowchart LR
-  U1["Required upstream PASS authority<br/>1A through 3B<br/>5A and 5B<br/>6A"]
-  U2["Pinned upstream bundle references<br/>arrival world, entity world,<br/>contracts, priors, and policies"]
-  U3["Segment-wide control laws<br/>closed input universe<br/>partition law<br/>read scope<br/>fail-closed rules"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["Upstream HashGates<br/>1A-3B, 5A, 5B, and 6A PASS for the same manifest_fingerprint"]
+    I2["Upstream sealed-input manifests and registries<br/>5A, 5B, and 6A contract the worlds below 6B"]
+    I3["6B contracts and configs<br/>attachment, flow, fraud, labelling, validation, and RNG packs"]
+    I4["World identity<br/>manifest_fingerprint and parameter_hash"]
+  end
 
-  S0["S0<br/>Gate and sealed inputs for the behavioural world"]
+  subgraph core["Actual S0 design"]
+    C1["Verify that the behavioural universe is legal to open<br/>all lower layers sealed and trusted"]
+    C2["Resolve exactly which upstream artefacts 6B may read<br/>using sealed manifests first and controlled output-existence fallback only where necessary"]
+    C3["Build sealed_inputs_6B and the gate receipt<br/>for the behavioural segment's closed-world contract"]
+  end
 
-  O1["Outputs<br/>s0_gate_receipt_6B<br/>sealed_inputs_6B"]
-  O2["Authority<br/>S0 alone defines the lawful 6B world<br/>that S1 through S5 may read"]
+  subgraph shifts["Implemented design shifts"]
+    S1["The actual design insisted on upstream sealed manifests as the primary authority<br/>dictionary-only discovery was rejected as too weak"]
+    S2["Because some upstream outputs are not listed in upstream sealed-input manifests<br/>S0 learned a controlled existence-fallback for those real outputs without abandoning closed-world law"]
+    S3["Later S3 outputs were added to S0 consumed_by coverage<br/>so downstream validators could keep behavioural closure inside one sealed inventory"]
+  end
 
-  R1["Implemented shift<br/>S0 became a strict schema and config repair gate:<br/>it had to stabilize contracts and path forms before the segment could run at all"]
-  R2["Implemented shift<br/>The actual design stayed lean:<br/>S0 verifies gates and sealed references without becoming a data-plane scan state"]
+  subgraph outputs["Owned authority"]
+    O1["sealed_inputs_6B"]
+    O2["s0_gate_receipt_6B"]
+    O3["Closed behavioural-world contract for 6B<br/>what arrivals, entities, configs, and labels may be consumed"]
+  end
 
-  U1 --> S0
-  U2 --> S0
-  U3 --> S0
-  S0 --> O1
-  S0 --> O2
-  R1 -.-> S0
-  R2 -.-> S0
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  I4 --> C3
+  C1 --> C2 --> C3
+
+  C3 --> O1
+  C3 --> O2
+  O1 --> O3
+  O2 --> O3
+
+  S1 -.-> C2
+  S2 -.-> C2
+  S3 -.-> C3

@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Patient Safety Data Analyst | PSIRF, Safety Reporting & Quality Improvement
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience using controlled analytical evidence to support incident review, target monitoring, quality improvement, and safer operational decision-making in high-accountability settings. Strong in Excel, SQL, Power BI, Tableau, Python, DAX, and reporting-ready analytics, with experience supporting incident-response and learning cycles, monitoring named compliance targets, evaluating intervention effectiveness, identifying emerging risks, and translating complex safety signals into actionable reporting for multidisciplinary stakeholders.
+
+**CORE SKILLS**
+Patient Safety & PSIRF Support: Incident-response analytics, PSIRF-style support, thematic review, learning-cycle analytics, safer-care decision support, multidisciplinary review support
+Compliance Monitoring & Quality Improvement: Sepsis, AKI, and VTE-style monitoring, target tracking, intervention evaluation, improvement-direction support, prioritisation support
+Advanced Analysis & SPC Support: Emerging-risk identification, advanced analysis, SPC-style interpretation, intervention-timing support, early-warning analysis, controlled trend interpretation
+Safety Reporting & Stakeholder Communication: Dashboards, visualisations, regular reporting, actionable findings, learning prompts, multidisciplinary communication, review-ready reporting
+Governance, Confidentiality & Audit: Governance-safe handling, confidentiality-aware reporting, targeted audit support, traceability, release-safe outputs, controlled circulation
+Data Analysis & Working Tools: Excel, SQL, Power BI, Tableau, Python, DAX, data validation, analytical interpretation, reporting-ready outputs
+Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Supported patient-safety incident response and learning-cycle analytics by producing an incident-support pack with thematic-review and learning-response outputs from the same controlled evidence base.
+- Used analytical evidence to support incident review, thematic learning, and PSIRF-style follow-up, keeping review triggers, evidence quality, and learning implications explicit for safe reuse.
+- Monitored named compliance targets and evaluated intervention effectiveness, producing a sepsis-, AKI-, and VTE-style monitoring and improvement pack that supported targeted follow-up rather than status-only reporting.
+- Measured the impact of safety interventions and compliance initiatives by turning monitoring outputs into intervention-evaluation and improvement-direction readings for ongoing quality-improvement support.
+- Performed advanced analysis to identify emerging risks early, producing an SPC-style support output and intervention-timing reading that helped prioritise the clearest safety risk pocket for earlier review.
+- Produced stakeholder-facing safety reporting that translated complex safety signals into actionable findings, learning prompts, and clearer multidisciplinary review support.
+- Strengthened governance, confidentiality, targeted audit review, and safety-data method reliability by keeping patient-safety outputs attached to explicit traceability, release, and controlled handling conditions.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy, pace, and service quality in a busy environment where clear communication and timely action matter to safe and reliable day-to-day delivery.
+- Follow strict controls, checks, and escalation routines, reinforcing dependable handling of issues in a pressured front-line setting.
+- Support teammates through calm communication, practical guidance, and steady coordination when demand or pressure increases.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a controlled technical environment where structured documentation, issue escalation, and clear interpretation of operational evidence were essential.
+- Monitored live data signals, identified irregular conditions early, and supported timely corrective action before risks widened downstream.
+- Prepared clear readings and handovers for engineers and supervisors so evidence could support safe decisions under operational pressure.

@@ -1,0 +1,32 @@
+[
+  {
+    "check_name":"three_month_rows_present",
+    "passed_flag":1,
+    "observed_value":3.0,
+    "expected_value":3.0
+  },
+  {
+    "check_name":"twelve_efficiency_rows_present",
+    "passed_flag":1,
+    "observed_value":12.0,
+    "expected_value":12.0
+  },
+  {
+    "check_name":"persistent_focus_band_is_50_plus",
+    "passed_flag":1,
+    "observed_value":3.0,
+    "expected_value":3.0
+  },
+  {
+    "check_name":"current_month_burden_gap_positive",
+    "passed_flag":1,
+    "observed_value":0.0101428548,
+    "expected_value":0.0
+  },
+  {
+    "check_name":"overall_topline_change_small",
+    "passed_flag":1,
+    "observed_value":0.0004737504,
+    "expected_value":0.001
+  }
+]

@@ -1,18 +1,37 @@
-flowchart LR
-  I1["Reads<br/>s0 gate and sealed world<br/>all S1 through S4 bases and links"]
-  I2["Priors and policies<br/>fraud-role priors<br/>taxonomy_fraud_roles_6A<br/>validation_policy_6A"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1-S4 sealed entity and graph world<br/>parties, accounts, instruments, devices, IPs, and links"]
+    I2["Fraud-role priors, taxonomy, and validation policy<br/>the only lawful surfaces for static posture and closure"]
+  end
 
-  S5["S5<br/>Static fraud posture and 6A HashGate"]
+  subgraph core["Actual S5 design"]
+    C1["Assign static fraud posture across the closed graph world<br/>party, account, merchant, device, and IP roles"]
+    C2["Validate the entire 6A world as a segment<br/>consistency of bases, links, roles, and contract surfaces"]
+    C3["Assemble the 6A validation bundle and HashGate<br/>the closure signal that 6B must trust"]
+  end
 
-  O1["Outputs<br/>party, account, merchant, device, and IP fraud-role surfaces<br/>s5_validation_report_6A<br/>optional issue table<br/>validation bundle, index, and _passed.flag<br/>role RNG events plus audit and trace"]
-  O2["Authority<br/>S5 alone decides static fraud posture<br/>and whether downstream may read any 6A world"]
+  subgraph shifts["Implemented design shifts"]
+    S1["The actual implementation abandoned heavy graph-scoring ambitions here<br/>static fraud posture became deterministic hash-based role assignment over sealed priors and existing features"]
+    S2["Prior-role ids and contracted taxonomy ids had to be explicitly mapped<br/>so S5 judged the same role language the rest of the engine reads"]
+    S3["Bundle construction stayed intentionally light<br/>reports and issue tables were bundled, while large role tables stayed in egress and were referenced by closure rather than recopied"]
+  end
 
-  R1["Implemented shift<br/>S5 became a real remediation owner surface:<br/>risk-propagation coupling and role-family traceability<br/>were raised to hard realism burdens, not narrative qualities"]
-  R2["Implemented shift<br/>S5 is also the sole segment-closure surface:<br/>it signs the 6A world only after full cross-state validation and RNG reconciliation"]
+  subgraph outputs["Owned authority"]
+    O1["s5_party_fraud_roles_6A"]
+    O2["s5_account_fraud_roles_6A, merchant, device, and IP role surfaces"]
+    O3["validation_bundle_6A, report, index, and passed flag"]
+    O4["The sole static fraud-posture and 6A PASS authority<br/>6B inherits roles and closure, not a half-closed world"]
+  end
 
-  I1 --> S5
-  I2 --> S5
-  S5 --> O1
-  S5 --> O2
-  R1 -.-> S5
-  R2 -.-> S5
+  I1 --> C1
+  I2 --> C1
+  C1 --> C2 --> C3
+
+  C1 --> O1
+  C1 --> O2
+  C3 --> O3
+  O3 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C1
+  S3 -.-> C3

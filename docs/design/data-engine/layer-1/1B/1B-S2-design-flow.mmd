@@ -1,5 +1,42 @@
-flowchart LR
-  A["Authority inputs<br/>tile_index universe<br/>s2_tile_weights_policy<br/>optional population basis<br/>parameter_hash identity"] --> B["Owned transformation<br/>Assign deterministic fixed-dp mass per eligible tile<br/>normalize per country<br/>quantize by governed dp<br/>become the canonical tile-weight authority"]
-  B --> C["Authority outputs<br/>tile_weights<br/>per-country fixed-dp mass<br/>coverage surface for later S3 and S4 checks"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 tile_index and tile_bounds<br/>the lawful within-country support surface"]
+    I2["Governed blend_v2 policy<br/>basis_mix, region floors, country caps, top-k caps, penalty strength"]
+    I3["Reference mass signals<br/>uniform support, area_m2, and optional population basis"]
+  end
 
-  D["Implemented design shifts<br/>S2 became the main realism lever in remediation<br/>blend_v2 policy, floors, caps, and penalties<br/>changed actual design posture<br/>not just implementation detail"] -.-> B
+  subgraph core["Actual S2 design"]
+    C1["Build per-country raw tile mass from the governed basis mix<br/>uniform, area, population or their deterministic blend"]
+    C2["Normalize within country and across countries<br/>so every legal-country mass surface is closed and comparable"]
+    C3["Run deterministic rebalance passes<br/>region floors, country caps, top-k caps, concentration penalty"]
+    C4["Publish fixed-dp tile_weights as the macro spatial mass authority<br/>that later states must consume, not reinterpret"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S2 stopped being a simple fixed cache<br/>and became the main deterministic realism-control surface"]
+    S2["blend_v2 introduced governed macro balance law<br/>so south-share and concentration are addressed before integerization"]
+    S3["Population basis was kept but exposed as a runtime-risk surface<br/>because nonzero population mix materially changed throughput posture"]
+    S4["Diagnostics became part of the state contract<br/>gini, top-k, region shares, and policy disclosure are emitted as design evidence"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["tile_weights"]
+    O2["s2_run_report with policy disclosure and concentration diagnostics"]
+    O3["Deterministic macro mass by country and tile"]
+    O4["Downstream contract:<br/>S4 may integerize this mass but may not invent a new macro distribution"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  C1 --> C2 --> C3 --> C4
+
+  C4 --> O1
+  C4 --> O2
+  O1 --> O3
+  O1 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C3
+  S3 -.-> C1
+  S4 -.-> C4

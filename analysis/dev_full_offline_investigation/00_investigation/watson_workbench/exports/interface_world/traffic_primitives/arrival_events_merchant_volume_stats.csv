@@ -1,0 +1,2 @@
+merchants,min_rows_per_merchant,p05_rows_per_merchant,p25_rows_per_merchant,mean_rows_per_merchant,median_rows_per_merchant,p75_rows_per_merchant,p95_rows_per_merchant,max_rows_per_merchant,sequence_span_mismatch_merchants,multi_channel_merchants,multi_zone_merchants
+4050,1842,3935.4000000000005,17176.0,58442.39358024691,35671.0,69228.0,189747.84999999966,841654,0,0,4050

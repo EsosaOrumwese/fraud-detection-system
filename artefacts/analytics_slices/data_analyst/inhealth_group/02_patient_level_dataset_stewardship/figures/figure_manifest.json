@@ -1,0 +1,12 @@
+{
+  "figures": [
+    {
+      "file": "raw_case_event_join_risk.png",
+      "purpose": "Show why raw event-grain case joins are unsafe and why a maintained one-row-per-flow dataset is needed."
+    },
+    {
+      "file": "maintained_dataset_reporting_protection.png",
+      "purpose": "Show the protected band-level rates from the maintained dataset and the exact reconciliation back to the reporting lane."
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+**Esosa Orumwese**
+Data & Insight Analyst | Reporting, Insight & Data Quality
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data & Insight Analyst with experience collecting, analysing, and interpreting multi-source organisational data to produce trusted reporting, dashboards, and decision-support outputs. Strong in Excel, SQL, Power BI, Tableau, Python, Power Query M, and DAX, with experience building scheduled and ad hoc reporting, supporting senior and external-style oversight reporting, improving data quality and reporting controls, and making analytical workflows more repeatable, usable, and efficient.
+
+**CORE SKILLS**
+Reporting, Dashboards & Insight: Scheduled reporting, ad hoc reporting, dashboards, visualisations, KPI tracking, decision-support reporting, audience-ready reporting
+Leadership & External Reporting: Senior leadership reporting, board-pack style reporting, funder and compliance-style reporting, concise decision-support outputs
+Data Structures & BI Delivery: SQL, Excel, Power BI, Tableau, Python, Power Query M, DAX, queries, transformation logic, reusable reporting layers, reporting-ready data structures
+Data Quality, Governance & Stewardship: Data quality monitoring, audit checks, reporting controls, confidentiality-aware handling, governance support, caveat notes, release checks
+Workflow Improvement & Automation: Process improvement, workflow automation, repeatable reporting workflows, reusable reporting workflows, documentation, rerun guidance
+Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Collected, organised, analysed, and interpreted data from multiple internal sources to produce trusted organisational insight, using SQL, Excel, Power BI, Python, and Power Query M to shape reusable reporting structures, shared calculations, and controlled outputs from validated source data.
+- Built scheduled and ad hoc reports, dashboards, and visualisations from a shared KPI framework, producing consistent summary and follow-up views for different organisational users.
+- Produced concise senior leadership and external-style oversight reporting from the same validated reporting base, turning organisational data into decision-support outputs for internal and external use.
+- Monitored, audited, and improved data quality by running 19 quality checks across 3 control areas, consolidating findings into one repeatable review pack, and producing 3 practical recommendations to strengthen reporting integrity and support bounded governance review.
+- Identified opportunities to improve efficiency and automation by replacing repeated report assembly with one reusable reporting workflow that reproduced 4 reporting and audience-ready outputs with all repeatability checks passed.
+- Gathered and translated stakeholder requirements into usable outputs for different audiences, shaping concise operational, leadership, and external-style reporting with clear audience notes, caveats, and release controls.
+- Worked across a systems-facing handoff while supporting confidentiality-aware handling and bounded governance review, keeping reporting outputs tied to controlled inputs, documented checks, and reliable downstream use.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain reliable front-line service in a busy customer environment, adapting quickly to different user needs while keeping standards and communication clear.
+- Support teammates through practical guidance, clear communication, and smooth handovers in a fast-moving setting while following strict operational controls.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked with field teams and service partners where clear documentation, compliance with operating procedures, and cross-team coordination were essential.
+- Monitored operational telemetry and prepared clear readings and handovers for different stakeholders, supporting timely troubleshooting and aligned execution under pressure.

@@ -1,25 +1,22 @@
-flowchart LR
-  subgraph base["Segment 6A recovered synthesis"]
-    A0["S0<br/>Seal Layer-1, Layer-2, and Layer-3 world"]
-    A1["S1<br/>Define the party universe and segmentation"]
-    A2["S2<br/>Define accounts, products, and holdings"]
-    A3["S3<br/>Define instruments and payment credentials"]
-    A4["S4<br/>Define devices, IPs, and static graph links"]
-    A5["S5<br/>Assign static fraud posture and seal PASS"]
+flowchart TD
+  subgraph gate["S0 - sealed Layer-3 entity world"]
+    G0["Upstream Layer-1 and Layer-2 worlds are proven and frozen"]
+    G1["6A may read only the inventory S0 legalises"]
   end
 
-  A0 --> A1 --> A2 --> A3 --> A4 --> A5
+  subgraph entity["S1 + S2 + S3 - entity and credential world"]
+    E1["S1 fixes who exists and how parties are segmented"]
+    E2["S2 fixes which accounts and products exist and who owns them"]
+    E3["S3 fixes which payment credentials exist and how they attach to the account world"]
+  end
 
-  B1["What 6A actually becomes<br/>Certified entity and static-risk authority"] --> B2["Verified sealed world and upstream legitimacy"]
-  B1 --> B3["Party and account/product truth"]
-  B1 --> B4["Credential and network-graph truth"]
-  B1 --> B5["Static fraud-posture truth"]
-  B1 --> B6["Validation bundle and final consumer legitimacy"]
+  subgraph network["S4 - static graph realism"]
+    N1["S4 fixes devices, IPs, and the static interaction graph over the closed entity world"]
+  end
 
-  B2 -.-> A0
-  B3 -.-> A1
-  B3 -.-> A2
-  B4 -.-> A3
-  B4 -.-> A4
-  B5 -.-> A5
-  B6 -.-> A5
+  subgraph closure["S5 - posture and publish legitimacy"]
+    C1["S5 assigns static fraud posture without simulating behaviour"]
+    C2["S5 publishes the 6A HashGate that 6B must trust"]
+  end
+
+  G0 --> G1 --> E1 --> E2 --> E3 --> N1 --> C1 --> C2

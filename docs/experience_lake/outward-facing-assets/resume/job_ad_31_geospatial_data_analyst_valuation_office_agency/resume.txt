@@ -1,0 +1,52 @@
+Esosa Orumwese
+Geospatial Data Analyst | Python Analysis, Spatial Data QA & Automated Workflows
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Analyst with strong Python-led analysis, geospatial reference-data handling, data transformation, quality assurance, documentation, and repeatable workflow experience across governed analytical systems and technical data projects. Evidence includes GeoJSON/country geometry, WGS84 coordinate logic, latitude/longitude data, spatial priors, polygon lookup, raster/vector concepts, network analysis, and data-quality controls. Strong grounding in Python, SQL, Excel, Power BI, Tableau, Git, metadata, and clear technical communication.
+
+CORE SKILLS
+Python-Led Analysis: Python, pandas, NumPy, SQL, statistical analysis, reproducible scripts, analytical modelling, validation routines
+Spatial & Geospatial Data Handling: GeoJSON, WGS84, latitude/longitude data, country geometry, spatial priors, polygon lookup, network/spatial relationship reasoning
+Data Transformation & Integration: Multi-source integration, spatial and non-spatial data linkage, transformation logic, data preparation, reporting-ready datasets
+GIS & Mapping Readiness: QGIS/ArcGIS concepts, Python geospatial tooling, map-based interpretation, spatial accuracy, completeness, geometry and topology considerations
+Quality Assurance & Standards: Verification, validation, analytical review, schema checks, reconciliation, completeness checks, data standards
+Metadata & Documentation: Dataset definitions, processing steps, assumptions, limitations, technical documentation, reusable workflows, knowledge-transfer notes
+Visualisation & Communication: Power BI, Tableau, Excel, DAX, clear visual summaries, written technical explanation, non-technical communication
+Civil Service Behaviours: Making Effective Decisions, Managing a Quality Service, Communicating and Influencing, organised delivery under time pressure
+
+RELEVANT EXPERIENCE
+
+Data Analyst & Analytics Engineer
+Fraud Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
+
+- Used Python, SQL, and automated validation workflows to transform raw event and case surfaces into reusable analytical datasets rather than one-off extracts.
+- Integrated multiple data types across event records, decision outputs, entity histories, labels, case movement, and reporting tables while maintaining clear lineage.
+- Applied spatial analysis concepts through country geometry, WGS84 coordinate logic, latitude/longitude context, spatial priors, timezone polygon lookup, and entity-neighbourhood graph surfaces.
+- Built repeatable processing and QA routines covering schema consistency, source traceability, reconciliation, leakage prevention, train/test separation, and completeness checks.
+- Investigated data-quality and integration issues by separating source-data defects from transformation, modelling, control, and interpretation issues so fixes targeted the actual failure class.
+- Produced dashboard-ready indicators and visual summaries for workload exposure, case flow, data integrity, model yield, and demand pressure.
+- Documented assumptions, definitions, validation results, processing boundaries, and limitations so datasets and workflows were easier to audit, reuse, and explain.
+- Communicated technical findings in plain language, explaining data meaning, limitations, quality checks, and justified next actions.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+
+ADDITIONAL EXPERIENCE
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a technical and safety-conscious operational environment where accurate readings, controlled procedures, clear escalation, and disciplined handovers supported reliable delivery.
+- Monitored pressure, temperature, equipment, and field-condition signals, identifying irregular conditions early and supporting corrective action through structured evidence.
+
+Crew Member
+Five Guys - Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-moving live service environment where quality, pace, communication, and reliable handover affect customer experience and team performance every shift.
+- Adapt quickly to changing priorities while keeping standards consistent, escalating practical issues, and supporting colleagues under pressure.

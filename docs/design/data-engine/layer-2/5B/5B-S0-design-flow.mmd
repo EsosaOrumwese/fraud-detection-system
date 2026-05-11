@@ -1,0 +1,41 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["Upstream HashGates<br/>1A-3B and 5A PASS for the same manifest_fingerprint"]
+    I2["5A scenario authority<br/>scenario_manifest_5A and scenario-local intensity surfaces"]
+    I3["Layer-1 routing and civil-time surfaces<br/>2A / 2B / 3A / 3B artefacts discoverable via dictionaries and registries"]
+    I4["5B control packs<br/>arrival LGCP config, arrival count config, routing, time-placement, RNG, and validation policies"]
+  end
+
+  subgraph core["Actual S0 design"]
+    C1["Verify upstream bundle + passed-flag authority<br/>before any 5B read is legal"]
+    C2["Take scenario_manifest_5A as the sole scenario-set authority<br/>for this arrival world"]
+    C3["Build a seed-invariant sealed input universe<br/>with manifest keys, path templates, roles, read scopes, and digest law"]
+    C4["Record the closed-world arrival-realisation boundary<br/>in s0_gate_receipt_5B and sealed_inputs_5B"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["Actual design rejected seed-scoped sealing<br/>sealed_inputs_5B became parameter_hash + manifest_fingerprint authority only"]
+    S2["Large upstream data surfaces moved to structural digesting<br/>so S0 stays control-plane instead of bulk-data hashing"]
+    S3["Repeated reseals made policy drift and read-scope drift explicit<br/>scenario manifest, channel grouping, and row-level access changes all had to change the gate"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["sealed_inputs_5B"]
+    O2["s0_gate_receipt_5B"]
+    O3["Closed-world contract for every later 5B state<br/>what 5B may read, under which scope, for which scenario set"]
+  end
+
+  I1 --> C1
+  I2 --> C2
+  I3 --> C3
+  I4 --> C3
+  C1 --> C2 --> C3 --> C4
+
+  C3 --> O1
+  C4 --> O2
+  O1 --> O3
+  O2 --> O3
+
+  S1 -.-> C3
+  S2 -.-> C3
+  S3 -.-> C4

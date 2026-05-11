@@ -1,0 +1,26 @@
+[
+  {
+    "pathway_stage":"opened_only",
+    "flow_rows":54553,
+    "fraud_truth_rate":0.0023280113,
+    "avg_lifecycle_hours":451.2753469103
+  },
+  {
+    "pathway_stage":"chargeback_decision",
+    "flow_rows":10494,
+    "fraud_truth_rate":0.9582618639,
+    "avg_lifecycle_hours":1514.5274442539
+  },
+  {
+    "pathway_stage":"customer_dispute",
+    "flow_rows":5589,
+    "fraud_truth_rate":0.6657720522,
+    "avg_lifecycle_hours":912.4585793523
+  },
+  {
+    "pathway_stage":"detection_event_attached",
+    "flow_rows":3008,
+    "fraud_truth_rate":0.1542553191,
+    "avg_lifecycle_hours":543.1512632979
+  }
+]

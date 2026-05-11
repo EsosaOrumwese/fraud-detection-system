@@ -1,0 +1,8 @@
+
+# Research Trend Forecasting Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_analyst/guys_and_st_thomas_nhs_foundation_trust_rd_data_analyst/03_multi_source_research_performance_trend_analysis_and_forecasting/models/build_multi_source_research_performance_trend_analysis_and_forecasting.py
+```

@@ -1,0 +1,23 @@
+[
+  {
+    "week_role":"current",
+    "entry_event_rows":37109884.0,
+    "flow_rows":18554942.0,
+    "case_open_rate":0.0959329865,
+    "long_lifecycle_share":0.7964378148,
+    "case_truth_rate":0.1989352994,
+    "truth_bank_mismatch_rate":0.5862083301,
+    "avg_lifecycle_hours":647.6508122611,
+    "flow_rows_delta":235197.0,
+    "entry_event_rows_delta":470394.0,
+    "case_open_rate_delta":-0.0002792698,
+    "long_lifecycle_share_delta":0.0003469619,
+    "case_truth_rate_delta":0.0003467499,
+    "truth_bank_mismatch_rate_delta":-0.0013642338,
+    "avg_lifecycle_hours_delta":0.1384173909,
+    "reporting_cadence":"weekly",
+    "audience_count":2,
+    "pack_page_count":3,
+    "kpi_family_count":4
+  }
+]

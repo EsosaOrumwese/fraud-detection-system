@@ -1,0 +1,5 @@
+amount_band,protected_flow_rows,reported_flow_rows,flow_row_delta,protected_case_opened_rows,reported_case_opened_rows,case_opened_row_delta,protected_case_truth_rows,reported_case_truth_rows,case_truth_row_delta,matched_flag
+under_10,29640323.0,29640323,0.0,2810226.0,2810226.0,0.0,564706.0,564706.0,0.0,1
+10_to_25,26861523.0,26861523,0.0,2548839.0,2548839.0,0.0,513001.0,513001.0,0.0,1
+25_to_50,16562525.0,16562525,0.0,1578108.0,1578108.0,0.0,315996.0,315996.0,0.0,1
+50_plus,8296161.0,8296161,0.0,898026.0,898026.0,0.0,162588.0,162588.0,0.0,1

@@ -1,0 +1,109 @@
+{
+  "overview": {
+    "rows": 236691694,
+    "merchants": 4050,
+    "zones": 339,
+    "primary_timezones": 281,
+    "settlement_timezones": 227,
+    "operational_timezones": 281,
+    "zone_primary_pairs": 11854,
+    "zone_operational_pairs": 11854,
+    "timezone_triples": 1331,
+    "rows_zone_equals_primary_tz": 93072135,
+    "rows_zone_equals_operational_tz": 93072135,
+    "rows_all_timezones_equal": 218869380
+  },
+  "zone_distribution_stats": {
+    "zones": 339,
+    "min_rows": 11,
+    "p05_rows": 4331.200000000001,
+    "p25_rows": 37671.0,
+    "median_rows": 124834.0,
+    "mean_rows": 698205.587020649,
+    "p75_rows": 481961.5,
+    "p95_rows": 3634891.399999998,
+    "max_rows": 18850372,
+    "min_merchants": 1,
+    "median_merchants": 37.0,
+    "mean_merchants": 179.7463126843658,
+    "max_merchants": 2046,
+    "min_rows_per_merchant": 11.0,
+    "median_rows_per_merchant": 2933.3,
+    "mean_rows_per_merchant": 9465.717658992091,
+    "max_rows_per_merchant": 283919.5
+  },
+  "merchant_zone_distribution": {
+    "merchants": 4050,
+    "min_zones_per_merchant": 2,
+    "p05_zones_per_merchant": 2.0,
+    "p25_zones_per_merchant": 5.0,
+    "median_zones_per_merchant": 11.0,
+    "mean_zones_per_merchant": 15.045432098765431,
+    "p75_zones_per_merchant": 22.0,
+    "p95_zones_per_merchant": 42.0,
+    "max_zones_per_merchant": 64,
+    "min_primary_timezones_per_merchant": 1,
+    "median_primary_timezones_per_merchant": 2.0,
+    "max_primary_timezones_per_merchant": 38,
+    "min_operational_timezones_per_merchant": 1,
+    "median_operational_timezones_per_merchant": 2.0,
+    "max_operational_timezones_per_merchant": 38
+  },
+  "merchant_top_zone_dependence": {
+    "merchants": 4050,
+    "min_top_zone_row_share": 0.15652943220954849,
+    "p05_top_zone_row_share": 0.32382842840378445,
+    "p25_top_zone_row_share": 0.5400181838453836,
+    "median_top_zone_row_share": 0.7063126774605577,
+    "mean_top_zone_row_share": 0.6754114282114678,
+    "p75_top_zone_row_share": 0.8286199042937408,
+    "p95_top_zone_row_share": 0.9359174051164476,
+    "max_top_zone_row_share": 0.9995341544334864
+  },
+  "local_vs_utc_peak_summary": [
+    {
+      "clock_field": "operational_local",
+      "peak_hour": 17,
+      "peak_share": 0.059805744598709916,
+      "trough_hour": 5,
+      "trough_share": 0.02151113929667511,
+      "business_band_share": 0.4527345898331354,
+      "early_low_band_share": 0.06858530067388001
+    },
+    {
+      "clock_field": "primary_local",
+      "peak_hour": 17,
+      "peak_share": 0.059805744598709916,
+      "trough_hour": 5,
+      "trough_share": 0.02151113929667511,
+      "business_band_share": 0.4527345898331354,
+      "early_low_band_share": 0.06858530067388001
+    },
+    {
+      "clock_field": "settlement_local",
+      "peak_hour": 18,
+      "peak_share": 0.059957313077492275,
+      "trough_hour": 5,
+      "trough_share": 0.021190616853669568,
+      "business_band_share": 0.45054592409989686,
+      "early_low_band_share": 0.06841766488012038
+    },
+    {
+      "clock_field": "utc",
+      "peak_hour": 15,
+      "peak_share": 0.05397317406499275,
+      "trough_hour": 4,
+      "trough_share": 0.0277163126814243,
+      "business_band_share": 0.42282234035639626,
+      "early_low_band_share": 0.08498762106962654
+    }
+  ],
+  "zone_hour_shape_rollup": {
+    "zones": 339,
+    "zones_with_at_least_100k_rows": 189,
+    "zones_peak_in_global_business_band": 134,
+    "zones_100k_peak_in_global_business_band": 84,
+    "zones_trough_in_global_low_band": 77,
+    "zones_100k_trough_in_global_low_band": 59
+  }
+}

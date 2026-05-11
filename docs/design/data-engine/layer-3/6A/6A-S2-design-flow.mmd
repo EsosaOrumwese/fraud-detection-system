@@ -1,18 +1,43 @@
-flowchart LR
-  I1["Reads<br/>s1_party_base_6A<br/>account and product priors<br/>taxonomy_account_types_6A"]
-  I2["Policies<br/>product_linkage_rules_6A<br/>product_eligibility_config_6A"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 party-universe authority<br/>s1_party_base_6A"]
+    I2["Account and product priors<br/>prior_account_per_party_6A, prior_product_mix_6A, taxonomy_account_types_6A"]
+    I3["Eligibility and linkage policies<br/>product_linkage_rules_6A and product_eligibility_config_6A"]
+    I4["S0 sealed world and digest law"]
+  end
 
-  S2["S2<br/>Accounts and product holdings"]
+  subgraph core["Actual S2 design"]
+    C1["Realise account and product counts per party world<br/>deciding which account/product surfaces actually exist"]
+    C2["Allocate accounts to parties and merchants under eligibility constraints<br/>and assign static account attributes"]
+    C3["Emit both the account base and the derived product-holdings view<br/>so later states read a closed account world instead of inferring one"]
+  end
 
-  O1["Outputs<br/>s2_account_base_6A<br/>s2_party_product_holdings_6A<br/>optional merchant account view and summary<br/>account RNG events plus audit and trace"]
-  O2["Authority<br/>S2 alone decides which accounts and products exist<br/>and who owns them"]
+  subgraph shifts["Implemented design shifts"]
+    S1["Linkage configs became permissive-default surfaces when sealed optional<br/>the real design preferred explicit warnable absence over blocking the whole account world"]
+    S2["The implementation moved to streaming-only parquet emission under fail-closed posture<br/>writer behaviour became part of the actual state design because account scale is large"]
+    S3["Performance reopen work stayed inside allocation mechanics only<br/>S2 kept ownership topology and product semantics frozen"]
+  end
 
-  R1["Implemented shift<br/>S2 became the first hard remediation owner surface:<br/>hard global post-merge K_max enforcement redefined account realism<br/>from soft warning to binding invariant"]
-  R2["Implemented shift<br/>The accepted design keeps account creation deterministic and streaming,<br/>while all overflow redistribution and drop behavior is explicit,<br/>counted, and fail-closed"]
+  subgraph outputs["Owned authority"]
+    O1["s2_account_base_6A"]
+    O2["s2_party_product_holdings_6A"]
+    O3["optional s2_merchant_account_base_6A and summary"]
+    O4["rng events, audit, and trace for account realisation"]
+    O5["The sole account/product authority<br/>S3-S5 and 6B inherit this world rather than approximating it"]
+  end
 
-  I1 --> S2
-  I2 --> S2
-  S2 --> O1
-  S2 --> O2
-  R1 -.-> S2
-  R2 -.-> S2
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C1
+  C1 --> C2 --> C3
+
+  C3 --> O1
+  C3 --> O2
+  C2 --> O3
+  C1 --> O4
+  O1 --> O5
+
+  S1 -.-> C2
+  S2 -.-> C3
+  S3 -.-> C2

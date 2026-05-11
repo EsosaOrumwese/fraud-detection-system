@@ -1,0 +1,60 @@
+Esosa Orumwese
+Commercial Data Analyst | Data Matching, Decision Support & Quality-Assured Analytics
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Analyst with experience turning complex governed data into decision-support outputs for compliance, operational performance, risk review, resource prioritisation, and value-for-money style trade-off analysis. Strong in SQL, Python, Power BI, Excel, Tableau, Power Query M, DAX, data matching, information retrieval, analytical modelling, forecasting, quality assurance, and stakeholder-ready reporting. Comfortable working from messy multi-source data through cleaning, linking, validation, analysis, and accessible communication, with a careful approach to data limitations, data protection awareness, ethical handling, reproducibility, and proportionate solutions.
+
+CORE SKILLS
+Decision-Support Analytics: Compliance analysis, performance analysis, operational insight, value-for-money trade-offs, supplier and performance data awareness, prioritisation, risk review, evidence-based recommendations
+Analytical Techniques: Data matching, information retrieval, network analysis, text-data awareness, forecasting, trend analysis, statistical modelling, cohort analysis, impact analysis
+Data Handling & Assurance: Multi-source data collection, cleaning, linking, validation, reconciliation, quality checks, limitation handling, information-assurance awareness, data protection awareness
+Data Types & Use Judgement: Operational data, administrative-style data, open/public data awareness, research data awareness, appropriate use, limitations, quality considerations, ethical handling
+Data Structures & Solutions: SQL, relational data structures, database systems, analytical datasets, data feeds, transformation logic, solution maintenance, reusable reporting inputs
+BI, Reporting & Visualisation: Power BI, Excel, Tableau, DAX, dashboards, reports, visualisations, briefing-ready evidence packs, accessible analytical outputs
+Stakeholder Communication: Requirement scoping, senior-ready summaries, technical and non-technical communication, proportionate recommendations, feedback-led refinement
+Delivery & Quality Discipline: Git, documentation, reproducible workflows, testing, QA principles, changing and improving, delivering at pace, legal/data-protection awareness, security-conscious analytical practice
+
+RELEVANT EXPERIENCE
+
+Data Analyst & Analytics Engineer
+AWS-hosted Fraud Decisioning Platform - Exeter, UK | May 2025 - Present
+
+- Applied data analytics techniques to real decision-support problems in a governed fraud environment, using SQL, Python, matching logic, record retrieval, cohort analysis, modelling, and forecasting to support prioritisation, workload planning, and compliance-style review.
+- Worked with complex multi-source operational data covering event records, decision outcomes, case movement, labels, entity histories, and control signals, shaping them into analytical datasets that could support repeatable reporting rather than one-off extracts.
+- Used data matching, record retrieval, and linking logic to connect related records across the operating chain, improving traceability between upstream events, decisions, and downstream outcomes.
+- Built analytical outputs that explained both approach and outcome, including a risk-stratification model that achieved 2.29x baseline yield in the highest-risk band, captured 41.3% of positives in the top 20.1% of scored flows, and achieved 7.31% test MAPE on bounded daily demand forecasting.
+- Compared alternative decision postures to make operational trade-offs clearer, showing that a tighter selection approach reduced selected-flow burden by 511,500 and downstream case-handling activity by 1,185,849 while improving confirmed-outcome yield from 12.06% to 12.37%.
+- Contributed to the design and maintenance of reusable analytical datasets, SQL transformations, reporting-ready tables, and validation logic so outputs were easier to check, rerun, hand over, and adapt as requirements changed.
+- Applied quality-assurance principles through schema checks, reconciliation checks, time-aware validation, leakage controls, documented assumptions, source traceability, and repeatable output generation.
+- Designed BI reporting views and stakeholder-ready evidence packs that translated complex operational data into accessible dashboard structures, visual summaries, and decision notes for technical and non-technical review.
+- Scoped analytical work around user needs by clarifying the decision being supported before choosing the method, keeping outputs proportionate rather than over-engineered.
+- Communicated complex analytical findings in plain language, explaining data limitations, confidence boundaries, trade-offs, and recommended next steps clearly enough to support senior-level review and follow-up questions.
+- Worked with security-conscious and ethically sensitive data handling expectations, treating data quality, access boundaries, traceability, and appropriate use as part of the analytical work rather than an afterthought.
+
+SELECTED ANALYTICAL METHOD EVIDENCE
+
+- MSc thesis: Built deep-learning models for driver identification and transport-mode classification using 227 hours of labelled 100Hz accelerometer, gyroscope, and rotation-vector data, reducing 81,938,560 raw records into a controlled modelling dataset of 4,096,928 records.
+- Network-analysis project: Applied game-theoretic network analysis to a counterterrorism-style surveillance prioritisation problem, using network structure to reason about risk, coverage, and decision options.
+- Optimisation project: Implemented a bi-objective Travelling Thief Problem solution using NSGA2 survival logic, non-dominated sorting, crowding distance, 2-opt local search, and knapsack bit-flip search under deadline and compute constraints.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+ADDITIONAL EXPERIENCE
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a technical and safety-conscious operational environment where accurate readings, disciplined procedures, and timely escalation supported reliable delivery.
+- Monitored pressure, temperature, equipment, and field-condition signals, identifying irregular conditions early and supporting corrective action through structured evidence.
+- Prepared clear technical updates and handovers so engineers and supervisors could act on the same information confidently.
+
+Crew Member
+Five Guys - Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-moving customer and operations environment where pace, accuracy, communication, and service consistency matter every day.
+- Adapt quickly to changing priorities while keeping outputs reliable and understandable for colleagues and customers.
+- Support colleagues through practical teamwork, clear handovers, and steady delivery under pressure.

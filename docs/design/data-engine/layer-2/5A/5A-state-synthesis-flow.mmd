@@ -1,24 +1,31 @@
-flowchart LR
-  subgraph base["Segment 5A recovered synthesis"]
-    A0["S0<br/>Seal Layer-1 and Layer-2 world"]
-    A1["S1<br/>Define merchant-zone demand identity and scale"]
-    A2["S2<br/>Define class-zone unit-mass weekly shapes"]
-    A3["S3<br/>Compose baseline merchant-zone weekly intensity"]
-    A4["S4<br/>Project baseline into scenario horizon truth"]
-    A5["S5<br/>Audit the full segment and seal PASS"]
+flowchart TD
+  subgraph gate["Gate and sealed demand world"]
+    S0["S0<br/>Seal one demand-world environment<br/>from upstream certified worlds and Layer-2 doctrine"]
   end
 
-  A0 --> A1 --> A2 --> A3 --> A4 --> A5
+  subgraph identity["Demand identity surfaces"]
+    S1["S1<br/>Own merchant-zone demand identity<br/>and base scale law"]
+    S2["S2<br/>Own deterministic weekly shape law"]
+  end
 
-  B1["What 5A actually becomes<br/>Certified deterministic demand-intensity authority"] --> B2["Verified sealed world and upstream legitimacy"]
-  B1 --> B3["Merchant-zone class and scale truth"]
-  B1 --> B4["Deterministic weekly shape and baseline mass truth"]
-  B1 --> B5["Scenario-horizon overlay truth and memory-safe execution posture"]
-  B1 --> B6["Validation bundle and final consumer legitimacy"]
+  subgraph baseline["Baseline realism surface"]
+    S3["S3<br/>Own baseline intensity and tail richness"]
+  end
 
-  B2 -.-> A0
-  B3 -.-> A1
-  B4 -.-> A2
-  B4 -.-> A3
-  B5 -.-> A4
-  B6 -.-> A5
+  subgraph scenario["Scenario realization surface"]
+    S4["S4<br/>Own DST-safe scenario projection,<br/>overlay fairness, and memory-safe scenario execution posture"]
+  end
+
+  subgraph closure["Final legitimacy closure"]
+    S5["S5<br/>Own final validation bundle and PASS legitimacy"]
+  end
+
+  S0 --> S1 --> S2 --> S3 --> S4 --> S5
+
+  R1["Recovered design synthesis<br/>5A certifies a bounded demand world, not a fancy time-series generator"]
+  R2["The actual implemented object is:<br/>sealed demand doctrine,<br/>merchant-zone demand identity,<br/>deterministic weekly shape,<br/>baseline local intensity with tail activation,<br/>DST-safe scenario and overlay reality,<br/>then fail-closed publish legitimacy"]
+  R3["Important implemented reading<br/>S1 and S2 shape demand semantics,<br/>S3 owns baseline and tail richness,<br/>S4 owns scenario truth and operating stability,<br/>S5 closes legitimacy"]
+
+  R1 -.-> S0
+  R2 -.-> S4
+  R3 -.-> S5

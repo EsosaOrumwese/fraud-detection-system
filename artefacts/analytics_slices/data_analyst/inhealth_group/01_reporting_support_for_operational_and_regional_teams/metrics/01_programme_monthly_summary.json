@@ -1,0 +1,22 @@
+[
+  {
+    "month_role":"current",
+    "month_start_date":"2026-03-01T00:00:00.000",
+    "flow_rows":81360532.0,
+    "case_open_rate":0.0963022095,
+    "case_truth_rate":0.1986281395,
+    "truth_link_rate":1.0,
+    "fifty_plus_share":0.1019678804,
+    "prior_month_start_date":"2026-02-01T00:00:00.000",
+    "prior_flow_rows":73652566.0,
+    "prior_case_open_rate":0.0962665306,
+    "prior_case_truth_rate":0.1987093029,
+    "prior_truth_link_rate":1.0,
+    "prior_fifty_plus_share":0.1019594348,
+    "flow_rows_delta":7707966.0,
+    "case_open_rate_delta":0.0000356789,
+    "case_truth_rate_delta":-0.0000811634,
+    "truth_link_rate_delta":0.0,
+    "fifty_plus_share_delta":0.0000084457
+  }
+]

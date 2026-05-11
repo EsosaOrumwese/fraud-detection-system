@@ -1,0 +1,202 @@
+{
+  "slice": "midlands_partnership_nhs_ft/01_predictive_modelling",
+  "model_extract": {
+    "path": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\01_predictive_modelling\\extracts\\flow_model_base_v2.parquet",
+    "train_rows_full": 2073369,
+    "train_rows_sampled": 333852,
+    "validation_rows": 691122,
+    "test_rows": 691122,
+    "feature_count": 17,
+    "features": [
+      "log_amount",
+      "log_arrival_seq",
+      "flow_hour_utc",
+      "flow_dow_utc",
+      "flow_month_utc",
+      "log_merchant_flow_count",
+      "log_party_flow_count",
+      "log_account_flow_count",
+      "log_instrument_flow_count",
+      "log_device_flow_count",
+      "log_ip_flow_count",
+      "merchant_train_fraud_rate",
+      "party_train_fraud_rate",
+      "account_train_fraud_rate",
+      "instrument_train_fraud_rate",
+      "device_train_fraud_rate",
+      "ip_train_fraud_rate"
+    ]
+  },
+  "risk_model": {
+    "validation_metrics": {
+      "split": "validation",
+      "rows": 691122,
+      "positives": 18841,
+      "positive_rate": 0.0272614675845943,
+      "roc_auc": 0.6268087141250516,
+      "average_precision": 0.0460127719764065,
+      "high_threshold": 0.0001356111858379,
+      "medium_threshold": 2.6635427320198823e-05
+    },
+    "test_metrics": {
+      "split": "test",
+      "rows": 691122,
+      "positives": 18888,
+      "positive_rate": 0.0273294729439954,
+      "roc_auc": 0.6284089495875346,
+      "average_precision": 0.0460990753952065,
+      "high_threshold": 0.0001356111858379,
+      "medium_threshold": 2.6635427320198823e-05
+    },
+    "validation_risk_bands": [
+      {
+        "split": "validation",
+        "risk_band": "High",
+        "rows": 34557,
+        "positives": 2232,
+        "positive_rate": 0.0645889400121538,
+        "capture_rate": 0.118465049625816,
+        "lift_vs_baseline": 2.369239286613225
+      },
+      {
+        "split": "validation",
+        "risk_band": "Medium",
+        "rows": 103668,
+        "positives": 5601,
+        "positive_rate": 0.0540282440097233,
+        "capture_rate": 0.2972772145852131,
+        "lift_vs_baseline": 1.9818538324127184
+      },
+      {
+        "split": "validation",
+        "risk_band": "Low",
+        "rows": 552897,
+        "positives": 11008,
+        "positive_rate": 0.0199096757623933,
+        "capture_rate": 0.5842577357889709,
+        "lift_vs_baseline": 0.7303229622767806
+      }
+    ],
+    "test_risk_bands": [
+      {
+        "split": "test",
+        "risk_band": "High",
+        "rows": 33951,
+        "positives": 2125,
+        "positive_rate": 0.0625902035286147,
+        "capture_rate": 0.1125052943667937,
+        "lift_vs_baseline": 2.290208949761928
+      },
+      {
+        "split": "test",
+        "risk_band": "Medium",
+        "rows": 104808,
+        "positives": 5682,
+        "positive_rate": 0.0542134188229906,
+        "capture_rate": 0.3008259212198221,
+        "lift_vs_baseline": 1.9836979269262447
+      },
+      {
+        "split": "test",
+        "risk_band": "Low",
+        "rows": 552363,
+        "positives": 11081,
+        "positive_rate": 0.0200610830196809,
+        "capture_rate": 0.5866687844133842,
+        "lift_vs_baseline": 0.7340457337318881
+      }
+    ],
+    "cohort_summary": [
+      {
+        "split_role": "test",
+        "risk_band": "High",
+        "fraud_truth_rate": 0.06259020352861477,
+        "bank_view_positive_rate": 0.2613177815086448,
+        "avg_predicted_probability": 0.2000305650210832
+      },
+      {
+        "split_role": "test",
+        "risk_band": "Medium",
+        "fraud_truth_rate": 0.05421341882299061,
+        "bank_view_positive_rate": 0.1807877261277765,
+        "avg_predicted_probability": 5.759365905129636e-05
+      },
+      {
+        "split_role": "test",
+        "risk_band": "Low",
+        "fraud_truth_rate": 0.0200610830196809,
+        "bank_view_positive_rate": 0.02289798556384117,
+        "avg_predicted_probability": 1.2119594734311536e-05
+      },
+      {
+        "split_role": "validation",
+        "risk_band": "High",
+        "fraud_truth_rate": 0.06458894001215383,
+        "bank_view_positive_rate": 0.26648725294441067,
+        "avg_predicted_probability": 0.1916426084533794
+      },
+      {
+        "split_role": "validation",
+        "risk_band": "Medium",
+        "fraud_truth_rate": 0.05402824400972335,
+        "bank_view_positive_rate": 0.17669869197823823,
+        "avg_predicted_probability": 5.657055302598277e-05
+      },
+      {
+        "split_role": "validation",
+        "risk_band": "Low",
+        "fraud_truth_rate": 0.01990967576239336,
+        "bank_view_positive_rate": 0.022535843023203238,
+        "avg_predicted_probability": 1.2170440036331028e-05
+      }
+    ]
+  },
+  "case_demand_forecast": {
+    "train_window": {
+      "start": "2026-01-01",
+      "end": "2026-02-23",
+      "rows": 54
+    },
+    "validation_window": {
+      "start": "2026-02-24",
+      "end": "2026-03-13",
+      "rows": 18
+    },
+    "test_window": {
+      "start": "2026-03-14",
+      "end": "2026-03-31",
+      "rows": 18
+    },
+    "selected_model": "weekday_mean",
+    "validation_metrics": {
+      "weekday_mean": {
+        "mae": 188.08730158730157,
+        "rmse": 220.7300748513386,
+        "mape": 0.046734595539722576
+      },
+      "rolling_mean_7d": {
+        "mae": 245.63883042040413,
+        "rmse": 298.77246382515045,
+        "mape": 0.05912869996880378
+      },
+      "seasonal_naive_7d": {
+        "mae": 336.6190476190475,
+        "rmse": 379.41224685192293,
+        "mape": 0.08220902537510046
+      }
+    },
+    "test_metrics": {
+      "mae": 321.79999999999995,
+      "rmse": 447.07172457515196,
+      "mape": 0.07305670808691495
+    }
+  },
+  "generated_assets": {
+    "scored_validation": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\01_predictive_modelling\\extracts\\validation_scores_v1.parquet",
+    "scored_test": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\01_predictive_modelling\\extracts\\test_scores_v1.parquet",
+    "cohort_summary": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\01_predictive_modelling\\extracts\\flow_risk_cohort_summary_v1.parquet",
+    "daily_case_opens": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\01_predictive_modelling\\extracts\\daily_case_opens_v1.parquet",
+    "case_demand_forecasts": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\01_predictive_modelling\\extracts\\case_demand_forecasts_v1.parquet",
+    "model_pickle": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\01_predictive_modelling\\models\\statsmodels_glm_binomial.pkl"
+  }
+}

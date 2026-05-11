@@ -1,0 +1,47 @@
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S3 bucket counts<br/>how many arrivals each entity-bucket must realise"]
+    I2["S1 bucket and grouping metadata<br/>UTC bucket law plus local-time annotations"]
+    I3["2A civil-time surfaces<br/>site_timezones and tz_timetable_cache"]
+    I4["2B physical-routing surfaces<br/>site weights, alias layouts, group weights"]
+    I5["3B virtual-routing surfaces<br/>virtual classification, edge catalogue, edge-universe authority"]
+    I6["S4 policies<br/>arrival_time_placement, arrival_routing, arrival_rng"]
+  end
+
+  subgraph core["Actual S4 design"]
+    C1["Expand each bucket count into concrete arrival rows<br/>one realised arrival per counted unit"]
+    C2["Place each arrival inside its bucket horizon<br/>with local wall-clock semantics that remain lawful under DST gaps and folds"]
+    C3["Decide physical versus virtual routing<br/>without redefining 3B classification authority"]
+    C4["Select the concrete site_id or edge_id<br/>using the routed merchant-zone support actually allowed by Layer-1"]
+    C5["Emit the canonical arrival skeleton for Layer-3<br/>timestamps, routing outcome, scenario context, and audit fields"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["The actual design stopped treating 2B alias blobs as mandatory execution machinery<br/>S4 rebuilt physical alias views from site weights when that preserved the same routing semantics more safely"]
+    S2["Civil-time correctness became a real design surface, not cosmetic metadata<br/>the later 2A horizon reopen was required so S4 could remain lawful in 2026 DST windows"]
+    S3["The final implementation became a compiled, bucket-stream expansion path<br/>vectorised where possible, but still fail-closed on routing and civil-time defects"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["arrival_events_5B"]
+    O2["s4_arrival_summary_5B and anomaly surfaces"]
+    O3["rng events, audit, and trace for time placement and routing"]
+    O4["The sole arrival-realisation authority<br/>timestamps and routed endpoints now exist as consumable world facts"]
+  end
+
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  I4 --> C4
+  I5 --> C3
+  I6 --> C1
+  C1 --> C2 --> C3 --> C4 --> C5
+
+  C5 --> O1
+  C5 --> O2
+  C2 --> O3
+  O1 --> O4
+
+  S1 -.-> C4
+  S2 -.-> C2
+  S3 -.-> C1

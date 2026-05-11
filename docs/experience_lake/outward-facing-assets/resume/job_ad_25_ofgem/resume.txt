@@ -1,0 +1,50 @@
+**Esosa Orumwese**
+Analyst | Regulatory Monitoring, Market Intelligence & Public-Interest Decision Support
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Analyst with experience monitoring large and complex datasets, producing recurring intelligence outputs, and turning analytical evidence into clear decision support in high-accountability environments. Strong in Excel, Power BI, Python, SQL, Tableau, Power Query M, and DAX, with experience supporting BAU monitoring, identifying trends and emerging concerns, handling rapid-response analytical requests under uncertainty, producing briefing-ready outputs, improving collection and analysis workflows, and framing analysis around fairness, consumer impact, and wider public-interest outcomes.
+
+**CORE SKILLS**
+Regulatory Monitoring & Market Intelligence: Ongoing monitoring, recurring reporting, market-performance review, participant and customer signal analysis, issue identification, emerging-concern detection
+Competition, Consumer & Performance Analysis: Competition indicators, consumer-protection indicators, performance monitoring, trend analysis, risk identification, public-interest interpretation
+Evidence Gathering & Reporting Frameworks: Reporting frameworks, third-party information requests, evidence collection, structured analytical inputs, intelligence updates, senior briefings
+Policy & Regulatory Decision Support: Policy support, pricing and impact analysis, decision-support outputs, pragmatic options, proportionate recommendations, uncertainty-aware judgement
+Rapid-Response Analytical Delivery: Unplanned requests, pace-led analysis, proportionate outputs, actionable reporting, problem solving under uncertainty, deadline discipline
+Stakeholder Engagement & Communication: Scope definition, evidence scoping, written and verbal communication, non-expert communication, relationship building, cross-functional engagement
+Analytical Tools & Process Improvement: Excel, Power BI, Python, SQL, Tableau, workflow improvement, accuracy improvement, efficient collection and analysis processes
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Worked with large and complex datasets to monitor participant, customer, and market-behaviour signals in a high-accountability, controlled environment rather than relying on one-off analysis alone.
+- Contributed to regular BAU monitoring and reporting activity by maintaining recurring intelligence outputs, identifying trends, tracking deviations, and helping keep analytical views current and decision-useful.
+- Monitored competition, customer-protection, and performance indicators to identify issues, shifts, and emerging concerns early, supporting proportionate follow-up rather than retrospective commentary only.
+- Worked with structured reporting and evidence-gathering frameworks, including defined data requests and multi-source collection processes, to strengthen monitoring, analytical review, and downstream decision-making.
+- Produced intelligence updates, analytical reports, briefing-ready summaries, and decision-support outputs that translated complex evidence into clear information for senior and non-technical audiences.
+- Turned analysis into evidence that informed control decisions, prioritisation choices, fairness-aware trade-offs, and wider policy or rules-based decisions rather than isolated metric reporting.
+- Handled unplanned analytical requests at pace while still producing clear, proportionate, and actionable outputs, using judgement under uncertainty to frame pragmatic options for decision makers.
+- Scoped analytical work with stakeholders, built effective working relationships across technical and non-technical groups, and improved the efficiency and accuracy of data collection and analysis processes through more repeatable workflows.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Deliver clear customer-facing information and dependable service in a busy environment where fairness, pace, and consistent handling matter every day.
+- Adapt quickly to changing priorities while keeping outputs understandable, proportionate, and useful to customers and colleagues.
+- Support teammates through calm communication, practical handovers, and dependable teamwork under pressure.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a controlled operational environment where monitoring, clear escalation, and evidence-based interpretation were essential to safe and reliable decision-making.
+- Reviewed technical and operational signals, identified irregular conditions early, and supported proportionate action through structured evidence and reporting.
+- Prepared clear updates and handovers so technical information could be used confidently by supervisors, engineers, and operational stakeholders.

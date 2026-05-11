@@ -1,5 +1,43 @@
-flowchart LR
-  A["Authority inputs<br/>s7_site_synthesis<br/>site_locations<br/>rng_event_site_tile_assign<br/>rng_event_in_cell_jitter<br/>rng_audit_log<br/>rng_trace_log"] --> B["Owned transformation<br/>Validate parity, egress checksums,<br/>RNG coverage, budgets, and trace reconciliation<br/>assemble fingerprint-scoped bundle<br/>compute final passed flag by index-driven hash law"]
-  B --> C["Authority outputs<br/>validation_bundle_1B<br/>index.json<br/>validation_passed_flag_1B<br/>consumer legitimacy for site_locations"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S7 synthesis rows and S8 site_locations egress<br/>the final data surfaces under judgment"]
+    I2["RNG event streams from S5 and S6<br/>plus shared trace and audit logs"]
+    I3["Schema packs, bundle contract law, and run identity<br/>manifest_fingerprint, parameter_hash, seed, run_id"]
+  end
 
-  D["Implemented design shifts<br/>S9 became the final consumer gate in actual design<br/>POPT.3 made validation fast enough for iteration<br/>without weakening coverage, envelope, or budget checks"] -.-> B
+  subgraph core["Actual S9 design"]
+    C1["Reconcile site-level coverage across S7 and S8<br/>so the final egress still matches synthesized site truth"]
+    C2["Scan RNG events, trace, and audit<br/>checking envelope, budget, run_id, and coverage correctness"]
+    C3["Assemble validation bundle artifacts and bundle index<br/>only if all required evidence surfaces are present and coherent"]
+    C4["Emit PASS flag only when the whole publish story is lawful<br/>otherwise fail closed with explicit evidence of why"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S9 became a real publish-legitimacy authority<br/>not a cosmetic receipt after the fact"]
+    S2["RNG accounting was made first-class<br/>coverage, trace reconciliation, and budget rules are part of consumer legitimacy"]
+    S3["Fast-lane optimization stayed bounded to proof mechanics<br/>sampled schema validation speeds iteration without weakening fail-closed correctness checks"]
+    S4["Segment closure moved here from S0<br/>so downstream readers inherit one final legitimacy decision, not scattered local success signals"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["validation_bundle_1B"]
+    O2["validation_bundle_index_1B"]
+    O3["validation_passed_flag_1B"]
+    O4["Final consumer rule:<br/>no PASS means 1B site_locations is not a lawful downstream authority surface"]
+  end
+
+  I1 --> C1
+  I2 --> C2
+  I3 --> C3
+  C1 --> C3
+  C2 --> C3 --> C4
+
+  C3 --> O1
+  C3 --> O2
+  C4 --> O3
+  O3 --> O4
+
+  S1 -.-> C4
+  S2 -.-> C2
+  S3 -.-> C2
+  S4 -.-> C4

@@ -1,0 +1,2 @@
+merchants,min_zones_per_merchant,p05_zones_per_merchant,p25_zones_per_merchant,median_zones_per_merchant,mean_zones_per_merchant,p75_zones_per_merchant,p95_zones_per_merchant,max_zones_per_merchant,min_primary_timezones_per_merchant,median_primary_timezones_per_merchant,max_primary_timezones_per_merchant,min_operational_timezones_per_merchant,median_operational_timezones_per_merchant,max_operational_timezones_per_merchant
+4050,2,2.0,5.0,11.0,15.045432098765431,22.0,42.0,64,1,2.0,38,1,2.0,38

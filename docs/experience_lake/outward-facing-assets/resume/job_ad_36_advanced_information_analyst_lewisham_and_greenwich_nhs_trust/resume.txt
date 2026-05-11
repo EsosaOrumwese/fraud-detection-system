@@ -1,0 +1,64 @@
+Esosa Orumwese
+Advanced Information Analyst | Performance Intelligence, Demand Modelling & BI Automation
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Analyst and Analytics Engineer with strong SQL, Python, Excel, Power BI, statistical analysis, forecasting, data-quality assurance, and governed reporting capability across complex operational and public-interest datasets. Experienced in building linked analytical datasets, validating multi-source information, producing performance and demand-pressure insight, automating repeatable analysis, and translating complex findings into clear decision-support narratives.
+
+CORE SKILLS
+Performance Intelligence: Operational performance analysis, demand-pressure review, productivity and efficiency signals, KPI logic, exception monitoring, decision support
+Advanced Analytics: Python, SQL, rapid R adoption, forecasting, predictive modelling, statistical analysis, optimisation concepts, time-series analysis
+BI & Reporting: Power BI, Excel, Tableau, KPI outputs, visual reporting, scorecards, charts, tables, concise analytical narratives
+Data Extraction & Modelling: Complex joins, linked datasets, entity histories, defined grains, keys, lineage, interrelated analytical models
+Data Quality & Assurance: Validation, reconciliation, completeness checks, duplicate checks, anomaly detection, source traceability, documented assumptions
+Automation & Documentation: Repeatable workflows, automated checks, reusable reporting logic, standard operating notes, Git, reproducible analysis
+Governance & Confidentiality: Data Protection awareness, confidentiality-aware handling, controlled access mindset, audit-ready documentation, GDPR awareness
+Delivery & Communication: Independent delivery, competing priorities, technical explanation, non-technical summaries, clear handovers, practical recommendations
+
+RELEVANT EXPERIENCE
+
+Data Analyst & Analytics Engineer
+Fraud Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
+
+- Built linked analytical datasets across events, decisions, entity histories, labels, case movement, controls, and reporting evidence, using SQL and Python to make complex operational data usable for performance review.
+- Developed repeatable extraction, validation, and transformation workflows with defined grains, documented keys, source traceability, reconciliation checks, and controlled assumptions.
+- Produced demand-pressure and case-flow intelligence covering workload exposure, routing patterns, review volumes, exception signals, and downstream operational impact.
+- Built forecasting and planning evidence with 7.31% test MAPE, giving a bounded view of expected demand variation and the caution needed when using forecasts for planning.
+- Produced prioritisation analysis showing 2.29x baseline yield in the highest-risk band, translating model output into workload, productivity, and review-efficiency implications.
+- Designed KPI and monitoring outputs for trends, exceptions, data integrity, model yield, and operational pressure, using clear visual and tabular reporting structures.
+- Automated recurring checks and reporting preparation, documenting definitions, validation outcomes, assumptions, limitations, and handover notes so outputs remained repeatable.
+- Investigated anomalies by separating source-data issues from transformation, modelling, control, linkage, and interpretation issues before recommending corrective action.
+- Communicated complex analytical findings in plain terms, focusing on what changed, why it mattered, how reliable the evidence was, and what action or further review was justified.
+
+COVID-19 Policy and Activity Analysis
+MSc Data Science Project | Nov 2023
+
+- Combined 1,004 daily CSV files in Python into 2,396,549 observations and 12 variables across 220 countries and 1,004 days.
+- Integrated Facebook Business Activity Trends data with Oxford COVID-19 Government Response Tracker data to interpret activity changes alongside policy context.
+- Checked coverage, missingness, duplicates, country/date validity, metric suitability, and source limitations before producing time-series visual analysis and written interpretation.
+
+Network Analysis and Optimisation Evidence
+MSc Data Science Projects
+
+- Applied game-theoretic network analysis and optimisation-led methods to prioritisation and planning problems, explaining method choice, assumptions, limitations, trade-offs, and decision implications.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+
+ADDITIONAL EXPERIENCE
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a controlled operational environment where accurate readings, disciplined documentation, safe escalation, and reliable handovers supported effective delivery.
+- Monitored pressure, temperature, equipment, and field-condition signals, identifying irregular conditions early and supporting corrective action through structured evidence.
+
+Crew Member
+Five Guys - Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-moving live service environment where quality, prioritisation, communication, and reliable handover affect service performance every shift.

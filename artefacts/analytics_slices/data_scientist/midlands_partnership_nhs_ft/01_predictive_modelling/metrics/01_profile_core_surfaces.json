@@ -1,0 +1,22 @@
+[
+  {
+    "flow_rows":236691694,
+    "min_flow_ts_utc":"2026-01-01T00:00:00.001940Z",
+    "max_flow_ts_utc":"2026-03-31T23:59:59.944516Z",
+    "avg_amount":24.3127420969,
+    "min_amount":0.04,
+    "max_amount":3401.78,
+    "distinct_merchants":4050,
+    "distinct_parties":5588988,
+    "distinct_accounts":5589035,
+    "target_rows":236691694,
+    "fraud_truth_rows":5940539.0,
+    "fraud_truth_rate":0.0250982149,
+    "case_timeline_rows":59775740,
+    "distinct_cases":22752610,
+    "flows_with_cases":22752610,
+    "total_target_flows":236691694,
+    "target_flows_with_cases":22752610.0,
+    "fraud_truth_flows_with_cases":4521817.0
+  }
+]

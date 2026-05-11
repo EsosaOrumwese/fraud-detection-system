@@ -1,18 +1,41 @@
-flowchart LR
-  I1["Reads<br/>s1_party_base_6A<br/>s2_account_base_6A<br/>s3_instrument_base_6A<br/>s3_account_instrument_links_6A"]
-  I2["Priors and policies<br/>prior_device_counts_6A<br/>prior_ip_counts_6A<br/>taxonomy_devices_6A<br/>taxonomy_ips_6A<br/>graph and device linkage rules"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1-S3 sealed entity world<br/>party, account, and instrument bases with linkage tables"]
+    I2["Device and IP priors/taxonomies<br/>prior_device_counts_6A, prior_ip_counts_6A, taxonomy_devices_6A, taxonomy_ips_6A"]
+    I3["Graph linkage policies<br/>graph_linkage_rules_6A and device_linkage_rules_6A"]
+  end
 
-  S4["S4<br/>Devices, IPs, and network graph"]
+  subgraph core["Actual S4 design"]
+    C1["Realise which devices and IP endpoints exist in the bank world"]
+    C2["Attach devices and IPs to parties, accounts, instruments, and merchants<br/>to form a static interaction graph"]
+    C3["Emit both base tables and link tables<br/>so later behavioural states inherit a closed network world"]
+  end
 
-  O1["Outputs<br/>s4_device_base_6A<br/>s4_ip_base_6A<br/>s4_device_links_6A<br/>s4_ip_links_6A<br/>optional neighbourhoods and summary<br/>device/IP RNG events plus audit and trace"]
-  O2["Authority<br/>S4 alone decides which devices and IPs exist<br/>and how the static graph is wired"]
+  subgraph shifts["Implemented design shifts"]
+    S1["A real design defect surfaced here: S0 role assignments were too coarse<br/>so S4 forced sealed-input role precision back into the upstream gate"]
+    S2["Lean fallback paths existed only to survive temporary sealing omissions in dev<br/>the intended design still treats sealed input coverage as the real authority"]
+    S3["S4 remained the main network-realism surface<br/>sharing, attachment, and degree structure were kept here instead of leaking into 6B sessions"]
+  end
 
-  R1["Implemented shift<br/>S4 became the main network-realism repair lane:<br/>IP prior alignment, linkage coverage, and bounded devices-per-IP tails<br/>are the accepted realism burdens here"]
-  R2["Implemented shift<br/>The final design removed permissive region-mix fallback,<br/>added deterministic coverage controls, and enforced reuse clamps<br/>so graph realism is achieved by construction rather than post-hoc warning"]
+  subgraph outputs["Owned authority"]
+    O1["s4_device_base_6A"]
+    O2["s4_ip_base_6A"]
+    O3["s4_device_links_6A and s4_ip_links_6A"]
+    O4["optional neighbourhood summaries and RNG evidence"]
+    O5["The sole static device/IP graph authority<br/>6B may animate the graph, but may not rebuild it"]
+  end
 
-  I1 --> S4
-  I2 --> S4
-  S4 --> O1
-  S4 --> O2
-  R1 -.-> S4
-  R2 -.-> S4
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  C1 --> C2 --> C3
+
+  C3 --> O1
+  C3 --> O2
+  C3 --> O3
+  C1 --> O4
+  O1 --> O5
+
+  S1 -.-> C2
+  S2 -.-> C1
+  S3 -.-> C3

@@ -1,5 +1,44 @@
-flowchart LR
-  A["Authority inputs<br/>1A validation bundle<br/>1A passed flag<br/>outlet_catalogue authority<br/>shared reference surfaces"] --> B["Owned transformation<br/>Verify 1A final bundle by fingerprint<br/>seal 1B-readable inputs<br/>fix manifest and parameter lineage<br/>fail closed on gate mismatch"]
-  B --> C["Authority outputs<br/>s0_gate_receipt_1B<br/>sealed_inputs_1B<br/>1A read authorization for later 1B states"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["1A validation bundle, index, and PASS flag<br/>for the resolved manifest_fingerprint"]
+    I2["1A outlet_catalogue and 1A s3_candidate_set<br/>as the upstream merchant-country authority surfaces"]
+    I3["Reference assets required by 1B<br/>iso3166, world_countries, population_raster, tz_world, license_map"]
+    I4["Run receipt identity<br/>run_id, seed, manifest_fingerprint, parameter_hash"]
+  end
 
-  D["Implemented design shifts<br/>license_map added to make governance real<br/>receipt became durable consumer proof<br/>manifest_fingerprint naming was standardized<br/>hash reuse plus explicit sealing replaced looser intent"] -.-> B
+  subgraph core["Actual S0 design"]
+    C1["Resolve authoritative upstream bundle path<br/>and verify 1A really closed for this fingerprint"]
+    C2["Resolve each required 1B-readable input through contract law<br/>not ad-hoc local paths"]
+    C3["Hash and seal the exact readable input set<br/>so downstream states inherit one frozen read world"]
+    C4["Write durable gate receipt plus sealed_inputs_1B<br/>or abort with no partial outputs"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S0 became a real read-authority boundary<br/>not just an initial convenience check"]
+    S2["license_map was added to the sealed world<br/>so governance coverage became part of gate legitimacy"]
+    S3["Run-local staging precedence was constrained by run_id timing<br/>to allow local candidate lanes without loosening source authority"]
+    S4["Validation-bundle publication was removed from S0<br/>so final consumer legitimacy stays owned by S9"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["s0_gate_receipt_1B"]
+    O2["sealed_inputs_1B"]
+    O3["Authorized 1A + reference read world<br/>for S1 through S9"]
+    O4["Fail-closed rule:<br/>no sealed receipt means no lawful 1B execution"]
+  end
+
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C1
+  C1 --> C2 --> C3 --> C4
+
+  C4 --> O1
+  C4 --> O2
+  O2 --> O3
+  O1 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C2
+  S3 -.-> C3
+  S4 -.-> C4

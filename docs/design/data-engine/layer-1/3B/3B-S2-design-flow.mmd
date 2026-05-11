@@ -1,18 +1,41 @@
-flowchart LR
-  I1["Reads<br/>virtual_classification_3B<br/>virtual_settlement_3B<br/>sealed spatial/tz assets"]
-  I2["Policies<br/>cdn_country_weights<br/>route_rng_policy_v1<br/>supporting geography and tz overrides"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 virtual membership and settlement anchors"]
+    I2["sealed spatial assets and tile surfaces"]
+    I3["cdn_country_weights and topology doctrine"]
+    I4["seeded route RNG posture"]
+  end
 
-  S2["S2<br/>CDN edge catalogue construction"]
+  subgraph core["Actual S2 design"]
+    C1["Construct merchant-conditioned virtual edge topology<br/>instead of one global template"]
+    C2["Couple country allocation to settlement anchors<br/>under bounded locality and concentration law"]
+    C3["Realize concrete edge catalogue rows with weights,<br/>locations and runtime lineage"]
+    C4["Emit the segment's dominant realism surface<br/>for later aliasing and governance"]
+  end
 
-  O1["Outputs<br/>edge_catalogue_3B<br/>edge_catalogue_index_3B<br/>edge_tile_assign RNG events<br/>edge_jitter RNG events<br/>audit and trace logs"]
-  O2["Authority<br/>S2 is the sole source of the static<br/>virtual edge world and S2 RNG evidence"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S2 is the dominant realism and performance surface in 3B; most hard and stretch gates are won or lost here"]
+    S2["Merchant-conditioned topology replaced flat global edge behavior;<br/>settlement-coupled weighting restored geographic meaning"]
+    S3["Large runtime work later proved the prep lane and topology law are inseparable parts of the actual design,<br/>not just implementation detail"]
+    S4["Bounded settlement-share shaping closed the remaining coherence gates without reopening S1"]
+  end
 
-  R1["Implemented shift<br/>S2 became the real realism engine of 3B:<br/>merchant-conditioned topology and settlement-coupled weighting<br/>replaced the earlier degenerate global-template posture"]
-  R2["Implemented shift<br/>S2 also became the dominant performance surface;<br/>material redesign was required to make tile preparation memory-safe,<br/>repeatable, and fast enough without changing contracts"]
+  subgraph outputs["Owned authority"]
+    O1["edge_catalogue_3B"]
+    O2["edge_catalogue_index_3B"]
+    O3["merchant-conditioned edge-world authority<br/>for S3, S4 and S5"]
+  end
 
-  I1 --> S2
-  I2 --> S2
-  S2 --> O1
-  S2 --> O2
-  R1 -.-> S2
-  R2 -.-> S2
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C3
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1
+  C4 --> O2
+  C4 --> O3
+
+  S1 -.-> C4
+  S2 -.-> C1
+  S3 -.-> C3
+  S4 -.-> C2

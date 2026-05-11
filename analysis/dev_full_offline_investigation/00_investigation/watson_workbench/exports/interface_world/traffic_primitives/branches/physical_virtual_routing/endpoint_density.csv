@@ -1,0 +1,3 @@
+endpoint_type,endpoints,rows,min_rows_per_endpoint,p05_rows_per_endpoint,p25_rows_per_endpoint,mean_rows_per_endpoint,median_rows_per_endpoint,p75_rows_per_endpoint,p95_rows_per_endpoint,max_rows_per_endpoint,mean_zones_per_endpoint,median_zones_per_endpoint,max_zones_per_endpoint
+physical_site,78516,216136107,1,53.0,334.0,2752.7651306740026,967.0,2329.0,10710.25,403212,11.230398899587346,8.0,64
+virtual_edge,3005,20555587,86,230.40000000000003,1689.0,6840.4615640599,3394.0,7196.0,24693.399999999994,137585,11.632945091514143,8.0,58

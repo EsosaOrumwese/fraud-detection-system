@@ -1,30 +1,34 @@
-flowchart LR
-  subgraph base["Segment 2B recovered synthesis"]
-    A0["S0<br/>Seal upstream truth and routing policy authority"]
-    A1["S1<br/>Freeze deterministic per-site merchant mass"]
-    A2["S2<br/>Freeze byte-stable alias decode authority"]
-    A3["S3<br/>Add bounded temporal modulation by tz-group"]
-    A4["S4<br/>Convert base shares plus gamma into<br/>day-level group-routing truth"]
-    A5["S5<br/>Execute live two-stage routing<br/>with replayable event evidence"]
-    A6["S6<br/>Execute bounded virtual-edge branch<br/>without altering core routing truth"]
-    A7["S7<br/>Audit artefact coherence and optional runtime evidence"]
-    A8["S8<br/>Seal the segment with indexed PASS legitimacy"]
+flowchart TD
+  subgraph gate["Gate and world definition"]
+    S0["S0<br/>Seal one governed routing environment<br/>from 1B layout, 2A timezone truth,<br/>policy digests and optional roster witness"]
   end
 
-  A0 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7 --> A8
+  subgraph deterministic["Deterministic routing law"]
+    S1["S1<br/>Own merchant-level site mass law<br/>and spatial heterogeneity"]
+    S2["S2<br/>Own byte-stable alias decode contract"]
+  end
 
-  B1["What 2B actually becomes<br/>Certified routing-realism authority"] --> B2["Validated routing environment and upstream pins"]
-  B1 --> B3["Deterministic site-mass and alias decode truth"]
-  B1 --> B4["Temporal and group-level routing realism"]
-  B1 --> B5["Replayable live routing and bounded exception handling"]
-  B1 --> B6["Audit closure and manifest-scoped consumer legitimacy"]
+  subgraph realism["Realism-shaping authority"]
+    S3["S3<br/>Own temporal heterogeneity<br/>at merchant-day-tz_group scope"]
+    S4["S4<br/>Own group realism and anti-collapse control<br/>but not upstream topology repair"]
+  end
 
-  B2 -.-> A0
-  B3 -.-> A1
-  B3 -.-> A2
-  B4 -.-> A3
-  B4 -.-> A4
-  B5 -.-> A5
-  B5 -.-> A6
-  B6 -.-> A7
-  B6 -.-> A8
+  subgraph runtime["Runtime routing evidence"]
+    S5["S5<br/>Own live routed-arrival truth<br/>against realism-grade roster demand"]
+    S6["S6<br/>Own virtual-edge extension evidence<br/>on top of accepted route truth"]
+  end
+
+  subgraph closure["Audit and legitimacy closure"]
+    S7["S7<br/>Own cross-state routing coherence verdict"]
+    S8["S8<br/>Own final validation bundle and PASS legitimacy"]
+  end
+
+  S0 --> S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8
+
+  R1["Recovered design synthesis<br/>2B certifies a routing world, not a fancy random generator"]
+  R2["The actual implemented object is:<br/>deterministic merchant topology plus site law,<br/>seeded temporal shaping, explicit group regularization,<br/>replayable live routing evidence, and fail-closed publish legitimacy"]
+  R3["Important implemented correction<br/>S1/S3 activation and S4 regularization are distinct owner surfaces;<br/>S5 is the runtime truth boundary; S7/S8 close legitimacy rather than create realism"]
+
+  R1 -.-> S0
+  R2 -.-> S4
+  R3 -.-> S5

@@ -1,22 +1,39 @@
-flowchart LR
-  U1["Inputs<br/>s1_arrival_entities_6B<br/>s1_session_index_6B"]
-  U2["Behavioural policies<br/>flow, amount, timing,<br/>latent intensity, and RNG policies"]
-  U3["Constraint<br/>all-legit baseline only<br/>no fraud semantics allowed here"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 behavioural scaffolding<br/>arrival entities and session index"]
+    I2["Flow-shape, amount, timing, and RNG policies<br/>the lawful surfaces for baseline business behaviour"]
+    I3["S0 sealed world and policy inventory"]
+  end
 
-  S2["S2<br/>Synthesize baseline legitimate flows and events"]
+  subgraph core["Actual S2 design"]
+    C1["Lift attached arrivals into baseline legitimate flows<br/>the all-legit transactional story for the world"]
+    C2["Emit ordered business events per flow<br/>authorisation, response, clearing, and simple legitimate reversals/refunds"]
+    C3["Publish both a compact flow anchor and an event stream<br/>so later states can corrupt behaviour without mutating the baseline"]
+  end
 
-  O1["Outputs<br/>s2_flow_anchor_baseline_6B<br/>s2_event_stream_baseline_6B"]
-  O2["Evidence<br/>rng_event_flow_anchor_baseline<br/>rng_event_event_stream_baseline<br/>audit and trace"]
-  O3["Authority<br/>S2 defines the legitimate baseline flow and event world<br/>that S3 may overlay but not rewrite in place"]
+  subgraph shifts["Implemented design shifts"]
+    S1["Run-local S1 outputs were separated from external sealing law<br/>S2 learned to warn and continue on missing sealed-input rows for internal predecessors"]
+    S2["Bucketed consolidation and bounded memory paths became part of the real state design<br/>baseline behaviour had to be scalable before any fraud overlay could be trusted"]
+    S3["S2 stayed explicitly all-legit by contract<br/>fraud semantics were kept out even when performance work reopened the owner lane"]
+  end
 
-  R1["Implemented shift<br/>S2 became the baseline intensity and event-realism owner surface:<br/>amount and timing realism moved from weak posture to explicit remediation ownership"]
-  R2["Implemented shift<br/>The actual design uses controlled RNG families and latent-process shaping,<br/>not a naive event spray from arrivals"]
+  subgraph outputs["Owned authority"]
+    O1["s2_flow_anchor_baseline_6B"]
+    O2["s2_event_stream_baseline_6B"]
+    O3["flow RNG evidence"]
+    O4["The sole legitimate baseline behaviour authority<br/>S3 may overlay it, but may not replace its existence claim"]
+  end
 
-  U1 --> S2
-  U2 --> S2
-  U3 --> S2
-  S2 --> O1
-  S2 --> O2
-  S2 --> O3
-  R1 -.-> S2
-  R2 -.-> S2
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  C1 --> C2 --> C3
+
+  C3 --> O1
+  C3 --> O2
+  C2 --> O3
+  O1 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C2
+  S3 -.-> C3

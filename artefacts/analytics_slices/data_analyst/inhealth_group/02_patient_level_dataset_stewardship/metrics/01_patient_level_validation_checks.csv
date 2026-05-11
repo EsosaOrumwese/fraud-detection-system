@@ -1,0 +1,6 @@
+check_name,actual_value,expected_rule,passed_flag
+march_flow_ids_unique,0.0,= 0 duplicate monthly flow rows,1
+truth_surface_unique_flow_ids,0.0,= 0 duplicate truth flow rows,1
+maintained_dataset_unique_flow_ids,0.0,= 0 duplicate maintained flow rows,1
+maintained_dataset_required_fields_complete,0.0,= 0 rows with null required fields,1
+maintained_dataset_case_opened_only,0.0,= 0 rows outside the case-opened maintained grain,1

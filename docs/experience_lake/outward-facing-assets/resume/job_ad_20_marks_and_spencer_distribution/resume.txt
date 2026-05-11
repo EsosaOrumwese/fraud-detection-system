@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Data Analyst | Distribution MI, Operational Insight & Ecommerce Decision Support
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience creating actionable management information, interrogating complex operational data, and turning analysis into practical recommendations for fast-moving business environments. Strong in Power BI, Tableau, SQL, Python, R, Excel, Power Query, DAX, Azure Data Lake, Azure Data Factory, Databricks, SQL Server, and Oracle, with experience delivering stakeholder-focused dashboards and management information, identifying operational inefficiencies and opportunities, improving analytical workflow speed through reusable assets and automation, and supporting cloud-based analytical delivery across enterprise data environments.
+
+**CORE SKILLS**
+Operational MI & Decision Support: Actionable management information, dashboard reporting, decision-support outputs, operational presentations, business-user reporting, fast-turnaround analytics
+Opportunity Analysis & Recommendation: Complex-data interrogation, inefficiency analysis, operational opportunity identification, recommendation writing, action-focused insight, improvement support
+Operational Improvement Impact: Efficiency improvement, productivity analysis, resilience support, customer-experience insight, performance improvement, operational problem solving
+Dashboarding & Analytical Products: Power BI, Tableau, Excel, Power Query, meaningful operational MI, stakeholder-facing reporting products, visual insight delivery
+Automation & Reusable Workflows: Automation, reusable data assets, repeatable analytical workflows, faster analytics production, process improvement, scalable delivery
+Cloud & Enterprise Data Platforms: Azure Data Lake, Azure Data Factory, Databricks, SQL Server, Oracle, SQL, Python, R, enterprise querying, workflow troubleshooting
+Stakeholder Partnership: Site and network operations support, requirement handling, multi-request delivery, collaborative analysis, practical business support
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Created actionable management information that helped operational teams make better and faster decisions, delivering high-quality dashboards, reports, and operational summaries tailored to different business users.
+- Managed multiple concurrent analytical and reporting requirements in a fast-moving environment, balancing operational priorities while maintaining output quality and decision usefulness.
+- Interrogated complex datasets to uncover operational opportunities, inefficiencies, and areas for improvement, turning large-scale data into practical insight rather than status-only reporting.
+- Translated complex business questions into clear, data-driven recommendations, helping stakeholders act on issues affecting efficiency, productivity, resilience, and customer experience.
+- Built modern reporting products in Power BI, Tableau, Excel, and Power Query, helping business users work more effectively with dashboards and meaningful operational MI.
+- Improved the speed and efficiency of analytics production through automation, reusable data assets, and better analytical workflows, reducing manual handling and making recurring analysis easier to maintain.
+- Worked across cloud-based and enterprise data environments using Azure Data Lake, Azure Data Factory, Databricks, SQL Server, Oracle, SQL, Python, and R to access, link, analyse, and troubleshoot data for stakeholder-facing operational and network analytics.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Deliver clear and timely service in a fast-moving operational setting where speed, accuracy, and customer experience all matter.
+- Manage multiple competing demands while keeping outputs practical, reliable, and useful to colleagues and customers.
+- Support teammates through clear communication, dependable handovers, and steady collaboration during busy trading periods.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a live operational environment where clear technical interpretation, timely escalation, and dependable evidence handling were essential to safe delivery.
+- Monitored complex technical data to identify irregular conditions, operational risks, and opportunities for corrective action.
+- Coordinated with field teams and supervisors so technical findings could be turned into practical decisions under time and delivery pressure.

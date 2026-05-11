@@ -1,0 +1,3 @@
+event_seq,rows,truth_positive_rows,bank_positive_rows,row_share
+0,236691694,5940539,11645119,0.5
+1,236691694,5940539,11645119,0.5

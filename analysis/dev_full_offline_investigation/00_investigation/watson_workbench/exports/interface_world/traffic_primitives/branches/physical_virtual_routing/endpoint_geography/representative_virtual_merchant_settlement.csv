@@ -1,0 +1,2 @@
+merchant_id,settlement_site_id,lon_deg,lat_deg,tzid_settlement,coord_source_id
+4363910952380256924,8b63ae3f58ceedae,10.21076,56.15674,Europe/Copenhagen,geonames:cities500_via_pelias_cached

@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Data Scientist | Applied Machine Learning, Production Analytics & Business Value
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Scientist with experience applying machine learning, statistical modelling, and optimisation-style thinking to real operational and commercial problems. Strong in Python, SQL, R, Excel, AWS, SageMaker, Power BI, Tableau, and DAX, with experience framing ambiguous business challenges into tangible data-science problems, carrying work from exploration through feature engineering and evaluation into implementation-ready outputs, and combining analytical delivery with version control, modular design, testing, documentation, and cross-functional product-focused collaboration.
+
+**CORE SKILLS**
+Applied Machine Learning & Optimisation: Machine learning, statistical modelling, optimisation-style decisioning, forecasting, prioritisation, segmentation, model evaluation, business-problem solving
+Problem Framing & Experimentation: Ambiguous problem framing, exploratory data analysis, feature engineering, experimentation, challenger testing, measurable value focus
+Production Data Science Delivery: End-to-end data-science delivery, robust solution design, implementation-ready outputs, deployment support, monitoring awareness, scalable analytical products
+Programming & Software Discipline: Python, SQL, R, Excel, version control, modular design, testing, documentation, reproducible workflows
+Cross-Functional Delivery: Data Engineers, MLOps, Product Managers, Analysts, business stakeholders, technical communication, non-technical recommendation writing
+Reusable Assets & Best Practice: Reusable templates, repeatable workflows, shared delivery standards, team contribution, continuous improvement
+Cloud & Platform: AWS, SageMaker, Power BI, Tableau, DAX, Git, Jupyter, cloud-hosted analytical workflows
+
+**RELEVANT EXPERIENCE**
+
+**Data Scientist & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Applied machine learning, statistical modelling, and optimisation-style decisioning to real business problems, improving confirmed fraud yield from 12.06% to 12.37% while removing 511,500 transactions from review and reducing downstream case-handling activity by 1,185,849 events.
+- Worked from ambiguous operational and commercial questions to tangible data-science problems, translating competing objectives around capture, workload, and customer impact into structured analytical decisions and measurable outputs.
+- Carried out exploratory analysis, feature engineering, challenger testing, and model evaluation in Python and SQL, selecting a reviewable logistic challenger over a weaker baseline and using evidence-led thresholds to support robust decisioning.
+- Designed, built, and tested implementation-ready analytical solutions rather than stopping at notebooks, packaging preferred strategies into policy handoffs with monitoring expectations, control requirements, and clear deployment conditions.
+- Supported production-minded delivery by keeping outcome definitions, comparisons, release controls, and monitoring expectations stable across analytical outputs, helping solutions stand up to implementation, review, and ongoing use.
+- Worked closely with data engineering, platform, product, and stakeholder audiences to make analytical work usable, translating technical trade-offs into decision-ready recommendations for management, partner, and control stakeholders.
+- Contributed reusable analytical assets and stronger delivery discipline through repeatable workflows, documented logic, controlled reruns, and shared patterns that improved quality and consistency beyond one-off model work.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Work in a live commercial environment where customer experience, speed, and operational efficiency all have to move together.
+- Adapt quickly to changing demand, balancing multiple priorities while keeping outputs reliable and service-focused.
+- Support teammates through clear communication and disciplined execution in a fast-moving setting where small decisions affect downstream outcomes.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a technical delivery environment where structured problem solving, disciplined procedures, and safe execution were essential.
+- Analysed live telemetry and operating conditions to identify anomalies early and support timely corrective action.
+- Coordinated clearly with technical teams and supervisors so evidence could be turned into practical operational decisions under pressure.

@@ -1,20 +1,39 @@
-flowchart LR
-  U1["Inputs<br/>S1 through S4 outputs<br/>RNG evidence<br/>audit traces<br/>sealed_inputs_6B"]
-  U2["Validation laws<br/>coverage<br/>foreign keys<br/>ordering<br/>campaign provenance<br/>label alignment<br/>RNG accounting"]
-  U3["Consumer rule<br/>no downstream read is lawful<br/>without the final bundle gate"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0-S4 behavioural chain outputs<br/>gate receipt, sealed inputs, attachments, flows, overlays, labels, cases"]
+    I2["RNG evidence surfaces for S1-S4"]
+    I3["segment_validation_policy_6B and bundle law"]
+  end
 
-  S5["S5<br/>Validate the behavioural world<br/>and seal PASS legitimacy"]
+  subgraph core["Actual S5 design"]
+    C1["Revalidate the whole behavioural chain<br/>coverage, consistency, campaign-to-label coherence, and RNG accounting"]
+    C2["Assemble the 6B validation bundle and index<br/>the evidence package for the whole labelled world"]
+    C3["Compute and publish the 6B HashGate<br/>the only machine-checkable PASS signal for behavioural outputs"]
+  end
 
-  O1["Outputs<br/>validation_bundle_6B<br/>index.json<br/>_passed.flag"]
-  O2["Authority<br/>6B.final.bundle_gate<br/>is the only consumer PASS authority for 6B"]
+  subgraph shifts["Implemented design shifts"]
+    S1["Run-local outputs were allowed to exist outside sealed-input rows<br/>S5 learned the difference between external closed-world inventory and internal behavioural predecessors"]
+    S2["Gate semantics were tightened around critical realism checks<br/>WARN-only corridors can pass when policy allows, but critical truth failures still block the passed flag"]
+    S3["Schema-anchor and bundle mechanics had to be repaired so S5 judged behavioural truth instead of tripping on its own validator substrate"]
+  end
 
-  R1["Implemented shift<br/>S5 stayed RNG-free and fail-closed:<br/>it certifies realism and evidence accounting rather than trying to repair weak outputs"]
-  R2["Implemented shift<br/>The actual design makes S5 the final realism gate for behavioural truth,<br/>not a receipt writer after the fact"]
+  subgraph outputs["Owned authority"]
+    O1["s5_validation_report_6B and issue table"]
+    O2["validation_bundle_6B and index"]
+    O3["validation_passed_flag_6B"]
+    O4["The sole behavioural PASS authority<br/>downstream evaluation and training may read only after this gate"]
+  end
 
-  U1 --> S5
-  U2 --> S5
-  U3 --> S5
-  S5 --> O1
-  S5 --> O2
-  R1 -.-> S5
-  R2 -.-> S5
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  C1 --> C2 --> C3
+
+  C2 --> O1
+  C2 --> O2
+  C3 --> O3
+  O3 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C3
+  S3 -.-> C2

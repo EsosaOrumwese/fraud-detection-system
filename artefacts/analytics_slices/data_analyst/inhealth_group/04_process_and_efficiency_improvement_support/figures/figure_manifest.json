@@ -1,0 +1,12 @@
+{
+  "figures": [
+    {
+      "file": "focus_burden_vs_yield.png",
+      "purpose": "Show that the 50+ band persistently absorbs a larger share of case work than the share of truth outcomes it returns."
+    },
+    {
+      "file": "targeted_review_vs_broad_escalation.png",
+      "purpose": "Show that whole-lane movement is small while the 50+ focus-band gaps remain materially larger, supporting targeted review over broad lane-wide action."
+    }
+  ]
+}

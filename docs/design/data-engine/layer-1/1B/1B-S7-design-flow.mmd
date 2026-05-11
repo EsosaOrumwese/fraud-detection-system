@@ -1,5 +1,42 @@
-flowchart LR
-  A["Authority inputs<br/>s5_site_tile_assignment<br/>s6_site_jitter<br/>tile_bounds<br/>1A outlet_catalogue under S0 gate"] --> B["Owned transformation<br/>Join assignment to jitter and geometry<br/>reconstruct final absolute site points<br/>assert inside-pixel and coverage parity<br/>prepare deterministic per-site synthesis"]
-  B --> C["Authority outputs<br/>s7_site_synthesis<br/>egress-ready site rows<br/>with 1A coverage parity preserved"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S5 site-tile assignments and S6 jitter rows<br/>joined on merchant_id, country, site_order"]
+    I2["1A outlet_catalogue<br/>the upstream site-order and merchant-country coverage authority"]
+    I3["S1 tile_bounds<br/>used to verify point stays inside assigned tile"]
+    I4["S3 requirements policy effects<br/>the effective outlet frame must match current governed demand"]
+  end
 
-  D["Implemented design shifts<br/>S7 made outlet_catalogue parity an explicit design burden<br/>not just a post-hoc check<br/>and it preserves the rule that 1B still does not create inter-country order"] -.-> B
+  subgraph core["Actual S7 design"]
+    C1["Join S5 and S6 into one site-level synthesis stream<br/>without changing site identity or site_order"]
+    C2["Check parity against 1A outlet_catalogue effective rows<br/>every expected upstream site must have exactly one synthesized row"]
+    C3["Verify inside-pixel and tile foreign-key legality<br/>so coordinates and tile assignment still agree"]
+    C4["Publish final synthesized site rows as the only lawful precursor<br/>to site_locations egress"]
+  end
+
+  subgraph shifts["Implemented design shifts"]
+    S1["S7 is a parity and legitimacy state, not a creativity lane<br/>it rebuilds site rows only if upstream count/order truth still holds"]
+    S2["E708_1A_COVERAGE_FAIL became the hard design guard<br/>because staged or policy-misaligned upstream surfaces can otherwise look superficially green"]
+    S3["The state now carries effective-policy awareness<br/>denylist and requirements changes must reconcile with outlet coverage before publish can continue"]
+  end
+
+  subgraph outputs["Owned authority"]
+    O1["s7_site_synthesis"]
+    O2["s7_run_summary with parity and validation counters"]
+    O3["Lawful site-level reconstruction of the 1A outlet frame inside the 1B spatial world"]
+    O4["Fail-closed rule:<br/>no parity, no downstream site_locations publish"]
+  end
+
+  I1 --> C1
+  I2 --> C2
+  I3 --> C3
+  I4 --> C2
+  C1 --> C2 --> C3 --> C4
+
+  C4 --> O1
+  C4 --> O2
+  O1 --> O3
+  O2 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C2
+  S3 -.-> C2

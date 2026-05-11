@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Research Assistant in Health Data | Multimodal Pipelines, Longitudinal Analysis & Translational Research Support
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Research-focused Data Analyst with experience supporting health-data pipelines, integrating multimodal data, and preparing research-ready analytical assets for longitudinal and translational work. Strong in Python, SQL, Google Cloud, Excel, Power BI, Tableau, Power Query M, and DAX, with experience linking heterogeneous data sources, building reusable analytical workflows, supporting cloud-based research delivery, producing time-aware quantitative analysis, and preparing model-ready inputs in high-accountability research settings.
+
+**CORE SKILLS**
+Health-Data Pipelines & Integration: Data cleaning, data linkage, multimodal integration, reusable analytical workflows, research-ready datasets, source alignment, validity checks
+Longitudinal & Quantitative Analysis: Time-series analysis, longitudinal interpretation, quantitative research support, sequence-aware analysis, fit-for-use judgement, time-aware reporting
+Cloud & Technical Delivery: Google Cloud, cloud-based research delivery, data-platform support, pipeline support, controlled reruns, implementation-ready analytical workflows
+Programming & Analytical Tools: Python, SQL, Excel, Power BI, Tableau, Power Query M, DAX, Jupyter, data manipulation, analytical processing
+Model-Input & Translational Support: Model-ready input preparation, multimodal input shaping, modelling-readiness support, translational research contribution, controlled AI-support work
+Research Communication & Delivery: Clear analytical writing, repeatable outputs, collaborator-ready reporting, documentation support, careful records handling, research-delivery discipline
+Governance & Data Handling: Confidentiality-aware handling, controlled release, explicit checks, traceability, fit-for-use conditions, high-accountability research support
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Supported health-data pipeline development by building a research-ready multimodal dataset and turning heterogeneous sources into one linked, cleaned, and reusable analytical workflow.
+- Integrated app-, wearable-, clinical-, biological-, and environment-style data into a controlled multimodal research dataset, making source roles, linkage conditions, and validity checks explicit before downstream analysis.
+- Analysed time-aware and longitudinal-style data to support quantitative research, producing a reusable analytical base for sequence-aware interpretation rather than one-off static reporting.
+- Used Python and SQL as practical working tools for data processing, linkage, and analysis, keeping the workflow repeatable, controlled, and fast to rerun.
+- Supported cloud-based research delivery in a Google Cloud-style environment by carrying multimodal and longitudinal data assets into a structured cloud-support and data-platform workflow.
+- Contributed to new AI-model development support by preparing model-ready multimodal inputs and readiness checks, helping move integrated data towards translational model use without overstating full model ownership.
+- Worked in a careful, high-accountability research posture, keeping fit-for-use conditions, release checks, and controlled handling explicit across pipeline, analysis, and model-support outputs.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Work with a wide range of people in a busy service environment, adapting explanations clearly and practically for users with different levels of confidence and familiarity.
+- Follow strict procedures, hygiene rules, and record-sensitive routines, supporting reliable delivery in a high-accountability setting.
+- Support colleagues through clear handovers, calm coordination, and dependable teamwork when demand is high.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked with technical teams in a controlled environment where careful documentation, disciplined procedures, and accurate interpretation were essential.
+- Monitored operational readings, identified irregular conditions early, and supported corrective action through structured evidence and escalation.
+- Prepared clear technical updates and handovers so information could be used consistently by engineers, supervisors, and operational teams.

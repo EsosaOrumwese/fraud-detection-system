@@ -1,0 +1,5 @@
+is_fraud_truth,fraud_flag,flows,flow_share
+False,False,230751155,0.9749017851044659
+True,False,5933407,0.025068082870706904
+True,True,7132,3.0132024827199892e-05
+False,True,0,0.0

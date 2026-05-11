@@ -1,0 +1,19 @@
+{
+  "slice": "claire_house/01_trusted_data_provision_and_integrity",
+  "provision_window": "2026-03-01",
+  "source_surfaces_mapped": 3,
+  "authority_rules_count": 9,
+  "monthly_flow_rows": 81360532,
+  "raw_case_event_rows_on_linked_flows": 20581909,
+  "maintained_flow_grain_rows": 7835199,
+  "protected_output_count": 1,
+  "protected_summary_rows": 5,
+  "protected_band_rows": 4,
+  "validation_checks_passed": 5,
+  "validation_check_count": 5,
+  "reconciliation_matches": 4,
+  "reconciliation_count": 4,
+  "overall_case_open_rate": 0.0963022095283251,
+  "overall_case_truth_rate": 0.19862813950226407,
+  "regeneration_seconds": 0.5090226999891456
+}

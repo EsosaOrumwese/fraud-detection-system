@@ -1,0 +1,2 @@
+rows,sessions,merchants,approx_parties,approx_accounts,approx_instruments,approx_devices,seeds,manifest_fingerprints,parameter_hashes,scenarios,represented_arrivals,min_arrival_count,median_arrival_count,p95_arrival_count,max_arrival_count,min_session_start_utc,max_session_end_utc
+184820742,184820742,4050,5801636,6136402,5926665,6445591,1,1,1,1,236691694,1,1,2,10,2026-01-01T00:00:00.001940Z,2026-03-31T23:59:59.944516Z

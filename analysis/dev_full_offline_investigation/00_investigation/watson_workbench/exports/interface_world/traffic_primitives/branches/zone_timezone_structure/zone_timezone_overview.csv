@@ -1,0 +1,2 @@
+rows,merchants,zones,primary_timezones,settlement_timezones,operational_timezones,zone_primary_pairs,zone_operational_pairs,timezone_triples,rows_zone_equals_primary_tz,rows_zone_equals_operational_tz,rows_all_timezones_equal
+236691694,4050,339,281,227,281,11854,11854,1331,93072135,93072135,218869380

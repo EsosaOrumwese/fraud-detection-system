@@ -1,0 +1,52 @@
+Esosa Orumwese
+Portfolio Analyst | PMO Insight, Governance Reporting & Delivery Risk Intelligence
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Analyst with experience turning complex operational, risk, issue, dependency, and reporting evidence into clear portfolio and delivery decision-support outputs. Strong in SQL, Python, Excel, Power BI, Tableau, governance documentation, data quality, RAID-style issue control, performance monitoring, and process improvement. Evidence includes single version of truth reporting datasets, performance indicators, documented controls, and clear summaries that help prioritise attention, understand delivery pressure, and make evidence-led decisions.
+
+CORE SKILLS
+Portfolio Insight & Reporting: Performance monitoring, delivery-risk indicators, prioritisation evidence, decision-ready summaries, single version of truth
+PMO Governance & Assurance: RAID-style tracking, risk/issue/dependency logic, control evidence, reporting standards, assurance documentation
+Analytical Judgement: Trend analysis, exception review, root-cause investigation, workload pressure, option framing, decision-support insight
+Data Quality & Control: Validation checks, reconciliation, source traceability, completeness checks, definitions, assumptions, evidence trails
+Tools & Automation: SQL, Python, Excel, Power BI, Tableau, Power Query, DAX, Git, reusable workflows, responsible AI-assisted productivity
+Project Delivery Awareness: Agile and Waterfall concepts, delivery lifecycle, governance cadence, action tracking, documentation, handover discipline
+Communication & Behaviours: Seeing the Big Picture, Changing and Improving, Working Together, Communicating and Influencing
+
+RELEVANT EXPERIENCE
+
+Data Analyst & Analytics Engineer
+Fraud Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
+
+- Built reusable reporting datasets across multiple operational, decision, control, and reporting evidence sources to maintain a single version of truth.
+- Used SQL, Python, Excel, and reporting outputs to monitor performance, workload exposure, case flow, data integrity, model yield, and demand pressure.
+- Applied RAID-style discipline to organise blockers, control gaps, validation failures, dependencies, decision points, action status, and resolution evidence.
+- Investigated discrepancies by separating source-data issues from transformation, modelling, control, and interpretation issues, improving reporting reliability.
+- Converted risk and performance analysis into prioritisation evidence, including 2.29x baseline yield in the highest-risk band and 7.31% test MAPE for demand planning.
+- Documented definitions, assumptions, validation outcomes, control boundaries, known limitations, and handover notes so outputs remained reviewable and repeatable.
+- Simplified reporting and quality-control work through reusable validation checks, structured evidence notes, consistent definitions, and controlled AI-assisted support.
+- Translated complex analytical findings into practical implications for priority, delivery pressure, control strength, service reliability, and next action.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+
+ADDITIONAL EXPERIENCE
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a technical and safety-conscious operational environment where accurate readings, controlled procedures, escalation, and handovers supported reliable service delivery.
+- Monitored pressure, temperature, equipment, and field-condition signals, identifying irregular conditions early and supporting corrective action.
+- Prepared clear updates and handovers so engineers and supervisors could act on technical information confidently under operational constraints.
+
+Crew Member
+Five Guys - Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-moving live service environment where quality, pace, communication, and handover affect customer experience and team performance every shift.
+- Adapt quickly to changing priorities while keeping standards consistent, escalating practical issues, and supporting colleagues under pressure.

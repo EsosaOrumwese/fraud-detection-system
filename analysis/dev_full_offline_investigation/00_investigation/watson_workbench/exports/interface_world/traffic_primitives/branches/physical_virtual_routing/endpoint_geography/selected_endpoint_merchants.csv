@@ -1,0 +1,3 @@
+merchant_id,arrival_rows,arrival_site_ids,site_locations,site_countries,lon_span,lat_span,min_lon,max_lon,min_lat,max_lat,route_mode,selected_for,arrival_edge_ids,catalogue_edges,edge_countries
+1377960301193355258,66349,28.0,28.0,6.0,29.15729696851287,31.44183861739306,-0.5971560040549623,28.560140964457908,37.18315610900163,68.62499472639469,physical,representative physical site estate,,,
+4363910952380256924,80018,,,,,,,,,,virtual,representative virtual edge estate,18.0,18.0,17.0

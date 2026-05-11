@@ -1,18 +1,37 @@
-flowchart LR
-  I1["Reads<br/>s2_country_zone_priors<br/>s1_escalation_queue"]
-  I2["RNG authority<br/>seedpack and manifest-scoped stream"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S1 escalation queue"]
+    I2["S2 country-zone priors"]
+    I3["day_effect_policy_v1"]
+    I4["seeded Layer-1 RNG law"]
+  end
 
-  S3["S3<br/>Dirichlet zone-share emitter"]
+  subgraph core["Actual S3 design"]
+    C1["Restrict stochastic work to escalated merchant-country domain<br/>defined by S1"]
+    C2["Sample bounded zone-share vectors from S2 priors<br/>under seeded RNG and policy law"]
+    C3["Apply merchant-level dispersion without breaking replay discipline<br/>or prior-domain integrity"]
+    C4["Emit stochastic zone-share authority with event, trace and audit evidence"]
+  end
 
-  O1["Outputs<br/>s3_zone_shares<br/>zone-dirichlet event logs<br/>trace and audit surfaces"]
-  O2["Authority<br/>S3 owns sampled dispersion truth<br/>for escalated pairs only"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S3 became the merchant-dispersion owner surface; deterministic jitter and concentration scaling were the real remediation move"]
+    S2["Full-chain reruns were required because partial copy-lanes broke identity coupling; that clarified S3 depends on sealed full-world authority, not loose upstream copies"]
+    S3["S3 can cross its realism gate while S4 stays the downstream realization owner; the states are coupled but not interchangeable"]
+  end
 
-  R1["Implemented shift<br/>S3 became the core merchant-dispersion surface<br/>in the remediation chain"]
-  R2["Implemented shift<br/>Final freeze kept RNG accounting explicit across<br/>events, audit, and trace even though one seedpack<br/>hard-gate miss remained at certification"]
+  subgraph outputs["Owned authority"]
+    O1["s3_zone_shares"]
+    O2["stochastic merchant-country zone-share law<br/>for S4 and S5"]
+  end
 
-  I1 --> S3
-  I2 --> S3
-  S3 --> O1
-  S3 --> O2
-  R1 -.-> S3
-  R2 -.-> S3
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  I4 --> C2
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1
+  C3 --> O2
+
+  S1 -.-> C3
+  S2 -.-> C2
+  S3 -.-> C4

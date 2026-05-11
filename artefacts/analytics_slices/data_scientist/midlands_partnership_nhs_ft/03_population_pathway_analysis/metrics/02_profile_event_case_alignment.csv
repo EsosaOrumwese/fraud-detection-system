@@ -1,0 +1,5 @@
+metric_name,metric_value
+avg_seconds_event_to_case_open,0.0
+exact_event_case_open_ts_match_flows,361504.0
+flows_with_multiple_cases,0.0
+linked_event_case_flows,361504.0

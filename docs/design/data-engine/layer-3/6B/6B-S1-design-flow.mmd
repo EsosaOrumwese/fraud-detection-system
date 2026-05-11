@@ -1,20 +1,42 @@
-flowchart LR
-  U1["Inputs<br/>arrival_events_5B<br/>sealed_inputs_6B"]
-  U2["Entity world from 6A<br/>parties<br/>accounts<br/>credentials<br/>devices and IPs<br/>static posture where needed"]
-  U3["Policies<br/>attachment, home-country bias,<br/>session rules, device and IP fallback laws"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["5B arrival skeleton<br/>arrival_events_5B"]
+    I2["6A entity and graph world<br/>parties, accounts, instruments, devices, IPs, and static fraud posture"]
+    I3["Attachment and sessionisation policies<br/>attachment_policy_6B, sessionisation_policy_6B, behaviour_config_6B"]
+    I4["S0 sealed behavioural world"]
+  end
 
-  S1["S1<br/>Attach arrivals to entities and sessionise"]
+  subgraph core["Actual S1 design"]
+    C1["Attach each arrival to a lawful entity context<br/>party, account, instrument, device, and IP chosen from the closed 6A world"]
+    C2["Resolve ambiguity stochastically but lawfully<br/>using behaviour priors and deterministic RNG discipline"]
+    C3["Group attached arrivals into sessions<br/>the first durable behavioural structure inside 6B"]
+    C4["Emit both arrival-level attachment and session-level summaries<br/>for every later behavioural state"]
+  end
 
-  O1["Outputs<br/>s1_arrival_entities_6B<br/>s1_session_index_6B"]
-  O2["Authority<br/>S1 alone decides<br/>which entity world each arrival belongs to<br/>and which session it lives in"]
+  subgraph shifts["Implemented design shifts"]
+    S1["A contract omission surfaced here around s4_ip_links_6A<br/>6B had to repair its own registry view instead of silently pretending the link surface did not matter"]
+    S2["The actual implementation moved to streaming batch attachment and simpler sessionisation buckets<br/>so S1 stayed scalable without mutating who-can-attach-to-whom semantics"]
+    S3["Compression and writer choices became explicit execution surfaces<br/>but S1 remained the sole arrival-to-entity authority"]
+  end
 
-  R1["Implemented shift<br/>S1 became a vectorized deterministic attachment rail:<br/>heavy per-row scoring and stochastic session boundaries were deliberately avoided"]
-  R2["Implemented shift<br/>Home-country bias only applies when both sides exist,<br/>and merchant-linked device/IP is preferred for POS and ATM before party fallback"]
+  subgraph outputs["Owned authority"]
+    O1["s1_arrival_entities_6B"]
+    O2["s1_session_index_6B"]
+    O3["attachment and session RNG evidence"]
+    O4["The sole attachment/session authority<br/>S2-S4 inherit who is acting and which arrivals belong together"]
+  end
 
-  U1 --> S1
-  U2 --> S1
-  U3 --> S1
-  S1 --> O1
-  S1 --> O2
-  R1 -.-> S1
-  R2 -.-> S1
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C1
+  C1 --> C2 --> C3 --> C4
+
+  C4 --> O1
+  C4 --> O2
+  C2 --> O3
+  O1 --> O4
+
+  S1 -.-> C1
+  S2 -.-> C3
+  S3 -.-> C4

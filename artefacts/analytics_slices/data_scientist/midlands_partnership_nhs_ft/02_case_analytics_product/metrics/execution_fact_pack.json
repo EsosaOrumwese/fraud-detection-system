@@ -1,0 +1,441 @@
+{
+  "slice": "midlands_partnership_nhs_ft/02_case_analytics_product",
+  "bounded_selection": {
+    "case_timeline_files": [
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00000.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00001.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00002.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00003.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00004.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00005.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00006.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00007.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00008.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00009.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00010.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00011.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00012.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00013.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00014.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00015.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00016.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00017.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00018.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_case_timeline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00019.parquet"
+    ],
+    "anchor_files": [
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00000.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00001.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00002.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00003.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00004.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00005.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00006.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00007.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00008.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00009.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00010.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00011.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00012.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00013.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00014.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00015.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00016.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00017.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00018.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s2_flow_anchor_baseline_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00019.parquet"
+    ],
+    "truth_files": [
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00000.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00001.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00002.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00003.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00004.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00005.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00006.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00007.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00008.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00009.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00010.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00011.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00012.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00013.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00014.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00015.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00016.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00017.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00018.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_truth_labels_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00019.parquet"
+    ],
+    "bank_files": [
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00000.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00001.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00002.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00003.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00004.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00005.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00006.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00007.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00008.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00009.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00010.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00011.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00012.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00013.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00014.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00015.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00016.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00017.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00018.parquet",
+      "c:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/runs/local_full_run-7/a3bd8cac9a4284cd36072c6b9624a0c1/data/layer3/6B/s4_flow_bank_view_6B/seed=42/parameter_hash=0ea66cf0adf1c64bbaad68e566d1e49be502d771df78c608a4d2c23887d60f00/manifest_fingerprint=76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460/scenario_id=baseline_v1/part-00019.parquet"
+    ],
+    "part_count": 20
+  },
+  "case_grain_profile": [
+    {
+      "metric_name": "avg_chronology_rows_per_case",
+      "metric_value": 2.6140651279100644
+    },
+    {
+      "metric_name": "avg_distinct_flows_per_case",
+      "metric_value": 1.0
+    },
+    {
+      "metric_name": "avg_null_flow_rows_per_case",
+      "metric_value": 0.0
+    },
+    {
+      "metric_name": "case_grain_rows",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "case_timeline_rows",
+      "metric_value": 944995.0
+    },
+    {
+      "metric_name": "cases_with_all_linked_flows_in_anchor",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "cases_with_all_linked_flows_in_bank_view",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "cases_with_all_linked_flows_in_truth",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "cases_with_any_bank_positive_flow",
+      "metric_value": 197783.0
+    },
+    {
+      "metric_name": "cases_with_any_truth_positive_flow",
+      "metric_value": 70997.0
+    },
+    {
+      "metric_name": "cases_with_multiple_flows",
+      "metric_value": 0.0
+    },
+    {
+      "metric_name": "cases_with_single_flow",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "distinct_case_id_count",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "distinct_flow_id_in_case_timeline",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "max_case_ts_epoch",
+      "metric_value": 1786273478.219086
+    },
+    {
+      "metric_name": "max_chronology_rows_per_case",
+      "metric_value": 6.0
+    },
+    {
+      "metric_name": "max_distinct_flows_per_case",
+      "metric_value": 1.0
+    },
+    {
+      "metric_name": "min_case_ts_epoch",
+      "metric_value": 1767225638.876935
+    },
+    {
+      "metric_name": "null_case_id_rows",
+      "metric_value": 0.0
+    },
+    {
+      "metric_name": "null_flow_id_rows",
+      "metric_value": 0.0
+    }
+  ],
+  "case_link_shape": [
+    {
+      "metric_name": "avg_case_lifecycle_hours",
+      "metric_value": 643.0973577728944
+    },
+    {
+      "metric_name": "cases_with_case_closed",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "cases_with_case_opened",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "cases_with_chargeback_decision",
+      "metric_value": 51788.0
+    },
+    {
+      "metric_name": "cases_with_chargeback_initiated",
+      "metric_value": 51788.0
+    },
+    {
+      "metric_name": "cases_with_customer_dispute",
+      "metric_value": 79306.0
+    },
+    {
+      "metric_name": "cases_with_detection_event_attached",
+      "metric_value": 39105.0
+    },
+    {
+      "metric_name": "flows_with_multiple_cases",
+      "metric_value": 0.0
+    },
+    {
+      "metric_name": "flows_with_single_case",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "max_case_lifecycle_hours",
+      "metric_value": 3220.88923916671
+    }
+  ],
+  "fit_for_use": [
+    {
+      "metric_name": "analytics_base_distinct_case_id",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "analytics_base_distinct_flow_id",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "analytics_base_duplicate_case_rows",
+      "metric_value": 0.0
+    },
+    {
+      "metric_name": "analytics_base_negative_lifecycle_rows",
+      "metric_value": 0.0
+    },
+    {
+      "metric_name": "analytics_base_null_case_id_rows",
+      "metric_value": 0.0
+    },
+    {
+      "metric_name": "analytics_base_null_flow_id_rows",
+      "metric_value": 0.0
+    },
+    {
+      "metric_name": "analytics_base_rows",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "bank_view_non_null_rows",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "model_ready_distinct_case_id",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "model_ready_rows",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "reporting_ready_distinct_case_id",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "reporting_ready_rows",
+      "metric_value": 361504.0
+    },
+    {
+      "metric_name": "target_non_null_rows",
+      "metric_value": 361504.0
+    }
+  ],
+  "product_split_summary": [
+    {
+      "split_role": "test",
+      "case_rows": 72300,
+      "min_open_date": "2026-03-14",
+      "max_open_date": "2026-03-31",
+      "fraud_truth_rate": 0.19514522821576763,
+      "bank_positive_rate": 0.5483125864453665
+    },
+    {
+      "split_role": "train",
+      "case_rows": 216904,
+      "min_open_date": "2026-01-01",
+      "max_open_date": "2026-02-24",
+      "fraud_truth_rate": 0.1968658945893114,
+      "bank_positive_rate": 0.5451075130011434
+    },
+    {
+      "split_role": "validation",
+      "case_rows": 72300,
+      "min_open_date": "2026-02-24",
+      "max_open_date": "2026-03-14",
+      "fraud_truth_rate": 0.1962240663900415,
+      "bank_positive_rate": 0.5519225449515905
+    }
+  ],
+  "pathway_summary": [
+    {
+      "split_role": "test",
+      "pathway_stage": "opened_only",
+      "case_rows": 53539,
+      "fraud_truth_cases": 125.0,
+      "fraud_truth_rate": 0.002334746633295355,
+      "bank_positive_cases": 34534.0,
+      "bank_positive_rate": 0.6450251218737743,
+      "avg_amount": 25.67771829880733,
+      "avg_lifecycle_hours": 451.28615721052614
+    },
+    {
+      "split_role": "test",
+      "pathway_stage": "chargeback_decision",
+      "case_rows": 10311,
+      "fraud_truth_cases": 9877.0,
+      "fraud_truth_rate": 0.957909029192125,
+      "bank_positive_cases": 3469.0,
+      "bank_positive_rate": 0.33643681505188633,
+      "avg_amount": 24.865280768110583,
+      "avg_lifecycle_hours": 1513.247337418211
+    },
+    {
+      "split_role": "test",
+      "pathway_stage": "customer_dispute",
+      "case_rows": 5494,
+      "fraud_truth_cases": 3653.0,
+      "fraud_truth_rate": 0.6649071714597743,
+      "bank_positive_cases": 711.0,
+      "bank_positive_rate": 0.1294139060793593,
+      "avg_amount": 24.804492173280547,
+      "avg_lifecycle_hours": 913.3660795450561
+    },
+    {
+      "split_role": "test",
+      "pathway_stage": "detection_event_attached",
+      "case_rows": 2956,
+      "fraud_truth_cases": 454.0,
+      "fraud_truth_rate": 0.15358592692828146,
+      "bank_positive_cases": 929.0,
+      "bank_positive_rate": 0.314276048714479,
+      "avg_amount": 24.999665087956647,
+      "avg_lifecycle_hours": 544.8993258264757
+    },
+    {
+      "split_role": "train",
+      "pathway_stage": "opened_only",
+      "case_rows": 160474,
+      "fraud_truth_cases": 423.0,
+      "fraud_truth_rate": 0.0026359410247142837,
+      "bank_positive_cases": 102687.0,
+      "bank_positive_rate": 0.6398980520208881,
+      "avg_amount": 25.813791517631053,
+      "avg_lifecycle_hours": 451.4939285077168
+    },
+    {
+      "split_role": "train",
+      "pathway_stage": "chargeback_decision",
+      "case_rows": 31063,
+      "fraud_truth_cases": 29920.0,
+      "fraud_truth_rate": 0.9632038116086663,
+      "bank_positive_cases": 10556.0,
+      "bank_positive_rate": 0.3398255158870682,
+      "avg_amount": 24.737369539321637,
+      "avg_lifecycle_hours": 1520.9807285050124
+    },
+    {
+      "split_role": "train",
+      "pathway_stage": "customer_dispute",
+      "case_rows": 16606,
+      "fraud_truth_cases": 10977.0,
+      "fraud_truth_rate": 0.66102613513188,
+      "bank_positive_cases": 2241.0,
+      "bank_positive_rate": 0.13495122244971697,
+      "avg_amount": 24.529535107791798,
+      "avg_lifecycle_hours": 909.5583931244905
+    },
+    {
+      "split_role": "train",
+      "pathway_stage": "detection_event_attached",
+      "case_rows": 8761,
+      "fraud_truth_cases": 1381.0,
+      "fraud_truth_rate": 0.15763040748772972,
+      "bank_positive_cases": 2752.0,
+      "bank_positive_rate": 0.3141193927633832,
+      "avg_amount": 24.634667275425716,
+      "avg_lifecycle_hours": 537.0254914281103
+    },
+    {
+      "split_role": "validation",
+      "pathway_stage": "opened_only",
+      "case_rows": 53602,
+      "fraud_truth_cases": 153.0,
+      "fraud_truth_rate": 0.002854371105555763,
+      "bank_positive_cases": 34775.0,
+      "bank_positive_rate": 0.6487631058542591,
+      "avg_amount": 25.918011827914633,
+      "avg_lifecycle_hours": 453.4200375170778
+    },
+    {
+      "split_role": "validation",
+      "pathway_stage": "chargeback_decision",
+      "case_rows": 10414,
+      "fraud_truth_cases": 9969.0,
+      "fraud_truth_rate": 0.9572690608795852,
+      "bank_positive_cases": 3501.0,
+      "bank_positive_rate": 0.33618206260802763,
+      "avg_amount": 24.88574227002137,
+      "avg_lifecycle_hours": 1516.8008436672583
+    },
+    {
+      "split_role": "validation",
+      "pathway_stage": "customer_dispute",
+      "case_rows": 5418,
+      "fraud_truth_cases": 3608.0,
+      "fraud_truth_rate": 0.6659283868586194,
+      "bank_positive_cases": 739.0,
+      "bank_positive_rate": 0.1363971945367294,
+      "avg_amount": 25.43884090070141,
+      "avg_lifecycle_hours": 915.2400495360639
+    },
+    {
+      "split_role": "validation",
+      "pathway_stage": "detection_event_attached",
+      "case_rows": 2866,
+      "fraud_truth_cases": 457.0,
+      "fraud_truth_rate": 0.1594556873691556,
+      "bank_positive_cases": 889.0,
+      "bank_positive_rate": 0.3101884159106769,
+      "avg_amount": 25.11215282623876,
+      "avg_lifecycle_hours": 530.97879424372
+    }
+  ],
+  "generated_assets": {
+    "chronology_rollup": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\02_case_analytics_product\\extracts\\case_chronology_rollup_v1.parquet",
+    "analytics_product": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\02_case_analytics_product\\extracts\\case_analytics_product_v1.parquet",
+    "model_ready": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\02_case_analytics_product\\extracts\\case_model_ready_v1.parquet",
+    "reporting_ready": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\02_case_analytics_product\\extracts\\case_reporting_ready_v1.parquet",
+    "consumer_summary": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\02_case_analytics_product\\extracts\\case_product_consumer_summary_v1.parquet",
+    "pathway_summary": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\02_case_analytics_product\\extracts\\case_product_pathway_summary_v1.parquet",
+    "build_script": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\02_case_analytics_product\\models\\build_case_analytics_product.py"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "powerbi-mcp": {
+      "command": ".\\.venv\\Scripts\\python.exe",
+      "args": [
+        "plugins\\powerbi-mcp\\scripts\\server.py"
+      ],
+      "cwd": ".",
+      "env": {
+        "POWERBI_ACCESS_TOKEN": ""
+      }
+    }
+  }
+}

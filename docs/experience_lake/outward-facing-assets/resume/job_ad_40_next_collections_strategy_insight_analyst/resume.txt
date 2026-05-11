@@ -1,0 +1,59 @@
+Esosa Orumwese 
+Collections Strategy Insights Analyst | Credit Risk & Collections Strategy | Python, SQL, Power BI, Excel
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+4+ years driving insights across credit risk, collections strategy, and large scale analytical projects.
+Designed credit risk and collections strategy analysis to identify at risk customers earlier, improve customer proposition, and support business profit decisions.
+Proficient in SQL, Python, Excel, Google Sheets, and Power BI.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+
+RELEVANT EXPERIENCE
+
+Credit Risk & Collections Strategy Analyst
+Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
+AWS-hosted open-source customer credit risk platform supporting collections prioritisation, strategy review, and risk monitoring.
+
+- Produced complex analysis and regular reporting on a 2.35 billion row customer credit surface, supporting credit risk monitoring and collections strategy review.
+- Identified trends in flagged account activity, surfacing 3 improvement areas across review triggers, escalation logic, and account risk monitoring.
+- Reviewed collections strategies using risk band movement, flagged account activity, and decision outcomes, reducing unnecessary escalation by 9% while staying compliant.
+- Translated customer credit risk insight into review, messaging, and workflow actions, supporting implementation of 3 strategy improvements.
+
+Usage-Based Insurance Behaviour Modelling
+University of Exeter — Exeter, UK | Aug 2024
+Applied machine learning to smartphone sensor data to classify transport behaviour and driver identity for insurance risk assessment.
+
+- Analysed 81.9M smartphone sensor records from 227 hours of movement data, reducing them to 4.1M modelling records using Python and SQL.
+- Built a Python and PyTorch deep learning workflow covering journey segmentation, feature engineering, coordinate transformation, and model evaluation.
+- Presented usage-based insurance insights, showing how smartphone behaviour data could support fairer driver risk assessment.
+
+COVID-19 Business Recovery Trend Analysis
+University of Exeter — Exeter, UK | Nov 2023
+Linked business activity data to policy changes and external events to explain disruption and recovery signals.
+
+- Analysed 1,004 Facebook Business Activity Trends files into a 2.4M row dataset across 220 countries and 12 business verticals.
+- Combined Facebook Business Activity Trends with Oxford policy response data to identify recovery patterns across 6 countries and 8 policy areas.
+- Presented visual evidence and strategy recommendations, linking 3 recovery signals to policy timing, seasonal drops, and external events.
+
+Completions Engineer
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
+
+- Monitored completion run data in Excel, tracking tubing/casing tallies, equipment sequence, depths, and daily progress during rig activity.
+- Reconciled 4 operational records across field reports, HSE records, equipment checks, and daily activity updates.
+- Worked with completions, safety, and field operations colleagues to align equipment, reporting, and HSE requirements for changing stakeholder demands.
+
+TECHNICAL SKILLS
+
+Technical Skills: SQL, Python, Excel, Google Sheets, Power BI, data visualisation, analytical reporting, large scale analysis, multiple data source analysis, trend analysis.
+
+Credit & Collections: Collections strategy, credit strategy, credit risk insight, customer credit analysis, collections performance analysis, strategy review, regulatory compliance.
+
+Business Skills: Strategy recommendations, stakeholder presentations, cross functional collaboration, gaining buy-in, process improvement, customer focused decision making.

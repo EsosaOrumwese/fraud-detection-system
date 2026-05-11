@@ -1,20 +1,42 @@
-flowchart LR
-  U1["Required upstream authority<br/>1A outlet_catalogue plus 1A PASS"]
-  U2["Optional bounded civil-time surfaces<br/>2A site_timezones, tz_timetable_cache,<br/>S4 legality report"]
-  U3["Sealed policy and reference authority<br/>zone_mixture_policy<br/>country_zone_alphas<br/>zone_floor_policy<br/>day_effect_policy_v1<br/>canonical refs"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["upstream PASS bundles and flags:<br/>1A, 1B, 2A"]
+    I2["1A outlet_catalogue"]
+    I3["canonical refs:<br/>iso3166, tz_world, world_countries"]
+    I4["optional 2A civil-time surfaces:<br/>site_timezones, tz_timetable_cache,<br/>s4_legality_report"]
+    I5["sealed policy artefacts:<br/>zone_mixture_policy, country_zone_alphas,<br/>zone_floor_policy, day_effect_policy_v1"]
+  end
 
-  S0["S0<br/>Gate and seal 3A inputs"]
+  subgraph core["Actual S0 design"]
+    C1["Re-verify upstream gate authority<br/>before any 3A read"]
+    C2["Resolve exact catalogue and policy set<br/>for this manifest_fingerprint"]
+    C3["Seal one outlet-zone world spanning<br/>outlet topology, zone references, optional civil-time witness,<br/>and all zone-mix policy digests"]
+    C4["Bind later stochastic states to one manifest and parameter root"]
+    C5["Publish gate receipt and sealed inventory"]
+  end
 
-  O1["Outputs<br/>s0_gate_receipt_3A<br/>sealed_inputs_3A"]
-  O2["Owned meaning<br/>3A may only proceed from a verified<br/>outlet-world and policy world"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S0 became a real cross-segment trust boundary rather than a light setup state"]
+    S2["Cross-layer dictionary/schema mismatches were corrected so S0 fails on true catalogue defects,<br/>not on inconsistent validation-bundle representations"]
+    S3["Policy semver/schema alignment was hardened because later stochastic authority<br/>depends on exact sealed doctrine, not approximate version coincidence"]
+  end
 
-  R1["Implemented shift<br/>S0 became a real cross-segment gate,<br/>not a light setup state"]
-  R2["Implemented shift<br/>Manifest-scoped sealing is what makes<br/>later stochastic states replayable and attributable"]
+  subgraph outputs["Owned authority"]
+    O1["sealed_inputs_3A"]
+    O2["s0_gate_receipt_3A"]
+    O3["manifest-scoped outlet-zone world<br/>for S1-S7"]
+  end
 
-  U1 --> S0
-  U2 --> S0
-  U3 --> S0
-  S0 --> O1
-  S0 --> O2
-  R1 -.-> S0
-  R2 -.-> S0
+  I1 --> C1
+  I2 --> C2
+  I3 --> C2
+  I4 --> C2
+  I5 --> C2
+  C1 --> C2 --> C3 --> C4 --> C5
+  C5 --> O1
+  C5 --> O2
+  C4 --> O3
+
+  S1 -.-> C1
+  S2 -.-> C2
+  S3 -.-> C3

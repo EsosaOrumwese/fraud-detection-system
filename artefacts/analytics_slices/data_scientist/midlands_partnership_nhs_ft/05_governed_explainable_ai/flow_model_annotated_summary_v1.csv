@@ -1,0 +1,2 @@
+selected_model_name,validation_auc,test_auc,high_threshold,medium_threshold,validation_high_band_truth_rate,test_high_band_truth_rate
+challenger_logistic_encoded_history,0.6227552578754579,0.6239804738783975,0.0001290455921677446,2.681923549853644e-05,0.06314205515525075,0.06319463087248323

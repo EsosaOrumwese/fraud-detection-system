@@ -1,0 +1,21 @@
+{
+  "slice": "kettering_general_hospital_nhs_foundation_trust/03_governance_confidentiality_and_safety_data_method_improvement",
+  "aligned_reporting_window": "Mar 2026",
+  "governance_confidentiality_output_count": 1,
+  "targeted_audit_review_output_count": 1,
+  "safety_data_method_improvement_output_count": 1,
+  "release_safe_handling_output_count": 1,
+  "shared_focus_band": "50_plus",
+  "reused_prior_slice_count": 3,
+  "confirming_stream_count": 3,
+  "named_measure_family_count": 3,
+  "review_trigger_metric_count": 3,
+  "traceability_stage_count": 4,
+  "case_pressure_gap_current_pp": 1.32999264145527,
+  "truth_quality_gap_current_pp": -1.985315845179922,
+  "control_gap_pp": 4.796649323937525,
+  "burden_minus_yield_gap_pp": 1.014285477758349,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.15430689999993774
+}

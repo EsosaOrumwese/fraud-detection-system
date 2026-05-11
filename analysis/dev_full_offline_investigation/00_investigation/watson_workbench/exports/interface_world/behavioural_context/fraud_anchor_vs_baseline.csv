@@ -1,0 +1,2 @@
+fraud_flows,matched_baseline_flows,missing_baseline_flows,same_ts_rows,same_amount_rows,mean_amount_delta,min_amount_delta,max_amount_delta
+7132,7132,0,7132,0,30.674866423758484,0.08264294549999995,497.128330676

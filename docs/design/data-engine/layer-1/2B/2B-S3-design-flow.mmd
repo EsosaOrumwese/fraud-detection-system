@@ -1,23 +1,37 @@
-flowchart LR
-  I1["s0_gate_receipt_2B"]
-  I2["s1_site_weights"]
-  I3["site_timezones"]
-  I4["day_effect_policy_v1"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 gate receipt and sealed_inputs_2B"]
+    I2["S1 site weights and merchant topology"]
+    I3["day_effect_policy_v1"]
+    I4["seeded Philox RNG posture"]
+  end
 
-  S3["S3 Day-effect authority<br/>Create per-merchant per-day per-tz-group<br/>gamma factors under bounded Philox draws"]
+  subgraph core["Actual S3 design"]
+    C1["Resolve merchant-day-tz_group structure<br/>from sealed timezone topology"]
+    C2["Generate bounded gamma/day-effect factors<br/>under policy-governed sigma law"]
+    C3["Apply temporal heterogeneity without breaking<br/>merchant mass coherence or replay determinism"]
+    C4["Emit day-effect surfaces and provenance evidence<br/>for downstream group weighting"]
+  end
 
-  O1["s3_day_effects<br/>with RNG provenance embedded in rows"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S3 became the temporal heterogeneity owner surface;<br/>sigma_gamma_policy_v2 and tz-group multipliers were the major real design move"]
+    S2["P2 proved S3 can go green while S4 still fails; that clarified S3 is not the anti-collapse owner"]
+    S3["Later I/O and logging optimizations changed runtime budget only;<br/>they did not weaken S3's seeded temporal-authority role"]
+  end
 
-  I1 --> S3
-  I2 --> S3
-  I3 --> S3
-  I4 --> S3
-  S3 --> O1
+  subgraph outputs["Owned authority"]
+    O1["s3_day_effects"]
+    O2["merchant-day-tz_group temporal factors<br/>for S4 realism shaping"]
+  end
 
-  R1["Actual design recovery<br/>S3 became the temporal heterogeneity surface"]
-  R2["It adds bounded short-run movement<br/>without changing long-run share truth"]
-  R3["It is also where RNG becomes plan-shaped rather than event-shaped:<br/>one draw per output row, provenance embedded directly"]
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  I4 --> C2
+  C1 --> C2 --> C3 --> C4
+  C4 --> O1
+  C3 --> O2
 
-  R1 -.-> S3
-  R2 -.-> S3
-  R3 -.-> S3
+  S1 -.-> C2
+  S2 -.-> C3
+  S3 -.-> C4

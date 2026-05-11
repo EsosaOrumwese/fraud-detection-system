@@ -1,0 +1,47 @@
+Esosa Orumwese
+Data Analyst | Engineering & Maintenance Analytics, Dashboards & Data Quality
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Analyst with experience using operational data to improve reporting, strengthen decision support, and make shared outputs more reliable in live, business-critical environments. Strong in Power BI, Excel, SQL, Python, Tableau, DAX, Azure Data Lake, Azure Data Factory, Databricks, Power Platform, SQL Server, Oracle, and API-aware data workflows, with experience building dashboards, reports, and workflow-facing analytical products, supporting stakeholder requirements, and maintaining trusted analytical delivery in operational settings.
+
+CORE SKILLS
+Operational Analytics: Trend analysis, performance monitoring, exception analysis, process-improvement insight, live operational decision support
+Data Models, Dashboards & Reporting: Power BI, Excel, dashboard development, report development, KPI tracking, accessible reporting outputs, user-focused decision-support views
+Stakeholder Translation: Requirement gathering, needs translation, practical data solutions, cross-functional analytical input, reporting improvement support
+Data Quality & Governance: Accuracy, consistency, validation, governance-aware reporting, dependable analytical delivery, trusted information outputs
+Technical Delivery: Azure Data Lake, Azure Data Factory, Databricks, Power Platform, SQL, Python, Tableau, DAX, API-aware workflows, enterprise data structures
+
+RELEVANT EXPERIENCE
+
+Data Analyst & Analytics Engineer
+AWS-hosted Fraud Decisioning Platform — Exeter, UK | May 2025 - Present
+
+- Analysed live operational data across decisioning and case-handling workflows to identify workload shifts, exception patterns, and areas where process review was needed.
+- Built and maintained data-model, dashboard, KPI, and report outputs that gave operations users accessible views of throughput, quality, and output movement rather than raw extracts.
+- Worked with stakeholders to turn reporting questions into practical data outputs, clearer KPI definitions, and more usable monitoring views.
+- Supported reporting, workflow, and internal data-product improvements by refining data structures, tightening reporting logic, and making shared outputs easier to use and trust.
+- Maintained data quality and governance discipline through validation, reconciliation, and careful handling of shared analytical outputs.
+- Used Power BI, Excel, SQL, Python, Databricks-linked and Azure-linked workflows to deliver analytical products in an evolving technical environment.
+- Explained technical findings clearly enough for non-technical operational users to understand what had changed, why it mattered, and what required follow-up.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+ADDITIONAL EXPERIENCE
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in an operationally critical environment where technical readings, equipment conditions, and accurate interpretation directly affected safe and effective delivery.
+- Monitored pressure and temperature readings, identified irregular operating conditions early, and supported corrective action through structured evidence and escalation.
+- Worked with field teams to translate technical readings into usable updates, dependable handovers, and better immediate operational decisions.
+
+Crew Member
+Five Guys — Exeter, UK | Sep 2024 - Present
+
+- Work in a live service environment where pace, consistency, and reliable communication support day-to-day operational delivery.
+- Adapt quickly to changing priorities while keeping outputs accurate and dependable for colleagues and customers.
+- Support teammates through clear communication, practical handovers, and steady teamwork during busy periods.

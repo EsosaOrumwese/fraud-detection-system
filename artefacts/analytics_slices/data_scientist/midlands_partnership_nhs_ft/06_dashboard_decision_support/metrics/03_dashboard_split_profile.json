@@ -1,0 +1,18 @@
+[
+  {
+    "split_role":"test",
+    "flow_rows":691122,
+    "high_band_rows":37250,
+    "medium_band_rows":105550,
+    "fraud_truth_rate":0.0273294729,
+    "case_open_rate":0.1065571636
+  },
+  {
+    "split_role":"validation",
+    "flow_rows":691122,
+    "high_band_rows":34557,
+    "medium_band_rows":103668,
+    "fraud_truth_rate":0.0272614676,
+    "case_open_rate":0.1051362856
+  }
+]

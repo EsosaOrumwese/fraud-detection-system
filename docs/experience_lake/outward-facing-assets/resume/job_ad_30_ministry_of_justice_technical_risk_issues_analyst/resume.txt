@@ -1,0 +1,50 @@
+Esosa Orumwese
+Technical Risk & Issues Analyst | Risk Reporting, Service Assurance & Data-Led Controls
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data analyst with technical risk, issue tracking, and assurance experience, turning complex operational evidence into clear risk visibility, control checks, remediation evidence, and decision-ready reporting in governed digital environments. Strong in Python, SQL, Excel, Power BI, Tableau, quality assurance, KPI monitoring, root-cause analysis, documentation, and practical risk communication, with experience using RAID-style discipline, dashboard-ready indicators, assurance evidence, and structured updates to support service reliability, prioritisation, and accountable decision-making.
+
+CORE SKILLS
+Risk & Issue Management: Risk identification, issue logging, RAID-style action tracking, prioritisation, mitigation tracking, escalation logic, remediation evidence
+Technical Risk & Controls: Data integrity checks, access/security awareness, workflow controls, validation gates, production-readiness evidence, control documentation
+Risk Reporting & Metrics: KPIs, risk indicators, dashboard-ready summaries, trend monitoring, exception reporting, progress updates, senior-ready evidence
+Assurance & Governance: Audit evidence, compliance-minded documentation, Orange Book awareness, ITIL-style service thinking, traceability, quality assurance
+Root Cause & Improvement: Cause-and-effect analysis, discrepancy review, anomaly investigation, control-gap analysis, corrective-action options, process standardisation
+Analytical Tools: Python, SQL, Excel, Power BI, Tableau, Power Query M, DAX, Git, reproducible workflows, automated validation checks
+Communication & Behaviours: Technical and non-technical explanation, structured written updates, Managing a Quality Service, Working Together, Communicating and Influencing
+
+RELEVANT EXPERIENCE
+
+Data Scientist & Analytics Engineer
+Fraud Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
+
+- Maintained a production-shaped fraud risk analytics environment where risks, issues, controls, validation evidence, and remediation actions were traceable across data, model, decisioning, and reporting layers.
+- Used RAID-style tracking to structure blockers, control gaps, validation failures, decision points, action status, follow-up activity, and evidence needed before work could be treated as resolved.
+- Built risk and performance indicators from large operational datasets using Python, SQL, Excel, and dashboard-ready outputs to monitor decision quality, workload exposure, case flow, model yield, and data integrity.
+- Investigated discrepancies across upstream events, decision outputs, downstream case movement, labels, and reporting tables, separating source-data issues from transformation, modelling, control, or interpretation issues.
+- Validated controls around schema consistency, source traceability, leakage prevention, train/test separation, time-aware validation, reconciliation checks, and repeatable output generation.
+- Produced risk-focused evidence notes, dashboard commentary, and decision summaries that turned technical findings into clear implications for priority, service reliability, control strength, and next action.
+- Used metrics to make risk prioritisation and service pressure visible, including 2.29x baseline yield in the highest-risk band, 41.3% of positives captured in the top 20.1% of scored flows, and 7.31% test MAPE for bounded demand planning.
+- Documented process logic, assumptions, validation outcomes, control boundaries, known limitations, and handover notes so analytical outputs remained reviewable, explainable, and easier to assure.
+- Considered emerging technology and AI risk through model-governance checks, fairness-aware trade-off review, data-quality safeguards, monitoring needs, and controlled use of AI-assisted coding.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+ADDITIONAL EXPERIENCE
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a technical and safety-conscious operational environment where accurate readings, controlled procedures, clear escalation, and disciplined handovers supported reliable service delivery.
+- Monitored pressure, temperature, equipment, and field-condition signals, identifying irregular conditions early and supporting corrective action through structured evidence.
+- Prepared clear updates and handovers so engineers and supervisors could act on technical information confidently under operational constraints.
+
+Crew Member
+Five Guys - Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-moving live service environment where quality, pace, communication, and reliable handover affect customer experience and team performance every shift.
+- Adapt quickly to changing priorities while keeping standards consistent, escalating practical issues, and supporting colleagues under pressure.

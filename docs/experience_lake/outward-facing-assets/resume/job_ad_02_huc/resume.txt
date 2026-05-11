@@ -1,0 +1,49 @@
+**Esosa Orumwese**
+Data Analyst | Multi-Source Reporting, BI & Decision Support
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Data Analyst with experience analysing multi-source operational data, owning recurring reporting cycles, and turning performance trends into stakeholder-facing decision support. Strong in Excel, SQL, Power BI, Tableau, and DAX, with a track record of strengthening reporting quality, resolving discrepancies, documenting reporting logic, and delivering clear operational and leadership reporting in fast-moving service environments.
+
+**CORE SKILLS**
+Performance Reporting & Analysis: Service performance reporting, KPI tracking, trend analysis, operational reporting, decision-support analysis
+BI & Reporting Tools: Excel, Power BI, Tableau, DAX, SQL, dashboard reporting, reporting packs, stakeholder-ready reporting
+Reporting Ownership & Control: Recurring reporting cycles, KPI definition, release checks, rerun controls, changelogs, caveat notes, reporting documentation
+Data Quality & Reconciliation: Multi-source data analysis, validation, reconciliation, anomaly detection, discrepancy handling, source-rule controls
+Stakeholder Support & Communication: Data storytelling, operational briefings, leadership reporting, requirements gathering, user-focused reporting, service stakeholder engagement
+Cloud & Platform: AWS, SageMaker, Git, Jupyter, cloud-hosted analytical workflows
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Analysed multi-source service data for performance reporting, integrating event, workflow, case, and outcome data into a trusted weekly service performance view across 36.9M rows using SQL and BI-ready reporting logic.
+- Owned a recurring service reporting cycle, maintaining stable KPI definitions across three reporting views for operations and leadership and regenerating the full weekly pack from controlled inputs in 2.14 seconds.
+- Completed recurring performance reporting using a stable KPI framework for service demand, conversion into case work, long-lifecycle burden, and outcome quality, delivering consistent Excel-first, Power BI-ready, and Tableau-ready outputs for service review.
+- Detected and resolved a material reporting discrepancy by tracing a 4.80 percentage-point suspicious-to-case conversion gap to denominator drift and embedding repeatable release checks into the workflow.
+- Tracked performance trends and highlighted service pressure points, showing that topline conversion and burden were broadly stable week to week while the £50+ amount band remained the clearest structural burden issue.
+- Used reporting and analysis to support operational decision-making, identifying that the £50+ amount band had the highest conversion into case work at 10.78% but the weakest confirmed outcome quality at 18.23%, supporting targeted queue review rather than broader service-wide intervention.
+- Built and tailored decision-support reporting for operations and leadership, translating KPI movement into plain-language briefing packs, stakeholder-ready summaries, and clear follow-up actions.
+- Created and maintained reporting documentation to improve clarity and repeatability, including KPI definition sheets, process maps, stakeholder view matrices, caveat notes, changelogs, and rerun checklists.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy and service continuity across recurring shift cycles, meeting time-sensitive operational demands in a high-volume environment.
+- Follow standard operating, cash-handling, and hygiene controls to keep daily outputs consistent and reliable.
+- Support smooth handovers and issue escalation through clear communication and dependable teamwork in a fast-moving service setting.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked with field teams and service partners in an operations setting where recurring checks, telemetry review, and clear documentation were needed to support reliable delivery.
+- Monitored pressure and temperature trends to flag anomalies early and support timely escalation and corrective action.
+- Recorded readings and handovers clearly so different teams could act from the same operating picture under time pressure.

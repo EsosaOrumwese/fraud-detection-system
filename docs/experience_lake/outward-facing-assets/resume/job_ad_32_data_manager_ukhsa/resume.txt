@@ -1,0 +1,59 @@
+Esosa Orumwese
+Data Manager | SQL Data Management, Scientific Reporting & High-Accuracy Data Quality
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PERSONAL SUMMARY
+Data Analyst with strong SQL, Python, structured data management, validation, reporting, and scientific time-series analysis across governed analytical systems. Evidence includes SQL-led multi-source integration, repeatable data workflows, reconciliation, quality assurance, and COVID-19 pandemic analysis linking 2,396,549 Facebook Business Activity Trends records with Oxford COVID-19 Government Response Tracker policy data. Strong fit for high-accuracy database analysis, scientific reporting, confidentiality-aware handling, and controlled surveillance data environments.
+
+CORE SKILLS
+Database & SQL Data Management: SQL querying, joins, structured datasets, relational logic, extraction, transformation, validation, repeatable data workflows
+Scientific & Public-Health Analysis: COVID-19 pandemic analysis, time-series interpretation, policy-response data, longitudinal trends, evidence-based reporting
+Data Quality & Accuracy: Completeness checks, duplicate checks, missingness review, reconciliation, anomaly detection, source traceability, documented assumptions
+Reporting & Interpretation: Regular and ad hoc analysis, scientific-style reports, clear findings, limitations, visual summaries, presentation-ready outputs
+Governance & Confidentiality: Confidentiality-aware handling, controlled access mindset, data-protection awareness, secure analytical practice, audit-ready documentation
+Programming & Analysis Tools: SQL, Python, pandas, NumPy, Excel, Power BI, Tableau, Git, Jupyter, reproducible analytical workflows
+Project & Delivery Discipline: Workload organisation, documentation, project reporting, careful handover, high-detail review, delivery under time pressure
+
+RELEVANT EXPERIENCE
+
+Data Analyst & Analytics Engineer
+Fraud Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
+
+- Used SQL, Python, and repeatable validation workflows to query, join, transform, and analyse structured event, decision, entity, label, case, and reporting datasets.
+- Built reusable analytical datasets with clear lineage, defined keys, documented assumptions, and repeatable extraction logic rather than one-off extracts.
+- Applied strict quality checks covering schema consistency, source traceability, reconciliation, completeness, leakage prevention, train/test separation, and validation outputs.
+- Investigated discrepancies by separating source-data issues from transformation, modelling, control, and interpretation issues, improving confidence in downstream reporting.
+- Produced repeatable and ad hoc analytical outputs for workload exposure, case flow, data integrity, model yield, and demand pressure, explaining findings and limitations clearly.
+- Documented data definitions, processing boundaries, validation results, and known limitations so outputs could be reviewed, repeated, and trusted.
+
+COVID-19 Pandemic Policy and Activity Analysis
+MSc Data Science Project | Nov 2023
+
+- Combined 1,004 daily CSV files using Python into a single analytical dataset of 2,396,549 observations and 12 variables covering 220 countries over 1,004 days.
+- Integrated Facebook Business Activity Trends data with Oxford COVID-19 Government Response Tracker policy data to examine pandemic-period activity patterns and policy context.
+- Assessed dataset quality through coverage checks, missingness review, duplicate checks, country/date validation, and business-vertical completeness checks.
+- Selected activity quantile over activity percentage after reviewing metric robustness, outlier sensitivity, stability, and suitability for comparing anomalous activity during the pandemic.
+- Analysed time-series trends across selected countries, linking unusual movements to containment policies, public-health events, and documented external evidence.
+- Produced research-style visual analysis and written interpretation, including limitations where available data could not fully explain observed variation.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+
+ADDITIONAL EXPERIENCE
+
+Field Engineer (Trainee)
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a technical and safety-conscious operational environment where accurate readings, controlled procedures, clear escalation, and disciplined handovers supported reliable delivery.
+- Monitored pressure, temperature, equipment, and field-condition signals, identifying irregular conditions early and supporting corrective action through structured evidence.
+
+Crew Member
+Five Guys - Exeter, UK | Sep 2024 - Present
+
+- Work in a fast-moving live service environment where quality, pace, communication, and reliable handover affect customer experience and team performance every shift.
+- Adapt quickly to changing priorities while keeping standards consistent, escalating practical issues, and supporting colleagues under pressure.

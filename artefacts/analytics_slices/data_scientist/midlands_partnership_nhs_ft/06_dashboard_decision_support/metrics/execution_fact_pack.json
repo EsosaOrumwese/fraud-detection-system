@@ -1,0 +1,117 @@
+{
+  "slice": "midlands_partnership_nhs_ft/06_dashboard_decision_support",
+  "input_profile": [
+    {
+      "input_name": "validation_scores_selected_v1",
+      "rows": 691122
+    },
+    {
+      "input_name": "test_scores_selected_v1",
+      "rows": 691122
+    },
+    {
+      "input_name": "population_pathway_reporting_v1",
+      "rows": 15
+    },
+    {
+      "input_name": "population_pathway_kpis_v1",
+      "rows": 3
+    }
+  ],
+  "output_profile": [
+    {
+      "output_name": "flow_dashboard_base_v1",
+      "rows": 1382244
+    },
+    {
+      "output_name": "flow_dashboard_summary_v1",
+      "rows": 37
+    },
+    {
+      "output_name": "flow_dashboard_drillthrough_v1",
+      "rows": 142800
+    }
+  ],
+  "split_profile": [
+    {
+      "split_role": "test",
+      "flow_rows": 691122,
+      "high_band_rows": 37250,
+      "medium_band_rows": 105550,
+      "fraud_truth_rate": 0.0273294729,
+      "case_open_rate": 0.1065571636
+    },
+    {
+      "split_role": "validation",
+      "flow_rows": 691122,
+      "high_band_rows": 34557,
+      "medium_band_rows": 103668,
+      "fraud_truth_rate": 0.0272614676,
+      "case_open_rate": 0.1051362856
+    }
+  ],
+  "current_window": {
+    "split_role": "test",
+    "flow_rows": 691122,
+    "high_band_rows": 37250,
+    "medium_band_rows": 105550,
+    "high_band_truth_rate": 0.06319463087248323,
+    "case_open_rate": 0.10655716356880551,
+    "top_case_selected_cohort": "high_burden_low_yield",
+    "top_case_selected_cohort_share": 0.4029520395415784,
+    "top_pathway_stage": "opened_only",
+    "top_pathway_stage_truth_rate": 0.002328011291771305
+  },
+  "top_priority_queue_size": 142800,
+  "top_model_drivers": [
+    {
+      "feature": "device_train_fraud_rate",
+      "coefficient": 192.3505446914924,
+      "abs_coefficient": 192.3505446914924
+    },
+    {
+      "feature": "instrument_train_fraud_rate",
+      "coefficient": 192.35054469148704,
+      "abs_coefficient": 192.35054469148704
+    },
+    {
+      "feature": "party_train_fraud_rate",
+      "coefficient": 192.35054469148648,
+      "abs_coefficient": 192.35054469148648
+    },
+    {
+      "feature": "account_train_fraud_rate",
+      "coefficient": 192.3505446914733,
+      "abs_coefficient": 192.3505446914733
+    },
+    {
+      "feature": "log_party_flow_count",
+      "coefficient": -43.74251870455966,
+      "abs_coefficient": 43.74251870455966
+    },
+    {
+      "feature": "merchant_train_fraud_rate",
+      "coefficient": 33.54828932902951,
+      "abs_coefficient": 33.54828932902951
+    },
+    {
+      "feature": "log_device_flow_count",
+      "coefficient": 21.246651351294986,
+      "abs_coefficient": 21.246651351294986
+    },
+    {
+      "feature": "log_instrument_flow_count",
+      "coefficient": 10.06833226733029,
+      "abs_coefficient": 10.06833226733029
+    }
+  ],
+  "assets": {
+    "dashboard_base": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\06_dashboard_decision_support\\extracts\\flow_dashboard_base_v1.parquet",
+    "dashboard_summary": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\06_dashboard_decision_support\\extracts\\flow_dashboard_summary_v1.parquet",
+    "dashboard_drillthrough": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\06_dashboard_decision_support\\extracts\\flow_dashboard_drillthrough_v1.parquet",
+    "executive_overview_figure": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\06_dashboard_decision_support\\figures\\executive_overview.png",
+    "workflow_figure": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\06_dashboard_decision_support\\figures\\workflow_and_prioritisation.png",
+    "explanation_figure": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\06_dashboard_decision_support\\figures\\explanation_and_drillthrough.png",
+    "dashboard_pack": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\06_dashboard_decision_support\\dashboard_pack_v1.md"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "slice": "imperial_college_london/01_health_data_pipelines_and_multimodal_integration",
+  "aligned_reporting_window": "Mar 2026",
+  "pipeline_ready_base_output_count": 1,
+  "cleaning_linkage_output_count": 1,
+  "multimodal_integration_output_count": 1,
+  "validity_reliability_output_count": 1,
+  "shared_source_cohort": "50_plus",
+  "reused_prior_slice_count": 4,
+  "integrated_stream_count": 4,
+  "source_role_count": 4,
+  "linkage_stage_count": 4,
+  "delivery_pattern_stage_count": 4,
+  "confirmation_strength": 3,
+  "review_trigger_metric_count": 3,
+  "current_reporting_pressure_gap_pp": 1.32999264145527,
+  "current_quality_consistency_gap_pp": -1.985315845179922,
+  "current_control_gap_pp": 4.796649323937525,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.22666989999925136
+}

@@ -1,18 +1,36 @@
-flowchart LR
-  I1["Reads<br/>s0_gate_receipt_3B<br/>sealed_inputs_3B<br/>all S1 through S4 outputs"]
-  I2["Audit surfaces<br/>S2 RNG logs<br/>component digests and coherence checks"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 sealed world and upstream gates"]
+    I2["S1-S4 accepted 3B outputs"]
+    I3["validation bundle schemas and certification contracts"]
+  end
 
-  S5["S5<br/>Validation bundle and PASS gate"]
+  subgraph core["Actual S5 design"]
+    C1["Validate the complete 3B authority chain<br/>as one certifiable virtual-edge world"]
+    C2["Assemble final validation bundle, PASS artefacts<br/>and certification evidence"]
+    C3["Fail closed on any realism-governance, alias-integrity<br/>or sealed-world inconsistency"]
+  end
 
-  O1["Outputs<br/>validation_bundle_3B<br/>validation_bundle_index_3B<br/>validation_passed_flag_3B"]
-  O2["Authority<br/>S5 alone decides whether downstream<br/>may read any 3B virtual surfaces"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S5 is the final publish-legitimacy surface; it turns the segment into a consumable certified world"]
+    S2["Heavy optimization later changed hash and evidence assembly cost, not S5's ownership of final legitimacy"]
+    S3["Integrated certification grades later depended on S5 while keeping the realism causes anchored upstream in S1-S4"]
+  end
 
-  R1["Implemented shift<br/>S5 stayed an integrity rail, not a realism lane:<br/>it re-audits the full 3B world and fails closed on incoherence"]
-  R2["Implemented shift<br/>Later freeze work relied on scoring-only recertification,<br/>which made S5 the place where certified authority could be restored<br/>without mutating already-accepted state outputs"]
+  subgraph outputs["Owned authority"]
+    O1["validation_bundle_3B"]
+    O2["validation_passed_flag_3B"]
+    O3["final certified downstream legitimacy"]
+  end
 
-  I1 --> S5
-  I2 --> S5
-  S5 --> O1
-  S5 --> O2
-  R1 -.-> S5
-  R2 -.-> S5
+  I1 --> C1
+  I2 --> C1
+  I3 --> C2
+  C1 --> C2 --> C3
+  C2 --> O1
+  C2 --> O2
+  C3 --> O3
+
+  S1 -.-> C2
+  S2 -.-> C2
+  S3 -.-> C3

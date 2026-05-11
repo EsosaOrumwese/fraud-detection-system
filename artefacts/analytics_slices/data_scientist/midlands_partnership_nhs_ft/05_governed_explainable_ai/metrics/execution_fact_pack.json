@@ -1,0 +1,257 @@
+{
+  "slice": "midlands_partnership_nhs_ft/05_governed_explainable_ai",
+  "governance_gate": {
+    "flow_rows": 3455613,
+    "distinct_flow_id": 3455613,
+    "min_flow_ts_utc": "2026-01-01T00:00:03.574",
+    "max_flow_ts_utc": "2026-03-31T23:59:57.760",
+    "fraud_truth_rate": 0.0270200974,
+    "bank_view_rate": 0.0572352865,
+    "case_open_rate": 0.1046135664,
+    "truth_bank_mismatch_rate": 0.0714981683,
+    "amount_null_rate": 0.0,
+    "arrival_seq_null_rate": 0.0,
+    "merchant_id_null_rate": 0.0,
+    "party_id_null_rate": 0.0,
+    "account_id_null_rate": 0.0,
+    "instrument_id_null_rate": 0.0,
+    "device_id_null_rate": 0.0,
+    "ip_id_null_rate": 0.0
+  },
+  "model_ready_profile": [
+    {
+      "split_role": "train",
+      "flow_rows": 2073369,
+      "fraud_truth_rows": 55642.0,
+      "fraud_truth_rate": 0.0268365158,
+      "min_flow_ts_utc": "2026-01-01T00:00:03.574",
+      "max_flow_ts_utc": "2026-02-24T11:57:09.392"
+    },
+    {
+      "split_role": "validation",
+      "flow_rows": 691122,
+      "fraud_truth_rows": 18841.0,
+      "fraud_truth_rate": 0.0272614676,
+      "min_flow_ts_utc": "2026-02-24T11:57:09.493",
+      "max_flow_ts_utc": "2026-03-14T10:45:15.602"
+    },
+    {
+      "split_role": "test",
+      "flow_rows": 691122,
+      "fraud_truth_rows": 18888.0,
+      "fraud_truth_rate": 0.0273294729,
+      "min_flow_ts_utc": "2026-03-14T10:45:15.773",
+      "max_flow_ts_utc": "2026-03-31T23:59:57.760"
+    }
+  ],
+  "encoded_feature_null_rates": {
+    "merchant_rate_null_rate": 0.0,
+    "party_rate_null_rate": 0.0,
+    "account_rate_null_rate": 0.0,
+    "instrument_rate_null_rate": 0.0,
+    "device_rate_null_rate": 0.0,
+    "ip_rate_null_rate": 0.0
+  },
+  "comparison_metrics": [
+    {
+      "model_name": "baseline_logistic_structural",
+      "split_role": "validation",
+      "rows": 691122,
+      "positives": 18841,
+      "positive_rate": 0.0272614676,
+      "roc_auc": 0.5193823209,
+      "average_precision": 0.0276897223,
+      "high_threshold": 0.1765203036,
+      "medium_threshold": 0.170874196
+    },
+    {
+      "model_name": "baseline_logistic_structural",
+      "split_role": "test",
+      "rows": 691122,
+      "positives": 18888,
+      "positive_rate": 0.0273294729,
+      "roc_auc": 0.5150515398,
+      "average_precision": 0.0275125572,
+      "high_threshold": 0.1765203036,
+      "medium_threshold": 0.170874196
+    },
+    {
+      "model_name": "challenger_logistic_encoded_history",
+      "split_role": "validation",
+      "rows": 691122,
+      "positives": 18841,
+      "positive_rate": 0.0272614676,
+      "roc_auc": 0.6227552579,
+      "average_precision": 0.0455676351,
+      "high_threshold": 0.0001290456,
+      "medium_threshold": 2.68192e-05
+    },
+    {
+      "model_name": "challenger_logistic_encoded_history",
+      "split_role": "test",
+      "rows": 691122,
+      "positives": 18888,
+      "positive_rate": 0.0273294729,
+      "roc_auc": 0.6239804739,
+      "average_precision": 0.0456991673,
+      "high_threshold": 0.0001290456,
+      "medium_threshold": 2.68192e-05
+    }
+  ],
+  "selected_model_name": "challenger_logistic_encoded_history",
+  "selected_features": [
+    "log_amount",
+    "log_arrival_seq",
+    "flow_hour_utc",
+    "flow_dow_utc",
+    "flow_month_utc",
+    "log_merchant_flow_count",
+    "log_party_flow_count",
+    "log_account_flow_count",
+    "log_instrument_flow_count",
+    "log_device_flow_count",
+    "log_ip_flow_count",
+    "merchant_train_fraud_rate",
+    "party_train_fraud_rate",
+    "account_train_fraud_rate",
+    "instrument_train_fraud_rate",
+    "device_train_fraud_rate",
+    "ip_train_fraud_rate"
+  ],
+  "selected_validation_metrics": {
+    "model_name": "challenger_logistic_encoded_history",
+    "split_role": "validation",
+    "rows": 691122,
+    "positives": 18841,
+    "positive_rate": 0.027261467584594325,
+    "roc_auc": 0.6227552578754579,
+    "average_precision": 0.045567635107273664,
+    "high_threshold": 0.0001290455921677446,
+    "medium_threshold": 2.681923549853644e-05
+  },
+  "selected_test_metrics": {
+    "model_name": "challenger_logistic_encoded_history",
+    "split_role": "test",
+    "rows": 691122,
+    "positives": 18888,
+    "positive_rate": 0.027329472943995417,
+    "roc_auc": 0.6239804738783975,
+    "average_precision": 0.04569916727439689,
+    "high_threshold": 0.0001290455921677446,
+    "medium_threshold": 2.681923549853644e-05
+  },
+  "selected_validation_risk_bands": [
+    {
+      "model_name": "challenger_logistic_encoded_history",
+      "split_role": "validation",
+      "risk_band": "High",
+      "rows": 34557,
+      "positives": 2182,
+      "positive_rate": 0.0631420552,
+      "capture_rate": 0.1158112627,
+      "lift_vs_baseline": 2.3161649298
+    },
+    {
+      "model_name": "challenger_logistic_encoded_history",
+      "split_role": "validation",
+      "risk_band": "Medium",
+      "rows": 103668,
+      "positives": 5570,
+      "positive_rate": 0.0537292125,
+      "capture_rate": 0.2956318667,
+      "lift_vs_baseline": 1.9708848146
+    },
+    {
+      "model_name": "challenger_logistic_encoded_history",
+      "split_role": "validation",
+      "risk_band": "Low",
+      "rows": 552897,
+      "positives": 11089,
+      "positive_rate": 0.0200561768,
+      "capture_rate": 0.5885568707,
+      "lift_vs_baseline": 0.7356968867
+    }
+  ],
+  "selected_test_risk_bands": [
+    {
+      "model_name": "challenger_logistic_encoded_history",
+      "split_role": "test",
+      "risk_band": "High",
+      "rows": 37250,
+      "positives": 2354,
+      "positive_rate": 0.0631946309,
+      "capture_rate": 0.1246293943,
+      "lift_vs_baseline": 2.3123252688
+    },
+    {
+      "model_name": "challenger_logistic_encoded_history",
+      "split_role": "test",
+      "risk_band": "Medium",
+      "rows": 105550,
+      "positives": 5492,
+      "positive_rate": 0.0520322122,
+      "capture_rate": 0.2907666243,
+      "lift_vs_baseline": 1.9038864133
+    },
+    {
+      "model_name": "challenger_logistic_encoded_history",
+      "split_role": "test",
+      "risk_band": "Low",
+      "rows": 548322,
+      "positives": 11042,
+      "positive_rate": 0.0201378022,
+      "capture_rate": 0.5846039814,
+      "lift_vs_baseline": 0.736852931
+    }
+  ],
+  "top_coefficients": [
+    {
+      "feature": "device_train_fraud_rate",
+      "coefficient": 192.3505446914924,
+      "abs_coefficient": 192.3505446914924
+    },
+    {
+      "feature": "instrument_train_fraud_rate",
+      "coefficient": 192.35054469148704,
+      "abs_coefficient": 192.35054469148704
+    },
+    {
+      "feature": "party_train_fraud_rate",
+      "coefficient": 192.35054469148648,
+      "abs_coefficient": 192.35054469148648
+    },
+    {
+      "feature": "account_train_fraud_rate",
+      "coefficient": 192.3505446914733,
+      "abs_coefficient": 192.3505446914733
+    },
+    {
+      "feature": "log_party_flow_count",
+      "coefficient": -43.74251870455966,
+      "abs_coefficient": 43.74251870455966
+    },
+    {
+      "feature": "merchant_train_fraud_rate",
+      "coefficient": 33.54828932902951,
+      "abs_coefficient": 33.54828932902951
+    },
+    {
+      "feature": "log_device_flow_count",
+      "coefficient": 21.246651351294986,
+      "abs_coefficient": 21.246651351294986
+    },
+    {
+      "feature": "log_instrument_flow_count",
+      "coefficient": 10.06833226733029,
+      "abs_coefficient": 10.06833226733029
+    }
+  ],
+  "assets": {
+    "model_base_v1": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\05_governed_explainable_ai\\extracts\\flow_model_ready_slice_v1.parquet",
+    "model_base_v2": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\05_governed_explainable_ai\\extracts\\flow_model_ready_slice_v2_encoded.parquet",
+    "validation_scores_selected": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\05_governed_explainable_ai\\extracts\\validation_scores_selected_v1.parquet",
+    "test_scores_selected": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\05_governed_explainable_ai\\extracts\\test_scores_selected_v1.parquet",
+    "risk_band_summary": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\05_governed_explainable_ai\\extracts\\flow_model_risk_band_summary_v1.parquet",
+    "review_summary": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\artefacts\\analytics_slices\\data_scientist\\midlands_partnership_nhs_ft\\05_governed_explainable_ai\\extracts\\flow_model_review_summary_v1.parquet"
+  }
+}

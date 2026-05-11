@@ -1,0 +1,8 @@
+
+# Workforce Quality Governance Regeneration
+
+Regenerate this slice with:
+
+```powershell
+python artefacts/analytics_slices/data_analyst/guys_and_st_thomas_nhs_foundation_trust/02_workforce_data_quality_governance_and_compliance_monitoring/models/build_workforce_data_quality_governance_and_compliance_monitoring.py
+```

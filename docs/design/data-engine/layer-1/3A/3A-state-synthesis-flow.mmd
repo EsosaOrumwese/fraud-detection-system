@@ -1,28 +1,33 @@
-flowchart LR
-  subgraph base["Segment 3A recovered synthesis"]
-    A0["S0<br/>Seal upstream outlet and policy authority"]
-    A1["S1<br/>Decide escalation scope for zone-mixture realism"]
-    A2["S2<br/>Freeze deterministic country-zone prior geometry"]
-    A3["S3<br/>Emit sampled zone-share dispersion with RNG provenance"]
-    A4["S4<br/>Convert shares into conserved integer zone counts"]
-    A5["S5<br/>Publish zone_alloc and universe-hash closure"]
-    A6["S6<br/>Judge validation verdict and realism closure"]
-    A7["S7<br/>Seal indexed PASS legitimacy for consumers"]
+flowchart TD
+  subgraph gate["Gate and world definition"]
+    S0["S0<br/>Seal one outlet-zone world<br/>from outlet topology, canonical refs,<br/>optional civil-time witness and policy doctrine"]
   end
 
-  A0 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7
+  subgraph rule["Deterministic rule surfaces"]
+    S1["S1<br/>Own escalation membership law"]
+    S2["S2<br/>Own parameter-scoped prior geometry"]
+  end
 
-  B1["What 3A actually becomes<br/>Certified zone-allocation authority"] --> B2["Verified upstream world and sealed policy basis"]
-  B1 --> B3["Deterministic escalation and priors governance"]
-  B1 --> B4["Bounded stochastic zone-share realism"]
-  B1 --> B5["Conserved integer allocation and readable egress"]
-  B1 --> B6["Validation verdict and manifest-scoped publish legitimacy"]
+  subgraph stochastic["Stochastic realism surface"]
+    S3["S3<br/>Own seeded merchant-country zone shares"]
+  end
 
-  B2 -.-> A0
-  B3 -.-> A1
-  B3 -.-> A2
-  B4 -.-> A3
-  B5 -.-> A4
-  B5 -.-> A5
-  B6 -.-> A6
-  B6 -.-> A7
+  subgraph realization["Outcome and egress"]
+    S4["S4<br/>Own conserved integer zone realization"]
+    S5["S5<br/>Own bounded outlet-zone egress and universe closure"]
+  end
+
+  subgraph closure["Verdict and legitimacy closure"]
+    S6["S6<br/>Own segment execution verdict"]
+    S7["S7<br/>Own final validation bundle and PASS legitimacy"]
+  end
+
+  S0 --> S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
+
+  R1["Recovered design synthesis<br/>3A certifies an outlet-zone authority chain, not a random zone allocator"]
+  R2["The actual implemented object is:<br/>deterministic escalation membership,<br/>deterministic country-zone priors,<br/>seeded merchant dispersion,<br/>conserved realized counts,<br/>bounded egress with universe-hash closure,<br/>then fail-closed verdict and publish legitimacy"]
+  R3["Important implemented reading<br/>S1, S2, S3 and S4 each own different realism surfaces;<br/>S5 exports the bounded contract;<br/>S6 and S7 close legitimacy without rewriting realism"]
+
+  R1 -.-> S0
+  R2 -.-> S4
+  R3 -.-> S6

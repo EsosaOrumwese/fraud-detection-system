@@ -1,32 +1,34 @@
-flowchart LR
-  I1["s0_gate_receipt_2B + sealed_inputs_2B"]
-  I2["s7_audit_report<br/>one PASS report per discovered seed"]
-  I3["s2_alias_index + blob"]
-  I4["s3_day_effects"]
-  I5["s4_group_weights"]
-  I6["sealed policy snapshots"]
+flowchart TD
+  subgraph inputs["Authority inputs"]
+    I1["S0 gate receipt and sealed inventory"]
+    I2["S1-S7 accepted segment outputs"]
+    I3["validation bundle schemas and dictionary contracts"]
+  end
 
-  S8["S8 Publish-legitimacy authority<br/>Discover required seed set<br/>require PASS audits for all of them<br/>seal 2B with indexed bundle plus flag"]
+  subgraph core["Actual S8 design"]
+    C1["Validate the complete 2B authority chain<br/>against bundle and PASS rules"]
+    C2["Assemble final validation bundle, index and PASS artefacts<br/>for this manifest and seed"]
+    C3["Fail closed on any missing or incoherent routing authority surface"]
+  end
 
-  O1["validation_bundle_2B"]
-  O2["index.json"]
-  O3["_passed.flag<br/>No PASS -> No read"]
+  subgraph shifts["Implemented design shifts"]
+    S1["S8 remained the final publish-legitimacy surface even while realism work concentrated upstream"]
+    S2["Optimization and reopen lanes preserved S8 as the one place where 2B becomes consumable downstream"]
+  end
 
-  I1 --> S8
-  I2 --> S8
-  I3 --> S8
-  I4 --> S8
-  I5 --> S8
-  I6 --> S8
+  subgraph outputs["Owned authority"]
+    O1["validation_bundle_2B"]
+    O2["validation_passed_flag_2B"]
+    O3["downstream legitimacy for Layer-2 consumption"]
+  end
 
-  S8 --> O1
-  S8 --> O2
-  S8 --> O3
+  I1 --> C1
+  I2 --> C1
+  I3 --> C1
+  C1 --> C2 --> C3
+  C2 --> O1
+  C2 --> O2
+  C3 --> O3
 
-  R1["Actual design recovery<br/>S8 is the only consumer gate for 2B"]
-  R2["It does not rerun audits;<br/>it packages already-earned evidence<br/>under one manifest-scoped proof"]
-  R3["That makes S8 the publish-legitimacy boundary,<br/>not another data state"]
-
-  R1 -.-> S8
-  R2 -.-> S8
-  R3 -.-> S8
+  S1 -.-> C2
+  S2 -.-> C3

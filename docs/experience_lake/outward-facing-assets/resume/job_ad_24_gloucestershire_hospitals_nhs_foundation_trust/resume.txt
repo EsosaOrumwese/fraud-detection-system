@@ -1,0 +1,51 @@
+**Esosa Orumwese**
+Information Analyst | Divisional BI, Forecasting & Validated Performance Intelligence
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+**PERSONAL SUMMARY**
+Information Analyst with experience delivering high-quality information services, validated reporting, forecasting, and performance intelligence in governed, high-accountability environments. Strong in Power BI, Excel, SQL, Python, Tableau, and DAX, with experience owning recurring and ad hoc information flows, interrogating large operational datasets, monitoring targets and deviations, producing dashboards and scorecards, and translating complex data into decision-useful intelligence for managers and specialist stakeholders.
+
+**CORE SKILLS**
+Information-Service Delivery: Daily, weekly, monthly, and quarterly reporting, recurring information flows, ad hoc analysis, internal and external outputs, dependable timetable-led delivery
+BI, Interrogation & Analysis: Power BI, Excel, SQL, Python, Tableau, DAX, large-volume data interrogation, analytical methods, trend analysis, exception review
+Forecasting & Planning Support: Activity forecasting, planning outputs, target monitoring, deviation tracking, activity review, operational implications, benchmarking support
+Validated Reporting & Quality: Data validation, data-quality checks, anomaly detection, escalation discipline, reconciled outputs, reliable management information
+Stakeholder Decision Support: Service-line support, senior-manager reporting, specialist stakeholder support, verbal updates, scorecards, dashboards, charts, graphs, tables
+Prioritisation & Delivery Control: Conflicting-demand management, expectation management, deadline negotiation, independent working, pressure handling, professional challenge
+Governance & Controlled Handling: Confidentiality-aware handling, Data Protection awareness, risk-aware delivery, controlled reporting, documentation discipline, traceability
+Digital BI Development: Reporting improvement, self-service support, scalable BI workflows, predictive-analytics readiness, maturing digital information delivery
+
+**RELEVANT EXPERIENCE**
+
+**Data Analyst & Analytics Engineer**
+**AWS-hosted Fraud Decisioning Platform** — Exeter, UK | May 2025 - Present
+
+- Delivered a focused specialist information service across recurring and ad hoc reporting requirements, owning daily, weekly, monthly, and quarterly information flows and keeping outputs timely, accurate, and fit for internal and external use.
+- Supported service-line and senior stakeholders with validated business intelligence that informed operational delivery, performance review, and strategic decision-making rather than providing raw extracts alone.
+- Interrogated large volumes of complex operational data using BI tools, Excel, SQL, and analytical methods, turning multi-source information into useful intelligence, trends, and exceptions for follow-up action.
+- Produced activity-forecasting and planning outputs for delegated reporting areas, using time-aware analysis to support target monitoring, activity review, and short-range planning conversations.
+- Monitored key targets and control measures, identified deviations and emerging trends early, and escalated anomalies where outputs or underlying data required corrective review.
+- Used comparative and benchmarking-style analysis to strengthen performance interpretation, helping managers understand relative pressure points rather than reading single metrics in isolation.
+- Produced accurate dashboards, scorecards, charts, graphs, tables, and verbal updates for different audiences, tailoring how findings were presented so outputs were usable in management and specialist review settings.
+- Worked closely with subject-matter and senior stakeholders to understand reporting needs, manage competing priorities, challenge unclear requests where needed, and maintain strong validation, quality, confidentiality, and documentation discipline across governed reporting delivery.
+
+**EDUCATION**
+
+**University of Exeter**
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+
+**ADDITIONAL EXPERIENCE**
+
+**Crew Member**
+**Five Guys** — Exeter, UK | Sep 2024 - Present
+
+- Maintain accuracy, pace, and clear communication in a busy service environment where dependable information, prioritisation, and calm handling of changing demand matter every day.
+- Balance competing tasks under pressure while keeping quality and customer-facing delivery consistent.
+- Support colleagues through practical guidance, clear handovers, and steady communication during busy shifts.
+
+**Field Engineer (Trainee)**
+**South Western Technologies & Oilfield Services Ltd** — Rivers, Nigeria | Jul 2021 - Aug 2022
+
+- Worked in a controlled operational environment where accurate readings, disciplined documentation, and reliable escalation were essential to safe and effective delivery.
+- Reviewed detailed technical and operational information, identified irregular conditions early, and supported corrective action through structured evidence and reporting.
+- Prepared clear updates and handovers so specialist information could be used confidently by supervisors and technical teams.

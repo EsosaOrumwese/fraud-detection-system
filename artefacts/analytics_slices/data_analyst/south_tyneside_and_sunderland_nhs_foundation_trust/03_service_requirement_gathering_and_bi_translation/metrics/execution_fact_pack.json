@@ -1,0 +1,19 @@
+{
+  "slice": "south_tyneside_and_sunderland_nhs_foundation_trust/03_service_requirement_gathering_and_bi_translation",
+  "aligned_reporting_window": "Mar 2026",
+  "requirement_capture_output_count": 1,
+  "service_facing_translation_output_count": 1,
+  "better_option_output_count": 1,
+  "service_value_output_count": 1,
+  "shared_focus_band": "50_plus",
+  "confirming_stream_count": 3,
+  "broad_to_refined_requirement_stages": 3,
+  "review_trigger_count": 2,
+  "current_case_pressure_gap_pp": 1.32999264145527,
+  "current_truth_quality_gap_pp": -1.985315845179922,
+  "primary_focus_case_open_rate_avg": 0.10810377959626553,
+  "primary_focus_truth_quality_avg": 0.18146004572547914,
+  "release_checks_passed": 8,
+  "release_check_count": 8,
+  "regeneration_seconds": 0.11818429999766522
+}

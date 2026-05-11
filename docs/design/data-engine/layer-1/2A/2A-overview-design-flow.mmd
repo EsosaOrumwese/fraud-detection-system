@@ -1,24 +1,35 @@
-flowchart LR
-  subgraph intent["Recovered Segment 2A design"]
-    A0["S0 Gate-in foundation<br/>Verifies 1B PASS and seals the<br/>civil-time input authority set"]
-    A1["S1 Provisional TZ lookup<br/>Maps site coordinates to one<br/>provisional tzid by geometry"]
-    A2["S2 Final TZ assignment<br/>Turns provisional tzid into<br/>final site_timezones authority"]
-    A3["S3 Transition cache<br/>Compiles manifest-scoped tzdb<br/>transition authority"]
-    A4["S4 Legality report<br/>Proves site tzids are covered by<br/>the compiled transition authority"]
-    A5["S5 Validation gate<br/>Discovers seeds, requires S4 PASS,<br/>and publishes consumer legitimacy"]
+flowchart TD
+  subgraph gate["Civil-time read-legitimacy boundary"]
+    A0["S0<br/>Verify 1B PASS and seal the exact civil-time read world<br/>site_locations, tz_world, tzdb_release, tz policies"]
+  end
+
+  subgraph assignment["Timezone assignment corridor"]
+    A1["S1<br/>Produce one provisional tzid per site<br/>geometry first, bounded rescue paths second"]
+    A2["S2<br/>Produce one final tzid per site<br/>under canonical override precedence and governance caps"]
+  end
+
+  subgraph transition["Transition authority corridor"]
+    A3["S3<br/>Compile the final used tzids into manifest-scoped timetable truth<br/>with bounded future-horizon support"]
+    A4["S4<br/>Judge legality and coverage of final tzids<br/>against the compiled timetable cache"]
+  end
+
+  subgraph closure["Publish legitimacy boundary"]
+    A5["S5<br/>Publish validation bundle, index, and PASS flag<br/>for the final site_timezones story"]
   end
 
   A0 --> A1 --> A2 --> A3 --> A4 --> A5
 
-  B0["Actual design shifts that matter"] --> B1["S0 became a real cross-segment gate:<br/>2A does not trust 1B egress without<br/>verified PASS plus sealed inputs"]
-  B0 --> B2["S1 and S2 became governance surfaces,<br/>not just lookup and override mechanics:<br/>fallbacks, caps, provenance, and fail-closed posture"]
-  B0 --> B3["S3 became transition-horizon authority,<br/>not just a cache writer;<br/>later reopened to extend future DST coverage"]
-  B0 --> B4["S4 stays narrow:<br/>it does not repair timezones,<br/>it judges legality and coverage from cache truth"]
-  B0 --> B5["S5 became the real downstream contract:<br/>no PASS means no read of site_timezones"]
+  subgraph shifts["Implemented design shifts that define actual 2A"]
+    B1["S0 was corrected to upstream-manifest identity<br/>rather than deriving a new fingerprint from sealing"]
+    B2["S1 became a bounded production lookup state<br/>after ambiguity, singleton, nearest-polygon, and override-rescue paths were forced into design"]
+    B3["S2 became the canonical governance-finalization state<br/>and the later topology-rebalance experiment was explicitly removed from mainline"]
+    B4["S3 became transition-horizon authority<br/>after bounded reopen was needed for downstream DST correctness"]
+    B5["S5 became the only downstream publish contract<br/>and reuse optimization stayed strictly semantics-preserving"]
+  end
 
   B1 -.-> A0
   B2 -.-> A1
-  B2 -.-> A2
-  B3 -.-> A3
+  B3 -.-> A2
+  B4 -.-> A3
   B4 -.-> A4
   B5 -.-> A5

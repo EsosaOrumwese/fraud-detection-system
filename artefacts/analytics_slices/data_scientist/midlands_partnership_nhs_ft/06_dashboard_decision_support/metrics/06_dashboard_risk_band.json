@@ -1,0 +1,20 @@
+[
+  {
+    "risk_band":"High",
+    "flow_rows":37250,
+    "fraud_truth_rate":0.0631946309,
+    "avg_score":0.1845784177
+  },
+  {
+    "risk_band":"Medium",
+    "flow_rows":105550,
+    "fraud_truth_rate":0.0520322122,
+    "avg_score":0.0000526974
+  },
+  {
+    "risk_band":"Low",
+    "flow_rows":548322,
+    "fraud_truth_rate":0.0201378022,
+    "avg_score":0.0000126146
+  }
+]

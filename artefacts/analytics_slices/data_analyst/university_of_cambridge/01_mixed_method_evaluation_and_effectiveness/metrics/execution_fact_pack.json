@@ -1,0 +1,16 @@
+{
+  "slice": "university_of_cambridge/01_mixed_method_evaluation_and_effectiveness",
+  "aligned_reporting_window": "Mar 2026",
+  "quantitative_evaluation_output_count": 1,
+  "qualitative_support_output_count": 1,
+  "intervention_effectiveness_output_count": 1,
+  "shared_focus_band": "50_plus",
+  "shared_focus_confirming_streams": 3,
+  "qualitative_support_stage_count": 3,
+  "directional_kpis_used": 2,
+  "current_case_pressure_gap_pp": 1.32999264145527,
+  "current_truth_quality_gap_pp": -1.985315845179922,
+  "release_checks_passed": 7,
+  "release_check_count": 7,
+  "regeneration_seconds": 0.15633450000314042
+}

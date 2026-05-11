@@ -1,0 +1,8 @@
+column_name,column_type,null,key,default,extra
+flow_id,BIGINT,YES,,,
+is_fraud_bank_view,BOOLEAN,YES,,,
+bank_label,VARCHAR,YES,,,
+seed,BIGINT,YES,,,
+manifest_fingerprint,VARCHAR,YES,,,
+parameter_hash,VARCHAR,YES,,,
+scenario_id,VARCHAR,YES,,,

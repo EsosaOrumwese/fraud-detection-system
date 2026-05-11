@@ -1,0 +1,73 @@
+Resume Fast Scan Benchmark
+
+Source file:
+job_ad_40_next_collections_strategy_insight_analyst/resume.txt
+
+Assumption:
+- Character count excludes line breaks and blank lines.
+- Read/scan time is estimated at 300 words per minute.
+- Entire document count excludes name, headline, location, contact details, LinkedIn, and GitHub.
+
+Benchmark Summary
+
+Entire doc: 3912 chars / 99s
+(excl Name, Header and Contact details)
+
+PROFESSIONAL SUMMARY: 330 chars / 9s
+   - Line 1: 104 chars / 3s
+   - Line 2: 162 chars / 4s
+   - Line 3: 62 chars / 2s
+
+EDUCATION: 188 chars / 5s
+   - University of Exeter: 20 chars / 1s
+   - MSc line: 83 chars / 2s
+   - Covenant University: 19 chars / 1s
+   - BEng line: 63 chars / 2s
+
+RELEVANT EXPERIENCE: 2795 chars / 72s
+
+   1. Platform Experience: 891 chars / 22s
+      - Role title: 43 chars / 1s
+      - Platform/employer line: 82 chars / 2s
+      - About line: 120 chars / 3s
+      - Bullet 1: 163 chars / 4s
+      - Bullet 2: 149 chars / 4s
+      - Bullet 3: 171 chars / 4s
+      - Bullet 4: 141 chars / 3s
+
+   2. Usage-Based Insurance Behaviour Modelling: 638 chars / 17s
+      - Project title: 40 chars / 1s
+      - Project/source line: 35 chars / 1s
+      - About line: 118 chars / 3s
+      - Bullet 1: 137 chars / 4s
+      - Bullet 2: 152 chars / 4s
+      - Bullet 3: 126 chars / 3s
+
+   3. COVID-19 Business Recovery Trend Analysis: 614 chars / 17s
+      - Project title: 41 chars / 1s
+      - Project/source line: 35 chars / 1s
+      - About line: 95 chars / 3s
+      - Bullet 1: 128 chars / 4s
+      - Bullet 2: 146 chars / 4s
+      - Bullet 3: 139 chars / 4s
+
+   4. Completions Engineer: 649 chars / 16s
+      - Role title: 20 chars / 1s
+      - Employer line: 72 chars / 2s
+      - About line: 112 chars / 3s
+      - Bullet 1: 141 chars / 4s
+      - Bullet 2: 115 chars / 3s
+      - Bullet 3: 152 chars / 4s
+
+TECHNICAL SKILLS: 528 chars / 12s
+   - Technical Skills: 173 chars / 4s
+   - Credit & Collections: 181 chars / 4s
+   - Business Skills: 172 chars / 3s
+
+Scan Standard for Future Resumes
+
+Platform block: max 900-950 chars
+Other project blocks: max 600-650 chars each
+Each bullet: ideally 115-165 chars
+Entire doc excluding header: max 4000 chars
+

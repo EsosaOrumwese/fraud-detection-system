@@ -1,0 +1,10 @@
+metric_name,metric_value
+case_closed_rows,361504.0
+case_distinct_cases,361504.0
+case_distinct_flows,361504.0
+case_event_rows,944995.0
+case_opened_rows,361504.0
+event_auth_request_rows,3455613.0
+event_auth_response_rows,3455613.0
+event_distinct_flows,3455613.0
+event_rows,6911226.0

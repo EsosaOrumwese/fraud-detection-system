@@ -1,0 +1,6 @@
+case_events,has_chargeback_initiated,has_chargeback_decision,has_any_chargeback_event,cases,case_share
+2,false,false,false,16666405,0.7325051939096218
+3,false,false,false,2579827,0.11338598077319481
+4,false,false,false,144180,0.006336855420103452
+5,true,true,true,2046459,0.08994392291697524
+6,true,true,true,1315739,0.0578280469801047

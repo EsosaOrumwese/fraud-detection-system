@@ -1,0 +1,2 @@
+fraud_flow,flows,min_events_per_flow,median_events_per_flow,max_events_per_flow,nonstandard_flow_shapes
+True,7132,2,2.0,2,0
