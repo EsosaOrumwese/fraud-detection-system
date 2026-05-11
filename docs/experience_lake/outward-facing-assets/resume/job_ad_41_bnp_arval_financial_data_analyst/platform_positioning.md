@@ -8,13 +8,13 @@ The BNP / Arval role is about joining a finance team to build and maintain data 
 
 The platform story should quietly answer:
 
-> Can this person take messy and high volume financial data, organise it into reliable flows, maintain queryable datasets, support reporting requests, and make the data more usable for finance and risk decisions?
+> Can this person take complex, large financial datasets, organise them into reliable data flows, support finance reporting requests, and keep the data trusted, governed, and usable for non-technical finance users?
 
 ## Arval X Hierarchy
 
 Before mapping the platform to the role, Arval's X must be understood first.
 
-For this job ad, X means the finance/data problem Arval is hiring the Financial Data Analyst to help solve. The data flows, SAS workflows, SQL extracts, reporting outputs, governance checks, reconciliation logic, and data quality controls are not the lead signal. They are the way Arval expects the analyst to achieve X.
+For this job ad, X means the finance data usability, reporting, and governance problem Arval is hiring the Financial Data Analyst to help solve. The data flows, SAS workflows, SQL extracts, reporting outputs, governance checks, reconciliation logic, and data quality controls are not the lead signal. They are the way Arval expects the analyst to achieve X.
 
 The corrected positioning order is:
 
