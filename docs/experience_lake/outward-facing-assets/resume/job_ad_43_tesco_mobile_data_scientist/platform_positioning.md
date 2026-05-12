@@ -82,33 +82,31 @@ The business mechanism can look like Z because it often uses phrases such as "by
 
 | Level 2 area | Level 3 concrete X | Business mechanism / target signal |
 |---|---|---|
-| Reduce customer churn | Reduce churn risk among customers approaching contract renewal | Usage drop-off, price sensitivity, service issues, upgrade intent, contract-end behaviour. |
-| Reduce customer churn | Reduce early-life churn among new Tesco Mobile customers | Poor onboarding signals, low usage, failed setup patterns, early dissatisfaction indicators. |
-| Personalise customer communications | Personalise renewal, upgrade, or SIM-only offer messages | Lifecycle stage, usage behaviour, device age, likely response, price sensitivity. |
-| Personalise customer communications | Improve relevance of customer messages across customer groups | High-data usage, low engagement, roaming behaviour, upgrade readiness, price sensitivity. |
-| Improve marketing effectiveness | Improve campaign targeting for tariff changes, handset upgrades, add-ons, or retention offers | Propensity to respond, customer value, product fit, prior campaign behaviour, usage patterns. |
-| Improve marketing effectiveness | Reduce wasted marketing spend by excluding poor-fit customers from campaigns | Low response probability, offer mismatch, churn risk, unsuitable lifecycle stage. |
-| Optimise stock management | Improve handset or SIM stock planning | Upgrade cycles, product popularity, location demand, campaign periods, seasonal patterns. |
-| Improve product decisions | Identify customer segments underserved by existing plans, bundles, or add-ons | Usage behaviour, churn risk, response patterns, plan suitability, customer value. |
-| Personalise customer communications | Reduce blunt or poorly timed customer interventions | Behaviour signals showing whether a customer needs an offer, support message, retention action, or no action. |
-| Improve product decisions | Identify customers likely to experience bill shock or poor plan fit | Usage spikes, tariff mismatch, data overuse, low value from current plan, unusual spend movement. |
-| Improve operational prioritisation | Prioritise customer groups where intervention is most likely to matter | Retention likelihood, expected value, service friction, risk movement, response probability. |
-| Detect fraud or unusual behaviour | Detect abnormal usage, account activity, or transaction patterns earlier | Usage anomalies, sudden account changes, unusual transactions, device/SIM behaviour, suspicious activity patterns. |
-| Shape customer and business strategy | Compare customer strategies before rollout | Different thresholds, offer rules, campaign eligibility, timing rules, customer segments. |
-| Improve decision confidence | Give teams clearer evidence before changing campaigns, products, or processes | Model lift, test results, behavioural drivers, segment differences, trade-off analysis. |
+| Personalising customer communications | Personalise renewal, upgrade, SIM-only, add-on, or support messages for different customer groups. | Lifecycle stage, usage behaviour, device age, plan fit, engagement history, price sensitivity, likely response. |
+| Personalising customer communications | Reduce generic or poorly timed customer communications. | Low message relevance, poor timing, unsuitable offer, customer lifecycle mismatch, low engagement signals. |
+| Improving marketing effectiveness | Improve targeting for retention, upgrade, tariff-change, add-on, or handset campaigns. | Propensity to respond, customer value, product fit, prior campaign behaviour, usage patterns, churn risk. |
+| Improving marketing effectiveness | Reduce wasted marketing activity by excluding poor-fit customers from campaigns. | Low response probability, offer mismatch, unsuitable lifecycle stage, weak product fit, low expected value. |
+| Optimising stock management | Improve handset, SIM, or device stock planning across locations or campaign periods. | Upgrade cycles, product popularity, location demand, seasonal patterns, campaign timing, customer demand signals. |
+| Optimising stock management | Reduce mismatch between expected customer demand and available stock. | Demand variation, device popularity, local customer mix, promotion periods, renewal/upgrade patterns. |
+| Reducing customer churn | Reduce churn risk among customers approaching contract renewal. | Usage drop-off, price sensitivity, service issues, upgrade intent, contract-end behaviour, competitor switching risk. |
+| Reducing customer churn | Reduce early-life churn among new Tesco Mobile customers. | Poor onboarding signals, low early usage, failed setup patterns, early dissatisfaction, service-contact behaviour. |
+| Churn modelling | Identify customers most likely to leave before they reach a churn decision point. | Contract stage, usage decline, complaint/service friction, price movement, inactivity, declining engagement. |
+| Fraud modelling | Detect abnormal usage, account activity, or transaction patterns earlier. | Usage anomalies, sudden account changes, unusual transactions, SIM/device behaviour, suspicious activity patterns. |
+| Propensity modelling | Identify customers most likely to respond to offers, upgrades, retention actions, or add-ons. | Response likelihood, usage profile, product fit, lifecycle stage, prior campaign response, customer value. |
+| Propensity modelling | Support more relevant customer targeting before campaigns or interventions go live. | Offer suitability, predicted response, customer need, price sensitivity, segment behaviour, timing signals. |
 
 The key point:
 
 > Level 0 explains why Tesco is hiring.  
 > Level 1 explains the broad outcomes they care about.  
-> Level 2 gives short business outcome examples from the job ad.  
+> Level 2 gives problem, project, and modelling areas from the job ad.  
 > Level 3 makes those examples specific enough by naming both the concrete outcome and the business mechanism behind it.
 
 Only after the full Tesco X hierarchy is clear should the platform be mapped to an equivalent hierarchy.
 
 The working hierarchy is:
 
-> Tesco company problem -> Tesco outcome facet -> Tesco business outcome example -> Tesco concrete scenario plus business mechanism -> platform equivalent concrete X plus platform mechanism -> Y proof -> Z method
+> Tesco company problem -> Tesco outcome facet -> Tesco problem/project/modelling area -> Tesco concrete scenario plus business mechanism -> platform evidence that can support the same employer problem -> Y proof -> Z method
 
 ## Platform X Hierarchy
 
