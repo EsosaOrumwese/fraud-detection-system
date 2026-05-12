@@ -105,3 +105,74 @@ For the first resume block, the strongest six chains are:
 6. Stakeholder decision support
 
 Connected loyalty / cross-product relationship and proposition change support should be used as supporting language inside the bullets unless more M&S FS product specificity is needed.
+
+## Business-Facing Achievement Directions
+
+These achievement directions translate the selected chains into plain business language before metrics or methods are added.
+
+| Chain | Business-facing achievement direction |
+|---|---|
+| Personalised offer design | Improved personalised offer selection by identifying customer groups most likely to respond before launch, helping focus FS offers on the right customers. |
+| Loyalty performance diagnosis | Explained changes in loyalty-offer performance by analysing response, uptake, and customer trends, helping inform future proposition and offer decisions. |
+| Customer behaviour segmentation | Improved understanding of customer behaviour across segments, channels, and propositions, turning behaviour patterns into clearer offer, journey, and revenue opportunities. |
+| Commercial growth opportunity | Identified FS growth opportunities across customer groups and product lines, helping prioritise areas with stronger potential to grow spend, revenue, and M&S sales. |
+| Customer journey and communications | Improved customer communication relevance by identifying when different customer groups needed retention, product, or support messages based on behaviour and lifecycle signals. |
+| Stakeholder decision support | Supported commercial decision-making by turning customer and offer analysis into clear recommendations for proposition, targeting, and loyalty decisions. |
+
+## Measured Result Layer
+
+The measured result should make the business contribution clear to a recruiter or hiring manager. The wording should keep the job-ad language visible and avoid internal analytics shorthand.
+
+| Chain | Business-facing achievement with measured result |
+|---|---|
+| Personalised offer design | Improved personalised offer targeting by identifying the top 20% of customers most likely to respond, capturing 42% of expected positive responses before launch. |
+| Loyalty performance diagnosis | Explained loyalty-offer performance across 5 business measures, covering response, uptake, customer value, repeat behaviour, and wasted targeting to inform future offer and proposition changes. |
+| Customer behaviour segmentation | Improved customer understanding across segment, channel, and proposition by separating customers into 3 groups for retention, growth, and support decisions. |
+| Commercial growth opportunity | Identified FS growth opportunities by finding customer and product-line areas where targeting could reduce wasted offer activity by 11% without losing coverage of valuable customer groups. |
+| Customer journey and communications | Improved customer communication relevance by identifying which customer groups needed retention, product, or support messages before contact, using behaviour and lifecycle signals. |
+| Stakeholder decision support | Supported commercial decision-making by comparing 3 offer or targeting options across 5 business measures, helping select lower-waste loyalty actions before rollout. |
+
+## Compressed Method Layer
+
+Compressed method explains how the result was achieved without turning the bullet into a technical or project report.
+
+| Chain | Business-facing achievement with measured result + compressed method |
+|---|---|
+| Personalised offer design | Improved personalised offer targeting by identifying the top 20% of customers most likely to respond, capturing 42% of expected positive responses before launch through analysis of past offer response and customer behaviour. |
+| Loyalty performance diagnosis | Explained loyalty-offer performance across 5 business measures, covering response, uptake, customer value, repeat behaviour, and wasted targeting through deep-dive trend analysis. |
+| Customer behaviour segmentation | Improved customer understanding across segment, channel, and proposition by separating customers into 3 groups for retention, growth, and support decisions using customer behaviour analysis. |
+| Commercial growth opportunity | Identified FS growth opportunities by finding customer and product-line areas where targeting could reduce wasted offer activity by 11% without losing coverage of valuable customer groups through product and customer performance analysis. |
+| Customer journey and communications | Improved customer communication relevance by identifying which customer groups needed retention, product, or support messages before contact through behaviour and lifecycle analysis. |
+| Stakeholder decision support | Supported commercial decision-making by comparing 3 offer or targeting options across 5 business measures, helping select lower-waste loyalty actions before rollout through stakeholder-ready analysis and recommendations. |
+
+## Language Rule
+
+Use recruiter and job-description language, but avoid internal analytics shorthand that forces the reader to interpret the point.
+
+Keep M&S-facing wording such as:
+
+- customer;
+- loyalty;
+- commercial;
+- Financial Services;
+- products and propositions;
+- personalised offers;
+- customer journeys;
+- customer communications;
+- performance of loyalty offers;
+- deep dive analysis;
+- trends;
+- segment, channel, and proposition;
+- grow spend;
+- increase revenue;
+- M&S sales;
+- stakeholders;
+- Commercial, Sparks, and Data / Analytics / AI.
+
+Avoid internal shorthand such as:
+
+- higher-fit;
+- low-fit;
+- target signal;
+- propensity segments;
+- priority-customer coverage, unless rewritten in plain business language.
