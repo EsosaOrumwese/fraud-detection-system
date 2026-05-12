@@ -18,7 +18,7 @@ Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
 RELEVANT EXPERIENCE
 
 Data Scientist
-Customer Behaviour ML Platform — Exeter, UK | May 2025 – Present
+Customer Behaviour ML Platform - Exeter, UK | May 2025 - Present
 AWS-hosted customer-behaviour ML platform using SQL/PySpark pipelines, statistical modelling, scoring, validation, and monitoring across a 2.35B-row customer data surface to support churn, propensity, fraud detection, targeting, and business decisioning.
 
 - Improved retention targeting by 18%, identifying customers likely to disengage before retention decisions using customer behaviour modelling.
@@ -29,7 +29,7 @@ AWS-hosted customer-behaviour ML platform using SQL/PySpark pipelines, statistic
 - Supported evidence-led customer decisioning by comparing 3 strategy options across 5 outcome measures before rollout.
 
 Data Scientist
-University of Exeter — Exeter, UK | Aug 2024
+University of Exeter - Exeter, UK | Aug 2024
 Behavioural modelling project using smartphone sensor signals to support usage-based insurance risk decisions without relying on costly in-vehicle telematics.
 
 - Supported lower-cost usage-based insurance decisioning by modelling transport behaviour and driver identity from smartphone sensor signals.
@@ -37,7 +37,7 @@ Behavioural modelling project using smartphone sensor signals to support usage-b
 - Translated smartphone movement patterns into risk-assessment insight, helping stakeholders understand how sensor behaviour could support driver-risk decisions.
 
 Business Analyst
-University of Exeter — Exeter, UK | Nov 2023
+University of Exeter - Exeter, UK | Nov 2023
 Business analytics project explaining disruption, recovery, and policy-linked activity changes across countries and business sectors.
 
 - Explained business recovery patterns across 220 countries and 12 sectors, showing where activity returned, remained disrupted, or shifted from pre-crisis behaviour.
@@ -45,7 +45,7 @@ Business analytics project explaining disruption, recovery, and policy-linked ac
 - Produced 3 evidence-led strategy recommendations, translating visual trend analysis into business-facing decision support.
 
 Completions Engineer
-South Western Technologies & Oilfield Services Ltd — Rivers, Nigeria | Jul 2021 – Aug 2022
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Operations reporting and field-data coordination role supporting live rig decisions, handovers, HSE documentation, and completions execution.
 
 - Improved live operational decision visibility by tracking completion progress, equipment sequence, tubing/casing tallies, depths, and daily rig activity.
