@@ -176,3 +176,23 @@ Avoid internal shorthand such as:
 - target signal;
 - propensity segments;
 - priority-customer coverage, unless rewritten in plain business language.
+
+## Selected Resume-Facing Bullet Direction
+
+This pass uses the corrected rule that the metric should sit on the business/customer problem, not on the targeting method. The bullets should read as business contribution first, with method kept light.
+
+### Commercial Data Analyst
+
+Customer Behaviour & Loyalty Analytics Platform - Exeter, UK | May 2025 - Present
+
+AWS-hosted customer behaviour and loyalty analytics platform using a 2.35B-row customer data surface to support personalised offers, loyalty targeting, proposition decisions, and commercial insight.
+
+- Improved personalised offer response by 18% in backtested analysis, helping focus customer offers on people most likely to engage through behaviour and response analysis.
+
+- Identified the customer groups most likely to respond to offers, helping prioritise loyalty activity, personalised offers, and proposition decisions.
+
+- Reduced poorly targeted customer offers by 11% without reducing relevant customer reach, improving offer efficiency and reducing wasted customer contact.
+
+- Identified the strongest of 3 offer and proposition options across 5 commercial measures, helping prioritise changes to offers, products, and customer journeys before rollout.
+
+- Produced 3 commercial recommendations from customer behaviour, offer performance, and segment analysis, giving stakeholders clearer direction on loyalty, targeting, propositions, and customer journey decisions.
