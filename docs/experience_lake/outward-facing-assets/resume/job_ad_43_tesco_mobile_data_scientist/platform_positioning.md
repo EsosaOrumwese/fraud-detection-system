@@ -108,6 +108,49 @@ The working hierarchy is:
 
 > Tesco company problem -> Tesco outcome facet -> Tesco problem/project/modelling area -> Tesco concrete scenario plus business mechanism -> platform evidence that can support the same employer problem -> Y proof -> Z method
 
+### Mapping Guardrail Before Platform Evidence
+
+The next step is not to create a separate platform problem tree.
+
+The previous failure point was allowing the platform's own Level 2 and Level 3 language to diverge too far from Tesco's problem language. That made the final bullets sound like they solved a platform-specific risk/review problem, rather than Tesco's stated problem.
+
+For this role, Tesco's Level 2 and Level 3 problem language remains the controlling structure. The platform should be used as evidence that can support those Tesco problems, not as a reason to rename the problem into something else.
+
+The rule is:
+
+> Do not translate Tesco's problem into the platform's problem. Translate the platform's evidence into Tesco's problem.
+
+This means the platform can supply:
+
+- data sources;
+- behavioural signals;
+- modelling methods;
+- statistical proof;
+- production workflow evidence;
+- monitoring and validation evidence;
+- stakeholder-facing explanation.
+
+But the X should still remain recognisably tied to Tesco's problem language.
+
+### Tesco X To Platform Evidence Fit Check
+
+Before selecting bullet anchors, each Tesco Level 3 scenario should be tested against the platform evidence.
+
+| Tesco Level 3 concrete X | Tesco business mechanism / target signal | Can the platform credibly support this? | Platform evidence or proxy | Risk of overclaim |
+|---|---|---|---|---|
+| Personalise renewal, upgrade, SIM-only, add-on, or support messages for different customer groups. | Lifecycle stage, usage behaviour, device age, plan fit, engagement history, price sensitivity, likely response. | Partial. | The platform can support behavioural segmentation, propensity-style scoring, customer/account grouping, and decision thresholds, but it does not directly contain Tesco Mobile product, tariff, device, or message-response data. | High if phrased as actual Tesco-style campaign personalisation. Safer as targeted decisioning or propensity-style prioritisation. |
+| Reduce generic or poorly timed customer communications. | Low message relevance, poor timing, unsuitable offer, customer lifecycle mismatch, low engagement signals. | Partial. | The platform can support reducing blunt interventions through segmentation, thresholds, and behavioural signals. | Medium to high if phrased as communication performance, because the platform does not directly model message timing or campaign engagement. |
+| Improve targeting for retention, upgrade, tariff-change, add-on, or handset campaigns. | Propensity to respond, customer value, product fit, prior campaign behaviour, usage patterns, churn risk. | Partial. | The platform supports propensity-style scoring, behavioural features, response/risk likelihood ranking, and segment-level decision strategies. | Medium if kept as targeting/propensity. High if claiming tariff, handset, or campaign response without evidence. |
+| Reduce wasted marketing activity by excluding poor-fit customers from campaigns. | Low response probability, offer mismatch, unsuitable lifecycle stage, weak product fit, low expected value. | Partial. | The platform supports exclusion logic through low-probability groups, threshold testing, and lower-value review paths. | Medium to high because current evidence is stronger for decision prioritisation than marketing campaign exclusion. |
+| Improve handset, SIM, or device stock planning across locations or campaign periods. | Upgrade cycles, product popularity, location demand, seasonal patterns, campaign timing, customer demand signals. | Weak. | The platform may show large-scale behavioural forecasting discipline, but it does not directly support stock, location demand, device inventory, or campaign-period demand planning. | High. Do not lead with this unless separate evidence exists. |
+| Reduce mismatch between expected customer demand and available stock. | Demand variation, device popularity, local customer mix, promotion periods, renewal/upgrade patterns. | Weak. | No direct platform evidence for stock availability, device demand, or inventory mismatch. | High. Avoid as a bullet anchor. |
+| Reduce churn risk among customers approaching contract renewal. | Usage drop-off, price sensitivity, service issues, upgrade intent, contract-end behaviour, competitor switching risk. | Medium. | The platform can support churn-risk-style modelling through customer/account behaviour, activity drop-off, risk movement, historical outcomes, and prioritisation before escalation. | Medium. Stronger if phrased as churn-risk-style or retention-risk modelling rather than actual contract-renewal churn unless renewal evidence is created. |
+| Reduce early-life churn among new Tesco Mobile customers. | Poor onboarding signals, low early usage, failed setup patterns, early dissatisfaction, service-contact behaviour. | Weak to partial. | The platform can support early-behaviour deterioration, but not onboarding, setup, or new-customer lifecycle unless additional evidence is built. | High if claiming early-life churn directly. |
+| Identify customers most likely to leave before they reach a churn decision point. | Contract stage, usage decline, complaint/service friction, price movement, inactivity, declining engagement. | Medium. | The platform supports likelihood modelling, behavioural decline, outcome labels, time-based validation, and priority scoring. | Medium. Needs careful wording around churn decision point and available proxy signals. |
+| Detect abnormal usage, account activity, or transaction patterns earlier. | Usage anomalies, sudden account changes, unusual transactions, SIM/device behaviour, suspicious activity patterns. | Strong. | The platform is strongest here because it already works with account, transaction, risk, decision, and outcome signals, anomaly-style behaviour, and fraud/risk decisioning. | Low to medium. Avoid claiming SIM/device behaviour unless evidence exists. |
+| Identify customers most likely to respond to offers, upgrades, retention actions, or add-ons. | Response likelihood, usage profile, product fit, lifecycle stage, prior campaign response, customer value. | Partial. | The platform can support propensity-style ranking and segmentation, but not actual offer, upgrade, or add-on response unless additional response labels are positioned. | Medium to high. Safer as propensity-style decisioning unless response evidence is built. |
+| Support more relevant customer targeting before campaigns or interventions go live. | Offer suitability, predicted response, customer need, price sensitivity, segment behaviour, timing signals. | Partial. | The platform supports pre-rollout strategy comparison, threshold testing, segment analysis, and decision evidence. | Medium. Good support angle, but should not overclaim live campaign performance. |
+
 ## Platform X Hierarchy
 
 This section maps the platform into an equivalent problem hierarchy.
