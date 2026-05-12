@@ -37,3 +37,15 @@ Operations reporting and field-data coordination role supporting live operationa
 - Improved live operational decision visibility by tracking completion progress, equipment sequence, tubing/casing tallies, depths, and daily rig activity.
 - Reduced reporting ambiguity across 4 operational record types, reconciling field reports, HSE records, equipment checks, and daily updates before handover.
 - Supported safer field execution by coordinating reporting, equipment readiness, and HSE requirements across completions, safety, and field operations teams.
+
+TECHNICAL SKILLS
+
+Commercial & Customer Analytics: Customer behaviour analysis, loyalty analytics, offer performance analysis, customer segmentation, channel analysis, proposition analysis, customer journey insight, marketing effectiveness analysis.
+
+Business Decision Support: Commercial insight, trend analysis, deep-dive analysis, evidence-led recommendations, proposition decision support, spend/revenue opportunity analysis, stakeholder-ready reporting.
+
+Data & Analytical Tools: Excel, PowerPoint, Word, SQL, Python, Pandas, NumPy, data modelling, large-scale data preparation, data visualisation.
+
+Modelling & Evaluation: Propensity modelling, customer targeting, classification, segmentation, model evaluation, A/B testing, champion/challenger evaluation.
+
+Stakeholder Communication: Commercial storytelling, non-technical communication, stakeholder management, presentation building, adapting insight to audience.
