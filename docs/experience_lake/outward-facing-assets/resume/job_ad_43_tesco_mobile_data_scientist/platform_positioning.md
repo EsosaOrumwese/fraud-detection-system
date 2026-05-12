@@ -28,7 +28,7 @@ This matters because a fast scan does not usually wait for the end of a sentence
 
 This is the broad company problem:
 
-> Use data science to solve real business problems and improve customer experiences.
+> Use data and analytical thinking to solve real business problems and improve customer experiences.
 
 This is the top-level frame of the role. It should shape the whole CV, especially the headline and professional summary, but it is usually too vague to repeat as the lead phrase in individual bullets.
 
@@ -41,10 +41,10 @@ These are the main ways the umbrella X appears in the job ad.
 | Improve customer experience | Make customer journeys, communications, decisions, or service interactions more relevant, timely, targeted, or useful. |
 | Improve business outcomes | Use customer data and analytics to improve commercial, operational, retention, marketing, or decision outcomes. |
 | Shape business decisions | Produce evidence that influences how teams prioritise, act, test, allocate resources, or change strategy. |
-| Improve products, processes, and performance | Identify opportunities where data science can make products, workflows, decision systems, or operating performance better. |
+| Improve products | Identify opportunities where data and analytical thinking can make products better. |
+| Improve processes | Identify opportunities where data and analytical thinking can make workflows or ways of working better. |
+| Improve performance | Identify opportunities where data and analytical thinking can improve business, product, operational, or model performance. |
 | Deliver impactful outcomes | Show that the work produced measurable or meaningful value, not just analysis, modelling, or reporting activity. |
-| Generate customer and business insight | Turn complex customer and behavioural data into findings that explain what is happening, why it matters, and what should change. |
-| Resolve business challenges | Take ambiguous problems and define a structured analytical path to investigation, evidence, and action. |
 | Support project and resource planning | Help teams decide what should be prioritised, tested, resourced, rolled out, or monitored. |
 
 ### Level 2 - Business Outcome Examples From The Ad And Role Context
@@ -124,8 +124,8 @@ The purpose is not to make Level 0 sound platform-specific too early. At the top
 
 | Side | Level 0 |
 |---|---|
-| Tesco Level 0 | Use data science to solve real business problems and improve customer experiences. |
-| Platform Level 0 | Use data science to solve real business problems and improve customer experiences. |
+| Tesco Level 0 | Use data and analytical thinking to solve real business problems and improve customer experiences. |
+| Platform Level 0 | Use data and analytical thinking to solve real business problems and improve customer experiences. |
 
 Level 0 should stay close to the employer's wording because this is the broad problem being matched. It should not yet lead with platform-specific mechanics such as customer behaviour/risk intelligence, model workflows, PySpark, thresholds, or monitoring.
 
@@ -137,7 +137,7 @@ That wording may become useful lower in the hierarchy, but at Level 0 it is too 
 
 Correct Level 0 posture:
 
-> Use data science to solve real business problems and improve customer experiences.
+> Use data and analytical thinking to solve real business problems and improve customer experiences.
 
 This creates the top-level match. The platform-specific meaning of that statement should be developed in Level 1, Level 2, and Level 3.
 
