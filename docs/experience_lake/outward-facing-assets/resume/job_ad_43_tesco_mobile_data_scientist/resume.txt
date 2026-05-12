@@ -19,11 +19,11 @@ RELEVANT EXPERIENCE
 
 Data Scientist
 Customer Behaviour ML Platform — Exeter, UK | May 2025 – Present
-AWS-hosted customer-behaviour ML platform using SQL/PySpark pipelines, statistical modelling, and monitoring across a 2.35B-row customer/account data surface to support churn-risk identification, propensity targeting, customer targeting, fraud behaviour detection, and business decisioning.
+AWS-hosted customer-behaviour ML platform using SQL/PySpark pipelines, statistical modelling, and monitoring across a 2.35B-row customer data surface to support churn, propensity, fraud detection, targeting, and business decisioning.
 
 - Improved churn-risk identification by 18% in backtested evaluation, identifying customers likely to disengage before retention decision points through customer behaviour modelling.
-- Concentrated 42% of likely target outcomes in the top 20% scored customer segment, using propensity scoring to focus offers, messages, and interventions on higher-fit customers.
-- Reduced low-fit marketing targeting by 11% while maintaining priority-customer coverage, using customer segmentation and model-led targeting to improve campaign/intervention efficiency.
+- Concentrated 42% of likely high-fit customers in the top 20% scored customer segment, using propensity scoring to focus offers, messages, and interventions on customers most likely to benefit.
+- Reduced low-fit marketing targeting by 11% while maintaining high-value customer coverage, using customer segmentation and model-led targeting to improve campaign and intervention efficiency.
 - Improved customer communication relevance by segmenting customers around lifecycle stage, behaviour, and response likelihood, supporting more targeted retention, upgrade, and intervention messaging.
 - Improved early detection of unusual customer/account behaviour by 18% in backtested evaluation, surfacing abnormal usage, activity, and transaction patterns through customer behaviour modelling.
 - Compared 3 customer decision strategies across 5 outcome measures, using repeatable SQL/PySpark scoring, validation, and monitoring workflows to support evidence-led rollout decisions.
