@@ -51,9 +51,52 @@ This is the top-level frame of the role. It should shape the whole CV, especiall
 
 ### Level 1 - Main Outcome Facets
 
+These are the main ways the umbrella X appears in the job ad.
+
+| Facet | Meaning |
+|---|---|
+| Build and maintain data flows | Create and keep the finance team's data flows working so they enhance data IQ. |
+| Review existing data processing | Assess current SaaS/data processing and identify where it can work better. |
+| Utilise current resources effectively | Make better use of existing data, systems, tools, and processing resources. |
+| Manage general data requests from finance | Handle finance data requests clearly and reliably. |
+| Support finance reporting needs | Create and maintain large financial datasets for reporting purposes. |
+| Uphold data quality and governance practices | Work with team members to keep data quality and governance standards upheld. |
+| Communicate with non-technical finance team members | Explain data outputs, requests, and issues clearly to finance users. |
+
 ### Level 2 - Business Outcome Examples From The Ad And Role Context
 
+Arval gives responsibilities and requirements that make the broad X less vague. At this level, the labels should stay short and scan-friendly because they are still business outcome areas rather than full scenarios.
+
+These examples are still not fully bullet-ready because they do not yet name the exact finance request, dataset, processing issue, reporting need, or governance risk. They sit between the broad Level 1 outcome facets and the highly specific Level 3 scenarios.
+
+| Level 2 business outcome example | Source | What it reveals |
+|---|---|---|
+| Reliable finance data flows | Direct role context | The finance team needs maintained data flows that improve data IQ. |
+| Improved SaaS data processing | Direct responsibility | Existing processing should be reviewed and made more effective. |
+| Effective use of current resources | Direct responsibility | The role cares about making existing tools, data, and processes work better. |
+| Finance data request fulfilment | Direct responsibility | Finance users need data requests handled reliably. |
+| Reporting-ready financial datasets | Direct requirement | Large financial datasets need to be created and maintained for reporting. |
+| Governed data quality | Direct responsibility/requirement | Data quality and governance standards must be upheld. |
+
 ### Level 3 - Arval-Specific Concrete Scenarios
+
+Level 2 is still not fully concrete. Phrases such as "reliable finance data flows" or "reporting-ready financial datasets" are more specific than the umbrella problem, but they still do not say which finance situation, dataset need, processing issue, reporting request, or governance concern is being improved.
+
+Level 3 makes the Arval scenarios more specific while staying inside the job ad's language. This is still Arval's X hierarchy, not the platform mapping.
+
+| Level 2 area | Level 3 concrete X | Business mechanism / target signal |
+|---|---|---|
+| Reliable finance data flows | Maintain finance data flows used by the finance team for reporting and analysis | Recurring data flows, finance reporting inputs, complex datasets. |
+| Reliable finance data flows | Make finance data easier to query, model, and maintain | SQL data modelling, complex datasets, reporting structures. |
+| Improved SaaS data processing | Review existing SaaS data processing for finance reporting work | Current SaaS programs, existing processing steps, repeated finance outputs. |
+| Improved SaaS data processing | Improve existing processing so current resources are used more effectively | Current resources, repeated processing, process improvement opportunities. |
+| Effective use of current resources | Reuse existing data and tools to support finance reporting needs | Existing datasets, SaaS programs, SQL/SAS workflows. |
+| Finance data request fulfilment | Turn general finance data requests into reporting outputs | Finance questions, requested fields, reporting needs, output format. |
+| Finance data request fulfilment | Explain finance data outputs clearly to non-technical users | Data definitions, reporting assumptions, finance user questions. |
+| Reporting-ready financial datasets | Create large financial datasets for reporting purposes | Financial records, reporting fields, complex dataset structure. |
+| Reporting-ready financial datasets | Maintain large financial datasets so reporting remains usable | Dataset updates, reporting consistency, complex data maintenance. |
+| Governed data quality | Uphold data quality practices in finance reporting data | Data checks, inconsistent values, missing data, reporting reliability. |
+| Governed data quality | Keep finance datasets aligned with governance standards | Governance standards, data quality practices, team review. |
 
 ## Platform X Hierarchy / Platform Problem Tree
 
