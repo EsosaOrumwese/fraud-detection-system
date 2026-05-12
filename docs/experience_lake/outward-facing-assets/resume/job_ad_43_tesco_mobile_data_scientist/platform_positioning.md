@@ -49,25 +49,21 @@ These are the main ways the umbrella X appears in the job ad.
 
 ### Level 2 - Business Outcome Examples From The Ad And Role Context
 
-Tesco gives examples that make the broad X less vague. At this level, the labels should stay short and scan-friendly, because they are still business outcome areas rather than full scenarios.
+Tesco gives examples and role-context signals that make the broad X less vague. At this level, the aim is not yet to write full scenarios. It is to capture the named problem, project, and modelling areas that Tesco itself gives us before Level 3 makes them concrete.
 
-Some Level 2 labels come directly from the job ad examples. Others are inferred from the wider role context, responsibilities, and requirements. This is acceptable as long as the hierarchy is clear about the difference.
+Level 2 should stay close to the job ad's own language. The source column should therefore preserve the actual wording from the ad, not a classifier such as "direct example" or "inferred context".
 
 These examples are still not fully bullet-ready because they do not yet name the exact customer situation, behaviour, timing, or decision point. They sit between the broad Level 1 outcome facets and the highly specific Level 3 scenarios.
 
-Level 2 should not become long concern statements. A phrase such as "personalise customer communications" lands faster than "customer communications may be too generic, poorly timed, or insufficiently personalised." The concern/mechanism can be unpacked at Level 3.
-
-| Level 2 business outcome example | Source | What it reveals |
-|---|---|---|
-| Personalise customer communications | Direct ad example | Customer experience improvement is expected to be specific, targeted, and behaviour-led. |
-| Improve marketing effectiveness | Direct ad example | Business outcome improvement may mean better targeting, campaign performance, customer engagement, or commercial return. |
-| Optimise stock management | Direct ad example | Data science impact can be operational, not only customer-facing. |
-| Reduce customer churn | Direct ad example | Customer experience and business outcome can meet in retention, loyalty, and reduced customer loss. |
-| Improve product decisions | Inferred from role context | Product decisions should be shaped by customer data, behavioural evidence, and measured outcomes. |
-| Shape customer and business strategy | Inferred from role context | Decision-making should be shaped by evidence, not assumption or one-size-fits-all treatment. |
-| Improve operational prioritisation | Inferred from role context | Business impact can come from helping teams decide where attention, resource, or action should go first. |
-| Detect fraud or unusual behaviour | Inferred from role context | Customer and business outcomes can be affected by abnormal usage, account activity, or transaction patterns. |
-| Improve decision confidence | Inferred from role context | Teams need clearer evidence before changing campaigns, products, processes, thresholds, or customer strategies. |
+| Level 2 area | Source from ad | Why it belongs | What it clarifies |
+|---|---|---|---|
+| Personalising customer communications | "wide range of projects, from personalising customer communications..." | It is explicitly named as one of the project areas this Data Scientist may work on. | Customer experience work is expected to be targeted, relevant, and behaviour-led. |
+| Improving marketing effectiveness | "...and improving marketing effectiveness..." | It is explicitly named as a business outcome/project area. | The role is concerned with campaign effectiveness, targeting, engagement, or commercial return. |
+| Optimising stock management | "...to optimising stock management..." | It is explicitly named as an operational project area. | Data science impact is not only customer-facing; it can also improve operational decisions. |
+| Reducing customer churn | "...and reducing customer churn." | It is explicitly named as a business/customer outcome. | Retention and customer loss are part of the employer problem. |
+| Churn modelling | "Experience with churn, fraud or propensity modelling would be desirable" | It directly supports the named churn problem and shows the modelling type Tesco recognises as relevant. | Churn should not only be treated as a business outcome; it can also become a modelling problem. |
+| Fraud modelling | "Experience with churn, fraud or propensity modelling would be desirable" | It is explicitly named as a desirable modelling area. | Tesco sees abnormal/fraud-like behaviour modelling as relevant to this Data Scientist role. |
+| Propensity modelling | "Experience with churn, fraud or propensity modelling would be desirable" | It is explicitly named as a desirable modelling area. | Propensity links strongly to targeting, personalisation, customer response, marketing effectiveness, and decisioning. |
 
 ### Level 3 - Tesco-Specific Concrete Scenarios
 
