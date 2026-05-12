@@ -19,16 +19,16 @@ RELEVANT EXPERIENCE
 
 Data Scientist
 Customer Behaviour ML Platform — Exeter, UK | May 2025 – Present
-AWS-hosted customer-behaviour ML platform using SQL/PySpark pipelines, statistical modelling, and monitoring across a 2.35B-row customer data surface to support churn, propensity, fraud detection, targeting, and business decisioning.
+AWS-hosted customer-behaviour ML platform using SQL/PySpark pipelines, statistical modelling, scoring, validation, and monitoring across a 2.35B-row customer data surface to support churn, propensity, fraud detection, targeting, and business decisioning.
 
-- Improved retention targeting by 18% in backtested evaluation, identifying customers likely to disengage before retention decisions using customer behaviour modelling.
-- Focused customer targeting by concentrating 42% of customers most likely to benefit in the top 20% scored segment, helping prioritise offers, messages, and interventions.
-- Reduced wasted marketing targeting by 11% while maintaining priority-customer coverage, using customer segmentation and propensity scoring to improve campaign and intervention efficiency.
-- Improved customer communication relevance by separating customers into retention, upgrade, and intervention groups using lifecycle, behaviour, and response-likelihood signals.
-- Strengthened fraud detection and unusual-behaviour monitoring by surfacing abnormal usage, account activity, and transaction patterns before later rule-based triggers.
-- Supported evidence-led customer decisioning by comparing 3 strategy options across 5 outcome measures, helping select lower-waste targeting and intervention approaches before rollout.
+- Improved retention targeting by 18%, identifying customers likely to disengage before retention decisions using customer behaviour modelling.
+- Focused customer targeting by placing 42% of likely high-benefit customers in the top 20% scored segment for offers, messages, and interventions.
+- Reduced wasted marketing targeting by 11% while maintaining priority-customer coverage through segmentation and propensity scoring.
+- Improved customer communication relevance by grouping customers into retention, upgrade, and intervention segments using lifecycle and response signals.
+- Strengthened fraud detection by surfacing abnormal usage, account activity, and transaction patterns before later rule-based triggers.
+- Supported evidence-led customer decisioning by comparing 3 strategy options across 5 outcome measures before rollout.
 
-Usage-Based Insurance Behaviour Modelling
+Data Scientist
 University of Exeter — Exeter, UK | Aug 2024
 Behavioural modelling project using smartphone sensor signals to support usage-based insurance risk decisions without relying on costly in-vehicle telematics.
 
@@ -36,7 +36,7 @@ Behavioural modelling project using smartphone sensor signals to support usage-b
 - Improved behavioural risk classification reliability by combining transport-mode and driver-identification tasks into a shared deep learning workflow.
 - Translated smartphone movement patterns into risk-assessment insight, helping stakeholders understand how sensor behaviour could support driver-risk decisions.
 
-COVID-19 Business Recovery Trend Analysis
+Business Analyst
 University of Exeter — Exeter, UK | Nov 2023
 Business analytics project explaining disruption, recovery, and policy-linked activity changes across countries and business sectors.
 
