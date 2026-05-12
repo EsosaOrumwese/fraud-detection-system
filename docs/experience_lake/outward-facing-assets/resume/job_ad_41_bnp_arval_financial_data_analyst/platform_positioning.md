@@ -80,23 +80,46 @@ These examples are still not fully bullet-ready because they do not yet name the
 
 ### Level 3 - Arval-Specific Concrete Scenarios
 
-Level 2 is still not fully concrete. Phrases such as "reliable finance data flows" or "reporting-ready financial datasets" are more specific than the umbrella problem, but they still do not say which finance situation, dataset need, processing issue, reporting request, or governance concern is being improved.
+Level 2 is still not fully concrete. Phrases such as "reliable finance data flows" or "reporting-ready financial datasets" are more specific than the umbrella problem, but they still do not say which finance situation, which reporting moment, which dataset issue, or which processing/resource problem is being improved.
 
-Level 3 makes the Arval scenarios more specific while staying inside the job ad's language. This is still Arval's X hierarchy, not the platform mapping.
+Level 3 extrapolates Arval-specific scenarios from the job ad's finance-team context. This is still Arval's X hierarchy, not the platform mapping.
+
+Level 3 should contain both:
+
+| Element | Meaning |
+|---|---|
+| Concrete X | The specific finance/data outcome. |
+| Business mechanism / target signal | The dataset issue, reporting condition, processing pattern, request type, timing, or governance concern that explains how the outcome shows up in Arval's finance world. |
+
+The business mechanism can look like Z because it may use phrases such as "by reviewing", "by clarifying", or "by identifying". It is not the final Z. It is the business context that makes the X specific enough to map properly later. The final Z still comes from the role responsibilities: SQL, SAS programming, data modelling, maintaining complex datasets, reviewing existing SaaS processing, handling finance requests, reporting, communication, and data governance.
 
 | Level 2 area | Level 3 concrete X | Business mechanism / target signal |
 |---|---|---|
-| Reliable finance data flows | Maintain finance data flows used by the finance team for reporting and analysis | Recurring data flows, finance reporting inputs, complex datasets. |
-| Reliable finance data flows | Make finance data easier to query, model, and maintain | SQL data modelling, complex datasets, reporting structures. |
-| Improved SaaS data processing | Review existing SaaS data processing for finance reporting work | Current SaaS programs, existing processing steps, repeated finance outputs. |
-| Improved SaaS data processing | Improve existing processing so current resources are used more effectively | Current resources, repeated processing, process improvement opportunities. |
-| Effective use of current resources | Reuse existing data and tools to support finance reporting needs | Existing datasets, SaaS programs, SQL/SAS workflows. |
-| Finance data request fulfilment | Turn general finance data requests into reporting outputs | Finance questions, requested fields, reporting needs, output format. |
-| Finance data request fulfilment | Explain finance data outputs clearly to non-technical users | Data definitions, reporting assumptions, finance user questions. |
-| Reporting-ready financial datasets | Create large financial datasets for reporting purposes | Financial records, reporting fields, complex dataset structure. |
-| Reporting-ready financial datasets | Maintain large financial datasets so reporting remains usable | Dataset updates, reporting consistency, complex data maintenance. |
-| Governed data quality | Uphold data quality practices in finance reporting data | Data checks, inconsistent values, missing data, reporting reliability. |
-| Governed data quality | Keep finance datasets aligned with governance standards | Governance standards, data quality practices, team review. |
+| Reliable finance data flows | Keep monthly vehicle leasing finance reports supplied with the correct contract, billing, and customer-account data | Lease contract records, billing cycles, customer/account identifiers, reporting cut-off dates. |
+| Reliable finance data flows | Reduce uncertainty around which fleet/customer finance dataset should be used for a reporting pack | Multiple contract/account extracts, inconsistent customer identifiers, changing fleet records, reporting definitions. |
+| Improved SaaS data processing | Reduce repeated manual preparation in SaaS-based finance reporting for leasing accounts | Recurring report runs, duplicated export steps, repeated field mapping, manual cleaning. |
+| Improved SaaS data processing | Improve repeated finance processing where the same leasing data is prepared for recurring outputs | Reused reporting periods, recurring extracts, repeated preparation steps, duplicated report logic. |
+| Effective use of current resources | Reuse existing leasing finance data assets for recurring management reporting | Existing contract datasets, billing records, customer/fleet account fields, recurring report structures. |
+| Effective use of current resources | Make existing SaaS and finance data resources easier to use before adding new tooling | Current SaaS programs, existing datasets, team-owned processes, available reporting resources. |
+| Finance data request fulfilment | Turn ad hoc finance questions about vehicles, contracts, customers, or billing into reporting outputs | Requested reporting period, vehicle/customer segment, contract status, billing field, output format. |
+| Finance data request fulfilment | Reduce ambiguity in finance requests before reporting outputs are produced | Unclear request scope, missing definitions, unclear reporting period, uncertain output use. |
+| Reporting-ready financial datasets | Maintain reporting-ready datasets across leasing contracts, customer accounts, billing activity, and finance outputs | Contract records, customer/fleet accounts, billing activity, reporting periods, finance fields. |
+| Reporting-ready financial datasets | Keep large leasing finance datasets usable as reporting needs change over time | Dataset updates, changing reporting needs, complex records, recurring reporting requirements. |
+| Governed data quality | Prevent missing, stale, duplicate, or inconsistent leasing finance data from affecting reports | Missing contract fields, stale billing records, duplicate customer/account records, inconsistent reporting definitions. |
+| Governed data quality | Keep finance reporting data aligned with governance expectations across leasing datasets | Data quality practices, agreed definitions, review points, reporting reliability, team governance standards. |
+
+The key point:
+
+> Level 0 explains why Arval is hiring.  
+> Level 1 explains the broad outcomes they care about.  
+> Level 2 gives short business outcome examples from the job ad and role context.  
+> Level 3 makes those examples specific enough by naming both the concrete outcome and the business mechanism behind it.
+
+Only after the full Arval X hierarchy is clear should the platform be mapped to an equivalent hierarchy.
+
+The working hierarchy is:
+
+> Arval company problem -> Arval outcome facet -> Arval business outcome example -> Arval concrete scenario plus business mechanism -> platform equivalent concrete X plus platform mechanism -> Y proof -> Z method
 
 ## Platform X Hierarchy / Platform Problem Tree
 
