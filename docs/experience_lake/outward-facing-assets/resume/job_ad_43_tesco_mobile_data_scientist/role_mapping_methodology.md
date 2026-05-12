@@ -170,8 +170,8 @@ The measured result should prove the business/customer problem moved. It should 
 | Chain | Business-facing achievement with measured result |
 |---|---|
 | Churn / retention | Improved churn-risk identification by 18%, identifying customers likely to disengage before a retention decision point. |
-| Customer targeting / propensity | Concentrated 42% of likely high-fit customers in the top 20% scored customer segment, improving focus on customers most likely to benefit from offers, messages, or interventions. |
-| Marketing targeting / marketing waste | Reduced low-fit marketing targeting by 11% while maintaining high-value customer coverage, helping improve campaign efficiency and reduce wasted customer contact. |
+| Customer targeting / propensity | Concentrated 42% of customers most likely to respond in the top 20% scored segment, improving focus on customers most likely to benefit from offers, messages, or interventions. |
+| Marketing targeting / marketing waste | Reduced poorly targeted marketing activity by 11% while maintaining high-value customer coverage, helping improve campaign efficiency and reduce wasted customer contact. |
 | Communication relevance / personalisation | Improved customer communication relevance by segmenting high-fit customer groups, supporting more targeted retention, upgrade, or intervention messaging. |
 | Fraud / abnormal behaviour | Improved early detection of unusual customer/account behaviour by 18%, surfacing abnormal usage, activity, or transaction patterns before later triggers. |
 | Business decision-shaping | Compared 3 customer decision strategies across 5 outcome measures, helping select lower-waste targeting/intervention approaches while preserving priority-customer coverage. |
@@ -184,8 +184,8 @@ Compressed method is added lightly. It should explain how the business result wa
 | Business-facing achievement + measure | Compressed method |
 |---|---|
 | Improved churn-risk identification by 18% | through customer behaviour modelling and churn/propensity scoring |
-| Concentrated 42% of likely high-fit customers in the top 20% scored customer segment | using propensity scoring and customer segmentation |
-| Reduced low-fit marketing targeting by 11% while maintaining high-value customer coverage | using model-led customer targeting and segment comparison |
+| Concentrated 42% of customers most likely to respond in the top 20% scored segment | using propensity scoring and customer segmentation |
+| Reduced poorly targeted marketing activity by 11% while maintaining high-value customer coverage | using model-led customer targeting and segment comparison |
 | Improved customer communication relevance | using lifecycle, behaviour, and response-likelihood segmentation |
 | Improved early detection of unusual customer/account behaviour by 18% | through fraud-style customer behaviour modelling |
 | Compared 3 customer decision strategies across 5 outcome measures | using champion/challenger-style strategy evaluation |
@@ -202,9 +202,9 @@ AWS-hosted customer-behaviour ML platform using SQL/PySpark pipelines, statistic
 
 - Improved churn-risk identification by 18% in backtested evaluation, identifying customers likely to disengage before retention decision points through customer behaviour modelling.
 
-- Concentrated 42% of likely high-fit customers in the top 20% scored customer segment, using propensity scoring to focus offers, messages, and interventions on customers most likely to benefit.
+- Concentrated 42% of customers most likely to respond in the top 20% scored segment, using propensity scoring to focus offers, messages, and interventions.
 
-- Reduced low-fit marketing targeting by 11% while maintaining high-value customer coverage, using customer segmentation and model-led targeting to improve campaign and intervention efficiency.
+- Reduced poorly targeted marketing activity by 11% while maintaining high-value customer coverage, using customer segmentation and model-led targeting to improve campaign efficiency.
 
 - Improved customer communication relevance by segmenting customers around lifecycle stage, behaviour, and response likelihood, supporting more targeted retention, upgrade, and intervention messaging.
 

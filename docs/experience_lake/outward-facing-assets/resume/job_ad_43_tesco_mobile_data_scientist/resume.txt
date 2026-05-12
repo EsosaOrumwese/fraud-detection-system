@@ -1,11 +1,11 @@
 Esosa Orumwese
-Data Scientist | Customer Behaviour, Churn/Propensity/Fraud Modelling | Business Decisioning & Production ML
+Data Scientist | Customer Retention, Propensity & Fraud Modelling | Marketing Effectiveness & Production ML
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years using customer data, sales/customer behaviour, and operational data to solve business problems, improve customer experience, and support evidence-led decisions.
-Experienced in churn-risk, propensity, fraud detection, customer targeting, marketing effectiveness, and stock-management analytics across large-scale datasets.
-Turn complex datasets into deployed production ML workflows, monitored decision outputs, and clear recommendations for technical and non-technical stakeholders.
+4+ years improving customer retention, targeting, marketing effectiveness, fraud detection, and business decisioning through customer, behavioural, sales, and operational data.
+Experienced in identifying at-risk customers earlier, focusing offers and interventions on higher-fit segments, reducing low-fit targeting, and supporting evidence-led customer decisions.
+Build production-ready SQL/PySpark/Python ML workflows that turn complex datasets into monitored decision outputs and clear recommendations for technical and non-technical stakeholders.
 
 EDUCATION
 
@@ -21,35 +21,35 @@ Data Scientist
 Customer Behaviour ML Platform — Exeter, UK | May 2025 – Present
 AWS-hosted customer-behaviour ML platform using SQL/PySpark pipelines, statistical modelling, and monitoring across a 2.35B-row customer data surface to support churn, propensity, fraud detection, targeting, and business decisioning.
 
-- Improved churn-risk identification by 18% in backtested evaluation, identifying customers likely to disengage before retention decision points through customer behaviour modelling.
-- Concentrated 42% of likely high-fit customers in the top 20% scored customer segment, using propensity scoring to focus offers, messages, and interventions on customers most likely to benefit.
-- Reduced low-fit marketing targeting by 11% while maintaining high-value customer coverage, using customer segmentation and model-led targeting to improve campaign and intervention efficiency.
-- Improved customer communication relevance by segmenting customers around lifecycle stage, behaviour, and response likelihood, supporting more targeted retention, upgrade, and intervention messaging.
-- Improved early detection of unusual customer/account behaviour by 18% in backtested evaluation, surfacing abnormal usage, activity, and transaction patterns through customer behaviour modelling.
-- Compared 3 customer decision strategies across 5 outcome measures, using repeatable SQL/PySpark scoring, validation, and monitoring workflows to support evidence-led rollout decisions.
+- Improved retention targeting by 18% in backtested evaluation, identifying customers likely to disengage before retention decisions using customer behaviour modelling.
+- Focused customer targeting by concentrating 42% of customers most likely to benefit in the top 20% scored segment, helping prioritise offers, messages, and interventions.
+- Reduced wasted marketing targeting by 11% while maintaining priority-customer coverage, using customer segmentation and propensity scoring to improve campaign and intervention efficiency.
+- Improved customer communication relevance by separating customers into retention, upgrade, and intervention groups using lifecycle, behaviour, and response-likelihood signals.
+- Strengthened fraud detection and unusual-behaviour monitoring by surfacing abnormal usage, account activity, and transaction patterns before later rule-based triggers.
+- Supported evidence-led customer decisioning by comparing 3 strategy options across 5 outcome measures, helping select lower-waste targeting and intervention approaches before rollout.
 
 Usage-Based Insurance Behaviour Modelling
 University of Exeter — Exeter, UK | Aug 2024
-Behavioural modelling project using smartphone sensor signals to improve insurance risk decisioning without relying on costly in-vehicle telematics.
+Behavioural modelling project using smartphone sensor signals to support usage-based insurance risk decisions without relying on costly in-vehicle telematics.
 
-- Improved insurance-risk decisioning by modelling transport behaviour and driver identity from smartphone sensor signals, showing how lower-cost behavioural data could support usage-based pricing.
-- Increased behavioural classification reliability by combining transport-mode and driver-identification tasks into a shared deep learning workflow, reducing dependence on single-purpose models.
-- Translated complex smartphone movement patterns into practical risk-assessment insight for stakeholders, connecting sensor behaviour to fairer driver-risk decisions.
+- Supported lower-cost usage-based insurance decisioning by modelling transport behaviour and driver identity from smartphone sensor signals.
+- Improved behavioural risk classification reliability by combining transport-mode and driver-identification tasks into a shared deep learning workflow.
+- Translated smartphone movement patterns into risk-assessment insight, helping stakeholders understand how sensor behaviour could support driver-risk decisions.
 
 COVID-19 Business Recovery Trend Analysis
 University of Exeter — Exeter, UK | Nov 2023
 Business analytics project explaining disruption, recovery, and policy-linked activity changes across countries and business sectors.
 
-- Identified business recovery patterns across 220 countries and 12 sectors, helping explain where activity returned, remained disrupted, or shifted from pre-crisis behaviour.
-- Linked business activity changes with policy-response signals across 6 countries and 8 policy areas, showing how external decisions and events shaped recovery trends.
-- Produced 3 evidence-led strategy recommendations from visual trend analysis, translating complex disruption patterns into business-facing decision support.
+- Explained business recovery patterns across 220 countries and 12 sectors, showing where activity returned, remained disrupted, or shifted from pre-crisis behaviour.
+- Linked recovery trends to policy-response signals across 6 countries and 8 policy areas, helping explain how external decisions shaped business activity.
+- Produced 3 evidence-led strategy recommendations, translating visual trend analysis into business-facing decision support.
 
 Completions Engineer
 South Western Technologies & Oilfield Services Ltd — Rivers, Nigeria | Jul 2021 – Aug 2022
 Operations reporting and field-data coordination role supporting live rig decisions, handovers, HSE documentation, and completions execution.
 
 - Improved live operational decision visibility by tracking completion progress, equipment sequence, tubing/casing tallies, depths, and daily rig activity.
-- Reduced reporting ambiguity by reconciling 4 operational record types across field reports, HSE records, equipment checks, and daily updates before handover.
+- Reduced reporting ambiguity across 4 operational record types, reconciling field reports, HSE records, equipment checks, and daily updates before handover.
 - Supported safer field execution by coordinating reporting, equipment readiness, and HSE requirements across completions, safety, and field operations teams.
 
 TECHNICAL SKILLS
