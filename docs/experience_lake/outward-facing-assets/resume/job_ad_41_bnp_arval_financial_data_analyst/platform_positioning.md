@@ -41,7 +41,13 @@ It should start closer to:
 
 Only after the Arval X hierarchy is clear should the platform's SAS, SQL, cloud, reporting, reconciliation, and governance evidence be mapped into it.
 
-### Level 0 - Umbrella Employer Problem
+### Level 0 - Umbrella X
+
+This is the broad employer problem:
+
+> Enhance the finance team's data IQ by building and maintaining data flows.
+
+This is the top-level frame of the role. It should shape the whole CV, especially the headline and professional summary, but it is usually too broad to repeat as the lead phrase in individual bullets.
 
 ### Level 1 - Main Outcome Facets
 
