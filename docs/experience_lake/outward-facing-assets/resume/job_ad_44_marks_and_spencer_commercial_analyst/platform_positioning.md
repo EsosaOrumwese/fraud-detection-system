@@ -47,3 +47,35 @@ Level 2 turns the broad Level 1 outcomes into the named commercial problem/proje
 | Understand customer behaviour by segment, channel and proposition | Understand customer behaviour across segment, channel and proposition | "customer behaviours by segment, channel and proposition" | This is the customer-insight problem behind the role. |
 | Use loyalty-offer performance insight to inform decisions | Improve loyalty-offer performance insight and trend diagnosis | "performance of loyalty offers" / "deep dive analysis to understand trends" | This captures performance measurement and diagnostic analysis. |
 | Partner across Commercial, Sparks, Data/Analytics/AI | Support cross-functional commercial decision-making | "partner with... Commercial, Sparks and the Data / Analytics / AI team" / "drive decisions with data and insight" | This captures the stakeholder decision-support problem. |
+
+## Level 3 - M&S-Specific Concrete Scenarios
+
+Level 3 makes each Level 2 area concrete by naming the FS customer situation, product moment, loyalty decision, offer issue, or commercial decision being improved.
+
+| Level 2 area | Level 3 concrete M&S FS scenario | Business mechanism / target signal |
+|---|---|---|
+| Improve FS product and proposition decisions | Improve proposition decisions for Credit, Insurance, Savings, Travel Money, ATMs, or embedded credit customers | Product holding, eligibility, customer value, product usage, service need, engagement, and response history. |
+| Improve FS product and proposition decisions | Identify which FS propositions need adjustment based on customer and commercial performance | Underperforming proposition uptake, weak repeat use, poor customer fit, low conversion, margin/revenue movement, journey drop-off. |
+| Join up loyalty activity across FS product lines | Build a more connected loyalty view across FS products and Sparks activity | Cross-product holding, Sparks engagement, offer history, customer lifecycle, channel behaviour, and product overlap. |
+| Join up loyalty activity across FS product lines | Identify customers with potential to move between FS products or deepen FS relationship | Existing product mix, adjacent product eligibility, spend behaviour, travel/insurance/savings signals, credit usage, loyalty engagement. |
+| Improve personalised offer design | Design more relevant personalised FS offers for customer groups | Historical offer response, segment behaviour, channel preference, product need, reward sensitivity, lifecycle stage. |
+| Improve personalised offer design | Improve offer selection before launch by identifying higher-fit and lower-fit customer groups | Response likelihood, previous offer performance, customer value, product suitability, exclusion signals, offer fatigue. |
+| Improve FS customer journeys and communications | Improve customer journeys where customers drop off before completing or using an FS product | Journey stage, drop-off point, application/activation behaviour, channel friction, communication timing, service interactions. |
+| Improve FS customer journeys and communications | Improve customer communications so FS messages are more relevant and better timed | Product lifecycle, recent customer behaviour, channel engagement, message history, likely need, timing signals. |
+| Grow FS product performance, customer spend, revenue, and M&S sales | Identify commercial growth opportunities across FS customers and product lines | Product penetration, spend frequency, basket/linkage to M&S sales, customer value, campaign response, product gap. |
+| Grow FS product performance, customer spend, revenue, and M&S sales | Increase incremental spend or revenue from targeted FS loyalty activity | Offer uptake, incremental spend, repeat purchase/use, conversion, revenue per customer, campaign-linked sales movement. |
+| Understand customer behaviour across segment, channel and proposition | Understand how FS customer behaviour differs by segment, channel, and proposition | Segment mix, channel usage, product preference, response behaviour, spend pattern, lifecycle stage. |
+| Understand customer behaviour across segment, channel and proposition | Identify which customer groups need different propositions, journeys, or communications | Segment-level conversion, engagement, spend, churn/inactivity, product need, response likelihood. |
+| Improve loyalty-offer performance insight and trend diagnosis | Explain why loyalty offer performance changed over time | Offer response trend, uptake decline, seasonal movement, channel mix, segment shift, proposition change, external timing. |
+| Improve loyalty-offer performance insight and trend diagnosis | Use historical offer performance to inform changes to future FS propositions or offers | Past offer uptake, conversion, incremental spend, customer feedback/behaviour, repeat use, segment performance. |
+| Support cross-functional commercial decision-making | Help Commercial, Sparks, and Data/Analytics/AI teams decide which offer or proposition route to take | Scenario comparison, customer segment trade-offs, commercial return, customer need, implementation complexity, risk of poor-fit targeting. |
+| Support cross-functional commercial decision-making | Turn customer and commercial analysis into stakeholder-ready recommendations | Prioritised opportunities, clear rationale, PowerPoint/Excel outputs, trend evidence, segment insight, action options. |
+
+The strongest future resume chains are likely:
+
+- personalised offer design;
+- loyalty-offer performance;
+- customer behaviour by segment, channel, and proposition;
+- commercial growth across FS products and M&S sales;
+- customer journeys and communications;
+- cross-functional decision support.
