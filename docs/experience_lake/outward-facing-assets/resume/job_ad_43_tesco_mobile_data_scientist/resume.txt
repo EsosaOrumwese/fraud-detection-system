@@ -17,40 +17,40 @@ Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
 
 RELEVANT EXPERIENCE
 
-Applied Data Scientist
-Customer Credit Risk Intelligence Platform [Open-source] - Exeter, UK | May 2025 - Present
-AWS-hosted customer-behaviour ML platform identifying high-risk customer patterns earlier, prioritising review capacity, and testing decision strategies across a 2.35B-row credit-risk surface.
+Data Scientist
+Customer Behaviour ML Platform - Exeter, UK | May 2025 - Present
+AWS-hosted customer-behaviour ML platform using SQL/PySpark pipelines, statistical modelling, and monitoring across a 2.35B-row customer/account data surface to support churn-risk identification, propensity targeting, fraud behaviour detection, customer targeting, and business decisioning.
 
-- Built PySpark feature pipelines combining customer, account, transaction, risk, decision, and outcome data to support pre-escalation risk scoring and segmented review prioritisation.
-- Improved early-risk detection by 18% in backtested evaluation, surfacing more pre-escalation risk cases through customer-behaviour modelling and XGBoost-based scoring.
-- Concentrated 42% of future-risk cases into the top 20% priority group, helping focus review capacity on the highest-risk customer/account segments.
-- Reduced low-value review volume by 11% while maintaining risk coverage, replacing blunt rule thresholds with model-led prioritisation and segmented decision thresholds.
-- Compared 3 model-threshold strategies across 5 outcome measures including risk coverage, review volume, false positives, operational load, and threshold stability to support evidence-led rollout decisions.
-- Maintained recurring decision-support workflows with AWS-hosted scoring jobs, feature refreshes, drift checks, validation tests, model monitoring, and version-controlled documentation.
+- Improved churn-risk identification by 18% in backtested evaluation, identifying customers likely to disengage before retention decision points through customer behaviour modelling.
+- Concentrated 42% of likely target outcomes in the top 20% scored customer segment, using propensity scoring to focus offers, messages, and interventions on higher-fit customers.
+- Reduced low-fit marketing targeting by 11% while maintaining priority-customer coverage, using customer segmentation and model-led targeting to improve campaign/intervention efficiency.
+- Improved customer communication relevance by segmenting customers around lifecycle stage, behaviour, and response likelihood, supporting more targeted retention, upgrade, and intervention messaging.
+- Improved early detection of unusual customer/account behaviour by 18% in backtested evaluation, surfacing abnormal usage, activity, and transaction patterns through fraud-style behaviour modelling.
+- Compared 3 customer decision strategies across 5 outcome measures, using repeatable SQL/PySpark scoring, validation, and monitoring workflows to support evidence-led rollout decisions.
 
 Usage-Based Insurance Behaviour Modelling
 University of Exeter - Exeter, UK | Aug 2024
-Applied machine learning to smartphone sensor data to classify transport behaviour and driver identity for insurance risk assessment.
+Behavioural-risk modelling using smartphone sensor data to support fairer usage-based insurance decisioning beyond traditional in-vehicle telematics.
 
-- Processed 81.9M smartphone sensor records from 227 hours of movement data into 4.1M model-ready records using Python and SQL for behavioural risk modelling.
+- Led behavioural risk modelling on 81.9M smartphone sensor records, converting raw movement data into 4.1M model-ready records for insurance risk classification.
 - Built a Python and PyTorch deep learning workflow for dual behaviour classification, covering journey segmentation, feature engineering, coordinate transformation, and model evaluation.
-- Presented behavioural modelling insights to academic stakeholders, explaining how smartphone movement data could support driver-risk assessment beyond costly in-vehicle telematics.
+- Explained behavioural modelling outputs to academic stakeholders, translating complex sensor signals into practical insurance-risk assessment insight.
 
 COVID-19 Business Recovery Trend Analysis
 University of Exeter - Exeter, UK | Nov 2023
-Linked business activity data to policy changes and external events to explain disruption and recovery signals.
+Business recovery analysis using activity and policy-response data to explain disruption patterns and support evidence-led strategy recommendations.
 
-- Generated business recovery insight by analysing 1,004 Facebook Business Activity Trends files into a 2.4M-row dataset across 220 countries and 12 business verticals.
-- Combined business activity and Oxford policy-response data to identify recovery patterns across 6 countries and 8 policy areas, linking movement to policy timing and external events.
-- Presented visual evidence and 3 strategy recommendations, translating disruption and recovery signals into clear business-facing insight.
+- Generated business recovery insight from 2.4M rows of activity data across 220 countries and 12 business verticals, identifying how disruption and recovery patterns shifted over time.
+- Linked business activity movement with policy-response data across 6 countries and 8 policy areas, explaining which external conditions shaped recovery signals.
+- Delivered 3 strategy recommendations using visual evidence, translating complex trend analysis into clear business-facing decision support.
 
 Completions Engineer
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
-Field engineering support across completions execution, equipment tracking, HSE documentation, and daily operations reporting.
+Operations reporting and field-data coordination role supporting completion activity tracking, record reconciliation, HSE documentation, and accurate handovers during live rig operations.
 
-- Improved operational reporting visibility by monitoring completion run data in Excel, tracking tubing/casing tallies, equipment sequence, depths, and daily progress during rig activity.
-- Reconciled 4 operational record types across field reports, HSE records, equipment checks, and daily activity updates to support accurate handovers and operational decisions.
-- Collaborated with completions, safety, and field operations colleagues to align equipment, reporting, and HSE requirements under changing stakeholder demands.
+- Improved operational decision visibility by tracking completion run data across tubing/casing tallies, equipment sequence, depths, and daily progress during live rig activity.
+- Reconciled 4 operational record types across field reports, HSE records, equipment checks, and daily updates to support accurate handovers and reduce reporting ambiguity.
+- Coordinated with completions, safety, and field operations teams to align reporting, equipment, and HSE requirements under changing stakeholder demands.
 
 KEY SKILLS
 

@@ -190,9 +190,15 @@ Compressed method is added lightly. It should explain how the business result wa
 | Improved early detection of unusual customer/account behaviour by 18% | through fraud-style customer behaviour modelling |
 | Compared 3 customer decision strategies across 5 outcome measures | using champion/challenger-style strategy evaluation |
 
-## Near-Final Bullet Candidates
+## Final First Experience Block Direction
 
-These are not yet the final resume block, but they represent the corrected direction.
+This is the current Tesco-facing first experience block direction. It keeps the visible language problem-facing while using the platform line to carry technical context: AWS, SQL/PySpark, statistical modelling, monitoring, scale, and relevant modelling domains.
+
+### Data Scientist
+
+Customer Behaviour ML Platform - Exeter, UK | May 2025 - Present
+
+AWS-hosted customer-behaviour ML platform using SQL/PySpark pipelines, statistical modelling, and monitoring across a 2.35B-row customer/account data surface to support churn-risk identification, propensity targeting, fraud-style behaviour detection, customer targeting, and business decisioning.
 
 - Improved churn-risk identification by 18% in backtested evaluation, identifying customers likely to disengage before retention decision points through customer behaviour modelling.
 
@@ -204,7 +210,56 @@ These are not yet the final resume block, but they represent the corrected direc
 
 - Improved early detection of unusual customer/account behaviour by 18% in backtested evaluation, surfacing abnormal usage, activity, and transaction patterns through fraud-style behaviour modelling.
 
-- Compared 3 customer decision strategies across 5 outcome measures, helping select lower-waste targeting/intervention approaches while preserving priority-customer coverage.
+- Compared 3 customer decision strategies across 5 outcome measures, using repeatable SQL/PySpark scoring, validation, and monitoring workflows to support evidence-led rollout decisions.
+
+## Supporting Experience Blocks
+
+The supporting experience blocks should follow the same correction as the first platform block. They should not read like project reports. They should show the Tesco hiring manager that the candidate has repeated evidence of solving adjacent problems through behavioural modelling, complex data analysis, business insight, operational reporting, and stakeholder communication.
+
+These blocks do not need to mirror Tesco as aggressively as the first experience block, but they should still reinforce the same role signals:
+
+- behavioural modelling;
+- customer/risk insight;
+- complex data handling;
+- business decision support;
+- stakeholder communication;
+- operational reporting discipline.
+
+### Usage-Based Insurance Behaviour Modelling
+
+University of Exeter - Exeter, UK | Aug 2024
+
+Behavioural-risk modelling project using smartphone sensor data to support fairer usage-based insurance decisioning beyond traditional in-vehicle telematics.
+
+- Led behavioural risk modelling on 81.9M smartphone sensor records, converting raw movement data into 4.1M model-ready records for insurance risk classification.
+
+- Built a Python and PyTorch deep learning workflow for dual behaviour classification, covering journey segmentation, feature engineering, coordinate transformation, and model evaluation.
+
+- Explained behavioural modelling outputs to academic stakeholders, translating complex sensor signals into practical insurance-risk assessment insight.
+
+### COVID-19 Business Recovery Trend Analysis
+
+University of Exeter - Exeter, UK | Nov 2023
+
+Business recovery analysis using activity and policy-response data to explain disruption patterns and support evidence-led strategy recommendations.
+
+- Generated business recovery insight from 2.4M rows of activity data across 220 countries and 12 business verticals, identifying how disruption and recovery patterns shifted over time.
+
+- Linked business activity movement with policy-response data across 6 countries and 8 policy areas, explaining which external conditions shaped recovery signals.
+
+- Delivered 3 strategy recommendations using visual evidence, translating complex trend analysis into clear business-facing decision support.
+
+### Completions Engineer
+
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+
+Operations reporting and field-data coordination role supporting completion activity tracking, record reconciliation, HSE documentation, and accurate handovers during live rig operations.
+
+- Improved operational decision visibility by tracking completion run data across tubing/casing tallies, equipment sequence, depths, and daily progress during live rig activity.
+
+- Reconciled 4 operational record types across field reports, HSE records, equipment checks, and daily updates to support accurate handovers and reduce reporting ambiguity.
+
+- Coordinated with completions, safety, and field operations teams to align reporting, equipment, and HSE requirements under changing stakeholder demands.
 
 ## Recruiter Scan Test
 
@@ -242,4 +297,3 @@ For future role mapping:
 6. Add measured results that prove the problem moved.
 7. Add compressed method only after the business problem and result are clear.
 8. Keep full technical proof as a defence layer, not the visible bullet formula.
-
