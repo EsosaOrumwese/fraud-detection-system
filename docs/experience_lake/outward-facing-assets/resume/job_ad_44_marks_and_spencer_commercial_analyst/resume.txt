@@ -1,0 +1,39 @@
+Esosa Orumwese
+Commercial Data Analyst | Customer Behaviour, Loyalty Analytics & Commercial Insight
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+RELEVANT EXPERIENCE
+
+Commercial Data Analyst
+Customer Behaviour & Loyalty Analytics Platform - Exeter, UK | May 2025 - Present
+AWS-hosted customer behaviour and loyalty analytics platform using a 2.35B-row customer surface to support personalised offers, loyalty targeting, propositions, and commercial insight.
+
+- Improved personalised offer response by 18%, helping focus customer offers on people most likely to engage through behaviour and response analysis.
+- Identified the customer groups most likely to respond to offers, helping prioritise loyalty activity, personalised offers, and proposition decisions.
+- Reduced poorly targeted customer offers by 11% without reducing relevant customer reach, improving offer efficiency and reducing wasted customer contact.
+- Identified the strongest of 3 offer and proposition options across 5 commercial measures, helping prioritise changes to offers, products, and customer journeys before rollout.
+- Produced 3 commercial recommendations from customer behaviour, offer performance, and segment analysis, clarifying loyalty, targeting, proposition, and journey decisions.
+
+Data Scientist
+University of Exeter - Exeter, UK | Aug 2024
+Behavioural modelling project using smartphone sensor signals to support usage-based insurance decisions without costly in-vehicle telematics.
+
+- Supported lower-cost usage-based insurance decisions by identifying transport behaviour and driver identity from smartphone movement signals.
+- Improved behavioural classification reliability by combining transport-mode and driver-identification tasks into a shared deep learning workflow.
+- Translated complex movement behaviour into practical risk insight, helping stakeholders understand how smartphone data could support driver-risk decisions.
+
+Business Analyst
+University of Exeter - Exeter, UK | Nov 2023
+Business analytics project using activity and policy-response data to explain disruption, recovery, and commercial trends across countries and sectors.
+
+- Explained business recovery patterns across 220 countries and 12 sectors, showing where activity returned, remained disrupted, or shifted from pre-crisis behaviour.
+- Linked recovery trends to policy-response signals across 6 countries and 8 policy areas, helping explain how external decisions shaped business activity.
+- Produced 3 evidence-led commercial recommendations, translating trend analysis into business-facing decision support.
+
+Completions Engineer
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations reporting and field-data coordination role supporting live operational decisions, handovers, HSE documentation, and completions execution.
+
+- Improved live operational decision visibility by tracking completion progress, equipment sequence, tubing/casing tallies, depths, and daily rig activity.
+- Reduced reporting ambiguity across 4 operational record types, reconciling field reports, HSE records, equipment checks, and daily updates before handover.
+- Supported safer field execution by coordinating reporting, equipment readiness, and HSE requirements across completions, safety, and field operations teams.
