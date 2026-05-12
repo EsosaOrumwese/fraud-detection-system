@@ -1,11 +1,11 @@
 Esosa Orumwese
-Data Scientist | Customer Behaviour & Risk/Propensity Modelling | PySpark Pipelines & End-to-End ML
+Data Scientist | Customer Behaviour, Churn & Propensity Modelling | Business Decisioning & Production ML
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years using data to identify early risk signals, prioritise action, and support evidence-led business decisions.
-Built end-to-end ML workflows across large behavioural datasets, covering predictive modelling, PySpark pipelines, experiment evaluation, and model monitoring.
-Proficient in SQL, Python, PySpark, AWS, XGBoost, PyTorch, Git, CI/CD, model monitoring, and documentation.
+4+ years using customer, behavioural, and operational data to solve business problems, improve customer experience, and support evidence-led decisions.
+Experienced in churn-risk, propensity, fraud detection, customer targeting, and marketing effectiveness analytics across large-scale datasets.
+Turn complex datasets into production-ready ML workflows, monitored decision outputs, and clear recommendations for technical and non-technical stakeholders.
 
 EDUCATION
 
@@ -52,10 +52,14 @@ Operations reporting and field-data coordination role supporting live rig decisi
 - Reduced reporting ambiguity by reconciling 4 operational record types across field reports, HSE records, equipment checks, and daily updates before handover.
 - Supported safer field execution by coordinating reporting, equipment readiness, and HSE requirements across completions, safety, and field operations teams.
 
-KEY SKILLS
+TECHNICAL SKILLS
 
-Data Science & ML: Python, SQL, PySpark, PyTorch, XGBoost, Logistic Regression, SHAP, predictive modelling, statistical modelling, feature engineering, model evaluation.
+Data Science & Modelling: Customer behaviour modelling, churn/propensity/fraud modelling, statistical modelling, classification, segmentation, model evaluation, SHAP/explainability.
 
-Production ML & Engineering: AWS, data pipelines, production ML workflows, Git, object-oriented programming, unit testing, CI/CD, model monitoring, drift checks, documentation, security-aware workflows.
+Programming & Data Processing: Python, SQL, PySpark, Pandas, NumPy, feature engineering, data modelling, large-scale data preparation.
 
-Customer & Business Analytics: customer behaviour analysis, segmentation, churn/fraud/propensity modelling, risk scoring, A/B testing, champion/challenger testing, hypothesis-driven analysis, business insight, stakeholder communication.
+Production ML & Engineering: End-to-end ML workflows, scoring pipelines, model monitoring, drift checks, validation testing, Git, OOP, unit testing, CI/CD, documentation.
+
+Cloud & Data Platforms: AWS, cloud-hosted data pipelines, databases, multi-source data integration.
+
+Business & Customer Analytics: Customer targeting, marketing effectiveness analysis, customer experience insight, hypothesis-driven analysis, A/B and champion/challenger evaluation, stakeholder-ready recommendations.
