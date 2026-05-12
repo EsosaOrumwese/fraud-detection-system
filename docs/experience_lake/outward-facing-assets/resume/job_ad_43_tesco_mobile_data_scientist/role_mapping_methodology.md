@@ -229,37 +229,37 @@ These blocks do not need to mirror Tesco as aggressively as the first experience
 
 University of Exeter - Exeter, UK | Aug 2024
 
-Behavioural-risk modelling project using smartphone sensor data to support fairer usage-based insurance decisioning beyond traditional in-vehicle telematics.
+Behavioural modelling project using smartphone sensor signals to improve insurance risk decisioning without relying on costly in-vehicle telematics.
 
-- Led behavioural risk modelling on 81.9M smartphone sensor records, converting raw movement data into 4.1M model-ready records for insurance risk classification.
+- Improved insurance-risk decisioning by modelling transport behaviour and driver identity from smartphone sensor signals, showing how lower-cost behavioural data could support usage-based pricing.
 
-- Built a Python and PyTorch deep learning workflow for dual behaviour classification, covering journey segmentation, feature engineering, coordinate transformation, and model evaluation.
+- Increased behavioural classification reliability by combining transport-mode and driver-identification tasks into a shared deep learning workflow, reducing dependence on single-purpose models.
 
-- Explained behavioural modelling outputs to academic stakeholders, translating complex sensor signals into practical insurance-risk assessment insight.
+- Translated complex smartphone movement patterns into practical risk-assessment insight for stakeholders, connecting sensor behaviour to fairer driver-risk decisions.
 
 ### COVID-19 Business Recovery Trend Analysis
 
 University of Exeter - Exeter, UK | Nov 2023
 
-Business recovery analysis using activity and policy-response data to explain disruption patterns and support evidence-led strategy recommendations.
+Business analytics project explaining disruption, recovery, and policy-linked activity changes across countries and business sectors.
 
-- Generated business recovery insight from 2.4M rows of activity data across 220 countries and 12 business verticals, identifying how disruption and recovery patterns shifted over time.
+- Identified business recovery patterns across 220 countries and 12 sectors, helping explain where activity returned, remained disrupted, or shifted from pre-crisis behaviour.
 
-- Linked business activity movement with policy-response data across 6 countries and 8 policy areas, explaining which external conditions shaped recovery signals.
+- Linked business activity changes with policy-response signals across 6 countries and 8 policy areas, showing how external decisions and events shaped recovery trends.
 
-- Delivered 3 strategy recommendations using visual evidence, translating complex trend analysis into clear business-facing decision support.
+- Produced 3 evidence-led strategy recommendations from visual trend analysis, translating complex disruption patterns into business-facing decision support.
 
 ### Completions Engineer
 
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 
-Operations reporting and field-data coordination role supporting completion activity tracking, record reconciliation, HSE documentation, and accurate handovers during live rig operations.
+Operations reporting and field-data coordination role supporting live rig decisions, handovers, HSE documentation, and completions execution.
 
-- Improved operational decision visibility by tracking completion run data across tubing/casing tallies, equipment sequence, depths, and daily progress during live rig activity.
+- Improved live operational decision visibility by tracking completion progress, equipment sequence, tubing/casing tallies, depths, and daily rig activity.
 
-- Reconciled 4 operational record types across field reports, HSE records, equipment checks, and daily updates to support accurate handovers and reduce reporting ambiguity.
+- Reduced reporting ambiguity by reconciling 4 operational record types across field reports, HSE records, equipment checks, and daily updates before handover.
 
-- Coordinated with completions, safety, and field operations teams to align reporting, equipment, and HSE requirements under changing stakeholder demands.
+- Supported safer field execution by coordinating reporting, equipment readiness, and HSE requirements across completions, safety, and field operations teams.
 
 ## Recruiter Scan Test
 
