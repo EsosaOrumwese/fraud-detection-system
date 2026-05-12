@@ -8,13 +8,13 @@ Commercial Data Analyst with 4+ years' experience turning customer, behavioural,
 
 Experienced in customer segmentation, loyalty analytics, offer performance, proposition analysis, and identifying opportunities to grow spend, improve customer journeys, and support revenue decisions.
 
-Skilled in Excel, SQL, Python, commercial storytelling, and translating complex analysis into clear recommendations for technical and non-technical stakeholders.
+Skilled in Excel, PowerPoint, SQL, Python, commercial storytelling, and translating complex analysis into clear recommendations for commercial and technical stakeholders.
 
 RELEVANT EXPERIENCE
 
 Commercial Data Analyst
-Customer Behaviour & Loyalty Analytics Platform - Exeter, UK | May 2025 - Present
-AWS-hosted customer behaviour and loyalty analytics platform using a 2.35B-row customer surface to support personalised offers, loyalty targeting, propositions, and commercial insight.
+Customer Behaviour & Loyalty Analytics Platform [Open-source] - Exeter, UK | May 2025 - Present
+AWS-hosted customer behaviour and loyalty analytics platform using a 2.35B-row customer dataset to support personalised offers, loyalty targeting, propositions, and commercial insight.
 
 - Improved personalised offer response by 18%, helping focus customer offers on people most likely to engage through behaviour and response analysis.
 - Identified the customer groups most likely to respond to offers, helping prioritise loyalty activity, personalised offers, and proposition decisions.
@@ -48,12 +48,12 @@ Operations reporting and field-data coordination role supporting live operationa
 
 TECHNICAL SKILLS
 
-Commercial & Customer Analytics: Customer behaviour analysis, loyalty analytics, offer performance analysis, customer segmentation, channel analysis, proposition analysis, customer journey insight, marketing effectiveness analysis.
+Commercial Reporting & Presentation: Excel, PowerPoint, Word, stakeholder-ready reporting, commercial storytelling, presentation building.
 
-Business Decision Support: Commercial insight, trend analysis, deep-dive analysis, evidence-led recommendations, proposition decision support, spend/revenue opportunity analysis, stakeholder-ready reporting.
+Commercial & Customer Analytics: Customer behaviour analysis, loyalty analytics, offer performance analysis, customer segmentation, channel analysis, proposition analysis, customer journey insight.
 
-Data & Analytical Tools: Excel, PowerPoint, Word, SQL, Python, Pandas, NumPy, data modelling, large-scale data preparation, data visualisation.
+Data & Analysis Tools: SQL, Python, Pandas, NumPy, data modelling, large-scale data preparation, data visualisation.
+
+Decision Support: Commercial insight, trend analysis, deep-dive analysis, spend/revenue opportunity analysis, evidence-led recommendations, proposition decision support.
 
 Modelling & Evaluation: Propensity modelling, customer targeting, classification, segmentation, model evaluation, A/B testing, champion/challenger evaluation.
-
-Stakeholder Communication: Commercial storytelling, non-technical communication, stakeholder management, presentation building, adapting insight to audience.
