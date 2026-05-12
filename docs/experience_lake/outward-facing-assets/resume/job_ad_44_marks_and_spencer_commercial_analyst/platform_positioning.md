@@ -79,3 +79,29 @@ The strongest future resume chains are likely:
 - commercial growth across FS products and M&S sales;
 - customer journeys and communications;
 - cross-functional decision support.
+
+## Problem Chains
+
+The problem chain connects each concrete M&S FS scenario back to the broader employer outcome. These chains are the bridge between the job-ad hierarchy and resume-facing business achievements.
+
+| Chain | Level 3 concrete problem | Level 2 area | Level 1 / Level 0 outcome |
+|---|---|---|---|
+| Personalised offer design | Improve offer selection before launch by identifying higher-fit and lower-fit customer groups. | Improve personalised offer design | Design personalised FS offers that reward customers and support incremental sales. |
+| Loyalty performance diagnosis | Explain why loyalty offer performance changed over time. | Improve loyalty-offer performance insight and trend diagnosis | Use commercial insight to shape FS propositions and loyalty decisions. |
+| Customer behaviour segmentation | Understand how FS customer behaviour differs by segment, channel, and proposition. | Understand customer behaviour across segment, channel and proposition | Build the customer insight layer for better offers, journeys, propositions, and revenue decisions. |
+| Commercial growth opportunity | Identify commercial growth opportunities across FS customers and product lines. | Grow FS product performance, customer spend, revenue, and M&S sales | Drive incremental sales, grow spend, increase revenue, and meet customer needs. |
+| Customer journey and communications | Improve customer communications so FS messages are more relevant and better timed. | Improve FS customer journeys and communications | Improve customer journeys, customer communications, brand sentiment, and offer relevance. |
+| Connected loyalty / cross-product relationship | Identify customers with potential to move between FS products or deepen FS relationship. | Join up loyalty activity across FS product lines | Create a cohesive FS loyalty programme across Credit, ATMs, Insurance, Savings, Travel Money, and embedded credit. |
+| Proposition change support | Identify which FS propositions need adjustment based on customer and commercial performance. | Improve FS product and proposition decisions | Shape proposition decisions through commercial insights and analysis. |
+| Stakeholder decision support | Help Commercial, Sparks, and Data/Analytics/AI teams decide which offer or proposition route to take. | Support cross-functional commercial decision-making | Underpin and drive decisions with data and insight across stakeholders. |
+
+For the first resume block, the strongest six chains are:
+
+1. Personalised offer design
+2. Loyalty performance diagnosis
+3. Customer behaviour segmentation
+4. Commercial growth opportunity
+5. Customer journey and communications
+6. Stakeholder decision support
+
+Connected loyalty / cross-product relationship and proposition change support should be used as supporting language inside the bullets unless more M&S FS product specificity is needed.
