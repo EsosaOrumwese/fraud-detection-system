@@ -1,11 +1,11 @@
 Esosa Orumwese
-Data Scientist | Customer Behaviour, Churn & Propensity Modelling | Business Decisioning & Production ML
+Data Scientist | Customer Behaviour, Churn/Propensity/Fraud Modelling | Business Decisioning & Production ML
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years using customer, behavioural, and operational data to solve business problems, improve customer experience, and support evidence-led decisions.
-Experienced in churn-risk, propensity, fraud detection, customer targeting, and marketing effectiveness analytics across large-scale datasets.
-Turn complex datasets into production-ready ML workflows, monitored decision outputs, and clear recommendations for technical and non-technical stakeholders.
+4+ years using customer data, sales/customer behaviour, and operational data to solve business problems, improve customer experience, and support evidence-led decisions.
+Experienced in churn-risk, propensity, fraud detection, customer targeting, marketing effectiveness, and stock-management analytics across large-scale datasets.
+Turn complex datasets into deployed production ML workflows, monitored decision outputs, and clear recommendations for technical and non-technical stakeholders.
 
 EDUCATION
 
@@ -58,7 +58,7 @@ Data Science & Modelling: Customer behaviour modelling, churn/propensity/fraud m
 
 Programming & Data Processing: Python, SQL, PySpark, Pandas, NumPy, feature engineering, data modelling, large-scale data preparation.
 
-Production ML & Engineering: End-to-end ML workflows, scoring pipelines, model monitoring, drift checks, validation testing, Git, OOP, unit testing, CI/CD, documentation.
+Production ML & Engineering: End-to-end ML workflows, deployment, scoring pipelines, model monitoring, drift checks, validation testing, Git, object-oriented programming, unit testing, CI/CD, documentation.
 
 Cloud & Data Platforms: AWS, cloud-hosted data pipelines, databases, multi-source data integration.
 
