@@ -17,8 +17,8 @@ Python & Analysis: Python, Pandas, NumPy, data-quality checks, metric variance a
 RELEVANT EXPERIENCE
 
 Data Scientist
-Payments, Fraud & Chargeback Analytics Platform - Exeter, UK | May 2025 - Present
-Payments and fraud analytics platform using SQL, Google BigQuery, Excel, Power BI and Looker across a 2.35B-row transaction and behaviour data surface to monitor payment performance, fraud trends, chargebacks and checkout risk.
+Behavioural Risk Analytics Platform — Exeter, UK | May 2025 – Present
+Payments and fraud analytics workstream using SQL, BigQuery, Excel, Power BI and Looker to monitor acceptance, declines, chargebacks, fraud trends and checkout-risk movements across a 2.35B-row transaction and behaviour data surface.
 
 - Built BigQuery and SQL payment performance queries over a 2.35B-row transaction and behaviour data surface, tracking acceptance rates, decline rates and checkout failure patterns across 6 payment channels.
 - Built a BigQuery chargeback trend query and Excel chargeback tracker, analysing 1,800 chargebacks across 12 reporting periods to identify fraud, refund and payment-dispute movements.

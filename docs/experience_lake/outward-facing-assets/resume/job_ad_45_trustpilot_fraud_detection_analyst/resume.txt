@@ -17,8 +17,8 @@ Python & Validation: Python, Pandas, NumPy, PySpark, lift analysis, calibration 
 RELEVANT EXPERIENCE
 
 Data Scientist
-Fraud Detection & Behaviour Analytics Platform - Exeter, UK | May 2025 - Present
-Fraud analytics platform using SQL, Google BigQuery, Google Looker, Python and behavioural risk scoring across a 2.35B-row activity surface to detect suspicious behaviour, support misuse investigations and improve fraud-rule decisions.
+Behavioural Risk Analytics Platform — Exeter, UK | May 2025 – Present
+SQL, BigQuery, Looker and Python platform for analysing account, usage and transaction behaviour, producing fraud-risk indicators, detection-rule recommendations, dashboards and case review packs across a 2.35B-row activity surface.
 
 - Built SQL and BigQuery fraud trend queries over a 2.35B-row behaviour surface, producing 12 fraud-risk indicators for suspicious account, usage and transaction patterns.
 - Created Looker fraud and account-behaviour dashboards tracking 10 risk metrics, giving fraud/risk stakeholders a recurring view of abnormal platform activity.

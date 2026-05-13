@@ -17,8 +17,8 @@ Additional Tools: Google BigQuery, Google Looker, Python, Pandas
 RELEVANT EXPERIENCE
 
 Data Scientist
-Fraud Risk & Revenue Protection Analytics Platform - Exeter, UK | May 2025 - Present
-Fraud analytics platform using SQL, Excel, VBA and Power BI across a 2.35B-row behavioural risk data surface to identify fraud-risk indicators, subject profiles, revenue exposure and process-control weaknesses.
+Behavioural Risk Analytics Platform — Exeter, UK | May 2025 – Present
+Fraud and revenue-risk analytics workstream using SQL, Excel, VBA and Power BI to identify behavioural risk indicators, subject profiles, process-control weaknesses and revenue exposure across a 2.35B-row risk data surface.
 
 - Built SQL fraud-risk queries and an Excel fraud reconciliation workbook over a 2.35B-row behavioural risk surface, combining 7 data sources into 14 revenue-risk indicators for fraud review.
 - Created a Power BI revenue-protection dashboard tracking 11 fraud, risk-hotspot and process-control KPIs, giving senior managers a weekly view of emerging risk patterns.
