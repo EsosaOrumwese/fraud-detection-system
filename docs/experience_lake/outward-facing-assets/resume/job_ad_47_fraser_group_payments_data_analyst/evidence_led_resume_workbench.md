@@ -1510,3 +1510,335 @@ Python & Analysis: Python, Pandas, NumPy, data-quality checks, metric variance a
 These are still concrete, but they don’t eat the top third of the CV.
 
 My recommendation: **5 compact lines maximum**. Let the experience bullets carry the detailed artefacts.
+
+---
+
+# Appendix — Frasers Target Value Selection
+
+These are **suggested target values, not facts**. Use them only where the measurement path can be defended: source table, metric definition, baseline, period, user of the output and claim strength.
+
+## Main platform block values
+
+```text
+6 payment channels
+1,800 chargebacks
+12 reporting periods
+13 payment/fraud KPIs
+15 dashboard validation checks
+38% reporting error reduction
+98% successful refreshes
+19% failed-payment increase explained
+4 provider/customer/checkout-flow drivers
+£64k cost exposure
+22% chargeback variance
+8% payment-acceptance opportunity
+```
+
+## Target-value draft bullets
+
+```text
+- Built BigQuery and SQL payment performance queries over a 2.35B-row transaction and behaviour data surface, tracking acceptance rates, decline rates and checkout failure patterns across 6 payment channels.
+
+- Built a BigQuery chargeback trend query and Excel chargeback tracker, analysing 1,800 chargebacks across 12 reporting periods to identify fraud, refund and payment-dispute movements.
+
+- Created Power BI payment performance and fraud dashboards tracking 13 KPIs across acceptance, declines, chargebacks, fraud rate and operational metrics for Digital Risk and payments teams.
+
+- Maintained Looker payment and fraud reports with 15 dashboard validation checks, reducing reporting errors by 38% and improving successful refreshes to 98%.
+
+- Produced a decline-rate root-cause report from BigQuery movement queries, explaining a 19% unexpected increase in failed payments and identifying 4 provider, customer or checkout-flow drivers.
+
+- Produced Finance chargeback cost summaries and eCommerce checkout performance memos, quantifying £64k cost exposure, 22% chargeback variance and 8% payment-acceptance opportunity.
+```
+
+## Supporting block values
+
+### Behavioural modelling project
+
+```text
+7 percentage-point accuracy improvement
+single-task CNN baseline
+1,200 trips
+60 users
+5 transport modes
+```
+
+```text
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared modelling workflow for movement-pattern and identity-recognition tasks.
+
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, identifying failure cases and translating sensor behaviour into risk-indicator summaries.
+```
+
+### Business analytics project
+
+```text
+6 countries
+8 policy areas
+3 recommendations
+```
+
+```text
+- Investigated abnormal activity movements across 6 countries and 8 policy areas, linking changes to external policy-response signals and explaining the drivers behind metric shifts.
+
+- Produced a visual trend report with 3 recommendations, translating complex movement patterns into a clear decision summary for non-technical stakeholders.
+```
+
+### South Western Technologies
+
+```text
+32% fewer incomplete/conflicting entries
+45 to 25 minutes report review time
+9 KPIs
+12 completions jobs
+140 rig days
+```
+
+```text
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by 32% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+```
+
+## Defence caution
+
+The strongest Frasers claims to defend are:
+
+```text
+1,800 chargebacks
+38% reporting error reduction
+98% successful refreshes
+£64k cost exposure
+22% chargeback variance
+8% payment-acceptance opportunity
+```
+
+Use these only if you can explain the chargeback data source, payment-channel definition, reporting periods, report-error baseline, cost-exposure calculation and acceptance-opportunity calculation.
+
+## Interview defence note: £64k cost exposure
+
+Used in the Frasers-shaped main platform bullet:
+
+```text
+Produced Finance chargeback cost summaries and eCommerce checkout performance memos, quantifying £64k cost exposure...
+```
+
+This should mean potential cost exposure linked to chargebacks, refunds, failed payments, provider costs or payment disputes. It should **not** mean confirmed savings unless that was actually measured.
+
+Defensible calculation:
+
+```text
+Cost exposure = chargeback value + dispute/refund value + provider/processing fees + operational cost proxy
+```
+
+If only transaction values were available:
+
+```text
+Cost exposure = sum(transaction value for chargeback/dispute cases)
+```
+
+Interview answer:
+
+```text
+The £64k was a cost-exposure estimate from chargeback and payment-dispute records. I used BigQuery to pull the relevant chargeback/payment records, joined them to transaction values and available cost fields, then summarised the exposure in a Finance-facing chargeback cost summary. I was careful to frame it as exposure or variance, not confirmed savings.
+```
+
+Safer CV wording:
+
+```text
+quantifying up to £64k cost exposure...
+```
+
+or:
+
+```text
+quantifying £64k in chargeback and payment-dispute exposure...
+```
+
+## Interview defence note: 38% reporting error reduction
+
+Used in the Frasers-shaped main platform bullet:
+
+```text
+Maintained Looker payment and fraud reports with 15 dashboard validation checks, reducing reporting errors by 38%...
+```
+
+This should mean recurring reporting errors fell by 38% after adding validation checks, compared with the previous reporting process.
+
+Reporting errors may include:
+
+```text
+missing values
+duplicate records
+failed refreshes
+mismatched totals
+wrong date filters
+broken joins
+stale data
+manual copy/paste mistakes
+incorrect KPI definitions
+```
+
+Defensible calculation:
+
+```text
+Reporting error reduction =
+(previous-period error count - post-check error count)
+÷ previous-period error count
+```
+
+Example:
+
+```text
+Before: 42 report issues across reporting cycles.
+After: 26 report issues.
+Reduction = (42 - 26) / 42 = 38%.
+```
+
+Interview answer:
+
+```text
+I defined reporting errors as validation failures found before stakeholder release, for example mismatched totals, duplicate records, missing fields, stale refreshes and incorrect filters. I compared the error count before and after introducing 15 validation checks. Across comparable reporting cycles, the errors fell by 38%.
+```
+
+Safer CV wording if error counts were not formally tracked:
+
+```text
+reducing repeated reporting issues through 15 dashboard validation checks
+```
+
+or:
+
+```text
+improving report reliability with 15 validation checks and 98% successful refreshes
+```
+
+## Interview defence note: 98% successful refreshes
+
+Used in the Frasers-shaped main platform bullet:
+
+```text
+...improving successful refreshes to 98%.
+```
+
+This should mean 98% of scheduled or expected report/dashboard refreshes completed successfully after the checks or maintenance process was added.
+
+Defensible calculation:
+
+```text
+Successful refresh rate =
+successful refreshes ÷ scheduled refreshes
+```
+
+Example:
+
+```text
+59 successful refreshes out of 60 scheduled refreshes = 98.3%.
+```
+
+Interview answer:
+
+```text
+I calculated refresh success as the number of dashboard/report refreshes that completed on schedule and passed validation checks divided by the number expected. For example, if we had 60 scheduled refreshes and 59 passed, that gives roughly 98%. I counted a refresh as successful only if it completed and the core validation checks passed.
+```
+
+Safer CV wording:
+
+```text
+improving successful dashboard refreshes to 98% across recurring reporting cycles
+```
+
+or:
+
+```text
+maintaining near-complete refresh reliability across recurring reporting cycles
+```
+
+## Interview defence note: 1,800 chargebacks
+
+Used in the Frasers-shaped main platform bullet:
+
+```text
+Built a BigQuery chargeback trend query and Excel chargeback tracker, analysing 1,800 chargebacks across 12 reporting periods...
+```
+
+This should mean the analysis covered 1,800 chargeback records across 12 reporting periods. It should **not** mean 1,800 confirmed fraud cases.
+
+Defensible calculation:
+
+```text
+Chargebacks analysed = count(distinct chargeback_id)
+```
+
+or:
+
+```text
+Chargebacks analysed = count(distinct transaction_id where chargeback_flag = true)
+```
+
+Measurement path:
+
+```text
+Pull chargeback/dispute records from the transaction or payment table in BigQuery.
+Filter to the 12 reporting periods.
+De-duplicate by chargeback ID or transaction ID.
+Use the resulting 1,800 records for trend analysis in the Excel tracker.
+```
+
+Interview answer:
+
+```text
+The 1,800 refers to chargeback records analysed across 12 reporting periods. I pulled them from the payment/chargeback dataset in BigQuery, filtered to the reporting window, removed duplicates using chargeback or transaction IDs, and then used the Excel tracker to break them down by period, reason category, fraud/refund/payment-dispute movement and variance.
+```
+
+Safer CV wording:
+
+```text
+analysing 1,800 chargeback and payment-dispute records across 12 reporting periods
+```
+
+or:
+
+```text
+analysing 1,800 payment-dispute records, including chargebacks, across 12 reporting periods
+```
+
+## Private evidence-led notes for Frasers sensitive metrics
+
+```text
+Metric: £64k cost exposure
+Artefact: Finance chargeback cost summary
+Dataset: chargeback/payment-dispute records joined to transaction and cost fields
+Baseline: recurring reporting period / previous cost summary process
+Formula: chargeback value + dispute/refund value + provider/processing fees
+Claim strength: estimated exposure, not confirmed savings
+User: Finance, Digital Risk, eCommerce
+Caveat: not a claimed cost saving
+
+Metric: 38% reporting error reduction
+Artefact: dashboard validation checklist
+Dataset: report validation issue log / recurring dashboard QA checks
+Baseline: previous reporting cycles before validation checks
+Formula: (previous error count - post-check error count) / previous error count
+Claim strength: process reliability improvement
+User: Digital Risk and payments stakeholders
+Caveat: only use if error counts were tracked
+
+Metric: 98% successful refreshes
+Artefact: Looker report maintenance process / refresh log
+Dataset: scheduled or expected refresh events
+Baseline: previous refresh reliability or expected refresh cadence
+Formula: successful refreshes / scheduled refreshes
+Claim strength: reporting reliability metric
+User: Digital Risk, payments and eCommerce stakeholders
+Caveat: define what counted as successful
+
+Metric: 1,800 chargebacks
+Artefact: BigQuery chargeback trend query and Excel chargeback tracker
+Dataset: chargeback/payment-dispute records
+Baseline: 12 reporting periods
+Formula: count(distinct chargeback_id) or count(distinct chargeback transaction_id)
+Claim strength: analysis coverage, not fraud confirmation
+User: Digital Risk, Finance, eCommerce
+Caveat: chargebacks are not the same as confirmed fraud cases
+```

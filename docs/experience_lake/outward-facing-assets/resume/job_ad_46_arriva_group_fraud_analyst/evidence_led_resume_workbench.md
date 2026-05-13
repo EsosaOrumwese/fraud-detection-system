@@ -1504,3 +1504,168 @@ Additional Tools: Google BigQuery, Google Looker, Python, Pandas
 ```
 
 My recommendation: **5 compact lines maximum**. Let the experience bullets carry the detailed artefacts.
+
+---
+
+# Appendix — Arriva Target Value Selection
+
+These are **suggested target values, not facts**. Use them only where the measurement path can be defended: source table, metric definition, baseline, period, user of the output and claim strength.
+
+## Main platform block values
+
+```text
+7 data sources
+14 revenue-risk indicators
+11 fraud/risk-hotspot/process-control KPIs
+weekly reporting cadence
+45 to 25 minutes manual review time
+180 missing/duplicated/conflicting records
+32 subject profiles
+9 process-control weaknesses and risk hotspots
+61% suspicious-activity concentration
+£48k revenue exposure
+32 high-risk cases
+3 anti-fraud intervention options
+```
+
+## Target-value draft bullets
+
+```text
+- Built SQL fraud-risk queries and an Excel fraud reconciliation workbook over a 2.35B-row behavioural risk surface, combining 7 data sources into 14 revenue-risk indicators for fraud review.
+
+- Created a Power BI revenue-protection dashboard tracking 11 fraud, risk-hotspot and process-control KPIs, giving Senior Managers a weekly view of emerging risk patterns.
+
+- Built a VBA exception-flagging macro for the Excel fraud workbook, reducing manual review time from 45 to 25 minutes and surfacing 180 missing, duplicated or conflicting records before review.
+
+- Produced 32 subject profiles with SQL case-detail extracts, suspicious behaviour timelines and risk-indicator summaries to support investigation of high-risk individuals.
+
+- Identified 9 process-control weaknesses and risk hotspots through fraud-risk analysis, quantifying 61% concentration of suspicious activity across high-risk segments.
+
+- Built a revenue-risk table estimating £48k exposure across 32 high-risk cases, then translated findings into a senior-manager fraud report comparing 3 anti-fraud intervention options.
+```
+
+## Supporting block values
+
+### Transport-behaviour modelling project
+
+```text
+7 percentage-point accuracy improvement
+single-task CNN baseline
+1,200 trips
+60 users
+5 transport modes
+```
+
+```text
+- Improved transport-behaviour classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared modelling workflow for movement-pattern and identity-recognition tasks.
+
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, identifying failure cases and translating movement patterns into risk-indicator summaries.
+```
+
+### Business analytics project
+
+```text
+6 countries
+8 policy areas
+3 intervention recommendations
+```
+
+```text
+- Linked abnormal activity movements to policy-response signals across 6 countries and 8 policy areas, explaining where external decisions shaped recovery patterns.
+
+- Produced a visual trend report with 3 intervention recommendations, translating complex activity patterns into a clear decision summary for non-technical stakeholders.
+```
+
+### South Western Technologies
+
+```text
+32% fewer incomplete/conflicting handover entries
+45 to 25 minutes report review time
+9 KPIs
+12 completions jobs
+140 rig days
+```
+
+```text
+- Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting handover entries by 32% before supervisor review.
+
+- Created a VBA exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational control dashboard tracking 9 job-progress, equipment-readiness and documentation-gap KPIs across 12 completions jobs / 140 rig days.
+```
+
+## Defence caution
+
+The strongest Arriva claims to defend are:
+
+```text
+£48k revenue exposure
+61% suspicious-activity concentration
+32 subject profiles
+180 missing/duplicated/conflicting records
+```
+
+Use these only if you can explain the revenue-exposure calculation, high-risk case definition, process-control weakness categories and the review period.
+
+## Interview defence note: £48k revenue exposure
+
+Used in the Arriva-shaped main platform bullet:
+
+```text
+Built a revenue-risk table estimating £48k exposure across 32 high-risk cases...
+```
+
+This should mean estimated revenue at risk across the cases flagged by fraud-risk analysis. It should **not** mean confirmed recovered revenue.
+
+Defensible calculation:
+
+```text
+Revenue exposure = sum(value at risk for high-risk cases)
+```
+
+If using expected value:
+
+```text
+Revenue exposure = sum(case value × fraud-risk probability / exposure factor)
+```
+
+Measurement path:
+
+```text
+Take the 32 highest-risk cases from the fraud-risk table.
+Join each case to associated transaction or revenue value.
+Remove duplicate cases or duplicated revenue records.
+Apply a conservative value-at-risk calculation per case.
+Sum the estimated exposure across the 32 cases.
+```
+
+Interview answer:
+
+```text
+The £48k was an estimated exposure figure, not confirmed recovered revenue. I built a revenue-risk table from the fraud-risk cases, linked each high-risk case to its associated transaction or revenue value, removed duplicates, and summed the conservative value at risk across 32 cases. I used it to prioritise which cases or intervention options should be reviewed first.
+```
+
+Safer CV wording:
+
+```text
+Built a revenue-risk table estimating up to £48k exposure across 32 high-risk cases...
+```
+
+or:
+
+```text
+Built a revenue-risk table estimating material exposure across 32 high-risk cases...
+```
+
+Private evidence-led note:
+
+```text
+Metric: £48k revenue exposure
+Artefact: revenue-risk table
+Dataset: high-risk cases joined to transaction/revenue values
+Baseline: no ranked revenue-risk view / previous manual prioritisation
+Formula: sum(value at risk for high-risk cases)
+Claim strength: estimated exposure, not recovered revenue
+User: Revenue Protection / fraud review stakeholders
+Caveat: not a confirmed recovery or generated-revenue claim
+```

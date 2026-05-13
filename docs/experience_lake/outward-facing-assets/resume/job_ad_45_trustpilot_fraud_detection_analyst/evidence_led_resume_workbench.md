@@ -1450,3 +1450,157 @@ Python & Validation: Python, Pandas, NumPy, PySpark, lift analysis, calibration 
 ```
 
 My recommendation: **5 compact lines maximum**. Let the experience bullets carry the detailed artefacts.
+
+---
+
+# Appendix — Trustpilot Target Value Selection
+
+These are **suggested target values, not facts**. Use them only where the measurement path can be defended: source table, metric definition, baseline, period, user of the output and claim strength.
+
+## Main platform block values
+
+```text
+12 fraud-risk indicators
+10 risk metrics
+6 fraud detection rules
+27% known-risk case capture improvement
+38 escalated misuse case packs
+9 BigQuery fraud tables / SQL views / Looker source tables
+34% refresh-time improvement
+6 rule recommendations
+```
+
+## Target-value draft bullets
+
+```text
+- Built SQL and BigQuery fraud trend queries over a 2.35B-row behaviour surface, producing 12 fraud-risk indicators for suspicious account, usage and transaction patterns.
+
+- Created Looker fraud and account-behaviour dashboards tracking 10 risk metrics, giving fraud/risk stakeholders a recurring view of abnormal platform activity.
+
+- Formulated 6 fraud detection rules from behavioural analysis, improving known-risk case capture by 27% versus the existing rule-trigger baseline.
+
+- Produced 38 escalated misuse case packs with SQL case-detail queries, high-risk account profiles and suspicious behaviour timelines for investigation review.
+
+- Maintained 9 BigQuery fraud tables, SQL views and Looker source tables for fraud dashboards, improving refresh time by 34% and supporting data science and engineering review.
+
+- Wrote fraud-rule rationale memos summarising 6 rule recommendations, validation results and investigation findings for fraud, data science, engineering and wider stakeholder review.
+```
+
+## Supporting block values
+
+### Smartphone behavioural modelling project
+
+```text
+7 percentage-point accuracy improvement
+single-task CNN baseline
+1,200 trips
+60 users
+5 transport modes
+```
+
+```text
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared modelling workflow for movement-pattern and identity recognition tasks.
+
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, identifying failure cases and translating sensor behaviour into stakeholder-facing risk indicators.
+```
+
+### Business analytics project
+
+```text
+6 countries
+8 policy areas
+3 recommendations
+```
+
+```text
+- Linked abnormal activity movements to policy-response signals across 6 countries and 8 policy areas, explaining the external drivers behind recovery pattern changes.
+
+- Produced a visual trend report with 3 recommendations, turning complex pattern analysis into a clear decision summary for non-technical stakeholders.
+```
+
+### South Western Technologies
+
+```text
+32% fewer incomplete/conflicting handover entries
+45 to 25 minutes report review time
+9 KPIs
+12 completions jobs
+140 rig days
+```
+
+```text
+- Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting handover entries by 32% before supervisor review.
+
+- Created a VBA exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational visibility dashboard tracking 9 job-progress, equipment-readiness and documentation-gap KPIs across 12 completions jobs / 140 rig days.
+```
+
+## Defence caution
+
+The strongest Trustpilot claims to defend are:
+
+```text
+27% known-risk case capture improvement
+34% refresh-time improvement
+38 escalated misuse case packs
+```
+
+Use these only if you can explain the baseline rule trigger, the known-risk label definition, the case-pack period and the refresh-time measurement.
+
+## Interview defence note: 27% known-risk case capture improvement
+
+Used in the Trustpilot-shaped main platform bullet:
+
+```text
+Formulated 6 fraud detection rules from behavioural analysis, improving known-risk case capture by 27% versus the existing rule-trigger baseline.
+```
+
+This should mean the new detection rules captured 27% more known-risk cases than the existing rule-trigger baseline on the same evaluation set. It should **not** mean fraud reduced by 27%.
+
+Defensible calculation:
+
+```text
+Known-risk capture improvement =
+(new rules captured known-risk cases - baseline rules captured known-risk cases)
+÷ baseline rules captured known-risk cases
+```
+
+Example measurement path:
+
+```text
+Baseline rules captured 300 known-risk cases.
+New behavioural rules captured 381 known-risk cases.
+Improvement = (381 - 300) / 300 = 27%.
+```
+
+Interview answer:
+
+```text
+I measured that as a relative lift against the existing rule-trigger baseline. I used the same historical evaluation set of known-risk or historically flagged cases, ran the existing rules and the proposed behavioural rules, and compared how many cases each approach captured. The proposed rules captured 27% more known-risk cases. I reviewed false positives separately so the rules did not simply increase alert volume.
+```
+
+Safer CV wording if the baseline or labels are weaker:
+
+```text
+improving known-risk case capture by 27% in backtesting against the existing rule-trigger baseline
+```
+
+or:
+
+```text
+increasing capture of historically flagged risk cases by 27% versus the existing rule-trigger baseline
+```
+
+Private evidence-led note:
+
+```text
+Metric: 27% known-risk case capture improvement
+Artefact: fraud detection rule comparison table
+Dataset: historical known-risk / flagged cases
+Baseline: existing rule-trigger baseline
+Formula: (new capture - baseline capture) / baseline capture
+Claim strength: backtested / offline evaluation
+User: fraud/risk stakeholders
+Caveat: not a confirmed fraud reduction claim
+```
