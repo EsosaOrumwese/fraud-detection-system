@@ -1,0 +1,60 @@
+Esosa Orumwese
+Fraud Data Analyst | Revenue Protection Analytics | SQL, Excel, VBA & Power BI | Fraud Risk Reporting
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Fraud-focused Data Analyst with experience using SQL, Excel, VBA and Power BI to analyse complex behavioural and operational datasets, identify fraud-risk indicators and produce manager-facing risk reports. Built SQL fraud-risk queries, Excel reconciliation workbooks, VBA exception-flagging macros and Power BI dashboards across a 2.35B-row behavioural risk surface, translating fraud patterns, subject profiles and revenue exposure into investigation-ready recommendations.
+
+TECHNICAL SKILLS
+
+Data Analysis: SQL, Excel, multi-source datasets, fraud-risk queries, case-detail extracts
+Excel & Automation: pivot tables, lookups, index/match, VBA exception macros
+BI & Reporting: Power BI, revenue-protection dashboards, senior-manager fraud reports
+Fraud & Controls: risk indicators, subject profiles, process-control weaknesses, revenue-risk tables
+Additional Tools: Google BigQuery, Google Looker, Python, Pandas
+
+RELEVANT EXPERIENCE
+
+Data Scientist
+Fraud Risk & Revenue Protection Analytics Platform - Exeter, UK | May 2025 - Present
+Fraud analytics platform using SQL, Excel, VBA and Power BI across a 2.35B-row behavioural risk data surface to identify fraud-risk indicators, subject profiles, revenue exposure and process-control weaknesses.
+
+- Built SQL fraud-risk queries and an Excel fraud reconciliation workbook over a 2.35B-row behavioural risk surface, combining [N] data sources into [N] revenue-risk indicators for fraud review.
+- Created a Power BI revenue-protection dashboard tracking [N] fraud, route, location and process-control KPIs, giving Senior Managers a [weekly/monthly] view of emerging risk patterns.
+- Built a VBA exception-flagging macro for the Excel fraud workbook, reducing manual review time from [X] to [Y] and surfacing [N] missing, duplicated or conflicting records before review.
+- Produced [N] subject profiles with SQL case-detail extracts, suspicious behaviour timelines and risk-indicator summaries to support investigation of high-risk individuals.
+- Identified [N] route, location and process-control weaknesses through fraud-risk analysis, quantifying [X]% concentration of suspicious activity across high-risk segments.
+- Built a revenue-risk table estimating £[X] exposure across [N] high-risk cases, then translated findings into a senior-manager fraud report comparing [M] anti-fraud intervention options.
+
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Transport-behaviour modelling project using smartphone sensor data to classify movement patterns, driver identity and risk indicators for usage-based insurance analysis.
+
+- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity from accelerometer, gyroscope and trip signals.
+- Improved transport-behaviour classification accuracy by [X] percentage points versus [baseline model], using a shared modelling workflow for movement-pattern and identity-recognition tasks.
+- Produced a model robustness report across [N] trips, [N] users and [N] transport modes, identifying failure cases and translating movement patterns into risk-indicator summaries.
+
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Trend-analysis project using country-sector activity and policy-response datasets to identify abnormal movement patterns, external drivers and decision-ready intervention recommendations.
+
+- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+- Linked abnormal activity movements to policy-response signals across [N] countries and [N] policy areas, explaining where external decisions shaped recovery patterns.
+- Produced a visual trend report with [N] intervention recommendations, translating complex activity patterns into a clear decision summary for non-technical stakeholders.
+
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data analysis role using Excel, VBA and Power BI to reconcile completions records, flag reporting exceptions, quantify documentation gaps and prepare manager-facing operational reports.
+
+- Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting handover entries by [X]% before supervisor review.
+- Created a VBA exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from [X] to [Y].
+- Built a Power BI operational control dashboard tracking [N] job-progress, equipment-readiness and documentation-gap KPIs across [N] completions jobs / [N] rig days.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
