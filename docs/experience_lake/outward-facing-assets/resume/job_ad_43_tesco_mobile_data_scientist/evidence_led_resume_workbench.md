@@ -478,3 +478,203 @@ The next correct methodology step is now:
 > **Design the bullet portfolio from the Tier A evidence pool.**
 
 Not final bullet writing yet — first we decide what each bullet must prove.
+
+Yes — moving to **Step 4: Design the bullet portfolio**.
+
+This is **not drafting bullets yet**. The methodology says Step 4 is to decide **what each bullet must prove before writing it**, not to ask “what are six good bullets?”  The Tesco ad makes this especially important because it is screening for both business/customer data science and production ML lifecycle ownership: models, pipelines, production deployment, testing, CI/CD, documentation, SQL, Python, PySpark, stakeholder communication, and customer-focused decision-making. 
+
+# Bullet Portfolio — Tesco Mobile Data Scientist
+
+## Target experience block
+
+```text
+Data Scientist
+Customer Behaviour ML Platform — Exeter, UK | May 2025 – Present
+```
+
+## Portfolio goal
+
+This experience block should prove:
+
+> You can build and own customer-behaviour ML workflows at scale, using SQL/Python/PySpark and production-grade practices to support churn, propensity, fraud/anomaly, marketing effectiveness, validation, and stakeholder decision-making.
+
+The first platform block should carry the heavy Tesco match. It should not waste space on weakly relevant proof.
+
+---
+
+# Recommended portfolio: 6 bullets
+
+## Bullet 1 — Customer-data scale + pipeline ownership
+
+| Field                  | Decision                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Primary proof function | Prove you can build large-scale customer-data pipelines                                                                  |
+| Evidence assigned      | 2.35B-row customer behaviour surface; SQL/PySpark; Python; multiple data sources; customer-level feature/scoring outputs |
+| Tesco screen covered   | Customer data, SQL, Python, PySpark, data pipelines, databases, multiple data sources                                    |
+| Metric meaning         | Scale of model-ready/scored customer data processing                                                                     |
+| Placeholder values     | `[N] data sources`, `[N] features`, `[N] customers/accounts scored`, `[N] scoring runs`                                  |
+| Later bullet formula   | Technical delivery proof                                                                                                 |
+| Why this must appear   | It immediately proves this is not just analysis or notebooks; it shows data engineering + DS workflow ownership          |
+| Avoid                  | Do not cram churn, propensity, fraud, CI/CD and stakeholder decisions all into this one bullet                           |
+
+**Portfolio role:** this is the **technical foundation bullet**.
+
+---
+
+## Bullet 2 — Churn-risk / retention modelling
+
+| Field                  | Decision                                                                                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function | Prove direct churn/reducing churn relevance                                                                                                               |
+| Evidence assigned      | Churn-risk model; retention-risk scoring; at-risk customer ranking                                                                                        |
+| Tesco screen covered   | Reducing customer churn; customer behaviour; churn modelling desirable                                                                                    |
+| Metric meaning         | Lift in at-risk customer capture versus baseline                                                                                                          |
+| Placeholder values     | `[X]% lift`, top `[Y]%` risk band, `[N] customers scored`                                                                                                 |
+| Baseline               | `[rules-based targeting / random selection / previous model / unsegmented campaign]`                                                                      |
+| Later bullet formula   | Business/model impact proof                                                                                                                               |
+| Why this must appear   | Churn is directly named in the job ad, so this should be one of the clearest business-facing bullets                                                      |
+| Avoid                  | Do not say “improved retention” unless the metric actually measures retention; safer to say at-risk capture, churn-risk lift, or retention prioritisation |
+
+**Portfolio role:** this is the **direct Tesco business-problem bullet**.
+
+---
+
+## Bullet 3 — Propensity / campaign targeting / marketing effectiveness
+
+| Field                  | Decision                                                                                                          |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Primary proof function | Prove propensity modelling and marketing effectiveness                                                            |
+| Evidence assigned      | Propensity score; response-likelihood model; target-customer capture in top score band; campaign audience ranking |
+| Tesco screen covered   | Propensity modelling; personalised customer communications; improving marketing effectiveness                     |
+| Metric meaning         | Target-customer capture rate in the top score band                                                                |
+| Placeholder values     | `[X]%` of target customers captured in top `[Y]%` score band                                                      |
+| Baseline               | `[random targeting / broad campaign / previous segmentation / rules-based selection]`                             |
+| Later bullet formula   | Ranking/segmentation proof                                                                                        |
+| Why this must appear   | It is the cleanest way to show ML value without overclaiming live business impact                                 |
+| Avoid                  | Do not use vague “improved targeting” alone; the score-band capture logic is more credible                        |
+
+**Portfolio role:** this is the **ranking-quality / marketing-effectiveness bullet**.
+
+---
+
+## Bullet 4 — Fraud/anomaly detection
+
+| Field                  | Decision                                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Primary proof function | Prove fraud, anomaly, or unusual customer-behaviour modelling                                                  |
+| Evidence assigned      | Fraud-risk model; anomaly features; abnormal account, usage, or transaction patterns; rule-comparison analysis |
+| Tesco screen covered   | Fraud modelling desirable; customer behaviour; business-risk detection                                         |
+| Metric meaning         | Earlier or stronger capture of known-risk cases versus rule-based triggers                                     |
+| Placeholder values     | `[X]%` known-risk capture, `[N] high-risk cases flagged`, top `[Y]%` risk band                                 |
+| Baseline               | `[rule-based trigger / manual review / existing fraud flag / threshold-only method]`                           |
+| Later bullet formula   | Business/model impact or anomaly-detection proof                                                               |
+| Why this should appear | Churn, fraud, and propensity are explicitly desirable in the ad; showing all three creates a very tight match  |
+| Avoid                  | Do not imply confirmed fraud prevention unless the evidence is actually known-risk/anomaly detection           |
+
+**Portfolio role:** this is the **desirable modelling breadth bullet**.
+
+---
+
+## Bullet 5 — Validation, monitoring, testing, and production-readiness
+
+| Field                  | Decision                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function | Prove model trust + lifecycle ownership                                                                                                                 |
+| Evidence assigned      | Lift validation; calibration checks; freshness checks; drift monitoring; segment stability; data-quality checks; unit tests; CI/CD; AWS-hosted workflow |
+| Tesco screen covered   | Build, validate, optimise and manage models/pipelines; deployment; testing; CI/CD; documentation; cloud; statistical principles                         |
+| Metric meaning         | Reliability of scoring workflow and quality of model outputs across repeated runs                                                                       |
+| Placeholder values     | `[N] validation checks`, `[X]% successful scoring runs`, freshness within `[Y] hours`, `[N] tests`, `[X]% drift/stability threshold`                    |
+| Baseline               | `[manual QA / ad hoc notebook / unversioned scripts / no automated checks]`                                                                             |
+| Later bullet formula   | Validation/monitoring proof or production workflow proof                                                                                                |
+| Why this must appear   | Tesco is not just hiring someone to model; they want lifecycle ownership and production workflow maturity                                               |
+| Avoid                  | Do not split validation and CI/CD into too many separate bullets unless we have space; this bullet should compress the lifecycle proof                  |
+
+**Portfolio role:** this is the **production-grade trust bullet**.
+
+---
+
+## Bullet 6 — Stakeholder decision support / hypothesis-driven analysis
+
+| Field                  | Decision                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Primary proof function | Prove you can turn model outputs into business decisions                                                                                                           |
+| Evidence assigned      | Strategy comparison; threshold trade-offs; outcome-measure comparison; stakeholder recommendation; non-technical explanation                                       |
+| Tesco screen covered   | Hypothesis-driven analysis; clear communication; ownership; stakeholder rationale; customer-focused decision-making                                                |
+| Metric meaning         | Number of strategies compared across defined outcome measures                                                                                                      |
+| Placeholder values     | `[N] strategies`, `[M] outcome measures`, `[X]% improvement in selected trade-off]`                                                                                |
+| Outcome measures       | Reach, capture rate, cost, risk, expected value, customer coverage, false positives, operational effort                                                            |
+| Baseline               | `[single strategy / manual judgement / unvalidated rollout / no trade-off comparison]`                                                                             |
+| Later bullet formula   | Stakeholder decision proof                                                                                                                                         |
+| Why this must appear   | It prevents the section from reading as purely technical and proves Tesco’s communication/decision-making requirements                                             |
+| Avoid                  | Do not use abstract “business decisioning” language; name the decision shape: strategy comparison, threshold choice, rollout recommendation, or trade-off analysis |
+
+**Portfolio role:** this is the **business translation bullet**.
+
+---
+
+# Portfolio order
+
+I would order the six proof functions like this:
+
+```text
+1. Pipeline / scale / SQL-PySpark ownership
+2. Churn-risk modelling
+3. Propensity / targeting
+4. Fraud / anomaly detection
+5. Validation / monitoring / testing / CI/CD
+6. Stakeholder decision support
+```
+
+Reasoning:
+
+| Position | Why                                                                                           |
+| -------- | --------------------------------------------------------------------------------------------- |
+| 1        | Opens with hard technical credibility and scale                                               |
+| 2        | Hits Tesco’s churn requirement early                                                          |
+| 3        | Hits propensity, customer communications and marketing effectiveness                          |
+| 4        | Adds fraud/anomaly breadth, another named desirable area                                      |
+| 5        | Shows production/lifecycle maturity, which the ad strongly emphasises                         |
+| 6        | Ends with stakeholder/business decision proof, showing you can translate analysis into action |
+
+This portfolio gives the recruiter a balanced scan:
+
+```text
+large-scale customer data
+SQL/PySpark
+churn
+propensity
+fraud/anomaly
+validation
+production workflow
+testing/CI/CD
+stakeholder decision-making
+```
+
+# Evidence deliberately not given its own bullet
+
+These are useful, but should be folded into stronger bullets rather than becoming standalone bullets:
+
+| Evidence                         | Why not standalone                                                                            |
+| -------------------------------- | --------------------------------------------------------------------------------------------- |
+| AWS                              | Strong as part of production/pipeline proof, weak alone                                       |
+| Documentation                    | Better folded into lifecycle/production proof                                                 |
+| Security                         | Better folded into lifecycle/production proof unless there is a specific security achievement |
+| Customer segmentation            | Useful, but weaker than propensity unless measured                                            |
+| Marketing effectiveness          | Should be an outcome of propensity/threshold testing, not a standalone claim                  |
+| Customer communication relevance | Too vague unless measured by response, conversion, fit, or coverage                           |
+| Stock management                 | Do not include unless genuine evidence exists                                                 |
+
+# Final Step 4 output
+
+The bullet portfolio is:
+
+```text
+Bullet 1 must prove: large-scale customer-data pipeline ownership.
+Bullet 2 must prove: churn-risk / retention modelling relevance.
+Bullet 3 must prove: propensity modelling and campaign targeting effectiveness.
+Bullet 4 must prove: fraud/anomaly customer-behaviour modelling.
+Bullet 5 must prove: validation, monitoring, testing and production-readiness.
+Bullet 6 must prove: stakeholder decision support and hypothesis-driven analysis.
+```
+
+That is the portfolio we should carry into Step 5. Step 5 is where we draft the actual bullets using the right formula for each proof function.
