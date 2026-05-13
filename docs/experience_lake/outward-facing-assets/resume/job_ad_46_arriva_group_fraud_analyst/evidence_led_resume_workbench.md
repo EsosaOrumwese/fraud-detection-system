@@ -817,3 +817,497 @@ Fraud Detection & Behaviour Analytics Platform — Exeter, UK | May 2025 – Pre
 ```
 
 That keeps the same project truthful while making the role relevance much sharper.
+
+---
+
+Yes — now we do **job-specific evidence scoring for Arriva Group / CrossCountry**.
+
+This step is **not bullet design yet**. The framework says Step 3 is where we score each evidence item as **A = direct match, B = adjacent, C = transferable support, D = remove/compress**, so the CV does not force every experience to sound equally relevant. 
+
+Arriva’s role is centred on **revenue protection fraud analysis**: identifying fraud risks, individual cases, wider trends, subject profiles, routes/locations/processes at risk, control weaknesses, revenue recovered/generated, senior-manager reporting, and tools such as Excel, SQL, VBA and Power BI. 
+
+# Arriva Group — Evidence Scoring
+
+## Scoring key
+
+| Tier | Meaning for Arriva                                                               |
+| ---- | -------------------------------------------------------------------------------- |
+| A    | Direct match to CrossCountry fraud/revenue-protection needs; should shape the CV |
+| B    | Useful supporting evidence; include if it strengthens the story                  |
+| C    | Transferable but secondary; use lower down or compress                           |
+| D    | Weak for this role; remove or avoid                                              |
+
+---
+
+# Tier A — Direct Arriva evidence
+
+These should drive the Arriva CV.
+
+| Evidence item                                           | Score | Why it is A for Arriva                                                                                                                     |
+| ------------------------------------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Fraud Risk & Revenue Protection Analytics Platform**  |     A | Better role-specific platform title than “Customer Behaviour ML Platform”; frames the experience around fraud risk and revenue protection. |
+| **SQL fraud-risk query**                                |     A | Arriva names SQL as desirable and needs analytics to identify fraud risk.                                                                  |
+| **Power BI revenue-protection dashboard**               |     A | Direct match to reporting, data visualisation, dashboards and senior-manager communication.                                                |
+| **Excel fraud reconciliation workbook**                 |     A | Direct match to Excel, accuracy, complex datasets and fraud/revenue-risk reporting.                                                        |
+| **VBA exception-flagging macro**                        |     A | Direct match because Arriva names VBA; also proves automation and exception detection.                                                     |
+| **Fraud-risk indicator table**                          |     A | Arriva wants understanding of fraud patterns and risk indicators.                                                                          |
+| **Anomaly-risk score / exception flag table**           |     A | Strong evidence for identifying fraud risk, suspicious behaviour and emerging patterns.                                                    |
+| **Known-risk case capture versus rule/manual baseline** |     A | Shows the analysis can improve fraud detection, not just describe data.                                                                    |
+| **Subject profile / high-risk account profile**         |     A | Direct match to “develop subject profiles for investigation.”                                                                              |
+| **Suspicious behaviour timeline**                       |     A | Strong individual-case evidence for investigation support.                                                                                 |
+| **Case evidence pack**                                  |     A | Concrete artefact for fraud investigation and Revenue Protection review.                                                                   |
+| **Route-risk analysis**                                 |     A | Direct match to identifying routes at risk from fraudulent activity.                                                                       |
+| **Location-risk report**                                |     A | Direct match to identifying locations at risk.                                                                                             |
+| **Process-control weakness report**                     |     A | Direct match to highlighting and quantifying weaknesses in current processes and controls.                                                 |
+| **Revenue-risk table**                                  |     A | Direct match to revenue protection and revenue loss mitigation.                                                                            |
+| **Revenue recovered/generated analysis**                |     A | Very strong because Arriva explicitly asks for evidence of revenue recovered or generated from analytical insight.                         |
+| **Senior-manager fraud report**                         |     A | Direct match to “insightful, accurate, easy-to-interpret reporting for Senior Managers.”                                                   |
+| **Power BI fraud trend dashboard**                      |     A | Strong direct fit for fraud trends, reporting, dashboards and stakeholder visibility.                                                      |
+| **Excel control-gap tracker**                           |     A | Strong fit for process/control weakness evidence and attention to detail.                                                                  |
+| **Multi-source fraud dataset**                          |     A | Direct match to manipulating and analysing complex datasets from multiple sources.                                                         |
+| **Ad-hoc fraud analysis request log**                   |     A | Direct match to ad-hoc analysis, prioritisation and fraud-team support.                                                                    |
+
+**Verdict:** These are the materials we should build the Arriva CV around. The strongest Arriva story is not “ML platform”; it is **fraud-risk analytics, Excel/SQL/VBA/Power BI reporting, subject profiles, route/process risks, control weaknesses and revenue-protection impact**.
+
+---
+
+# Tier B — Useful supporting evidence
+
+These help, but should not dominate unless they serve one of the Arriva proof buckets.
+
+| Evidence item                                   | Score | Why it is B                                                                                                                                      |
+| ----------------------------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **2.35B-row behavioural data surface**          |     B | Strong complex-data proof, but Arriva cares more about fraud/revenue/route/process risk than raw scale. Use it if tied to fraud-risk indicators. |
+| **BigQuery fraud trend query**                  |     B | Useful SQL/large-data evidence, but Arriva names SQL/VBA/Power BI rather than BigQuery. Still valuable if concrete.                              |
+| **Looker fraud report**                         |     B | Useful reporting evidence, but Power BI is a better Arriva match.                                                                                |
+| **Python anomaly scoring workflow**             |     B | Useful analytical depth, but Arriva is more analyst/reporting/revenue-protection focused than Python/ML-focused.                                 |
+| **Model validation report for anomaly score**   |     B | Good if it supports fraud-risk indicator quality; secondary to SQL/Excel/Power BI subject-profile evidence.                                      |
+| **Rule-performance comparison**                 |     B | Useful if framed as control or fraud-indicator testing; less central than subject profiles and route/process risk.                               |
+| **Fraud detection rule**                        |     B | Good evidence, but Trustpilot values rule formulation more explicitly than Arriva.                                                               |
+| **Dashboard validation checklist**              |     B | Strong supporting evidence for report accuracy and senior-manager reporting.                                                                     |
+| **SQL reconciliation query**                    |     B | Useful if paired with Excel/Power BI reporting or fraud-risk table validation.                                                                   |
+| **Business analytics trend report**             |     B | Shows trend analysis and recommendation writing; useful but not fraud/revenue-specific.                                                          |
+| **220-country / 12-sector recovery analysis**   |     B | Good complex-trend evidence; should support, not lead.                                                                                           |
+| **Smartphone behavioural classification model** |     B | Useful because Arriva mentions fraudulent travel behaviour, but it is academic and not fraud/revenue protection.                                 |
+| **Risk indicator summary from sensor project**  |     B | Supports behaviour-to-risk thinking; secondary to actual fraud-risk artefacts.                                                                   |
+
+**Verdict:** B-tier evidence can strengthen the CV, especially in supporting blocks, but the top Arriva block should use the A-tier operational fraud/revenue artefacts first.
+
+---
+
+# Tier C — Transferable support only
+
+These are credible, but should stay lower in the CV or be compressed.
+
+| Evidence item                           | Score | Why it is C                                                                                                   |
+| --------------------------------------- | ----: | ------------------------------------------------------------------------------------------------------------- |
+| **Customer/reviewer behaviour report**  |     C | Better for Trustpilot; only useful for Arriva if reframed carefully as behaviour-risk analysis.               |
+| **Looker reviewer-behaviour report**    |     C | Trustpilot-specific; not a natural Arriva fit.                                                                |
+| **Churn-risk scoring**                  |     C | Shows risk modelling, but wrong business problem for Arriva unless translated into fraud-risk scoring.        |
+| **Propensity / campaign targeting**     |     C | Not relevant to revenue protection unless converted into prioritisation logic; avoid in the Arriva top block. |
+| **Payment acceptance dashboard**        |     C | Better for Frasers; weak for Arriva.                                                                          |
+| **Chargeback trend report**             |     C | Better for Frasers; only useful if framed as revenue leakage.                                                 |
+| **HSE documentation gap tracker**       |     C | Shows control-gap discipline but should not appear as HSE-heavy language in a fraud CV.                       |
+| **Completions handover pack**           |     C | Transferable for reconciliation/accuracy, but weaker than Excel control-gap tracker or Power BI dashboard.    |
+| **Equipment readiness tracker**         |     C | Too operational/oilfield-specific; only useful if compressed under reporting/controls.                        |
+| **Deep learning driver identity model** |     C | Behavioural modelling is relevant at a distance, but not a core fraud analyst proof item.                     |
+
+**Verdict:** C-tier evidence can support your broader analyst credibility, but it should not take space away from fraud-risk, revenue protection, subject profiles, process controls, Excel, SQL, VBA and Power BI.
+
+---
+
+# Tier D — Remove or avoid for Arriva
+
+These do not answer Arriva’s hiring questions strongly enough.
+
+| Evidence item                                         |                  Score | Why it is D                                                                                                               |
+| ----------------------------------------------------- | ---------------------: | ------------------------------------------------------------------------------------------------------------------------- |
+| **Marketing targeting / campaign audience selection** |                      D | Wrong business context.                                                                                                   |
+| **Offer/message/intervention propensity score**       |                      D | Wrong problem for Arriva unless completely reframed, which may feel forced.                                               |
+| **Customer communication relevance**                  |                      D | Too Tesco/marketing-oriented.                                                                                             |
+| **Checkout performance analysis**                     |                      D | Frasers-specific; not useful for Arriva.                                                                                  |
+| **Payment provider issue analysis**                   |                      D | Frasers-specific unless tied to revenue leakage, but still not central.                                                   |
+| **Review-platform misuse case pack**                  |           D for Arriva | Trustpilot-specific; use “subject profile” or “case evidence pack” instead.                                               |
+| **Legal/media/customer inquiry support note**         |                      D | Trustpilot-specific; Arriva wants Senior Managers, Revenue Protection, internal departments and train operating partners. |
+| **Production ML / CI/CD / unit testing**              | D/B depending on space | Strong elsewhere, but for Arriva it risks making you look over-technical unless tied to fraud reports or risk tables.     |
+
+---
+
+# Arriva-specific priority pool
+
+For Arriva, the highest-value evidence pool is:
+
+```text
+1. Power BI revenue-protection dashboard
+2. SQL fraud-risk query
+3. Excel fraud reconciliation workbook
+4. VBA exception-flagging macro
+5. Fraud-risk indicator table
+6. Subject profile / high-risk account profile
+7. Suspicious behaviour timeline
+8. Route-risk analysis
+9. Location-risk report
+10. Process-control weakness report
+11. Revenue-risk table
+12. Revenue recovered/generated analysis
+13. Senior-manager fraud report
+14. Multi-source fraud dataset
+15. Dashboard validation checklist
+```
+
+# What this tells us for the Arriva CV
+
+The main platform block should probably be renamed away from the Trustpilot wording.
+
+For Arriva, I would use:
+
+```text
+Fraud Risk & Revenue Protection Analytics Platform
+```
+
+or slightly safer if revenue-recovery evidence is not strong:
+
+```text
+Fraud Risk Analytics Platform
+```
+
+The headline should move toward:
+
+```text
+Fraud Data Analyst | Revenue Protection Analytics | SQL, Excel, VBA & Power BI | Fraud Risk Reporting
+```
+
+And the main experience block should later be designed around proof functions like:
+
+```text
+1. SQL/Excel multi-source fraud-risk analysis
+2. Power BI revenue-protection dashboarding
+3. VBA exception-flagging / Excel reconciliation
+4. Subject profiles and suspicious behaviour timelines
+5. Route/location/process-control weakness analysis
+6. Revenue-risk or recovered/generated value evidence
+7. Senior-manager fraud reporting
+```
+
+Next methodology step: **design the Arriva bullet portfolio from this Tier A evidence pool**.
+
+---
+
+Yes. This is **Step 4 for Arriva**: design the bullet portfolio from the Tier A evidence pool. This is **not final bullet drafting yet**. The methodology says the question is: **“What must each bullet prove?”**, not “what are six good bullets?” 
+
+Arriva’s role is centred on revenue protection, fraud-risk analysis, complex multi-source data, subject profiles, route/location/process risks, control weaknesses, revenue recovered/generated, senior-manager reporting, and tools such as Excel, SQL, VBA and Power BI. 
+
+# Arriva Bullet Portfolio
+
+## Target experience block
+
+```text
+Data Scientist
+Fraud Risk & Revenue Protection Analytics Platform — Exeter, UK | May 2025 – Present
+```
+
+If we want to be slightly safer before we prove revenue-recovery evidence:
+
+```text
+Data Scientist
+Fraud Risk Analytics Platform — Exeter, UK | May 2025 – Present
+```
+
+My preference for Arriva is:
+
+```text
+Fraud Risk & Revenue Protection Analytics Platform
+```
+
+because the job is explicitly about supporting Revenue Protection and Anti-Fraud strategy.
+
+---
+
+# Portfolio goal
+
+This experience block must prove:
+
+> You can analyse complex fraud and operational datasets using SQL, Excel, VBA and Power BI; identify fraud-risk indicators, subject profiles, route/location/process weaknesses and revenue-risk opportunities; and produce clear senior-manager reports that support revenue protection decisions.
+
+---
+
+# Recommended portfolio: 6 bullets
+
+## Bullet 1 — Multi-source fraud-risk analysis using SQL and Excel
+
+| Field                            | Decision                                                                                                                     |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove you can manipulate complex datasets from multiple sources to identify fraud risk                                       |
+| Evidence assigned                | SQL fraud-risk query, Excel fraud reconciliation workbook, multi-source fraud dataset                                        |
+| Arriva screen covered            | Complex datasets, fraud risk, Excel, SQL, revenue loss mitigation                                                            |
+| Concrete artefacts to name later | SQL fraud-risk query; Excel fraud reconciliation workbook; multi-source fraud dataset                                        |
+| Metric meaning                   | Scale of records/sources analysed and number of fraud-risk indicators produced                                               |
+| Placeholder values               | `[N] data sources`, `[N] records`, `[N] fraud-risk indicators`                                                               |
+| Why this must appear             | It directly answers Arriva’s need for someone who can analyse complex datasets from multiple sources to identify fraud risks |
+| Avoid                            | Do not lead with machine learning here; Arriva’s first scan wants fraud-risk analysis, Excel/SQL, and revenue protection     |
+
+**Portfolio role:** this is the **core fraud-data analysis bullet**.
+
+---
+
+## Bullet 2 — Power BI revenue-protection dashboard
+
+| Field                            | Decision                                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove you can produce accurate, easy-to-interpret reporting for managers                           |
+| Evidence assigned                | Power BI revenue-protection dashboard, Power BI fraud trend dashboard, senior-manager fraud report |
+| Arriva screen covered            | Reporting, data visualisation, dashboard creation, Senior Manager communication                    |
+| Concrete artefacts to name later | Power BI revenue-protection dashboard; senior-manager fraud report                                 |
+| Metric meaning                   | Number of fraud/revenue KPIs tracked and reporting cadence                                         |
+| Placeholder values               | `[N] KPIs`, `[weekly/monthly] refresh`, `[N] stakeholder groups`                                   |
+| Why this must appear             | Arriva explicitly asks for reporting and dashboards; Power BI is also named as desirable           |
+| Avoid                            | Do not say “dashboard reporting” alone; name the actual dashboard                                  |
+
+**Portfolio role:** this is the **manager-facing dashboard bullet**.
+
+---
+
+## Bullet 3 — VBA exception-flagging and Excel reconciliation
+
+| Field                            | Decision                                                                                                   |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove detail, accuracy, automation and exception detection                                                 |
+| Evidence assigned                | VBA exception-flagging macro, Excel fraud reconciliation workbook, Excel control-gap tracker               |
+| Arriva screen covered            | Excel, VBA, attention to detail, accuracy, complex data, process/control weaknesses                        |
+| Concrete artefacts to name later | VBA exception-flagging macro; Excel reconciliation workbook; Excel control-gap tracker                     |
+| Metric meaning                   | Reduction in manual review time, conflicting entries, or unflagged exceptions                              |
+| Placeholder values               | Review time from `[X]` to `[Y]`; `[X]%` fewer conflicting entries; `[N] exception categories`              |
+| Why this must appear             | It gives Arriva a concrete Excel/VBA proof point and shows practical fraud/control analytics, not just SQL |
+| Avoid                            | Do not describe this as “automation” abstractly; name the VBA macro and Excel workbook                     |
+
+**Portfolio role:** this is the **Excel/VBA accuracy and exception-control bullet**.
+
+---
+
+## Bullet 4 — Subject profiles and suspicious behaviour timelines
+
+| Field                            | Decision                                                                                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove you can support individual investigations, not just aggregate reporting                                                                                       |
+| Evidence assigned                | Subject profile, high-risk account profile, suspicious behaviour timeline, case evidence pack                                                                       |
+| Arriva screen covered            | Individual fraudulent behaviour, subject profiles for investigation                                                                                                 |
+| Concrete artefacts to name later | Subject profile; suspicious behaviour timeline; case evidence pack                                                                                                  |
+| Metric meaning                   | Number of high-risk subjects/cases profiled or review-confirmation rate                                                                                             |
+| Placeholder values               | `[N] subject profiles`, `[N] case evidence packs`, `[X]% confirmed high-risk after review]`                                                                          |
+| Why this must appear             | Arriva directly asks for identifying fraudulent behaviour by individuals and developing subject profiles                                                            |
+| Avoid                            | Do not use Trustpilot language like “platform misuse case pack”; for Arriva, use **subject profile**, **case evidence pack**, and **suspicious behaviour timeline** |
+
+**Portfolio role:** this is the **individual investigation bullet**.
+
+---
+
+## Bullet 5 — Route, location and process-control weakness analysis
+
+| Field                            | Decision                                                                                                                                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove you can find where fraud risk concentrates and where controls fail                                                                                                                                            |
+| Evidence assigned                | Route-risk analysis, location-risk report, process-control weakness report, Excel control-gap tracker                                                                                                               |
+| Arriva screen covered            | Routes, locations, processes at risk; weaknesses in current processes and controls                                                                                                                                  |
+| Concrete artefacts to name later | Route-risk analysis; location-risk report; process-control weakness report                                                                                                                                          |
+| Metric meaning                   | Number of risk hotspots/control weaknesses identified and quantified                                                                                                                                                |
+| Placeholder values               | `[N] route/location risk hotspots`, `[N] control weaknesses`, `[X]% risk concentration`                                                                                                                             |
+| Why this must appear             | This is the most Arriva-specific bullet. It makes the CV feel written for CrossCountry Revenue Protection rather than a generic fraud analyst role                                                                  |
+| Avoid                            | Do not overuse rail-specific nouns unless the evidence supports them. If the underlying data was not rail, frame it as process-control weakness analysis and risk hotspots rather than pretending it was route data |
+
+**Portfolio role:** this is the **network/process risk bullet**.
+
+---
+
+## Bullet 6 — Revenue-risk and anti-fraud initiative impact
+
+| Field                            | Decision                                                                                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove your analysis connected to revenue protection outcomes                                                                                       |
+| Evidence assigned                | Revenue-risk table, revenue recovered/generated analysis, intervention impact report                                                               |
+| Arriva screen covered            | Mitigating revenue loss; evidencing revenue recovered/generated; anti-fraud initiative impact                                                      |
+| Concrete artefacts to name later | Revenue-risk table; revenue-recovery evidence pack; intervention impact report                                                                     |
+| Metric meaning                   | Revenue at risk identified, recovered/generated value, or leakage reduction                                                                        |
+| Placeholder values               | `£[X] revenue at risk`, `£[Y] recovered/generated`, `[X]% leakage reduction`, `[N] risky cases prioritised`                                        |
+| Why this must appear             | This is one of the strongest possible Arriva differentiators because the ad explicitly asks for evidence of revenue recovered or generated         |
+| Avoid                            | Do not claim recovered revenue unless we can explain the calculation. If not, use “revenue at risk identified” or “revenue-risk cases prioritised” |
+
+**Portfolio role:** this is the **commercial fraud-impact bullet**.
+
+---
+
+# Optional 7th bullet — Ad-hoc analysis and partner support
+
+I would only add this if there is space.
+
+| Field                            | Decision                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Primary proof function           | Prove workload flexibility and cross-functional support                                                                  |
+| Evidence assigned                | Ad-hoc fraud analysis request log, senior-manager fraud report, partner/internal department query                        |
+| Arriva screen covered            | Internal departments, external partners, other Train Operating Companies, ad-hoc analysis                                |
+| Concrete artefacts to name later | Ad-hoc fraud analysis request; senior-manager fraud report; partner risk summary                                         |
+| Metric meaning                   | Number of ad-hoc requests or stakeholder groups supported                                                                |
+| Placeholder values               | `[N] ad-hoc fraud requests`, `[M] stakeholder groups`                                                                    |
+| Why optional                     | Useful, but less important than fraud-risk analysis, dashboards, subject profiles, process weaknesses and revenue impact |
+
+---
+
+# Recommended order
+
+I would order the Arriva platform bullets like this:
+
+```text
+1. SQL + Excel multi-source fraud-risk analysis
+2. Power BI revenue-protection dashboard
+3. VBA exception-flagging + Excel reconciliation
+4. Subject profiles + suspicious behaviour timelines
+5. Route/location/process-control weakness analysis
+6. Revenue-risk / recovered-generated value evidence
+```
+
+This order gives the recruiter the strongest first scan:
+
+```text
+SQL
+Excel
+Power BI
+VBA
+fraud risk
+revenue protection
+subject profiles
+routes / locations / processes
+control weaknesses
+revenue impact
+Senior Manager reporting
+```
+
+---
+
+# Evidence deliberately not given a main Arriva bullet
+
+| Evidence                          | Reason                                                                            |
+| --------------------------------- | --------------------------------------------------------------------------------- |
+| Google Looker fraud report        | Useful, but Power BI is a better Arriva match                                     |
+| Google BigQuery fraud trend query | Useful, but SQL/Excel/Power BI/VBA should dominate                                |
+| Python/PySpark anomaly scoring    | Useful, but Arriva is more fraud analyst / revenue protection than ML engineering |
+| Churn-risk scoring                | Wrong business problem unless translated into fraud-risk scoring                  |
+| Propensity / targeting            | Wrong business problem                                                            |
+| Payment acceptance dashboard      | Better for Frasers                                                                |
+| Chargeback trend report           | Better for Frasers unless framed as revenue leakage                               |
+| Reviewer-behaviour report         | Better for Trustpilot                                                             |
+| Production ML / CI/CD             | Not a priority for Arriva unless tied to fraud reporting reliability              |
+
+---
+
+# Final Step 4 output
+
+For Arriva, the bullet portfolio is:
+
+```text
+Bullet 1 must prove: SQL and Excel multi-source fraud-risk analysis.
+Bullet 2 must prove: Power BI revenue-protection dashboarding for managers.
+Bullet 3 must prove: VBA exception-flagging and Excel reconciliation accuracy.
+Bullet 4 must prove: subject profiles and suspicious behaviour timelines for investigations.
+Bullet 5 must prove: route/location/process-control weakness analysis.
+Bullet 6 must prove: revenue-risk, revenue recovered/generated, or anti-fraud impact evidence.
+Optional Bullet 7 must prove: ad-hoc analysis and internal/external partner support.
+```
+
+---
+
+Yes. Now we draft the **Arriva bullets using the right formula per proof function**.
+
+The Arriva ad is asking for revenue-protection fraud analysis, complex multi-source data, subject profiles, route/location/process risks, control weaknesses, revenue recovered/generated, senior-manager reporting, and tools including Excel, SQL, VBA and Power BI.  The framework says this step should use the right bullet formula for the proof function: technical delivery, business impact, validation/monitoring, stakeholder decision, or operational improvement — not one generic bullet shape. 
+
+# Arriva Draft — Main Experience Block
+
+```text id="95zgzv"
+Data Scientist
+Fraud Risk & Revenue Protection Analytics Platform — Exeter, UK | May 2025 – Present
+Fraud analytics platform using SQL, Excel, VBA and Power BI across a 2.35B-row behavioural risk data surface to identify fraud-risk indicators, subject profiles, revenue leakage and control weaknesses.
+```
+
+## Draft bullets
+
+```text id="5ygvbq"
+- Built SQL fraud-risk queries and an Excel fraud reconciliation workbook over a 2.35B-row behavioural risk surface, combining [N] data sources into [N] revenue-risk indicators for fraud review.
+
+- Created a Power BI revenue-protection dashboard tracking [N] fraud, route, location and process-control KPIs, giving Senior Managers a [weekly/monthly] view of emerging risk patterns.
+
+- Built a VBA exception-flagging macro for the Excel fraud workbook, reducing manual review time from [X] to [Y] and surfacing [N] missing, duplicated or conflicting records before review.
+
+- Produced [N] subject profiles with SQL case-detail extracts, suspicious behaviour timelines and risk-indicator summaries to support investigation of high-risk individuals.
+
+- Identified [N] route, location and process-control weaknesses through fraud-risk analysis, quantifying [X]% concentration of suspicious activity across high-risk segments.
+
+- Built a revenue-risk table estimating £[X] revenue exposure across [N] high-risk cases, helping prioritise anti-fraud interventions for Revenue Protection review.
+
+- Produced a senior-manager fraud report comparing [N] intervention options across [M] measures, including revenue at risk, case volume, control weakness, and investigation priority.
+```
+
+# Formula mapping
+
+| Bullet | Formula used                  | Why it fits Arriva                                                                  |
+| ------ | ----------------------------- | ----------------------------------------------------------------------------------- |
+| 1      | Technical delivery proof      | Proves SQL, Excel, complex data, multi-source analysis and fraud-risk indicators    |
+| 2      | Reporting/dashboard proof     | Proves Power BI, revenue-protection dashboarding and Senior Manager reporting       |
+| 3      | Operational improvement proof | Proves VBA, Excel accuracy, exception detection and reduced review time             |
+| 4      | Investigation proof           | Proves subject profiles, individual case support and suspicious behaviour timelines |
+| 5      | Risk/control analysis proof   | Proves route/location/process-risk analysis and control weakness quantification     |
+| 6      | Business/revenue impact proof | Proves revenue exposure and anti-fraud prioritisation                               |
+| 7      | Stakeholder decision proof    | Proves senior-manager reporting and intervention comparison                         |
+
+# Stronger 6-bullet CV version
+
+For the actual CV, I would probably use **six bullets**, not seven. We can merge the revenue-risk and senior-manager report bullets:
+
+```text id="n20bvq"
+- Built SQL fraud-risk queries and an Excel fraud reconciliation workbook over a 2.35B-row behavioural risk surface, combining [N] data sources into [N] revenue-risk indicators for fraud review.
+
+- Created a Power BI revenue-protection dashboard tracking [N] fraud, route, location and process-control KPIs, giving Senior Managers a [weekly/monthly] view of emerging risk patterns.
+
+- Built a VBA exception-flagging macro for the Excel fraud workbook, reducing manual review time from [X] to [Y] and surfacing [N] missing, duplicated or conflicting records before review.
+
+- Produced [N] subject profiles with SQL case-detail extracts, suspicious behaviour timelines and risk-indicator summaries to support investigation of high-risk individuals.
+
+- Identified [N] route, location and process-control weaknesses through fraud-risk analysis, quantifying [X]% concentration of suspicious activity across high-risk segments.
+
+- Built a revenue-risk table estimating £[X] exposure across [N] high-risk cases, then translated findings into a senior-manager fraud report comparing [M] anti-fraud intervention options.
+```
+
+# Slightly safer version if revenue-recovered evidence is not ready
+
+If we cannot defend recovered/generated value yet, avoid claiming recovery. Use **revenue exposure** or **revenue at risk**, which is easier to defend analytically:
+
+```text id="tpidzh"
+- Built a revenue-risk table estimating £[X] exposure across [N] high-risk cases, helping Revenue Protection teams prioritise investigation and intervention activity.
+```
+
+Only use this if you can defend the calculation:
+
+```text id="vdmj4q"
+- Evidenced £[X] recovered or generated from fraud-risk recommendations by comparing intervention outcomes against the pre-analysis baseline.
+```
+
+That second version is very strong, but it needs a clear measurement path.
+
+# My recommended Arriva draft
+
+```text id="khnght"
+Data Scientist
+Fraud Risk & Revenue Protection Analytics Platform — Exeter, UK | May 2025 – Present
+Fraud analytics platform using SQL, Excel, VBA and Power BI across a 2.35B-row behavioural risk data surface to identify fraud-risk indicators, subject profiles, revenue leakage and control weaknesses.
+
+- Built SQL fraud-risk queries and an Excel fraud reconciliation workbook over a 2.35B-row behavioural risk surface, combining [N] data sources into [N] revenue-risk indicators for fraud review.
+
+- Created a Power BI revenue-protection dashboard tracking [N] fraud, route, location and process-control KPIs, giving Senior Managers a [weekly/monthly] view of emerging risk patterns.
+
+- Built a VBA exception-flagging macro for the Excel fraud workbook, reducing manual review time from [X] to [Y] and surfacing [N] missing, duplicated or conflicting records before review.
+
+- Produced [N] subject profiles with SQL case-detail extracts, suspicious behaviour timelines and risk-indicator summaries to support investigation of high-risk individuals.
+
+- Identified [N] route, location and process-control weaknesses through fraud-risk analysis, quantifying [X]% concentration of suspicious activity across high-risk segments.
+
+- Built a revenue-risk table estimating £[X] exposure across [N] high-risk cases, then translated findings into a senior-manager fraud report comparing [M] anti-fraud intervention options.
+```
+
+This is the strongest Arriva-shaped version so far because it says the actual things: **SQL fraud-risk queries, Excel fraud reconciliation workbook, Power BI revenue-protection dashboard, VBA exception-flagging macro, subject profiles, suspicious behaviour timelines, route/location/process-control weaknesses, and a revenue-risk table**.
