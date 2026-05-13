@@ -27,9 +27,6 @@ Payments and fraud analytics platform using SQL, Google BigQuery, Excel, Power B
 - Produced a decline-rate root-cause report from BigQuery movement queries, explaining a [X]% unexpected increase in failed payments and identifying [N] provider, customer or checkout-flow drivers.
 - Produced Finance chargeback cost summaries and eCommerce checkout performance memos, quantifying £[Y] cost exposure, [Z]% chargeback variance and [X]% payment-acceptance opportunity.
 
-Optional additional bullet to consider:
-- Built a payment acceptance uplift analysis and chargeback reduction report, quantifying [X]% acceptance improvement, £[Y] cost variance and [Z]% chargeback reduction opportunity.
-
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
 Behavioural modelling project using smartphone sensor data to classify movement patterns, driver identity and risk indicators for usage-based insurance analysis.

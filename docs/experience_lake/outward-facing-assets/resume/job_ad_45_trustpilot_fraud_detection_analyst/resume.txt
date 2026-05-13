@@ -24,7 +24,6 @@ Fraud analytics platform using SQL, Google BigQuery, Google Looker, Python and b
 - Created Looker fraud and account-behaviour dashboards tracking [N] risk metrics, giving fraud/risk stakeholders a recurring view of abnormal platform activity.
 - Formulated [N] fraud detection rules from behavioural analysis, improving known-risk case capture by [X]% versus the existing rule-trigger baseline.
 - Produced [N] escalated misuse case packs with SQL case-detail queries, high-risk account profiles and suspicious behaviour timelines for investigation review.
-- Analysed customer/account behaviour in BigQuery, identifying [N] behaviour segments where [X]% of known-risk cases concentrated in the top [Y]% risk band.
 - Maintained [N] BigQuery fraud tables, SQL views and Looker source tables for fraud dashboards, improving refresh time by [X]% and supporting data science and engineering review.
 - Wrote fraud-rule rationale memos summarising [N] rule recommendations, validation results and investigation findings for fraud, data science, engineering and wider stakeholder review.
 
