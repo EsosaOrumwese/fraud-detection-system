@@ -1,5 +1,11 @@
 # Tesco Mobile Data Scientist - Platform Positioning
 
+> DEPRECATED as of 2026-05-13.
+>
+> This document is historical positioning work from the older platform-first / X-first method. Do not use it as the active resume-writing methodology.
+>
+> Active method: use the evidence-led resume positioning framework and the job-specific workbench. For platform scale, keep only the concrete `2.35B-row` evidence fixed; all other metrics should remain placeholders until validated in the evidence ledger.
+
 ## Role Posture
 
 For this role, the platform should be positioned around Tesco's employer problem first: solving real business problems, improving customer experience, and shaping better business decisions through data science.

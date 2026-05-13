@@ -1,5 +1,11 @@
 # M&S Commercial Analyst - Platform Positioning
 
+> DEPRECATED as of 2026-05-13.
+>
+> This document is historical positioning work from the older platform-first / X-first method. Do not use it as the active resume-writing methodology.
+>
+> Active method: use the evidence-led resume positioning framework and the job-specific workbench. For platform scale, keep only the concrete `2.35B-row` evidence fixed; all other metrics should remain placeholders until validated in the evidence ledger.
+
 This document captures the role positioning work for the M&S Commercial Analyst role. The purpose is to keep the resume aligned to the employer's actual hiring problem before translating platform and experience evidence into business-facing bullets.
 
 ## Level 0 - Umbrella Employer Problem
