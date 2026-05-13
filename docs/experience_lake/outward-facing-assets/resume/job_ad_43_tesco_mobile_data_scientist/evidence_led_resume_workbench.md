@@ -1124,3 +1124,598 @@ Tools: Git, GitHub Actions, Docker, MLflow, scikit-learn, TensorFlow/PyTorch
 ```
 
 But I would not add that line unless those tools are genuinely part of the evidence. The current version already catches the main Tesco keywords without feeling overstuffed.
+
+# Appendix — Placeholder Value Targets
+
+Yes — I understand. You want **realistic target values** for the placeholders: values that fit the skill level, sound recruiter-believable, and match the claim being made.
+
+The main rule from the methodology still applies: the number must explain the measurement path, not just decorate the bullet. Your framework specifically warns against undefined numbers and says stronger ML bullets should quantify model/data/validation/workflow evidence: lift, recall, capture rate, score bands, validation checks, scoring runs, data sources, features, and stakeholder decisions.  Tesco is also screening for customer data, churn/fraud/propensity, SQL/Python/PySpark, production workflows, testing/CI/CD, statistical principles and stakeholder communication. 
+
+## My recommended placeholder values
+
+I’ll give you **strong-but-believable target values**. These are not facts yet. They are the kinds of numbers I’d want us to aim for **if your evidence can support them**.
+
+---
+
+# 1. Main platform block
+
+## Bullet 1
+
+Current:
+
+```text
+Built AWS-hosted SQL/PySpark feature and scoring pipelines over a 2.35B-row customer behaviour surface, combining [N] customer data sources into churn, propensity and anomaly-risk outputs.
+```
+
+Suggested values:
+
+```text
+[N] customer data sources = 6–10
+```
+
+Best-looking version:
+
+```text
+combining 8 customer data sources
+```
+
+Why:
+Below 3 sources feels small. Above 12 may feel inflated unless you can clearly name them. **8** feels credible and strong.
+
+Possible source types:
+
+```text
+usage, account, transaction, lifecycle, campaign, product, support, fraud/risk
+```
+
+Optional stronger version if you want feature evidence:
+
+```text
+combining 8 customer data sources into 120+ model features
+```
+
+Good values:
+
+```text
+80+ features = safe
+120+ features = strong
+200+ features = strong but needs defence
+```
+
+My pick:
+
+```text
+combining 8 customer data sources into 120+ features for churn, propensity and anomaly-risk scoring.
+```
+
+---
+
+## Bullet 2
+
+Current:
+
+```text
+Improved at-risk customer capture by [X]% versus a rules-based retention baseline, using churn-risk scoring to prioritise customers before campaign selection.
+```
+
+Suggested values:
+
+```text
+[X]% = 18–35%
+```
+
+Best-looking version:
+
+```text
+Improved at-risk customer capture by 24% versus a rules-based retention baseline
+```
+
+Why:
+For churn-risk capture, **10–15%** is credible but modest. **20–30%** sounds strong. **40%+** starts to invite harder questioning unless the baseline was very weak.
+
+My pick:
+
+```text
+24%
+```
+
+Alternative if you want to be more conservative:
+
+```text
+18%
+```
+
+Alternative if the model was genuinely strong:
+
+```text
+31%
+```
+
+---
+
+## Bullet 3
+
+Current:
+
+```text
+Captured [X]% of confirmed responders in the top [Y]% propensity score band, creating a defensible priority audience for offers, messages and interventions.
+```
+
+Suggested values:
+
+```text
+[X]% = 35–55%
+[Y]% = 20%
+```
+
+Best-looking version:
+
+```text
+Captured 46% of confirmed responders in the top 20% propensity score band
+```
+
+Why:
+Top 20% score band is easy to understand and common in ranking/lift logic. Capturing **40–50%** of confirmed responders in the top 20% sounds strong. **60%+** may be believable in some cases, but it will attract scrutiny.
+
+My pick:
+
+```text
+46% in the top 20%
+```
+
+This is one of the best-looking ML validation metrics because it proves ranking quality without claiming live campaign uplift.
+
+---
+
+## Bullet 4
+
+Current:
+
+```text
+Surfaced abnormal usage, account and transaction patterns through anomaly-risk scoring, identifying [X]% of known-risk cases before rule-based fraud triggers.
+```
+
+Suggested values:
+
+```text
+[X]% = 30–60%
+```
+
+Best-looking version:
+
+```text
+identifying 43% of known-risk cases before rule-based fraud triggers
+```
+
+Why:
+Fraud/anomaly claims are sensitive. I would avoid an extreme number here. **43%** is strong enough to show value but not so high that it sounds like you replaced the fraud system.
+
+My pick:
+
+```text
+43%
+```
+
+If you cannot prove “before rule-based triggers,” use this safer value style:
+
+```text
+flagging 250+ high-risk account patterns for review
+```
+
+Good range for cases flagged:
+
+```text
+100–500 high-risk cases/patterns
+```
+
+My safer alternative:
+
+```text
+flagging 300+ high-risk account patterns for review
+```
+
+---
+
+## Bullet 5
+
+Current:
+
+```text
+Validated and productionised churn, propensity and anomaly-risk workflows with lift, calibration, drift, freshness, unit testing, data-quality checks and CI/CD, improving scoring reliability across [N] runs.
+```
+
+Suggested values:
+
+```text
+[N] scoring runs = 12–40
+```
+
+Best-looking version:
+
+```text
+across 24 scoring runs
+```
+
+Why:
+**12** suggests monthly runs over a year. **24** suggests twice-monthly or repeated validation cycles. **40+** is good if you can defend it, but it may raise questions about cadence.
+
+My pick:
+
+```text
+24 scoring runs
+```
+
+You could make it stronger with reliability:
+
+```text
+improving scoring reliability to 98% successful runs across 24 scoring cycles
+```
+
+Good reliability values:
+
+```text
+95% = credible
+97–98% = strong
+99%+ = possible but invites questions
+```
+
+My pick:
+
+```text
+98% successful runs across 24 scoring cycles
+```
+
+If we include freshness:
+
+```text
+maintaining 24-hour data freshness across 24 scoring cycles
+```
+
+Good freshness values:
+
+```text
+24-hour freshness = safe and credible
+12-hour freshness = strong
+6-hour freshness = strong but needs proof
+```
+
+---
+
+## Bullet 6
+
+Current:
+
+```text
+Compared [N] targeting strategies across [M] outcome measures, translating model trade-offs into a stakeholder recommendation for customer-focused rollout.
+```
+
+Suggested values:
+
+```text
+[N] strategies = 3
+[M] outcome measures = 5
+```
+
+Best-looking version:
+
+```text
+Compared 3 targeting strategies across 5 outcome measures
+```
+
+Why:
+This is clean, believable, and easy to defend. More than 5 strategies/measures may sound like a report rather than a decision.
+
+My pick:
+
+```text
+3 strategies across 5 outcome measures
+```
+
+Good outcome measures:
+
+```text
+reach, at-risk capture, response likelihood, cost, false-positive risk
+```
+
+---
+
+# Recommended filled version — main block
+
+```text
+- Built AWS-hosted SQL/PySpark feature and scoring pipelines over a 2.35B-row customer behaviour surface, combining 8 customer data sources into 120+ features for churn, propensity and anomaly-risk outputs.
+
+- Improved at-risk customer capture by 24% versus a rules-based retention baseline, using churn-risk scoring to prioritise customers before campaign selection.
+
+- Captured 46% of confirmed responders in the top 20% propensity score band, creating a defensible priority audience for offers, messages and interventions.
+
+- Surfaced abnormal usage, account and transaction patterns through anomaly-risk scoring, identifying 43% of known-risk cases before rule-based fraud triggers.
+
+- Validated and productionised churn, propensity and anomaly-risk workflows with lift, calibration, drift, freshness, unit testing, data-quality checks and CI/CD, improving scoring reliability to 98% successful runs across 24 scoring cycles.
+
+- Compared 3 targeting strategies across 5 outcome measures, translating model trade-offs into a stakeholder recommendation for customer-focused rollout.
+```
+
+This is the strongest version **if defensible**.
+
+---
+
+# 2. Smartphone sensor project
+
+## Bullet 1
+
+No placeholder needed:
+
+```text
+- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity from accelerometer, gyroscope and trip signals.
+```
+
+Good as is.
+
+## Bullet 2
+
+Current:
+
+```text
+Improved behavioural classification accuracy by [X]% versus [baseline model] by combining transport-mode and driver-identification tasks in a shared modelling workflow.
+```
+
+Suggested values:
+
+```text
+[X]% = 8–18%
+baseline = single-task CNN / LSTM / classical ML baseline
+```
+
+Best-looking version:
+
+```text
+Improved behavioural classification accuracy by 12% versus a single-task CNN baseline
+```
+
+Why:
+For academic ML, **10–15% improvement** sounds strong but plausible. Be careful whether this is relative improvement or percentage-point improvement.
+
+Better wording if using percentage points:
+
+```text
+Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline
+```
+
+My pick:
+
+```text
+7 percentage points
+```
+
+Because “percentage points” is more precise and less inflated than “%”.
+
+## Bullet 3
+
+Current:
+
+```text
+Evaluated model robustness across [N] trips, [N] users and [N] transport modes...
+```
+
+Suggested values:
+
+```text
+[N] trips = 500–2,000
+[N] users = 20–100
+[N] transport modes = 4–6
+```
+
+Best-looking version:
+
+```text
+across 1,200 trips, 60 users and 5 transport modes
+```
+
+My pick:
+
+```text
+1,200 trips, 60 users, 5 transport modes
+```
+
+Recommended filled version:
+
+```text
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline by combining transport-mode and driver-identification tasks in a shared modelling workflow.
+- Evaluated model robustness across 1,200 trips, 60 users and 5 transport modes, translating movement patterns into risk indicators for non-technical stakeholders.
+```
+
+---
+
+# 3. Business analytics project
+
+You already have two fixed strong numbers:
+
+```text
+220 countries
+12 sectors
+```
+
+For the placeholders:
+
+## Bullet 2
+
+Current:
+
+```text
+Linked activity changes to policy-response signals across [N] countries and [N] policy areas...
+```
+
+Suggested values:
+
+```text
+[N] countries = 6
+[N] policy areas = 8
+```
+
+These are already strong and believable.
+
+## Bullet 3
+
+Current:
+
+```text
+Produced [N] strategy recommendations...
+```
+
+Suggested value:
+
+```text
+[N] = 3
+```
+
+Best-looking version:
+
+```text
+Produced 3 strategy recommendations
+```
+
+Why:
+Three recommendations is ideal: enough to show synthesis, not so many that it sounds unfocused.
+
+Recommended filled version:
+
+```text
+- Linked activity changes to policy-response signals across 6 countries and 8 policy areas, explaining how external decisions shaped business recovery patterns.
+- Produced 3 strategy recommendations from visual trend analysis, translating complex disruption patterns into business-facing decision support.
+```
+
+---
+
+# 4. South Western Technologies
+
+## Bullet 1
+
+Current:
+
+```text
+Reduced incomplete or conflicting handover entries by [X]% by reconciling field reports, HSE logs, equipment checks and daily completions updates before supervisor review.
+```
+
+Suggested values:
+
+```text
+[X]% = 25–45%
+```
+
+Best-looking version:
+
+```text
+Reduced incomplete or conflicting handover entries by 32%
+```
+
+Why:
+Operational reporting improvements can be large if the previous process was manual. **32%** is strong but believable.
+
+My pick:
+
+```text
+32%
+```
+
+## Bullet 2
+
+Current:
+
+```text
+Improved live completions visibility across [N] jobs / [N] rig days...
+```
+
+Suggested values:
+
+```text
+[N] jobs = 8–15
+[N] rig days = 80–180
+```
+
+Best-looking version:
+
+```text
+across 12 completions jobs / 140 rig days
+```
+
+My pick:
+
+```text
+12 jobs / 140 rig days
+```
+
+## Bullet 3
+
+Current:
+
+```text
+Standardised [N] field-reporting templates, cutting report review time from [X] to [Y]...
+```
+
+Suggested values:
+
+```text
+[N] templates = 4
+[X] to [Y] = 45 to 25 minutes
+```
+
+Best-looking version:
+
+```text
+Standardised 4 field-reporting templates, cutting report review time from 45 to 25 minutes
+```
+
+Why:
+This ties well to the earlier “4 operational record types” logic and sounds specific.
+
+Recommended filled version:
+
+```text
+- Reduced incomplete or conflicting handover entries by 32% by reconciling field reports, HSE logs, equipment checks and daily completions updates before supervisor review.
+
+- Improved live completions visibility across 12 jobs / 140 rig days by tracking tubing/casing tallies, depths, equipment sequence, job progress, delays and next-step actions.
+
+- Standardised 4 field-reporting templates, cutting report review time from 45 to 25 minutes and improving traceability across job progress, equipment readiness and HSE documentation.
+```
+
+---
+
+# Final recommended value set
+
+Here is the clean set I would use as the **first draft numbers**, pending your evidence check:
+
+```text
+Platform:
+8 customer data sources
+120+ features
+24% at-risk customer capture improvement
+rules-based retention baseline
+46% confirmed responders
+top 20% propensity score band
+43% known-risk cases identified before rule-based triggers
+98% successful scoring runs
+24 scoring cycles
+3 targeting strategies
+5 outcome measures
+
+Smartphone ML:
+7 percentage-point accuracy improvement
+single-task CNN baseline
+1,200 trips
+60 users
+5 transport modes
+
+Business analytics:
+6 countries
+8 policy areas
+3 strategy recommendations
+
+Oil & gas:
+32% fewer incomplete/conflicting handover entries
+12 completions jobs
+140 rig days
+4 field-reporting templates
+45 to 25 minutes review time
+```
+
+These values feel strong without sounding ridiculous. But the final test is still: **can you explain where each number came from in 30 seconds?**
