@@ -187,267 +187,322 @@ So the rule for this job is:
 
 Next, we should build the evidence ledger for your main platform experience against these proof buckets.
 
-# Evidence Ledger - Tesco Mobile Data Scientist
+Absolutely. Here is the **revised evidence ledger** in the corrected style.
 
-Yes. We'll build the ledger **without locking ourselves into exact numbers**. The only hard fact we'll keep is the **2.35B-row customer behaviour surface**. Everything else stays as `[placeholder]` until we verify the evidence.
+This version does **not** preserve the earlier 18%, 42%, or 11%. The **metric meanings are chosen deliberately**, and only the exact values are left as placeholders. The only fixed evidence retained is the **2.35B-row customer behaviour surface**.
 
-The logic follows the framework: **job ad -> proof buckets -> evidence ledger -> bullet shape -> final bullets**. The Tesco ad asks for customer data science, churn/fraud/propensity modelling, SQL/Python/PySpark, production workflows, testing/CI/CD, statistical analysis, and stakeholder communication. The framework says the ledger should test what evidence exists under each proof bucket before we write bullets.
+The ledger is built around the Tesco ad’s real requirements: customer data science, churn/fraud/propensity modelling, SQL/Python/PySpark, model and pipeline ownership, production workflows, testing/CI/CD, statistical analysis, and stakeholder communication.  It also follows the framework’s corrected sequence: **proof buckets → evidence ledger → bullet shape → final bullets**. 
+
+# Revised Evidence Ledger — Tesco Mobile Data Scientist
 
 ## Experience being mined
 
 ```text
 Data Scientist
-Customer Behaviour ML Platform - Exeter, UK | May 2025 - Present
+Customer Behaviour ML Platform — Exeter, UK | May 2025 – Present
 
-Customer-behaviour ML platform across a 2.35B-row customer data surface.
-```
-
-This is **not CV wording yet**. This is the evidence bank we will later compress into bullets.
-
----
-
-## 1. Customer data / scale / pipeline ownership
-
-| Ledger field | Working evidence |
-|---|---|
-| Proof bucket | Customer data scale + SQL/PySpark pipeline ownership |
-| Tesco requirement matched | Customer data, sales/customer behaviour, SQL, Python, PySpark, databases, multiple data sources, data pipelines |
-| Core artefact | `[SQL/PySpark feature pipeline / scoring pipeline / customer feature table / model-ready dataset]` |
-| Data scope | 2.35B-row customer behaviour surface |
-| Data sources | `[N] customer data sources: transactions / usage / account activity / lifecycle / campaign / support / product / behavioural logs]` |
-| Action | Built / cleaned / joined / transformed / scored `[customer-level records]` |
-| Output | `[customer-level feature table / churn scores / propensity scores / anomaly-risk scores / segmentation outputs]` |
-| Metric placeholder | `[N] customers scored`, `[N] features engineered`, `[N] tables joined`, `[runtime improvement]`, `[pipeline success rate]` |
-| Baseline placeholder | `[manual extract]`, `[notebook workflow]`, `[previous rules workflow]`, `[unjoined data sources]` |
-| Claim strength | Strong if we can show repeatable scoring or reusable pipeline output |
-| Evidence still needed | Exact tools, number of sources, whether it was batch scoring, whether it had tests, whether it ran repeatedly |
-| Possible bullet direction | Technical delivery / scale bullet |
-
-**Candidate bullet shape later:**
-
-```text
-Built [SQL/PySpark] customer-data pipelines over a 2.35B-row behaviour surface, combining [N] sources into [repeatable/model-ready/scored] outputs for churn, propensity and anomaly analysis.
+Customer-behaviour ML platform across a 2.35B-row customer behaviour surface.
 ```
 
 ---
 
-## 2. Churn / retention modelling
+## 1. Customer data scale + SQL/PySpark pipeline ownership
 
-| Ledger field | Working evidence |
-|---|---|
-| Proof bucket | Churn / retention modelling |
-| Tesco requirement matched | Reducing customer churn; churn modelling desirable; improving customer experience |
-| Core artefact | `[churn-risk model / retention-risk score / disengagement-risk segment]` |
-| Business question | Which customers are most likely to disengage, churn, lapse or need retention action? |
-| Action | Modelled customer behaviour signals to identify `[at-risk customers]` before `[retention/campaign/contact decision]` |
-| Data used | `[usage patterns / account activity / lifecycle stage / spend / engagement / complaints / product behaviour / payment behaviour]` |
-| Metric placeholder | `[X]% lift`, `[X]% recall improvement`, `[X]% precision improvement`, `[X]% top-decile capture`, `[AUC/F1/KS/calibration metric]` |
-| Baseline placeholder | `[rules-based targeting]`, `[random selection]`, `[previous model]`, `[unsegmented campaign]`, `[manual prioritisation]` |
-| Claim strength | Strong if measured against a defined baseline; weaker if only conceptual |
-| Evidence still needed | Define "improved": lift? recall? precision? capture rate? AUC? Was it live, backtested, or simulated? |
-| Possible bullet direction | Business/model impact bullet |
-
-**Candidate bullet shape later:**
-
-```text
-Improved churn-risk identification by [X]% versus [baseline] in [backtested/live] evaluation, using customer behaviour signals to prioritise [retention/customer contact] decisions.
-```
+| Ledger field             | Chosen direction                                                                                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proof bucket             | Customer data / scale / pipeline ownership                                                                                                                                |
+| What this proves         | You can work with large customer datasets and build repeatable data science workflows                                                                                     |
+| Tesco match              | Customer data, sales/customer behaviour, SQL, Python, PySpark, databases, multiple data sources, data pipelines                                                           |
+| Evidence artefact        | SQL/PySpark customer feature and scoring pipelines                                                                                                                        |
+| Fixed evidence           | 2.35B-row customer behaviour surface                                                                                                                                      |
+| Metric meaning           | Scale of model-ready customer data processing                                                                                                                             |
+| Placeholder values       | `[N] customer records`, `[N] data sources`, `[N] engineered features`, `[N] scoring runs`                                                                                 |
+| Baseline meaning         | Before this, customer behaviour data was less usable for repeatable modelling/scoring                                                                                     |
+| Baseline placeholder     | `[manual extracts / notebook workflow / fragmented data sources / rules-only process]`                                                                                    |
+| User/decision            | Data science, marketing, retention, fraud/risk, or product stakeholders                                                                                                   |
+| Claim strength to verify | Strong if the pipeline produced repeatable model-ready or scored outputs                                                                                                  |
+| Candidate bullet shape   | Built SQL/PySpark scoring pipelines over a 2.35B-row customer behaviour surface, combining `[N]` data sources into repeatable churn, propensity and anomaly-risk outputs. |
 
 ---
 
-## 3. Propensity / targeting / marketing effectiveness
+## 2. Churn-risk modelling / retention prioritisation
 
-| Ledger field | Working evidence |
-|---|---|
-| Proof bucket | Propensity / targeting / marketing effectiveness |
-| Tesco requirement matched | Personalising customer communications; improving marketing effectiveness; propensity modelling desirable |
-| Core artefact | `[propensity model / response likelihood score / offer targeting score / campaign audience ranking]` |
-| Business question | Which customers are most likely to respond, convert, upgrade, accept an offer, or benefit from intervention? |
-| Action | Ranked customers by `[response likelihood / expected value / offer fit / intervention priority]` |
-| Output | `[priority audience / score bands / campaign segment / ranked customer list]` |
-| Metric placeholder | Captured `[X]%` of `[responders/high-benefit customers/target customers]` in top `[Y]%` score band |
-| Baseline placeholder | `[random targeting]`, `[broad campaign]`, `[previous segmentation]`, `[rules-based selection]` |
-| Claim strength | Strong if framed as ranking-quality evidence rather than vague "improved targeting" |
-| Evidence still needed | Define target group, score band, evaluation sample, baseline and whether "high-benefit" means conversion, retention, margin, response, or value |
-| Possible bullet direction | Ranking / segmentation bullet |
-
-**Candidate bullet shape later:**
-
-```text
-Validated propensity ranking quality by capturing [X]% of [target customers] in the top [Y]% score band, creating a defensible priority audience for [offers/messages/interventions].
-```
+| Ledger field             | Chosen direction                                                                                                                                                           |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proof bucket             | Churn / retention modelling                                                                                                                                                |
+| What this proves         | You can identify customers likely to disengage or churn                                                                                                                    |
+| Tesco match              | Reducing customer churn; customer behaviour; churn modelling desirable                                                                                                     |
+| Evidence artefact        | Churn-risk scoring model or retention-risk segmentation                                                                                                                    |
+| Business question        | Which customers should retention teams prioritise before they disengage?                                                                                                   |
+| Metric meaning           | Lift in at-risk customer capture versus baseline                                                                                                                           |
+| Placeholder values       | `[X]% lift`, top `[Y]%` risk band, `[N]` customers scored                                                                                                                  |
+| Baseline meaning         | Comparison against a simpler selection method                                                                                                                              |
+| Baseline placeholder     | `[rules-based targeting / random selection / previous model / unsegmented campaign]`                                                                                       |
+| Evaluation type          | Backtested or live evaluation                                                                                                                                              |
+| Evaluation placeholder   | `[backtested/live/pilot]`                                                                                                                                                  |
+| User/decision            | Retention audience selection before campaign/contact decisions                                                                                                             |
+| Claim strength to verify | Strong if we can define the churn label, evaluation window, and baseline                                                                                                   |
+| Candidate bullet shape   | Improved at-risk customer capture by `[X]%` versus `[baseline]` in `[backtested/live]` evaluation, helping retention teams prioritise customers before campaign selection. |
 
 ---
 
-## 4. Marketing waste / audience efficiency
+## 3. Propensity modelling / campaign targeting
 
-| Ledger field | Working evidence |
-|---|---|
-| Proof bucket | Marketing effectiveness / reducing low-yield targeting |
-| Tesco requirement matched | Improving marketing effectiveness; personalising communications; improving business outcomes |
-| Core artefact | `[threshold test / scored segmentation / campaign exclusion logic / audience refinement]` |
-| Business question | How do we reduce low-value or low-likelihood audience inclusion without losing important customers? |
-| Action | Tested score thresholds and segments to reduce `[low-yield/low-propensity/low-value]` campaign inclusion |
-| Metric placeholder | Reduced `[low-yield inclusion / wasted targeting / low-propensity contacts]` by `[X]%` |
-| Guardrail metric | Preserved `[Y]%` of `[priority-customer coverage / expected responders / high-value customers / retention-risk customers]` |
-| Baseline placeholder | `[unsegmented campaign]`, `[previous threshold]`, `[rules-based audience]`, `[broad targeting]` |
-| Claim strength | Strong if both efficiency and coverage are defined; risky if "waste" is undefined |
-| Evidence still needed | What exactly counts as "waste"? Non-response? Low value? Wrong segment? Duplicate contact? Low expected benefit? |
-| Possible bullet direction | Business efficiency / threshold-testing bullet |
-
-**Candidate bullet shape later:**
-
-```text
-Reduced [low-yield audience inclusion] by [X]% while preserving [Y]% [priority-customer coverage], using score thresholds and segmentation tests to improve campaign efficiency.
-```
+| Ledger field             | Chosen direction                                                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Proof bucket             | Propensity / targeting / marketing effectiveness                                                                                                             |
+| What this proves         | You can rank customers for offers, messages or interventions                                                                                                 |
+| Tesco match              | Personalising customer communications; improving marketing effectiveness; propensity modelling desirable                                                     |
+| Evidence artefact        | Propensity score, response-likelihood model, offer-fit score, or campaign audience ranking                                                                   |
+| Business question        | Which customers are most likely to respond, convert, upgrade, retain, or benefit from contact?                                                               |
+| Metric meaning           | Target-customer capture rate in the top score band                                                                                                           |
+| Placeholder values       | `[X]%` of target customers captured in top `[Y]%` score band                                                                                                 |
+| Baseline meaning         | Model ranking compared with untargeted or simpler targeting                                                                                                  |
+| Baseline placeholder     | `[random targeting / broad campaign / previous segmentation / rules-based selection]`                                                                        |
+| User/decision            | Marketing, CRM, retention, offer targeting, customer communications                                                                                          |
+| Claim strength to verify | Strong if “target customer” is defined clearly, e.g. responder, high-value customer, retained customer, conversion, upgrade                                  |
+| Candidate bullet shape   | Captured `[X]%` of target customers in the top `[Y]%` propensity score band, creating a defensible priority audience for offers, messages and interventions. |
 
 ---
 
-## 5. Fraud / anomaly / unusual behaviour detection
+## 4. Campaign efficiency / low-yield audience reduction
 
-| Ledger field | Working evidence |
-|---|---|
-| Proof bucket | Fraud / anomaly modelling |
-| Tesco requirement matched | Fraud modelling desirable; customer behaviour modelling; improving business outcomes |
-| Core artefact | `[anomaly features / fraud-risk score / unusual behaviour detection layer / rule-comparison analysis]` |
-| Business question | Which accounts, behaviours or transactions look unusual before standard rules would flag them? |
-| Action | Surfaced abnormal patterns in `[usage / account activity / transaction behaviour / device/account changes / behavioural sequences]` |
-| Output | `[high-risk cases / anomaly segments / ranked alerts / fraud-risk indicators]` |
-| Metric placeholder | Flagged `[N]` high-risk cases; improved early detection by `[X]%`; captured `[X]%` of known risky cases in top `[Y]%`; reduced false positives by `[X]%` |
-| Baseline placeholder | `[rule-based trigger]`, `[manual review]`, `[existing fraud flag]`, `[threshold-only method]` |
-| Claim strength | Strong if we can compare to known labels, rules, manual review, or historical confirmed cases |
-| Evidence still needed | Were there confirmed fraud labels? Was this anomaly-only? Was it a feature layer, model, or exploratory analysis? |
-| Possible bullet direction | Risk/anomaly detection bullet |
-
-**Candidate bullet shape later:**
-
-```text
-Built anomaly features from [usage/account/transaction] behaviour, flagging [N] high-risk cases or patterns before [rules/manual review] in [backtested/live] evaluation.
-```
+| Ledger field             | Chosen direction                                                                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proof bucket             | Marketing effectiveness / audience efficiency                                                                                                           |
+| What this proves         | You can reduce poor targeting without losing valuable customer coverage                                                                                 |
+| Tesco match              | Improving marketing effectiveness; personalising customer communications; improving business outcomes                                                   |
+| Evidence artefact        | Threshold testing, scored segmentation, campaign audience refinement                                                                                    |
+| Business question        | How do we avoid contacting low-likelihood customers while preserving coverage of priority customers?                                                    |
+| Metric meaning           | Reduction in low-propensity audience inclusion at fixed priority-customer coverage                                                                      |
+| Placeholder values       | `[X]%` reduction in low-propensity inclusion while preserving `[Y]%` priority-customer coverage                                                         |
+| Baseline meaning         | Comparison against broader or less selective campaign selection                                                                                         |
+| Baseline placeholder     | `[unsegmented campaign / previous threshold / rules-based audience / broad targeting]`                                                                  |
+| User/decision            | Marketing or CRM audience selection                                                                                                                     |
+| Claim strength to verify | Strong only if “low-propensity” and “priority coverage” can be defined                                                                                  |
+| Candidate bullet shape   | Reduced low-propensity campaign inclusion by `[X]%` while preserving `[Y]%` priority-customer coverage through score thresholds and segmentation tests. |
 
 ---
 
-## 6. Validation / statistics / model trust
+## 5. Fraud / anomaly detection from customer behaviour
 
-| Ledger field | Working evidence |
-|---|---|
-| Proof bucket | Validation and statistical judgement |
-| Tesco requirement matched | Build, validate and optimise models; statistical principles; numerical analysis; model understanding |
-| Core artefact | `[validation framework / backtest / lift chart / calibration check / holdout evaluation / stability report]` |
-| Business question | Can stakeholders trust the model outputs before using them in decisions? |
-| Action | Tested model outputs across `[lift / calibration / freshness / drift / segment stability / threshold sensitivity / coverage]` |
-| Metric placeholder | `[AUC]`, `[F1]`, `[precision/recall]`, `[lift]`, `[calibration error]`, `[PSI/drift score]`, `[freshness SLA]`, `[segment stability %]` |
-| Baseline placeholder | `[previous model]`, `[rules]`, `[random ranking]`, `[unsegmented campaign]`, `[historical period]` |
-| Claim strength | Very strong for Tesco if true, because the ad explicitly asks for validation and statistical methods |
-| Evidence still needed | Which validation methods were actually used? Was there holdout data? Time split? Cross-validation? Backtesting? |
-| Possible bullet direction | Validation / monitoring bullet |
-
-**Candidate bullet shape later:**
-
-```text
-Validated model outputs using [lift/calibration/freshness/stability] checks, improving confidence in customer-level scores before [campaign/retention/fraud] use.
-```
+| Ledger field             | Chosen direction                                                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proof bucket             | Fraud / anomaly / unusual behaviour modelling                                                                                                     |
+| What this proves         | You can use behavioural data to detect risk signals or abnormal patterns                                                                          |
+| Tesco match              | Fraud modelling desirable; customer behaviour; business outcome improvement                                                                       |
+| Evidence artefact        | Anomaly features, fraud-risk indicators, unusual behaviour scores, rule-comparison analysis                                                       |
+| Business question        | Which accounts, transactions or usage patterns look abnormal before standard rules catch them?                                                    |
+| Metric meaning           | Earlier high-risk case capture versus rule-based triggers                                                                                         |
+| Placeholder values       | `[X]%` earlier capture, `[N]` high-risk cases flagged, `[X]%` of known-risk cases captured in top `[Y]%` risk band                                |
+| Baseline meaning         | Comparison against existing rule/manual trigger                                                                                                   |
+| Baseline placeholder     | `[rule-based trigger / manual review / existing fraud flag / threshold-only method]`                                                              |
+| User/decision            | Fraud/risk review, anomaly triage, suspicious behaviour investigation                                                                             |
+| Claim strength to verify | Strong if there are known-risk labels, historical flags, or rule comparison; softer if unsupervised anomaly detection only                        |
+| Candidate bullet shape   | Surfaced abnormal usage, account and transaction patterns with anomaly features, capturing `[X]%` of known-risk cases before rule-based triggers. |
 
 ---
 
-## 7. Production-shaped workflow / monitoring / testing
+## 6. Model validation / statistical judgement
 
-| Ledger field | Working evidence |
-|---|---|
-| Proof bucket | Production workflow / lifecycle ownership |
-| Tesco requirement matched | Production workflows, deployment, testing, CI/CD, documentation, security, code optimisation, cloud technologies |
-| Core artefact | `[AWS-hosted workflow / versioned scoring pipeline / automated checks / monitoring dashboard / deployment-ready package]` |
-| Business question | Can the model workflow be repeated, trusted and maintained beyond a one-off notebook? |
-| Action | Packaged, monitored or structured `[data/model/scoring]` workflows for repeatable use |
-| Metric placeholder | `[N] scoring runs`, `[X]% pipeline reliability]`, `[runtime reduced from A to B]`, `[N] tests/checks]`, `[freshness SLA]`, `[deployment frequency]` |
-| Baseline placeholder | `[manual notebook]`, `[ad hoc scoring]`, `[unversioned script]`, `[manual QA]` |
-| Claim strength | Extremely valuable if true; should not be overstated if not actually deployed |
-| Evidence still needed | Was it deployed to production, production-shaped, or local/project-based? Were there unit tests, data-quality tests, CI/CD, version control, monitoring? |
-| Possible bullet direction | Technical delivery / production-readiness bullet |
-
-**Candidate bullet shape later:**
-
-```text
-Packaged [scoring/model/data] workflows with [tests/monitoring/versioned configs] on [AWS/cloud/local], supporting repeatable promotion from validation to [production/stakeholder use].
-```
-
-Important: if this was **not fully deployed**, we should say "production-shaped," "repeatable," "deployment-ready," or "validation-to-use workflow" rather than pretending it was production.
+| Ledger field             | Chosen direction                                                                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proof bucket             | Validation / statistics / model trust                                                                                                                               |
+| What this proves         | You can prove model quality, not just build models                                                                                                                  |
+| Tesco match              | Build, validate and optimise models; statistical principles; model understanding; business outcomes                                                                 |
+| Evidence artefact        | Validation framework, lift chart, calibration report, holdout test, stability check, backtest                                                                       |
+| Business question        | Can stakeholders trust these scores before using them in business decisions?                                                                                        |
+| Metric meaning           | Model lift and calibration quality across validation data                                                                                                           |
+| Placeholder values       | `[X]x lift`, `[X]% calibration error`, `[X]% stability across scoring runs`, `[N]` validation checks                                                                |
+| Baseline meaning         | Model outputs compared with random ranking, previous model, rules, or historical period                                                                             |
+| Baseline placeholder     | `[random ranking / rules model / previous model / historical benchmark]`                                                                                            |
+| User/decision            | Data science sign-off, stakeholder trust, campaign readiness, model selection                                                                                       |
+| Claim strength to verify | Very strong if we can state validation method: holdout, time split, backtest, cross-validation                                                                      |
+| Candidate bullet shape   | Validated churn, propensity and anomaly scores using lift, calibration and stability checks, improving confidence in customer-level outputs before stakeholder use. |
 
 ---
 
-## 8. Stakeholder decision support / hypothesis-driven analysis
+## 7. Production-shaped workflow / testing / monitoring
 
-| Ledger field | Working evidence |
-|---|---|
-| Proof bucket | Stakeholder decisioning and communication |
-| Tesco requirement matched | Translate ambiguous business questions into hypothesis-driven analysis; communicate rationale; shape decisions across the business |
-| Core artefact | `[strategy comparison / decision memo / model trade-off analysis / recommendation / stakeholder-facing report]` |
-| Business question | Which strategy should the business choose, and what trade-offs matter? |
-| Action | Compared `[N]` strategies across `[M]` outcome measures |
-| Outcome measures placeholder | `[reach]`, `[conversion]`, `[retention risk]`, `[expected value]`, `[cost]`, `[coverage]`, `[false positives]`, `[customer impact]`, `[operational feasibility]` |
-| Output | `[recommendation / prioritisation framework / rollout option / threshold decision / campaign strategy]` |
-| Metric placeholder | `[N] strategies`, `[M] measures`, `[X]% trade-off improvement]`, `[decision time reduced]`, `[stakeholder sign-off]` |
-| Baseline placeholder | `[single strategy]`, `[manual judgement]`, `[unvalidated rollout]`, `[no trade-off comparison]` |
-| Claim strength | Strong if you can explain the options, measures and recommendation |
-| Evidence still needed | Who were the stakeholders? What options were compared? What decision was made? |
-| Possible bullet direction | Stakeholder decision / communication bullet |
-
-**Candidate bullet shape later:**
-
-```text
-Compared [N] targeting strategies across [M] outcome measures, translating model trade-offs into a stakeholder recommendation for [campaign/retention/fraud/customer] rollout.
-```
+| Ledger field             | Chosen direction                                                                                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proof bucket             | Production workflow / lifecycle ownership                                                                                                                                 |
+| What this proves         | You can move beyond notebooks into repeatable, testable, maintainable workflows                                                                                           |
+| Tesco match              | Production workflows, deployment, testing, CI/CD, documentation, security, cloud technologies                                                                             |
+| Evidence artefact        | AWS-hosted workflow, versioned scoring pipeline, automated tests, monitoring checks, deployment-ready package                                                             |
+| Business question        | Can the model/scoring workflow be rerun, monitored and trusted repeatedly?                                                                                                |
+| Metric meaning           | Pipeline reliability and data freshness across scoring runs                                                                                                               |
+| Placeholder values       | `[X]%` successful scoring runs, `[N]` automated checks, data freshness within `[X]` hours, runtime reduced by `[X]%`                                                      |
+| Baseline meaning         | Comparison against ad hoc/manual/notebook workflow                                                                                                                        |
+| Baseline placeholder     | `[manual notebook / ad hoc scoring / unversioned scripts / manual QA]`                                                                                                    |
+| User/decision            | Data science lifecycle, production readiness, stakeholder-facing output reliability                                                                                       |
+| Claim strength to verify | Strong if tests, monitoring, version control or CI/CD actually existed; if not, use “production-shaped” not “production”                                                  |
+| Candidate bullet shape   | Added data-quality, freshness and monitoring checks to repeatable scoring workflows, supporting reliable churn, propensity and anomaly outputs across `[N]` scoring runs. |
 
 ---
 
-## 9. Customer communication / segmentation
+## 8. Hypothesis-driven stakeholder decision support
 
-| Ledger field | Working evidence |
-|---|---|
-| Proof bucket | Personalised customer communication |
-| Tesco requirement matched | Personalising customer communications; improving customer experience |
-| Core artefact | `[customer segmentation / lifecycle grouping / response segment / intervention segment]` |
-| Business question | Which customers should receive which message, offer or intervention? |
-| Action | Grouped customers using `[lifecycle / behaviour / response likelihood / risk / product usage / value]` signals |
-| Output | `[retention segment]`, `[upgrade segment]`, `[intervention segment]`, `[do-not-target / low-priority segment]` |
-| Metric placeholder | `[N] segments]`, `[X]% improvement in segment separability]`, `[X]% uplift in response]`, `[Y]% coverage of priority customers]` |
-| Baseline placeholder | `[one-size-fits-all communication]`, `[manual segmentation]`, `[broad campaign]` |
-| Claim strength | Good if framed as segmentation; risky if claiming "improved relevance" without a relevance metric |
-| Evidence still needed | How was relevance measured? Response rate? Segment fit? Conversion? Customer value? Stakeholder review? |
-| Possible bullet direction | Segmentation / customer communication bullet |
-
-**Candidate bullet shape later:**
-
-```text
-Segmented customers by [lifecycle/behaviour/response] signals into [N] actionable groups, giving [CRM/marketing/retention] teams clearer audiences for personalised communications.
-```
+| Ledger field             | Chosen direction                                                                                                                               |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proof bucket             | Stakeholder decisioning / communication                                                                                                        |
+| What this proves         | You can translate ambiguous business questions into structured analysis and recommendations                                                    |
+| Tesco match              | Hypothesis-driven analysis, clear communication, ownership, stakeholder explanation, business decisions                                        |
+| Evidence artefact        | Strategy comparison, decision memo, recommendation, model trade-off analysis                                                                   |
+| Business question        | Which targeting, retention or fraud strategy should stakeholders choose?                                                                       |
+| Metric meaning           | Number of strategy options compared across business outcome measures                                                                           |
+| Placeholder values       | `[N]` strategies, `[M]` outcome measures                                                                                                       |
+| Outcome measures         | Reach, capture rate, expected value, cost, risk, false positives, customer coverage, operational effort                                        |
+| Baseline meaning         | Comparison against choosing a single strategy without structured trade-off analysis                                                            |
+| Baseline placeholder     | `[single strategy / manual judgement / unvalidated rollout / no trade-off comparison]`                                                         |
+| User/decision            | Marketing, retention, CRM, fraud/risk, product or business stakeholders                                                                        |
+| Claim strength to verify | Strong if you can explain the options, trade-offs and recommendation                                                                           |
+| Candidate bullet shape   | Compared `[N]` targeting strategies across `[M]` outcome measures, translating model trade-offs into a stakeholder recommendation for rollout. |
 
 ---
 
-# Prioritised ledger summary
+## 9. Customer segmentation / personalised communications
 
-For the Tesco CV, these are the strongest bullet candidates to carry forward:
+| Ledger field             | Chosen direction                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proof bucket             | Customer communication / segmentation                                                                                                         |
+| What this proves         | You can turn model outputs into actionable customer groups                                                                                    |
+| Tesco match              | Personalising customer communications; improving customer experience; marketing effectiveness                                                 |
+| Evidence artefact        | Lifecycle segmentation, response segmentation, risk/value grouping, intervention segments                                                     |
+| Business question        | Which customers should receive which message, offer or intervention?                                                                          |
+| Metric meaning           | Improvement in segment separability or priority-customer coverage                                                                             |
+| Placeholder values       | `[N]` actionable segments, `[X]%` segment separability improvement, `[Y]%` priority-customer coverage                                         |
+| Baseline meaning         | Comparison against broad or manual segmentation                                                                                               |
+| Baseline placeholder     | `[one-size-fits-all communication / manual segmentation / broad campaign]`                                                                    |
+| User/decision            | CRM, marketing, retention, customer communications                                                                                            |
+| Claim strength to verify | Good if we avoid vague “relevance” unless relevance has a real metric                                                                         |
+| Candidate bullet shape   | Segmented customers into `[N]` lifecycle and response groups, improving priority-customer coverage by `[X]%` for personalised communications. |
 
-| Priority | Proof bucket | Why it matters |
-|---|---|---|
-| 1 | Customer data / SQL/PySpark pipeline | Direct ATS + technical match |
-| 2 | Churn / retention modelling | Directly named in the ad |
-| 3 | Propensity / targeting | Directly named and highly relevant to marketing effectiveness |
-| 4 | Validation / statistics | Proves model discipline, not just modelling claims |
-| 5 | Production-shaped workflow / monitoring | Critical because Tesco asks for production workflows, testing and CI/CD |
-| 6 | Stakeholder decision support | Matches hypothesis-driven analysis and communication |
-| 7 | Fraud / anomaly | Useful because fraud modelling is desirable |
-| 8 | Segmentation / customer communication | Useful if we need a customer-experience bullet |
+---
 
-I would probably build the final platform section around **six bullets**:
+You’re right — I jumped ahead. The methodology says **score the evidence before designing the bullet portfolio**. The framework is explicit: after building the evidence ledger, the next step is to score evidence as **A = direct match, B = adjacent, C = transferable, D = remove/compress** before deciding what each bullet should prove. 
 
-```text
-1. Pipeline / scale / SQL-PySpark
-2. Churn-risk modelling
-3. Propensity / campaign targeting
-4. Fraud or anomaly detection
-5. Validation / monitoring / production-readiness
-6. Stakeholder strategy comparison
+So here is the corrected next step.
+
+# Evidence Scoring — Tesco Mobile Data Scientist
+
+Tesco’s ad strongly prioritises customer data, churn/fraud/propensity modelling, SQL/Python/PySpark, data pipelines, production workflows, validation, testing, CI/CD, statistical thinking and stakeholder communication. 
+
+## Scoring key
+
+| Tier | Meaning                     | Use in CV                                          |
+| ---- | --------------------------- | -------------------------------------------------- |
+| A    | Direct match to Tesco ad    | Must appear if defensible                          |
+| B    | Useful adjacent evidence    | Include if space allows or if it strengthens a gap |
+| C    | Transferable support        | Use later/lower in CV, not main platform proof     |
+| D    | Weak or risky for this role | Remove, compress, or do not foreground             |
+
+---
+
+## Scored evidence items
+
+| Evidence item                                        |                               Tier | Why                                                                                   | Confidence  | What we need to verify                                                       |
+| ---------------------------------------------------- | ---------------------------------: | ------------------------------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------- |
+| 2.35B-row customer behaviour surface                 |                                  A | Directly proves large-scale customer data experience                                  | High        | Already fixed                                                                |
+| SQL/PySpark customer feature pipelines               |                                  A | Direct match to SQL, PySpark, data pipelines, multiple data sources                   | Medium-high | Whether SQL and PySpark were both materially used                            |
+| Customer-level scoring outputs                       |                                  A | Connects pipeline work to Tesco’s modelling and decision workflow needs               | Medium      | What scores existed: churn, propensity, anomaly, segmentation                |
+| Churn-risk model / retention-risk score              |                                  A | Tesco explicitly names churn and customer behaviour                                   | Medium      | Churn label, baseline, evaluation type, metric                               |
+| Propensity / response-likelihood score               |                                  A | Tesco explicitly names propensity modelling and marketing effectiveness               | Medium      | Target definition, score-band result, baseline                               |
+| Fraud-risk / anomaly detection features              |                                  A | Tesco says churn, fraud or propensity experience is desirable                         | Medium      | Whether fraud labels/rules existed or it was unsupervised anomaly detection  |
+| Model validation using lift                          |                                  A | Strong statistical/model-quality proof and relevant to “build, validate, optimise”    | Medium      | Lift against what baseline and for which model                               |
+| Calibration checks                                   |                                  A | Proves model trust and statistical maturity                                           | Medium      | Calibration method and whether it was actually evaluated                     |
+| Data freshness checks                                |                                  A | Links model output reliability to production/data pipeline quality                    | Medium      | Freshness threshold and scoring cadence                                      |
+| Segment stability checks                             |                                  A | Strong for repeatable customer scoring and business trust                             | Medium      | Stability metric and number of scoring runs                                  |
+| Monitoring checks                                    |                                A/B | Directly relevant if tied to production or repeatable scoring; weaker if informal     | Medium      | What was monitored: drift, freshness, failures, distribution shifts          |
+| AWS-hosted workflow                                  |                                  B | Cloud is relevant, but AWS alone is not enough unless connected to workflow ownership | Medium      | What was actually hosted on AWS                                              |
+| Repeatable scoring workflow                          |                                  A | Directly supports production-shaped workflow, lifecycle ownership and maintainability | Medium      | Whether repeatable means scheduled, rerunnable, versioned, or manually rerun |
+| Tests / data-quality checks                          |                                  A | Tesco explicitly asks for testing and software practices                              | Low-medium  | Unit tests, data tests, validation gates, CI checks?                         |
+| CI/CD or deployment workflow                         |           A if true, D if not true | Very strong direct match, but risky if overstated                                     | Unknown     | Whether CI/CD genuinely existed                                              |
+| Version control / OOP / code structure               |                                A/B | Matches software engineering practices; valuable if concrete                          | Unknown     | Repo structure, classes/modules, versioning, reviews                         |
+| Documentation of model/pipeline decisions            |                                A/B | Tesco names documentation and communication                                           | Unknown     | What docs existed: README, validation notes, decision memo                   |
+| Combining multiple data sources                      |                                  A | Tesco explicitly asks for databases and combining sources                             | Medium      | Number/type of sources                                                       |
+| Threshold testing for campaign audiences             |                                  A | Strong direct link to marketing effectiveness and customer communications             | Medium      | Threshold logic, target coverage, low-propensity definition                  |
+| Reduction in low-propensity audience inclusion       |                                A/B | Strong if measured; risky if “low-propensity” is vague                                | Medium-low  | Definition of low-propensity, baseline, coverage guardrail                   |
+| Target-customer capture in top score band            |                                  A | Excellent ranking-quality evidence for propensity/customer targeting                  | Medium      | Target definition and score band                                             |
+| Strategy comparison across outcome measures          |                                A/B | Strong stakeholder/hypothesis-driven analysis evidence                                | Medium      | Number of strategies, measures, recommendation                               |
+| Stakeholder recommendation / rollout decision        |                                  A | Directly matches communication, ownership and decision shaping                        | Medium      | Who used it and what decision changed                                        |
+| Customer segmentation into lifecycle/response groups |                                  B | Useful for personalisation, but weaker than churn/propensity unless measured          | Medium      | Segments, use case, whether model-driven or rule-based                       |
+| “Improved communication relevance”                   |                  D unless measured | Too vague without response/conversion/fit metric                                      | Low         | Needs a concrete relevance metric                                            |
+| Stock management evidence                            | D for current platform unless real | Tesco mentions it, but forcing it would be artificial                                 | Low         | Only include if genuine stock/demand work exists                             |
+| “Business decisioning” as a phrase                   |                                C/D | Too abstract unless attached to a concrete decision                                   | Low         | Replace with strategy, threshold, audience, rollout, or recommendation       |
+| “Marketing effectiveness” as a phrase                |                                  B | Relevant keyword, but must be supported by targeting/campaign metric                  | Medium      | Use as outcome, not standalone evidence                                      |
+
+---
+
+# Sorted evidence by priority
+
+## Tier A — strongest evidence to foreground
+
+These are the strongest matches for Tesco and should drive the main experience section if defensible:
+
+```text id="n05sbs"
+- 2.35B-row customer behaviour surface
+- SQL/PySpark customer feature or scoring pipelines
+- customer-level churn-risk scoring
+- propensity / response-likelihood scoring
+- fraud-risk or anomaly detection features
+- combining multiple customer data sources
+- model validation using lift, calibration, freshness and stability checks
+- repeatable scoring workflow
+- testing or data-quality checks, if true
+- stakeholder recommendation from model trade-off analysis
 ```
 
-That gives us a balanced Tesco-facing portfolio: business relevance, technical delivery, model validation, and stakeholder communication.
+## Tier B — useful supporting evidence
+
+These are good, but should support the A evidence rather than dominate:
+
+```text id="z4axg8"
+- AWS-hosted workflow
+- monitoring checks
+- customer segmentation
+- threshold testing
+- campaign targeting
+- marketing effectiveness language
+- documentation
+- strategy comparison
+```
+
+## Tier C — compress or use elsewhere
+
+These may support the CV but should not be the centre of this Tesco platform block:
+
+```text id="twuisc"
+- generic business decisioning
+- broad stakeholder support
+- general statistical modelling without named validation
+- broad customer communication language without a metric
+```
+
+## Tier D — avoid unless evidence appears
+
+These should not be foregrounded now:
+
+```text id="go89lf"
+- stock management
+- improved customer communication relevance without a metric
+- CI/CD or production deployment if not actually true
+- fully in-house production workflow if the platform was only production-shaped
+- business impact claims without measurement path
+```
+
+# Current verdict
+
+The platform has enough **Tier A evidence** to be a strong Tesco match, but the risky areas are:
+
+```text id="t509jc"
+1. production / CI/CD / deployment
+2. exact validation methods
+3. fraud label versus anomaly-only detection
+4. whether targeting improvements are backtested, live, or simulated
+5. whether stakeholder decisions were actual rollout decisions or recommendation outputs
+```
+
+Those risks do not block us. They tell us where to soften wording later.
+
+So the next step after this is **not writing bullets yet**. It is choosing which Tier A/B evidence items are safe enough to become the bullet portfolio, and which ones need downgraded wording.
