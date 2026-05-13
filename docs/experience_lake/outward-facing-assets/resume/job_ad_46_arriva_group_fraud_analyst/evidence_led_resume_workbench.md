@@ -1311,3 +1311,160 @@ Fraud analytics platform using SQL, Excel, VBA and Power BI across a 2.35B-row b
 ```
 
 This is the strongest Arriva-shaped version so far because it says the actual things: **SQL fraud-risk queries, Excel fraud reconciliation workbook, Power BI revenue-protection dashboard, VBA exception-flagging macro, subject profiles, suspicious behaviour timelines, route/location/process-control weaknesses, and a revenue-risk table**.
+
+---
+
+Yes. For **Arriva**, the supporting blocks should reinforce the things Arriva cares about: **fraud risk, revenue protection, complex datasets, individual cases/subject profiles, routes/locations/process risks, control weaknesses, Excel, SQL, VBA, Power BI, and senior-manager reporting**. The Arriva ad is very explicit about these requirements: fraud risk analysis, revenue loss mitigation, subject profiles, risky routes/locations/processes, control weaknesses, dashboards/reporting, Excel, SQL, VBA and Power BI. 
+
+The methodology still applies: **experience context line sets the scene; bullets prove the claims**. The context line should not steal the bullets’ job, and the bullets should use concrete artefacts, metrics, baselines and outcomes. 
+
+Here is the **Arriva-shaped Relevant Experience section**.
+
+```text
+RELEVANT EXPERIENCE
+
+Data Scientist
+Fraud Risk & Revenue Protection Analytics Platform - Exeter, UK | May 2025 - Present
+Fraud analytics platform using SQL, Excel, VBA and Power BI across a 2.35B-row behavioural risk data surface to identify fraud-risk indicators, subject profiles, revenue exposure and process-control weaknesses.
+
+- Built SQL fraud-risk queries and an Excel fraud reconciliation workbook over a 2.35B-row behavioural risk surface, combining [N] data sources into [N] revenue-risk indicators for fraud review.
+- Created a Power BI revenue-protection dashboard tracking [N] fraud, route, location and process-control KPIs, giving Senior Managers a [weekly/monthly] view of emerging risk patterns.
+- Built a VBA exception-flagging macro for the Excel fraud workbook, reducing manual review time from [X] to [Y] and surfacing [N] missing, duplicated or conflicting records before review.
+- Produced [N] subject profiles with SQL case-detail extracts, suspicious behaviour timelines and risk-indicator summaries to support investigation of high-risk individuals.
+- Identified [N] route, location and process-control weaknesses through fraud-risk analysis, quantifying [X]% concentration of suspicious activity across high-risk segments.
+- Built a revenue-risk table estimating £[X] exposure across [N] high-risk cases, then translated findings into a senior-manager fraud report comparing [M] anti-fraud intervention options.
+```
+
+For the main block, this is the right Arriva centre of gravity. It says the actual things: **SQL fraud-risk queries, Excel fraud reconciliation workbook, Power BI revenue-protection dashboard, VBA exception-flagging macro, subject profiles, suspicious behaviour timelines, process-control weaknesses, revenue-risk table, senior-manager fraud report**.
+
+For the second block, we should adapt it toward **transport behaviour, identity patterns and risk indicators**. This is useful for Arriva because the ad mentions fraudulent travel behaviour and subject profiles, but we should not pretend this was fraud investigation.
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Transport-behaviour modelling project using smartphone sensor data to classify movement patterns, driver identity and risk indicators for usage-based insurance analysis.
+
+- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity from accelerometer, gyroscope and trip signals.
+- Improved transport-behaviour classification accuracy by [X] percentage points versus [baseline model], using a shared modelling workflow for movement-pattern and identity-recognition tasks.
+- Produced a model robustness report across [N] trips, [N] users and [N] transport modes, identifying failure cases and translating movement patterns into risk-indicator summaries.
+```
+
+For Arriva, this block supports: **travel/transport behaviour analysis, identity patterns, risk indicators, model evaluation**. It does not need to mention fraud.
+
+For the Business Analyst block, we should lean into **trend detection, hotspot comparison, external drivers and recommendations**. That supports Arriva’s requirement to identify emerging trends, wider patterns and opportunities for intervention.
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Trend-analysis project using country-sector activity and policy-response datasets to identify abnormal movement patterns, external drivers and decision-ready intervention recommendations.
+
+- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+- Linked abnormal activity movements to policy-response signals across [N] countries and [N] policy areas, explaining where external decisions shaped recovery patterns.
+- Produced a visual trend report with [N] intervention recommendations, translating complex activity patterns into a clear decision summary for non-technical stakeholders.
+```
+
+For Arriva, this block supports: **trend analysis, emerging patterns, structured comparison, intervention recommendations**. It is not fraud-specific, but it strengthens your analyst credibility.
+
+For South Western, this is actually a strong supporting block for Arriva because it proves **Excel, VBA, Power BI, reconciliation, control gaps, process visibility and manager-facing reporting**. We should make that concrete.
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data analysis role using Excel, VBA and Power BI to reconcile completions records, flag reporting exceptions, quantify documentation gaps and prepare manager-facing operational reports.
+
+- Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting handover entries by [X]% before supervisor review.
+- Created a VBA exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from [X] to [Y].
+- Built a Power BI operational control dashboard tracking [N] job-progress, equipment-readiness and documentation-gap KPIs across [N] completions jobs / [N] rig days.
+```
+
+This block is not fraud, but it maps well to Arriva’s requirements around **complex datasets, Excel, VBA, Power BI, attention to detail, reporting accuracy, process weaknesses and manager reporting**.
+
+## Recommended full Arriva experience structure
+
+```text
+1. Fraud Risk & Revenue Protection Analytics Platform
+   Direct Arriva match: SQL, Excel, VBA, Power BI, fraud-risk indicators, subject profiles, process-control weaknesses, revenue exposure.
+
+2. Transport Behaviour Modelling Project
+   Supporting match: travel behaviour, identity patterns, risk indicators, model evaluation.
+
+3. Recovery / Policy Trend Analysis Project
+   Supporting match: emerging trends, abnormal pattern detection, intervention recommendations.
+
+4. South Western Data Analyst Role
+   Supporting match: Excel reconciliation, VBA exception flagging, Power BI dashboards, process gaps, reporting accuracy.
+```
+
+This keeps the Arriva CV focused without forcing every block to sound like rail fraud.
+
+---
+
+Yes. For **Arriva**, the professional summary and technical skills should move away from Trustpilot’s platform-integrity/rules language and Frasers’ payment/chargeback language. Arriva’s ad is about **revenue protection fraud analysis**, complex multi-source data, subject profiles, route/location/process risk, control weaknesses, Senior Manager reporting, and tools like **Excel, SQL, VBA and Power BI**. 
+
+The framework logic still applies: **headline sells the category, summary sells the fit, experience context sets the scene, bullets prove the claims**. 
+
+## Professional summary
+
+Recommended version:
+
+```text
+Fraud-focused Data Analyst with experience using SQL, Excel, VBA and Power BI to analyse complex behavioural and operational datasets, identify fraud-risk indicators, build subject profiles and produce manager-facing risk reports. Built SQL fraud-risk queries, Excel reconciliation workbooks, VBA exception-flagging macros and Power BI revenue-protection dashboards across a 2.35B-row behavioural risk surface, translating fraud patterns, control weaknesses and revenue exposure into clear recommendations for investigation and intervention.
+```
+
+Slightly tighter version:
+
+```text
+Fraud-focused Data Analyst with experience using SQL, Excel, VBA and Power BI to analyse complex behavioural and operational datasets, identify fraud-risk indicators and produce manager-facing risk reports. Built SQL fraud-risk queries, Excel reconciliation workbooks, VBA exception-flagging macros and Power BI dashboards across a 2.35B-row behavioural risk surface, translating fraud patterns, subject profiles and revenue exposure into investigation-ready recommendations.
+```
+
+My pick is the tighter version. It is concrete, Arriva-shaped, and not overloaded.
+
+## Technical skills
+
+I would make the skills section Arriva-specific like this:
+
+```text
+TECHNICAL SKILLS
+
+Fraud & Revenue Protection: Fraud-risk indicators, revenue-risk tables, subject profiles, suspicious behaviour timelines, process-control weakness reports, anti-fraud intervention summaries
+
+SQL & Data Analysis: SQL fraud-risk queries, SQL case-detail extracts, SQL revenue-risk tables, multi-source fraud datasets, anomaly and exception queries
+
+Excel & VBA: Excel fraud reconciliation workbooks, pivot tables, lookups, index/match, Excel control-gap trackers, VBA exception-flagging macros, VBA report refresh macros
+
+Power BI & Reporting: Power BI revenue-protection dashboards, Power BI fraud trend dashboards, Senior Manager fraud reports, route/location/process-risk dashboards
+
+Risk & Controls: Route-risk analysis, location-risk reports, control weakness quantification, missing/duplicated/conflicting record checks, dashboard validation checks
+
+Additional Data Tools: Google BigQuery, Google Looker, Python, Pandas, NumPy
+```
+
+That version keeps the strongest Arriva tools near the top: **SQL, Excel, VBA and Power BI**. BigQuery, Looker and Python stay visible, but they do not distract from the exact tools Arriva names.
+
+## Recommended top section for Arriva
+
+```text
+Esosa Orumwese
+Fraud Data Analyst | Revenue Protection Analytics | SQL, Excel, VBA & Power BI | Fraud Risk Reporting
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Fraud-focused Data Analyst with experience using SQL, Excel, VBA and Power BI to analyse complex behavioural and operational datasets, identify fraud-risk indicators and produce manager-facing risk reports. Built SQL fraud-risk queries, Excel reconciliation workbooks, VBA exception-flagging macros and Power BI dashboards across a 2.35B-row behavioural risk surface, translating fraud patterns, subject profiles and revenue exposure into investigation-ready recommendations.
+
+TECHNICAL SKILLS
+
+Fraud & Revenue Protection: Fraud-risk indicators, revenue-risk tables, subject profiles, suspicious behaviour timelines, process-control weakness reports, anti-fraud intervention summaries
+
+SQL & Data Analysis: SQL fraud-risk queries, SQL case-detail extracts, SQL revenue-risk tables, multi-source fraud datasets, anomaly and exception queries
+
+Excel & VBA: Excel fraud reconciliation workbooks, pivot tables, lookups, index/match, Excel control-gap trackers, VBA exception-flagging macros, VBA report refresh macros
+
+Power BI & Reporting: Power BI revenue-protection dashboards, Power BI fraud trend dashboards, Senior Manager fraud reports, route/location/process-risk dashboards
+
+Risk & Controls: Route-risk analysis, location-risk reports, control weakness quantification, missing/duplicated/conflicting record checks, dashboard validation checks
+
+Additional Data Tools: Google BigQuery, Google Looker, Python, Pandas, NumPy
+```
+
+This is Arriva-shaped because it says the actual things they care about: **revenue protection, fraud-risk indicators, subject profiles, SQL fraud-risk queries, Excel reconciliation workbooks, VBA exception-flagging macros, Power BI dashboards, process-control weaknesses and Senior Manager reporting**.

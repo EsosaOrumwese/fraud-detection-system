@@ -1312,3 +1312,163 @@ Payments and fraud analytics platform using SQL, Google BigQuery, Excel, Power B
 ```
 
 This version says the actual things Frasers cares about: **BigQuery payment performance queries, SQL payment queries, Excel chargeback tracker, Power BI payment/fraud dashboards, Looker payment/fraud reports, dashboard validation checks, decline-rate root-cause report, Finance chargeback cost summaries and eCommerce checkout performance memos**.
+
+---
+
+Yes. For **Frasers**, the experience blocks need to support a **Payments Data Analyst** story: payment performance, fraud and chargeback trends, dashboards, root-cause analysis, Excel, SQL, BigQuery, Power BI, Looker, Digital Risk, Finance and eCommerce outputs. The ad specifically asks for regular reporting and dashboards covering payment performance, costs, fraud, chargebacks and operational metrics; investigation of unexpected data movements; Excel and SQL/BigQuery; BI tools like Power BI and Looker; and support for Digital Risk, Finance and eCommerce teams. 
+
+The framework also reminds us that the context/about line should set the frame, while the bullets prove the claims through concrete artefacts, metrics, baselines and defendable results. 
+
+Here is the **Frasers-shaped Relevant Experience section**.
+
+```text
+RELEVANT EXPERIENCE
+
+Data Scientist
+Payments, Fraud & Chargeback Analytics Platform - Exeter, UK | May 2025 - Present
+Payments and fraud analytics platform using SQL, Google BigQuery, Excel, Power BI and Looker across a 2.35B-row transaction and behaviour data surface to monitor payment performance, fraud trends, chargebacks and checkout risk.
+
+- Built BigQuery and SQL payment performance queries over a 2.35B-row transaction and behaviour data surface, tracking acceptance rates, decline rates and checkout failure patterns across [N] payment channels.
+
+- Built a BigQuery chargeback trend query and Excel chargeback tracker, analysing [N] chargebacks across [M] reporting periods to identify fraud, refund and payment-dispute movements.
+
+- Created Power BI payment performance and fraud dashboards tracking [N] KPIs across acceptance, declines, chargebacks, fraud rate and operational metrics for Digital Risk and payments teams.
+
+- Maintained Looker payment and fraud reports with [N] dashboard validation checks, reducing reporting errors by [X]% and improving successful refreshes to [Y]%.
+
+- Produced a decline-rate root-cause report from BigQuery movement queries, explaining a [X]% unexpected increase in failed payments and identifying [N] provider, customer or checkout-flow drivers.
+
+- Produced Finance chargeback cost summaries and eCommerce checkout performance memos, quantifying £[Y] cost exposure, [Z]% chargeback variance and [X]% payment-acceptance opportunity.
+```
+
+For the second block, we should not force payments language. Its job is to prove **behavioural modelling, classification, evaluation and risk interpretation**.
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Behavioural modelling project using smartphone sensor data to classify movement patterns, driver identity and risk indicators for usage-based insurance analysis.
+
+- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity from accelerometer, gyroscope and trip signals.
+
+- Improved behavioural classification accuracy by [X] percentage points versus [baseline model], using a shared modelling workflow for movement-pattern and identity-recognition tasks.
+
+- Produced a model robustness report across [N] trips, [N] users and [N] transport modes, identifying failure cases and translating sensor behaviour into risk-indicator summaries.
+```
+
+For Frasers, this supports analytical ability and risk-pattern modelling, but it stays honest: it does not pretend to be eCommerce payments work.
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Trend-analysis project using country-sector activity and policy-response datasets to investigate abnormal metric movements, explain external drivers and produce decision-ready visual reports.
+
+- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+
+- Investigated abnormal activity movements across [N] countries and [N] policy areas, linking changes to external policy-response signals and explaining the drivers behind metric shifts.
+
+- Produced a visual trend report with [N] recommendations, translating complex movement patterns into a clear decision summary for non-technical stakeholders.
+```
+
+For Frasers, this block supports **trend analysis, unexpected movement investigation, root-cause thinking and visual reporting**.
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data analysis role using Excel, VBA and Power BI to reconcile operational records, validate recurring reports, automate exception checks and report operational metrics for manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by [X]% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from [X] to [Y].
+
+- Built a Power BI operational metrics dashboard tracking [N] KPIs across job progress, equipment readiness, documentation gaps and review status across [N] completions jobs / [N] rig days.
+```
+
+For Frasers, this block supports **Excel, VBA, Power BI, report validation, operational metrics, recurring reporting and attention to detail**. It is not payments-specific, but it reinforces the exact working pattern Frasers wants: accurate dashboards, validated reports, Excel manipulation and structured problem solving.
+
+## Recommended Frasers experience structure
+
+```text
+1. Payments, Fraud & Chargeback Analytics Platform
+   Direct Frasers match: SQL, BigQuery, Excel, Power BI, Looker, payment performance, fraud, chargebacks, root-cause analysis, Finance/eCommerce outputs.
+
+2. Behavioural Modelling Project
+   Supporting match: behavioural risk modelling, classification, robustness testing, risk indicators.
+
+3. Recovery / Policy Trend Analysis Project
+   Supporting match: unexpected movement analysis, trend interpretation, visual reports, recommendations.
+
+4. South Western Data Analyst Role
+   Supporting match: Excel reconciliation, VBA exception flagging, Power BI operational metrics dashboard, report validation.
+```
+
+This keeps the Frasers CV centred on **payments, fraud, chargebacks and dashboards**, while the other blocks strengthen the underlying analyst profile instead of diluting the story.
+
+---
+
+Yes. For **Frasers**, the professional summary and technical skills should centre on **payments, fraud, chargebacks, dashboards, root-cause analysis, Excel, SQL, BigQuery, Power BI and Looker**. Frasers explicitly frames the role around eCommerce payments/fraud performance, regular dashboards, payment performance/costs, fraud and chargeback trends, operational metrics, root-cause analysis, and ad-hoc requests from Digital Risk, Finance and eCommerce. 
+
+The summary should sell the fit; the skills section should give the recruiter/ATS the concrete tools and artefacts. That follows the framework’s layering: headline = positioning, professional summary = fit argument, bullets = proof. 
+
+## Professional summary
+
+My recommended version:
+
+```text
+Payments-focused Data Analyst with experience using SQL, Google BigQuery, Excel, Power BI and Looker to analyse eCommerce payment performance, fraud trends, chargebacks and checkout risk. Built BigQuery payment queries, Excel chargeback trackers, Power BI payment dashboards and Looker fraud reports across a 2.35B-row transaction and behaviour data surface, translating metric movements into Finance, Digital Risk and eCommerce decision summaries.
+```
+
+A slightly tighter version:
+
+```text
+Payments-focused Data Analyst with experience using SQL, Google BigQuery, Excel, Power BI and Looker to monitor payment performance, fraud trends, chargebacks and checkout risk. Built BigQuery payment queries, Excel chargeback trackers, Power BI dashboards and Looker reports across a 2.35B-row transaction and behaviour data surface, turning metric movements into Finance, Digital Risk and eCommerce summaries.
+```
+
+I’d use the first version. It is concrete and gives Frasers the actual artefacts: **BigQuery payment queries, Excel chargeback trackers, Power BI payment dashboards, Looker fraud reports**.
+
+## Technical skills
+
+```text
+TECHNICAL SKILLS
+
+Payments & Fraud Analytics: Payment acceptance analysis, decline-rate analysis, chargeback trend analysis, fraud trend analysis, checkout failure analysis, payment cost variance reports
+
+SQL & BigQuery: SQL payment performance queries, BigQuery chargeback trend queries, BigQuery payment movement queries, SQL fraud trend queries, BigQuery dashboard source tables
+
+Excel & VBA: Excel payment reconciliation workbooks, Excel chargeback trackers, pivot tables, lookups, index/match checks, VBA report-refresh macros, VBA exception-flagging macros
+
+Power BI & Looker: Power BI payment performance dashboards, Power BI fraud and chargeback dashboards, Looker payment reports, Looker fraud reports, dashboard validation checklists
+
+Root-Cause & Stakeholder Outputs: Decline-rate root-cause reports, chargeback spike analyses, Finance chargeback cost summaries, eCommerce checkout performance memos, Digital Risk fraud summaries
+
+Python & Data Analysis: Python, Pandas, NumPy, anomaly detection, data-quality checks, metric variance analysis
+```
+
+This is Frasers-shaped because it reflects the job’s actual requirements: Excel with lookups/index-match/pivots, SQL and BigQuery, Power BI/Looker, payment journeys, authorisations/declines/checkout flows, fraud/chargebacks, and data governance awareness. 
+
+## Recommended top section for Frasers
+
+```text
+Esosa Orumwese
+Payments Data Analyst | eCommerce Fraud & Chargebacks | SQL, BigQuery, Excel & Power BI
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Payments-focused Data Analyst with experience using SQL, Google BigQuery, Excel, Power BI and Looker to analyse eCommerce payment performance, fraud trends, chargebacks and checkout risk. Built BigQuery payment queries, Excel chargeback trackers, Power BI payment dashboards and Looker fraud reports across a 2.35B-row transaction and behaviour data surface, translating metric movements into Finance, Digital Risk and eCommerce decision summaries.
+
+TECHNICAL SKILLS
+
+Payments & Fraud Analytics: Payment acceptance analysis, decline-rate analysis, chargeback trend analysis, fraud trend analysis, checkout failure analysis, payment cost variance reports
+
+SQL & BigQuery: SQL payment performance queries, BigQuery chargeback trend queries, BigQuery payment movement queries, SQL fraud trend queries, BigQuery dashboard source tables
+
+Excel & VBA: Excel payment reconciliation workbooks, Excel chargeback trackers, pivot tables, lookups, index/match checks, VBA report-refresh macros, VBA exception-flagging macros
+
+Power BI & Looker: Power BI payment performance dashboards, Power BI fraud and chargeback dashboards, Looker payment reports, Looker fraud reports, dashboard validation checklists
+
+Root-Cause & Stakeholder Outputs: Decline-rate root-cause reports, chargeback spike analyses, Finance chargeback cost summaries, eCommerce checkout performance memos, Digital Risk fraud summaries
+
+Python & Data Analysis: Python, Pandas, NumPy, anomaly detection, data-quality checks, metric variance analysis
+```
+
+This keeps the CV concrete and grounded: no “BI-style,” no vague “stakeholder reporting,” no abstract “structured analysis” without an artefact.
