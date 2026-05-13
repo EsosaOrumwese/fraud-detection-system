@@ -4,36 +4,34 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Scientist with experience building customer-behaviour ML workflows across large-scale SQL/PySpark datasets, including churn-risk, propensity, fraud/anomaly, segmentation and targeting use cases. 
-Strong fit for customer-focused data science roles requiring Python model development, validation, production workflow ownership, testing/CI/CD, and clear translation of model outputs into business recommendations.
+Data Scientist with experience building customer-behaviour ML workflows across large-scale SQL/PySpark datasets, including churn-risk, propensity, fraud/anomaly, segmentation and targeting use cases. Skilled in Python model development, validation, production workflow ownership, testing/CI/CD, and translating model outputs into clear business recommendations.
 
-EDUCATION
+TECHNICAL SKILLS
 
-University of Exeter
-Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
-
-Covenant University
-Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+Languages & Data: Python, SQL, PySpark, Spark SQL, Pandas, NumPy
+ML & Statistics: Churn modelling, propensity modelling, fraud/anomaly detection, classification, segmentation, lift analysis, calibration, drift monitoring, hypothesis testing
+Pipelines & Production: Feature engineering, customer scoring pipelines, batch scoring, data-quality checks, freshness monitoring, production deployment, CI/CD
+Software Engineering: OOP, modular code, unit testing, version control, code optimisation, documentation
+Cloud & Databases: AWS, relational databases, multi-source customer data integration
 
 RELEVANT EXPERIENCE
 
 Data Scientist
 Customer Behaviour ML Platform - Exeter, UK | May 2025 - Present
-Customer-behaviour ML platform using AWS, SQL/PySpark, Python, statistical modelling and monitoring across a 2.35B-row customer data surface for churn, propensity, fraud-risk and targeting use cases.
+Customer-behaviour ML platform using AWS, Python, SQL/PySpark, statistical modelling and monitoring across a 2.35B-row customer data surface for churn-risk, propensity, fraud/anomaly and targeting use cases.
 
 - Built AWS-hosted SQL/PySpark feature and scoring pipelines over a 2.35B-row customer behaviour surface, combining [N] customer data sources into churn, propensity and anomaly-risk outputs.
 - Improved at-risk customer capture by [X]% versus a rules-based retention baseline, using churn-risk scoring to prioritise customers before campaign selection.
 - Captured [X]% of confirmed responders in the top [Y]% propensity score band, creating a defensible priority audience for offers, messages and interventions.
 - Surfaced abnormal usage, account and transaction patterns through anomaly-risk scoring, capturing [X]% of known-risk cases before rule-based fraud triggers.
-- Validated churn, propensity and anomaly-risk outputs using lift, calibration, drift, freshness and stability checks across [N] scoring runs, strengthening trust in customer-level scores.
-- Packaged scoring workflows with unit tests, data-quality checks, CI/CD, documentation and monitoring, improving production reliability to [X]% successful runs / [Y]-hour data freshness.
+- Validated and productionised churn, propensity and anomaly-risk workflows with lift, calibration, drift, freshness, unit-test, data-quality and CI/CD checks, improving scoring reliability across [N] runs.
 - Compared [N] targeting strategies across [M] outcome measures, translating model trade-offs into a stakeholder recommendation for customer-focused rollout.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
 Behavioural modelling project using smartphone sensor signals to classify transport behaviour and driver identity for usage-based insurance risk assessment.
 
-- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity, testing behavioural signals for usage-based insurance risk assessment.
+- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity from accelerometer, gyroscope and trip signals.
 - Improved behavioural classification accuracy by [X]% versus [baseline model] by combining transport-mode and driver-identification tasks in a shared modelling workflow.
 - Evaluated model robustness across [N] trips, [N] users and [N] transport modes, translating movement patterns into risk indicators for non-technical stakeholders.
 
@@ -53,14 +51,10 @@ Operations data analysis role supporting completions activity, field reporting, 
 - Improved live completions visibility across [N] jobs / [N] rig days by tracking tubing/casing tallies, depths, equipment sequence, job progress, delays and next-step actions.
 - Standardised [N] field-reporting templates, cutting report review time from [X] to [Y] and improving traceability across job progress, equipment readiness and HSE documentation.
 
-TECHNICAL SKILLS
+EDUCATION
 
-Languages & Data: Python, SQL, PySpark, Spark SQL, Pandas, NumPy
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
 
-ML & Statistics: Churn modelling, propensity modelling, fraud/anomaly detection, classification, segmentation, lift analysis, calibration, drift monitoring, hypothesis testing
-
-Pipelines & Production: Feature engineering, customer scoring pipelines, batch scoring, data-quality checks, freshness monitoring, production deployment, CI/CD
-
-Software Engineering: OOP, modular code, unit testing, version control, code optimisation, documentation
-
-Cloud & Databases: AWS, relational databases, multi-source customer data integration
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
