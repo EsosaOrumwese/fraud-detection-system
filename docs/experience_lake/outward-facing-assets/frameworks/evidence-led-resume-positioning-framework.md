@@ -1762,3 +1762,75 @@ Use achievement verbs tied to operational improvement:
 ```
 
 The goal is not to pretend you owned engineering execution. The goal is to show that, as a **Data Analyst**, your reporting and analysis improved visibility, handover quality, traceability, safety readiness and operational decision-making.
+
+
+## What I mean by placeholder
+
+When you say **placeholder**, you mean:
+
+```text
+[X]%, [N], [Y], [baseline], [period], [customer segment]
+```
+
+You **do not** mean:
+
+```text
+[recall / precision / lift / AUC / capture rate]
+```
+
+So I should choose the **metric meaning** myself based on what best fits the bullet, then leave only the value as a placeholder.
+
+For example, instead of this loose version:
+
+```text
+Improved churn-risk identification by [X]% using [recall / precision / lift / AUC] versus [baseline].
+```
+
+We should write a more decisive ledger direction like:
+
+```text
+Improved churn-risk lift by [X]% versus a rules-based baseline, helping retention teams prioritise customers before campaign selection.
+```
+
+Or:
+
+```text
+Increased recall of at-risk customers by [X]% at a fixed outreach volume, helping retention teams capture more likely churners without expanding the campaign audience.
+```
+
+The **number** is placeholder. The **meaning** is fixed.
+
+That is the right approach because the bullet becomes sharper and more recruiter-believable.
+
+## Corrected rule for our ledger
+
+Going forward, I’ll use this rule:
+
+> I will decide the best metric type, business meaning, and bullet logic. Only the exact numeric value stays as a placeholder unless the underlying fact itself is genuinely unknown.
+
+So instead of saying:
+
+```text
+Metric: [lift / recall / precision / top-decile capture]
+```
+
+I’ll say:
+
+```text
+Metric: lift in at-risk customer capture versus baseline
+Placeholder: [X]%
+```
+
+Or:
+
+```text
+Metric: share of target customers captured in top score band
+Placeholder: [X]% in top [Y]%
+```
+
+Or:
+
+```text
+Metric: reduction in low-propensity audience inclusion at fixed coverage
+Placeholder: [X]% reduction while preserving [Y]% coverage
+```
