@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Fraud-focused Data Scientist with experience using SQL, Google BigQuery and Google Looker to detect suspicious behaviour across large activity datasets. Built fraud trend queries, Looker account-behaviour dashboards, risk indicators and investigation case packs across a 2.35B-row activity surface, translating fraud analysis into clear reports for fraud, data science and engineering stakeholders.
+Fraud-focused Data Analyst with experience using SQL, Google BigQuery and Google Looker to detect suspicious behaviour across large activity datasets. Built fraud trend queries, Looker account-behaviour dashboards, risk indicators and investigation case packs across a 2.35B-row activity surface, translating fraud analysis into clear reports for fraud, data science and engineering stakeholders.
 
 TECHNICAL SKILLS
 
@@ -23,7 +23,7 @@ Fraud analytics platform using SQL, Google BigQuery, Google Looker, Python and b
 - Built SQL and BigQuery fraud trend queries over a 2.35B-row behaviour surface, producing 12 fraud-risk indicators for suspicious account, usage and transaction patterns.
 - Created Looker fraud and account-behaviour dashboards tracking 10 risk metrics, giving fraud/risk stakeholders a recurring view of abnormal platform activity.
 - Formulated 6 fraud detection rules from behavioural analysis, improving known-risk case capture by 27% versus the existing rule-trigger baseline.
-- Produced 38 escalated misuse case packs with SQL case-detail queries, high-risk account profiles and suspicious behaviour timelines for investigation review.
+- Produced 38 fraud case review packs using SQL case-detail queries, high-risk account profiles and suspicious behaviour timelines.
 - Maintained 9 BigQuery fraud tables, SQL views and Looker source tables for fraud dashboards, improving refresh time by 34% and supporting data science and engineering review.
 - Wrote fraud-rule rationale memos summarising 6 rule recommendations, validation results and investigation findings for fraud, data science, engineering and wider stakeholder review.
 

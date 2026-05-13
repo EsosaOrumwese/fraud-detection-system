@@ -21,10 +21,10 @@ Fraud Risk & Revenue Protection Analytics Platform - Exeter, UK | May 2025 - Pre
 Fraud analytics platform using SQL, Excel, VBA and Power BI across a 2.35B-row behavioural risk data surface to identify fraud-risk indicators, subject profiles, revenue exposure and process-control weaknesses.
 
 - Built SQL fraud-risk queries and an Excel fraud reconciliation workbook over a 2.35B-row behavioural risk surface, combining 7 data sources into 14 revenue-risk indicators for fraud review.
-- Created a Power BI revenue-protection dashboard tracking 11 fraud, risk-hotspot and process-control KPIs, giving Senior Managers a weekly view of emerging risk patterns.
+- Created a Power BI revenue-protection dashboard tracking 11 fraud, risk-hotspot and process-control KPIs, giving senior managers a weekly view of emerging risk patterns.
 - Built a VBA exception-flagging macro for the Excel fraud workbook, reducing manual review time from 45 to 25 minutes and surfacing 180 missing, duplicated or conflicting records before review.
 - Produced 32 subject profiles with SQL case-detail extracts, suspicious behaviour timelines and risk-indicator summaries to support investigation of high-risk individuals.
-- Identified 9 process-control weaknesses and risk hotspots through fraud-risk analysis, quantifying 61% concentration of suspicious activity across high-risk segments.
+- Identified 9 process-control weaknesses and risk hotspots through fraud-risk analysis, quantifying 61% concentration of suspicious activity across high-risk segments and process points.
 - Built a revenue-risk table estimating £48k exposure across 32 high-risk cases, then translated findings into a senior-manager fraud report comparing 3 anti-fraud intervention options.
 
 Data Scientist

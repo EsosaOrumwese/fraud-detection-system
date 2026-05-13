@@ -1,10 +1,10 @@
 Esosa Orumwese
-Payments Data Analyst | eCommerce Fraud & Chargebacks | SQL, BigQuery, Excel & Power BI
+Payments Data Analyst | eCommerce Payments, Fraud & Chargebacks | SQL, BigQuery, Excel & Power BI
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Payments-focused Data Analyst with experience using SQL, Google BigQuery, Excel, Power BI and Looker to analyse eCommerce payment performance, fraud trends, chargebacks and checkout risk. Built BigQuery payment queries, Excel chargeback trackers, Power BI payment dashboards and Looker fraud reports across a 2.35B-row transaction and behaviour data surface, translating metric movements into Finance, Digital Risk and eCommerce decision summaries.
+Payments-focused Data Analyst with experience using SQL, Google BigQuery, Excel, Power BI and Looker to analyse payment performance, fraud trends, chargebacks and checkout risk. Built payment queries, chargeback trackers, dashboards and validation checks, translating metric movements into Finance, Digital Risk and eCommerce decision summaries.
 
 TECHNICAL SKILLS
 
