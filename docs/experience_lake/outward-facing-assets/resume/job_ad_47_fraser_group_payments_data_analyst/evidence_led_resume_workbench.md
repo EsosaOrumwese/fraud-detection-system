@@ -785,3 +785,530 @@ Fraud Detection & Behaviour Analytics Platform — Exeter, UK | May 2025 – Pre
 ```
 
 That keeps the same project truthful while making the role relevance much sharper.
+
+---
+
+Yes — now we do **job-specific evidence scoring for Frasers Group**.
+
+This is still **not bullet portfolio design yet**. The framework says this step is where we score each evidence item as **A = direct match, B = adjacent, C = transferable support, D = remove/compress**, so each CV answers the specific job rather than sounding generically impressive. 
+
+Frasers is hiring for a **Payments Data Analyst** in the **Digital Risk** team. The role is centred on payment performance, costs, fraud and chargeback trends, operational metrics, dashboard maintenance, root-cause analysis, ad-hoc requests, Excel, SQL, BigQuery, Power BI/Looker, and commercial outcomes like acceptance rates, chargebacks, fraud prevention and checkout reliability. 
+
+# Frasers Group — Evidence Scoring
+
+## Scoring key
+
+| Tier | Meaning for Frasers                                                                                                  |
+| ---- | -------------------------------------------------------------------------------------------------------------------- |
+| A    | Direct match to payments, fraud, chargebacks, dashboards, SQL/BigQuery/Excel/Power BI/Looker, or root-cause analysis |
+| B    | Useful supporting evidence that strengthens the payments/fraud analyst story                                         |
+| C    | Transferable but secondary; use lower down or compress                                                               |
+| D    | Weak for this role; remove or avoid                                                                                  |
+
+---
+
+# Tier A — Direct Frasers evidence
+
+These should drive the Frasers CV.
+
+| Evidence item                                             | Score | Why it is A for Frasers                                                                                                                                 |
+| --------------------------------------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Payments, Fraud & Chargeback Analytics Platform**       |     A | Strong role-specific platform label if the underlying evidence includes payments/chargebacks. It matches the Digital Risk and eCommerce payments focus. |
+| **BigQuery payment performance query**                    |     A | Frasers explicitly names structured datasets and SQL-based tools such as BigQuery.                                                                      |
+| **SQL payment performance query**                         |     A | Direct match to SQL and payment performance analysis.                                                                                                   |
+| **BigQuery chargeback trend query**                       |     A | Direct match to chargeback trend analysis and BigQuery.                                                                                                 |
+| **SQL fraud trend query**                                 |     A | Direct match to fraud performance analysis and trend/anomaly detection.                                                                                 |
+| **Excel payment reconciliation workbook**                 |     A | Direct match to Excel, lookups, pivot tables, data manipulation and payment reporting accuracy.                                                         |
+| **Excel chargeback tracker**                              |     A | Strong evidence for chargeback monitoring and recurring reporting.                                                                                      |
+| **Power BI payment performance dashboard**                |     A | Direct match to dashboard production and payment-performance reporting.                                                                                 |
+| **Power BI fraud and chargeback dashboard**               |     A | Direct match to dashboards covering fraud and chargeback trends.                                                                                        |
+| **Looker payment performance report**                     |     A | Frasers names Looker/Data Studio as desirable BI exposure.                                                                                              |
+| **Looker fraud or chargeback report**                     |     A | Strong if the report tracked fraud/chargeback KPIs.                                                                                                     |
+| **Dashboard validation checklist**                        |     A | Frasers explicitly asks for producing, validating and maintaining dashboards.                                                                           |
+| **Dashboard refresh / maintenance process**               |     A | Direct match to regular reporting and dashboard maintenance.                                                                                            |
+| **Payment acceptance monitor**                            |     A | Direct match to improving payment acceptance rates.                                                                                                     |
+| **Decline-rate root-cause report**                        |     A | Direct match to investigating unexpected movements and supporting root-cause analysis.                                                                  |
+| **Chargeback spike analysis**                             |     A | Direct match to chargeback trends and root-cause analysis.                                                                                              |
+| **Fraud metric investigation memo**                       |     A | Direct match to fraud performance monitoring and anomaly investigation.                                                                                 |
+| **Payment cost variance report**                          |     A | Direct match to payment performance and costs.                                                                                                          |
+| **Operational metrics workbook for fraud/payments teams** |     A | Frasers explicitly mentions operational metrics for fraud and payments teams.                                                                           |
+| **Digital Risk ad-hoc data request output**               |     A | Direct match to responding to ad-hoc data requests from Digital Risk.                                                                                   |
+| **Finance chargeback cost summary**                       |     A | Direct match to Finance stakeholder support and chargeback/cost impact.                                                                                 |
+| **eCommerce checkout performance memo**                   |     A | Direct match to eCommerce stakeholder support and checkout reliability.                                                                                 |
+| **Payment partner issue analysis**                        |     A | Frasers mentions collaboration with external payment partners.                                                                                          |
+| **Fraud prevention rule impact table**                    |     A | Direct match if tied to strengthening fraud prevention or reducing chargebacks.                                                                         |
+| **Payment acceptance uplift analysis**                    |     A | Very strong if defensible; directly maps to the “improve payment acceptance rates” outcome.                                                             |
+| **Chargeback reduction report**                           |     A | Very strong if defensible; directly maps to reducing chargebacks.                                                                                       |
+
+**Verdict:** The Frasers CV should be built around concrete payment/fraud artefacts: **BigQuery chargeback trend query, SQL payment performance query, Excel payment reconciliation workbook, Power BI payment performance dashboard, Looker fraud report, decline-rate root-cause report, chargeback spike analysis, and Finance/eCommerce summaries**.
+
+---
+
+# Tier B — Useful supporting evidence
+
+These are relevant, but should support the A-tier evidence rather than dominate.
+
+| Evidence item                                         | Score | Why it is B                                                                                                                                                          |
+| ----------------------------------------------------- | ----: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **2.35B-row behavioural data surface**                |     B | Strong large-data proof, but Frasers cares less about raw scale than payment/fraud/chargeback dashboards and root-cause outputs. Use only if tied to payments/fraud. |
+| **Fraud-risk indicator table**                        |     B | Useful for fraud prevention, but stronger if connected to chargebacks, payment fraud or checkout risk.                                                               |
+| **Anomaly-risk score / exception flag table**         |     B | Useful for trend/anomaly detection; should be framed around payment/fraud metric movement.                                                                           |
+| **Known-risk case capture versus rule baseline**      |     B | Strong fraud evidence, but Frasers is more reporting/analytics than rule-writing.                                                                                    |
+| **BigQuery fraud trend query**                        |   B/A | A if it supports eCommerce fraud/chargeback/payment monitoring; B if it is generic fraud risk.                                                                       |
+| **Looker fraud dashboard**                            |   B/A | A if it tracks Frasers-style fraud/chargeback/payment KPIs; B if it is general platform fraud.                                                                       |
+| **Power BI operational metrics dashboard**            |   B/A | A if fraud/payments metrics; B if generic operations.                                                                                                                |
+| **SQL anomaly query**                                 |     B | Useful for unexpected metric movement if tied to root cause.                                                                                                         |
+| **Root-cause analysis memo for fraud trend movement** |   B/A | A if payment/fraud/chargeback metric movement; B if broader risk trend.                                                                                              |
+| **VBA report refresh macro**                          |     B | Useful for report maintenance and Excel automation, but Frasers does not explicitly require VBA.                                                                     |
+| **VBA exception-flagging workbook**                   |     B | Useful for validation and exception detection; stronger for Arriva, still helpful here.                                                                              |
+| **Senior-manager risk report**                        |     B | Useful communication evidence, but Frasers wants Digital Risk, Finance and eCommerce outputs more specifically.                                                      |
+| **Model validation report for fraud/anomaly score**   |     B | Useful if it supports fraud prevention, but less central than dashboard/root-cause/payment reporting.                                                                |
+| **Business analytics trend report**                   |     B | Supports trend analysis and commercial recommendation writing; not payment-specific.                                                                                 |
+| **220-country / 12-sector recovery analysis**         |     B | Good trend-analysis proof, but should not lead the Frasers CV.                                                                                                       |
+
+**Verdict:** B-tier evidence can fill out the CV, especially if we need to show analytical depth, but the top block should stay focused on **payments, chargebacks, dashboards, root-cause analysis, and stakeholder outputs**.
+
+---
+
+# Tier C — Transferable support only
+
+These should be lower in the CV or compressed.
+
+| Evidence item                                          | Score | Why it is C                                                                                            |
+| ------------------------------------------------------ | ----: | ------------------------------------------------------------------------------------------------------ |
+| **Subject profile / high-risk account profile**        |     C | Strong for Trustpilot/Arriva investigations, but Frasers does not emphasise individual case profiling. |
+| **Suspicious behaviour timeline**                      |     C | Useful fraud thinking, but less central than payment dashboards and chargeback analysis.               |
+| **Escalated misuse case pack**                         |     C | Trustpilot-specific; only useful if reframed as fraud case support.                                    |
+| **Route-risk analysis**                                |     C | Arriva-specific; weak for Frasers unless converted into process/risk hotspot analysis.                 |
+| **Location-risk report**                               |     C | Better for Arriva.                                                                                     |
+| **Process-control weakness report**                    |   C/B | B if tied to payment reporting controls or dashboard validation; C if generic operations.              |
+| **Excel operational reconciliation workbook**          |   C/B | B if it demonstrates payment/report validation logic; C if it remains oilfield operational data.       |
+| **Operational data reconciliation from South Western** |     C | Shows accuracy and data-quality discipline, but not payments/eCommerce.                                |
+| **HSE/documentation gap tracker**                      |     C | Too operational unless compressed under control-gap experience.                                        |
+| **Completions handover pack**                          |     C | Transferable reporting discipline, but not payment/fraud/chargeback evidence.                          |
+| **Smartphone behavioural classification model**        |     C | Shows analytical modelling, but not relevant enough to Frasers’ practical payments analyst role.       |
+| **Risk indicator summary from sensor project**         |     C | Secondary behavioural-risk evidence only.                                                              |
+
+**Verdict:** C-tier evidence is useful only if the CV needs supporting proof of accuracy, analysis or reporting discipline. It should not compete with the payment/fraud/chargeback evidence.
+
+---
+
+# Tier D — Remove or avoid for Frasers
+
+These do not answer Frasers’ hiring questions strongly enough.
+
+| Evidence item                            | Score | Why it is D                                                                                                 |
+| ---------------------------------------- | ----: | ----------------------------------------------------------------------------------------------------------- |
+| **Churn-risk scoring**                   |     D | Tesco-specific; wrong business problem for Frasers.                                                         |
+| **Propensity / marketing targeting**     |     D | Wrong context unless reframed into payment/fraud prioritisation, which may feel forced.                     |
+| **Offer/message/intervention targeting** |     D | Not relevant to payments, fraud, chargebacks or Digital Risk.                                               |
+| **Customer communication relevance**     |     D | Wrong problem.                                                                                              |
+| **Revenue protection dashboard**         |   D/B | Better for Arriva; only useful for Frasers if reframed as payment/fraud cost dashboard.                     |
+| **Route/location risk report**           |     D | Rail/revenue-protection specific, not Frasers.                                                              |
+| **Fraud detection rule formulation**     |   D/B | Trustpilot values this more. Use only if tied to fraud prevention or chargeback reduction.                  |
+| **Production ML / CI/CD / unit testing** |   D/B | Not a Frasers priority unless tied to dashboard/report reliability.                                         |
+| **PySpark-heavy ML platform language**   |     D | Frasers wants practical payment/fraud analytics, dashboards, Excel/SQL/BigQuery, not a production ML story. |
+
+---
+
+# Frasers-specific priority pool
+
+For Frasers, the highest-value evidence pool is:
+
+```text
+1. BigQuery payment performance query
+2. SQL payment performance query
+3. BigQuery chargeback trend query
+4. SQL fraud trend query
+5. Excel payment reconciliation workbook
+6. Excel chargeback tracker
+7. Power BI payment performance dashboard
+8. Power BI fraud and chargeback dashboard
+9. Looker payment performance report
+10. Looker fraud / chargeback report
+11. Dashboard validation checklist
+12. Dashboard refresh / maintenance process
+13. Decline-rate root-cause report
+14. Chargeback spike analysis
+15. Payment cost variance report
+16. Operational metrics workbook for fraud/payments teams
+17. Digital Risk ad-hoc data request output
+18. Finance chargeback cost summary
+19. eCommerce checkout performance memo
+20. Payment partner issue analysis
+```
+
+# What this tells us for the Frasers CV
+
+The main experience block should **not** be called:
+
+```text
+Customer Behaviour ML Platform
+```
+
+or:
+
+```text
+Fraud Risk & Revenue Protection Analytics Platform
+```
+
+For Frasers, the stronger title is:
+
+```text
+Payments, Fraud & Chargeback Analytics Platform
+```
+
+If we want to be slightly safer before confirming chargeback/payment depth:
+
+```text
+Payments & Fraud Analytics Platform
+```
+
+The headline should move toward:
+
+```text
+Payments Data Analyst | eCommerce Fraud & Chargeback Analytics | SQL, BigQuery, Excel & Power BI
+```
+
+or:
+
+```text
+Payments Data Analyst | Payment Performance, Fraud & Chargeback Reporting | BigQuery, Looker, Excel & Power BI
+```
+
+The main experience block should later be designed around proof functions like:
+
+```text
+1. BigQuery / SQL payment performance analysis
+2. Fraud and chargeback trend reporting
+3. Power BI / Looker dashboard production and maintenance
+4. Excel payment reconciliation and dashboard validation
+5. Decline-rate or chargeback root-cause analysis
+6. Digital Risk, Finance and eCommerce ad-hoc requests
+7. Commercial impact: acceptance, cost, chargebacks or fraud prevention
+```
+
+---
+
+Yes. This is **Step 4 for Frasers**: design the bullet portfolio from the Tier A evidence pool. We are **not drafting the bullets yet**. The framework says this step is where we decide what each bullet must prove before writing it. 
+
+Frasers’ role is focused on eCommerce payments and fraud performance, regular reporting and dashboards, payment performance/costs, fraud and chargeback trends, operational metrics, unexpected metric movements, root-cause analysis, ad-hoc requests, Excel, SQL, BigQuery, and BI tools such as Power BI and Looker. 
+
+# Frasers Bullet Portfolio
+
+## Target experience block
+
+```text
+Data Scientist
+Payments, Fraud & Chargeback Analytics Platform — Exeter, UK | May 2025 – Present
+```
+
+If we later decide the chargeback evidence is not strong enough, we can soften the platform name to:
+
+```text
+Payments & Fraud Analytics Platform
+```
+
+But for Frasers, the strongest title is **Payments, Fraud & Chargeback Analytics Platform** because the job directly names payment performance, fraud trends and chargebacks.
+
+## Portfolio goal
+
+This experience block must prove:
+
+> You can use SQL, BigQuery, Excel, Power BI and Looker to analyse eCommerce payment performance, fraud and chargeback trends, maintain accurate dashboards, investigate unexpected metric movements, and produce concrete outputs for Digital Risk, Finance and eCommerce teams.
+
+---
+
+# Recommended portfolio: 7 bullets
+
+I would use **7 working slots for now**, then later cut to 6 if needed.
+
+## Bullet 1 — BigQuery / SQL payment performance analysis
+
+| Field                            | Decision                                                                                                               |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove you can analyse payment performance using SQL and BigQuery                                                       |
+| Evidence assigned                | BigQuery payment performance query; SQL payment performance query; payment acceptance monitor                          |
+| Frasers screen covered           | Payment performance, SQL, BigQuery, structured datasets, payment acceptance                                            |
+| Concrete artefacts to name later | BigQuery payment performance query; SQL decline-rate query; payment acceptance monitor                                 |
+| Metric meaning                   | Payment acceptance, decline rate, authorisation rate or checkout failure movement                                      |
+| Placeholder values               | `[N] payment records`, `[X]% acceptance-rate movement`, `[Y]% decline-rate movement`, `[N] payment channels/providers` |
+| Why this must appear             | This is the cleanest direct match to the “Payments Data Analyst” title                                                 |
+| Avoid                            | Do not lead with generic fraud modelling; Frasers is payments-first, fraud/chargebacks second                          |
+
+**Portfolio role:** this is the **payments analytics bullet**.
+
+---
+
+## Bullet 2 — Fraud and chargeback trend analysis
+
+| Field                            | Decision                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Primary proof function           | Prove you can monitor fraud and chargeback movements                                                                     |
+| Evidence assigned                | BigQuery chargeback trend query; SQL fraud trend query; Excel chargeback tracker                                         |
+| Frasers screen covered           | Fraud trends, chargeback trends, fraud performance, payment risk                                                         |
+| Concrete artefacts to name later | BigQuery chargeback trend query; SQL fraud trend report; Excel chargeback tracker                                        |
+| Metric meaning                   | Chargeback rate movement, fraud-rate movement, fraud/chargeback volume variance                                          |
+| Placeholder values               | `[N] chargebacks analysed`, `[X]% chargeback-rate movement`, `[Y]% fraud-rate movement`, `[M] reporting periods`         |
+| Why this must appear             | Frasers explicitly names fraud and chargeback trends; this cannot be hidden inside a generic risk bullet                 |
+| Avoid                            | Do not use only “fraud analytics”; name **chargeback trend query** or **chargeback tracker** if the evidence supports it |
+
+**Portfolio role:** this is the **fraud + chargeback trend bullet**.
+
+---
+
+## Bullet 3 — Power BI / Looker dashboard production and maintenance
+
+| Field                            | Decision                                                                                                                                                          |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove you can produce, validate and maintain recurring dashboards                                                                                                 |
+| Evidence assigned                | Power BI payment performance dashboard; Power BI fraud and chargeback dashboard; Looker payment report; Looker fraud/chargeback report; dashboard refresh process |
+| Frasers screen covered           | Regular reporting, dashboards, Power BI, Looker, operational metrics                                                                                              |
+| Concrete artefacts to name later | Power BI payment performance dashboard; Power BI fraud and chargeback dashboard; Looker payment performance report                                                |
+| Metric meaning                   | Dashboard KPIs tracked, refresh cadence, reporting periods maintained                                                                                             |
+| Placeholder values               | `[N] KPIs`, `[weekly/monthly] refresh`, `[N] reporting periods`, `[M] stakeholder groups`                                                                         |
+| Why this must appear             | The ad repeatedly stresses producing, validating and maintaining dashboards                                                                                       |
+| Avoid                            | Do not say “dashboard reporting.” Say **Power BI payment performance dashboard** or **Looker fraud and chargeback report**                                        |
+
+**Portfolio role:** this is the **dashboard ownership bullet**.
+
+---
+
+## Bullet 4 — Excel payment reconciliation and report validation
+
+| Field                            | Decision                                                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove attention to detail, Excel skill and report accuracy                                                       |
+| Evidence assigned                | Excel payment reconciliation workbook; Excel chargeback tracker; dashboard validation checklist                  |
+| Frasers screen covered           | Excel lookups, index/match, pivot tables, data manipulation, validation, accuracy                                |
+| Concrete artefacts to name later | Excel payment reconciliation workbook; Excel chargeback tracker; dashboard validation checklist                  |
+| Metric meaning                   | Reporting error reduction, reconciliation coverage, validation checks completed                                  |
+| Placeholder values               | `[N] validation checks`, `[X]% reporting error reduction`, `[N] reconciled records`, `[Y]% successful refreshes` |
+| Why this must appear             | Frasers explicitly asks for Excel ability and dashboard validation; this bullet makes that evidence concrete     |
+| Avoid                            | Do not say “strong attention to detail”; prove it with the Excel workbook and validation checklist               |
+
+**Portfolio role:** this is the **Excel accuracy and validation bullet**.
+
+---
+
+## Bullet 5 — Root-cause analysis of unexpected metric movements
+
+| Field                            | Decision                                                                                                                      |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove you can explain why payment, fraud or chargeback metrics moved                                                          |
+| Evidence assigned                | Decline-rate root-cause report; chargeback spike analysis; BigQuery metric movement query; fraud metric investigation memo    |
+| Frasers screen covered           | Unexpected movements, root-cause analysis, anomalies, performance issues                                                      |
+| Concrete artefacts to name later | Decline-rate root-cause report; chargeback spike analysis; BigQuery payment movement query                                    |
+| Metric meaning                   | Size of movement explained and number of root causes identified                                                               |
+| Placeholder values               | `[X]% decline-rate movement explained`, `[Y]% chargeback spike investigated`, `[N] root causes`, `[N] corrective actions`     |
+| Why this must appear             | This is a major differentiator: Frasers does not just want dashboards; they want someone who can explain movement in the data |
+| Avoid                            | Do not write “analysed anomalies”; name the actual root-cause report or chargeback spike analysis                             |
+
+**Portfolio role:** this is the **root-cause analysis bullet**.
+
+---
+
+## Bullet 6 — Digital Risk, Finance and eCommerce data requests
+
+| Field                            | Decision                                                                                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove you can support the actual stakeholder groups in the Frasers role                                                                                                   |
+| Evidence assigned                | Digital Risk ad-hoc data request output; Finance chargeback cost summary; eCommerce checkout performance memo                                                             |
+| Frasers screen covered           | Ad-hoc requests from Digital Risk, Finance and eCommerce teams                                                                                                            |
+| Concrete artefacts to name later | Digital Risk fraud report; Finance chargeback cost summary; eCommerce checkout performance memo                                                                           |
+| Metric meaning                   | Number of ad-hoc outputs, stakeholder groups supported, decision packs produced                                                                                           |
+| Placeholder values               | `[N] ad-hoc data requests`, `[M] stakeholder groups`, `[N] payment/fraud summaries`                                                                                       |
+| Why this must appear             | It proves you can work in Frasers’ actual stakeholder environment, not just build analysis in isolation                                                                   |
+| Avoid                            | Do not say “stakeholder reporting”; name the exact output: **Finance chargeback cost summary**, **Digital Risk fraud report**, or **eCommerce checkout performance memo** |
+
+**Portfolio role:** this is the **stakeholder request bullet**.
+
+---
+
+## Bullet 7 — Commercial impact: acceptance, costs, chargebacks or fraud prevention
+
+| Field                            | Decision                                                                                                                                                                                |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove your analysis supported commercial outcomes                                                                                                                                       |
+| Evidence assigned                | Payment acceptance uplift analysis; chargeback reduction report; payment cost variance report; fraud prevention rule impact table                                                       |
+| Frasers screen covered           | Improve acceptance rates, reduce costs/chargebacks, strengthen fraud prevention, improve checkout experience                                                                            |
+| Concrete artefacts to name later | Payment acceptance uplift analysis; chargeback reduction report; payment cost variance report; fraud prevention rule impact table                                                       |
+| Metric meaning                   | Payment acceptance improvement, chargeback reduction, cost variance identified, fraud-prevention impact                                                                                 |
+| Placeholder values               | `[X]% acceptance improvement`, `[Y]% chargeback reduction`, `£[Z] cost variance`, `[N] fraud-prevention actions`                                                                        |
+| Why this should appear           | It links your analysis to the commercial outcomes Frasers says the role supports                                                                                                        |
+| Avoid                            | Do not claim “reduced chargebacks” unless you can explain the baseline and measurement path; safer alternatives are “identified chargeback drivers” or “quantified chargeback exposure” |
+
+**Portfolio role:** this is the **commercial outcome bullet**.
+
+---
+
+# Recommended order
+
+I would order the Frasers platform bullets like this:
+
+```text
+1. BigQuery / SQL payment performance analysis
+2. Fraud and chargeback trend analysis
+3. Power BI / Looker dashboard production and maintenance
+4. Excel payment reconciliation and dashboard validation
+5. Root-cause analysis of unexpected metric movements
+6. Digital Risk, Finance and eCommerce data requests
+7. Commercial impact: acceptance, costs, chargebacks or fraud prevention
+```
+
+This order gives the recruiter the strongest first scan:
+
+```text
+payments
+fraud
+chargebacks
+BigQuery
+SQL
+Excel
+Power BI
+Looker
+dashboard validation
+root-cause analysis
+Digital Risk / Finance / eCommerce
+acceptance rates / costs / checkout
+```
+
+# If we need a 6-bullet version
+
+If space is tight, combine Bullet 6 and Bullet 7:
+
+```text
+Bullet 6 must prove: Digital Risk, Finance and eCommerce decision support tied to acceptance, cost, chargeback or fraud-prevention outcomes.
+```
+
+That would give us this compressed portfolio:
+
+```text
+1. Payment performance analysis using SQL/BigQuery
+2. Fraud and chargeback trend analysis
+3. Power BI / Looker dashboard production and maintenance
+4. Excel reconciliation and dashboard validation
+5. Root-cause analysis of unexpected metric movements
+6. Stakeholder decision support tied to acceptance, cost, chargeback or fraud-prevention outcomes
+```
+
+# Evidence deliberately not given a main Frasers bullet
+
+| Evidence                        | Reason                                                                       |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| Churn-risk scoring              | Tesco-specific; wrong business problem                                       |
+| Propensity / offer targeting    | Not payment, fraud or chargeback related                                     |
+| Revenue-protection route risk   | Arriva-specific                                                              |
+| Subject profiles                | Stronger for Arriva/Trustpilot than Frasers                                  |
+| Reviewer-behaviour report       | Trustpilot-specific                                                          |
+| Production ML / CI/CD           | Only useful if tied to dashboard/report reliability                          |
+| PySpark-heavy platform language | Not the right centre of gravity for this job                                 |
+| Oilfield HSE documentation      | Too distant; only use if compressed under Excel/report validation experience |
+
+# Final Step 4 output
+
+For Frasers, the bullet portfolio is:
+
+```text
+Bullet 1 must prove: BigQuery and SQL payment performance analysis.
+Bullet 2 must prove: fraud and chargeback trend analysis.
+Bullet 3 must prove: Power BI / Looker dashboard production, validation and maintenance.
+Bullet 4 must prove: Excel payment reconciliation and report validation accuracy.
+Bullet 5 must prove: root-cause analysis of unexpected payment, fraud or chargeback movements.
+Bullet 6 must prove: Digital Risk, Finance and eCommerce data-request support.
+Bullet 7 must prove: commercial impact through acceptance, cost, chargeback or fraud-prevention evidence.
+```
+
+---
+
+Yes. Now we draft the **Frasers bullets using the right formula for each proof function**.
+
+Frasers wants a Payments Data Analyst focused on eCommerce payments and fraud performance, including regular dashboards for payment performance, costs, fraud, chargebacks and operational metrics; root-cause analysis of unexpected movements; ad-hoc requests from Digital Risk, Finance and eCommerce; and tools such as Excel, SQL, BigQuery, Power BI and Looker.  The methodology also says each bullet needs a concrete artefact, metric, baseline, user and defensible result rather than abstract claims. 
+
+# Frasers Draft — Main Experience Block
+
+```text
+Data Scientist
+Payments, Fraud & Chargeback Analytics Platform — Exeter, UK | May 2025 – Present
+Payments and fraud analytics platform using SQL, Google BigQuery, Excel, Power BI and Looker across a 2.35B-row transaction and behaviour data surface to monitor payment performance, fraud trends, chargebacks and checkout risk.
+```
+
+## Working draft bullets
+
+```text
+- Built BigQuery and SQL payment performance queries over a 2.35B-row transaction and behaviour data surface, tracking acceptance rates, decline rates and checkout failure patterns across [N] payment channels.
+
+- Built a BigQuery chargeback trend query and Excel chargeback tracker, analysing [N] chargebacks across [M] reporting periods to identify fraud, refund and payment-dispute movements.
+
+- Created Power BI payment performance and fraud dashboards tracking [N] KPIs across acceptance, declines, chargebacks, fraud rate and operational metrics for Digital Risk and payments teams.
+
+- Maintained Looker payment and fraud reports with [N] dashboard validation checks, reducing reporting errors by [X]% and improving successful refreshes to [Y]%.
+
+- Produced a decline-rate root-cause report from BigQuery movement queries, explaining a [X]% unexpected increase in failed payments and identifying [N] provider, customer or checkout-flow drivers.
+
+- Produced a Finance chargeback cost summary and eCommerce checkout performance memo, responding to [N] ad-hoc data requests from Digital Risk, Finance and eCommerce stakeholders.
+
+- Built a payment acceptance uplift analysis and chargeback reduction report, quantifying [X]% acceptance improvement, £[Y] cost variance and [Z]% chargeback reduction opportunity.
+```
+
+# Formula mapping
+
+| Bullet | Formula used                | Why it fits Frasers                                                                        |
+| ------ | --------------------------- | ------------------------------------------------------------------------------------------ |
+| 1      | Technical delivery proof    | Proves BigQuery, SQL, payment performance, acceptance, declines and checkout analysis      |
+| 2      | Trend-analysis proof        | Proves chargeback tracking, fraud/dispute movement analysis and Excel                      |
+| 3      | Dashboard/reporting proof   | Proves Power BI dashboards and operational metrics for fraud/payments teams                |
+| 4      | Validation/monitoring proof | Proves Looker reporting, dashboard validation, reporting accuracy and maintenance          |
+| 5      | Root-cause analysis proof   | Proves investigation of unexpected movements and payment performance issues                |
+| 6      | Stakeholder-output proof    | Proves concrete outputs for Digital Risk, Finance and eCommerce                            |
+| 7      | Commercial-impact proof     | Proves acceptance, cost and chargeback impact, but this needs the strongest evidence check |
+
+# Stronger 6-bullet CV version
+
+For the actual CV, I would probably use this 6-bullet version. It is tighter and avoids overloading the main block.
+
+```text
+- Built BigQuery and SQL payment performance queries over a 2.35B-row transaction and behaviour data surface, tracking acceptance rates, decline rates and checkout failure patterns across [N] payment channels.
+
+- Built a BigQuery chargeback trend query and Excel chargeback tracker, analysing [N] chargebacks across [M] reporting periods to identify fraud, refund and payment-dispute movements.
+
+- Created Power BI payment performance and fraud dashboards tracking [N] KPIs across acceptance, declines, chargebacks, fraud rate and operational metrics for Digital Risk and payments teams.
+
+- Maintained Looker payment and fraud reports with [N] dashboard validation checks, reducing reporting errors by [X]% and improving successful refreshes to [Y]%.
+
+- Produced a decline-rate root-cause report from BigQuery movement queries, explaining a [X]% unexpected increase in failed payments and identifying [N] provider, customer or checkout-flow drivers.
+
+- Produced Finance chargeback cost summaries and eCommerce checkout performance memos, quantifying £[Y] cost variance, [Z]% chargeback exposure and [X]% payment-acceptance opportunity.
+```
+
+# Slightly safer version if chargeback/payment impact numbers are not ready
+
+If we cannot defend direct impact yet, soften the final bullet from “improvement/reduction” to “opportunity/exposure/drivers”:
+
+```text
+- Produced Finance chargeback cost summaries and eCommerce checkout performance memos, quantifying £[Y] cost exposure, [Z]% chargeback variance and [X]% payment-acceptance opportunity.
+```
+
+That is safer because it does not claim you personally improved acceptance or reduced chargebacks. It says you quantified the issue, which is exactly what a Payments Data Analyst would do.
+
+# My recommended Frasers draft
+
+```text
+Data Scientist
+Payments, Fraud & Chargeback Analytics Platform — Exeter, UK | May 2025 – Present
+Payments and fraud analytics platform using SQL, Google BigQuery, Excel, Power BI and Looker across a 2.35B-row transaction and behaviour data surface to monitor payment performance, fraud trends, chargebacks and checkout risk.
+
+- Built BigQuery and SQL payment performance queries over a 2.35B-row transaction and behaviour data surface, tracking acceptance rates, decline rates and checkout failure patterns across [N] payment channels.
+
+- Built a BigQuery chargeback trend query and Excel chargeback tracker, analysing [N] chargebacks across [M] reporting periods to identify fraud, refund and payment-dispute movements.
+
+- Created Power BI payment performance and fraud dashboards tracking [N] KPIs across acceptance, declines, chargebacks, fraud rate and operational metrics for Digital Risk and payments teams.
+
+- Maintained Looker payment and fraud reports with [N] dashboard validation checks, reducing reporting errors by [X]% and improving successful refreshes to [Y]%.
+
+- Produced a decline-rate root-cause report from BigQuery movement queries, explaining a [X]% unexpected increase in failed payments and identifying [N] provider, customer or checkout-flow drivers.
+
+- Produced Finance chargeback cost summaries and eCommerce checkout performance memos, quantifying £[Y] cost exposure, [Z]% chargeback variance and [X]% payment-acceptance opportunity.
+```
+
+This version says the actual things Frasers cares about: **BigQuery payment performance queries, SQL payment queries, Excel chargeback tracker, Power BI payment/fraud dashboards, Looker payment/fraud reports, dashboard validation checks, decline-rate root-cause report, Finance chargeback cost summaries and eCommerce checkout performance memos**.

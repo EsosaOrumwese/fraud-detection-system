@@ -1233,3 +1233,184 @@ If we want a **7th bullet**, add the fraud-rule rationale memo:
 ```
 
 That 7th bullet is useful because Trustpilot asks for clear, actionable reports and communication of analyses/investigations to wider stakeholders. 
+
+---
+
+Yes. For Trustpilot, the remaining experience blocks should **support the Fraud Detection Analyst story**, but they should not pretend to be fraud-platform work.
+
+Trustpilot’s ad is centred on analysing data, spotting fraud patterns, writing detection rules, investigating potential misuse, using SQL/BigQuery/Looker, analysing customer/reviewer behaviour, and communicating findings across stakeholders.  So the top block should carry the direct fraud-detection evidence, while the remaining blocks should prove behavioural modelling, trend analysis, report clarity, data-quality discipline, and investigation-style thinking. The methodology also says the context line should set the frame while the bullets provide proof, and that different bullet types need different formulas depending on whether they prove technical delivery, validation, impact, or stakeholder decision support. 
+
+Here is the Trustpilot-shaped **Relevant Experience** section.
+
+```text
+RELEVANT EXPERIENCE
+
+Data Scientist
+Fraud Detection & Behaviour Analytics Platform - Exeter, UK | May 2025 - Present
+Fraud analytics platform using SQL, Google BigQuery, Google Looker, Python and behavioural risk scoring across a 2.35B-row activity surface to detect suspicious behaviour, support misuse investigations and improve fraud-rule decisions.
+
+- Built SQL and BigQuery fraud trend queries over a 2.35B-row behaviour surface, producing [N] fraud-risk indicators for suspicious account, usage and transaction patterns.
+- Created Looker fraud and reviewer-behaviour dashboards tracking [N] risk metrics, giving Fraud & Investigations stakeholders a recurring view of abnormal platform activity.
+- Formulated [N] fraud detection rules from behavioural analysis, improving known-risk case capture by [X]% versus the existing rule-trigger baseline.
+- Produced [N] escalated misuse case packs with SQL case-detail queries, high-risk account profiles and suspicious behaviour timelines for investigation review.
+- Analysed customer and reviewer behaviour in BigQuery, identifying [N] behaviour segments where [X]% of known-risk cases concentrated in the top [Y]% risk band.
+- Maintained [N] BigQuery fraud tables, SQL views and Looker source tables for fraud dashboards, improving refresh time by [X]% and supporting data science / engineering review.
+```
+
+For the second block, I would keep the **Data Scientist** title because it is the function you performed, but the about line makes it clear this was a modelling project.
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Behavioural modelling project using smartphone sensor signals to classify movement and identity patterns, evaluate model robustness and translate behavioural outputs into risk indicators.
+
+- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity from accelerometer, gyroscope and trip signals.
+- Improved behavioural classification accuracy by [X] percentage points versus [baseline model], using a shared modelling workflow for movement-pattern and identity recognition tasks.
+- Produced a model robustness report across [N] trips, [N] users and [N] transport modes, identifying failure cases and translating sensor behaviour into stakeholder-facing risk indicators.
+```
+
+For Trustpilot, this block says: **I can analyse behavioural patterns, validate models, and explain risk signals.** It is not fraud-specific, but it supports the behavioural-analysis side of the role.
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Trend-analysis project using country-sector activity and policy-response datasets to detect abnormal recovery patterns, explain drivers and produce decision-ready recommendations.
+
+- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+- Linked abnormal activity movements to policy-response signals across [N] countries and [N] policy areas, explaining the external drivers behind recovery pattern changes.
+- Produced a visual trend report with [N] recommendations, turning complex pattern analysis into a clear decision summary for non-technical stakeholders.
+```
+
+For Trustpilot, this block says: **I can handle ambiguous patterns, explain movement in data, and write clear reports.** It supports the ad’s “difficult questions using data” and “clear, actionable reports” requirements. 
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data analysis role using Excel, VBA and Power BI to reconcile completions records, flag reporting exceptions and prepare manager-facing operational visibility reports.
+
+- Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting handover entries by [X]% before supervisor review.
+- Created a VBA exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from [X] to [Y].
+- Built a Power BI operational visibility dashboard tracking [N] job-progress, equipment-readiness and documentation-gap KPIs across [N] completions jobs / [N] rig days.
+```
+
+For Trustpilot, this block says: **I can reconcile messy records, flag exceptions, build reports, and maintain accuracy under operational pressure.** It is not fraud detection, so we should not call it fraud. But it supports the analyst discipline Trustpilot needs.
+
+My recommended Trustpilot experience structure is therefore:
+
+```text
+1. Fraud Detection & Behaviour Analytics Platform
+   Direct match: SQL, BigQuery, Looker, fraud trends, detection rules, misuse investigations.
+
+2. University Data Scientist project
+   Supporting match: behavioural pattern modelling, risk indicators, model robustness.
+
+3. University Business Analyst project
+   Supporting match: trend analysis, abnormal pattern explanation, clear reports.
+
+4. South Western Data Analyst role
+   Supporting match: Excel/VBA/Power BI, reconciliation, exception flagging, report accuracy.
+```
+
+This gives Trustpilot the direct proof first, then reinforces it with credible supporting evidence rather than diluting the CV with unrelated achievements.
+
+---
+
+Yes. For Trustpilot, the **professional summary and technical skills** should shift away from Tesco’s customer-ML/churn/propensity framing and toward **fraud detection, platform behaviour, SQL, BigQuery, Looker, detection rules, investigations, and clear fraud reports**. Trustpilot explicitly asks for fraud trend analysis using SQL, Google BigQuery and Google Looker, rule formulation, escalated misuse investigations, customer/reviewer behaviour analysis, data science/engineering collaboration, and communication of findings. 
+
+The methodology also says each layer has a different job: **headline sells the category, summary sells the fit, experience context sets the scene, bullets prove the claims**. 
+
+## Professional summary
+
+I would use this:
+
+```text
+Fraud-focused Data Scientist with experience using SQL, Google BigQuery and Google Looker to analyse large behavioural datasets, identify suspicious account/reviewer patterns and support fraud-rule decisions. Built fraud trend queries, Looker dashboards, risk indicators and investigation case packs across a 2.35B-row activity surface, with experience translating complex fraud analysis into clear reports for fraud, data science and engineering stakeholders.
+```
+
+This is strong because it names the actual things:
+
+```text
+SQL
+Google BigQuery
+Google Looker
+fraud trend queries
+Looker dashboards
+risk indicators
+investigation case packs
+2.35B-row activity surface
+fraud, data science and engineering stakeholders
+```
+
+A slightly tighter version:
+
+```text
+Fraud-focused Data Scientist with experience using SQL, Google BigQuery and Google Looker to detect suspicious behaviour across large activity datasets. Built fraud trend queries, Looker reviewer-behaviour dashboards, risk indicators and investigation case packs across a 2.35B-row activity surface, translating fraud analysis into clear reports for fraud, data science and engineering stakeholders.
+```
+
+My pick is the tighter version. It is cleaner and less overloaded.
+
+## Technical skills
+
+For Trustpilot, I would not lead with PySpark or production ML. They can appear, but the top scan must scream **SQL, BigQuery, Looker, fraud detection, rules and investigations**.
+
+Use this:
+
+```text
+TECHNICAL SKILLS
+
+Querying & Data Platforms: SQL, Google BigQuery, BigQuery fraud trend queries, SQL case-detail queries, SQL risk-indicator tables
+
+Fraud Detection & Investigation: Fraud trend analysis, detection rules, anomaly thresholds, risk indicators, high-risk account profiles, suspicious behaviour timelines, escalated misuse case packs
+
+Reporting & Dashboards: Google Looker, Looker fraud dashboards, Looker reviewer-behaviour reports, fraud-rule rationale memos, investigation summary reports
+
+Behaviour Analytics: Customer/reviewer behaviour analysis, account activity segmentation, abnormal usage patterns, transaction-pattern analysis, behavioural risk scoring
+
+Python & Modelling: Python, Pandas, NumPy, PySpark, anomaly scoring, model validation reports, lift analysis, calibration checks, risk-score stability checks
+
+Data Quality & Tooling: BigQuery fraud tables, SQL views, Looker source tables, dashboard refresh checks, validation checks, version control
+```
+
+That is the concrete Trustpilot version.
+
+If you need a tighter CV version:
+
+```text
+TECHNICAL SKILLS
+
+Data Platforms: SQL, Google BigQuery, SQL case-detail queries, BigQuery fraud tables, SQL views
+
+Fraud Detection: Fraud trend analysis, detection rules, anomaly thresholds, risk indicators, high-risk account profiles, suspicious behaviour timelines
+
+Looker & Reporting: Google Looker, Looker fraud dashboards, Looker reviewer-behaviour reports, fraud-rule rationale memos, investigation summary reports
+
+Behaviour Analytics: Customer/reviewer behaviour analysis, account activity segmentation, abnormal usage patterns, behavioural risk scoring
+
+Python & Validation: Python, Pandas, NumPy, PySpark, anomaly scoring, lift analysis, calibration checks, risk-score stability checks
+```
+
+## My recommended top section for Trustpilot
+
+```text
+Esosa Orumwese
+Fraud Detection Analyst | SQL, BigQuery & Looker | Behavioural Pattern Detection | Detection Rules
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Fraud-focused Data Scientist with experience using SQL, Google BigQuery and Google Looker to detect suspicious behaviour across large activity datasets. Built fraud trend queries, Looker reviewer-behaviour dashboards, risk indicators and investigation case packs across a 2.35B-row activity surface, translating fraud analysis into clear reports for fraud, data science and engineering stakeholders.
+
+TECHNICAL SKILLS
+
+Data Platforms: SQL, Google BigQuery, SQL case-detail queries, BigQuery fraud tables, SQL views
+
+Fraud Detection: Fraud trend analysis, detection rules, anomaly thresholds, risk indicators, high-risk account profiles, suspicious behaviour timelines
+
+Looker & Reporting: Google Looker, Looker fraud dashboards, Looker reviewer-behaviour reports, fraud-rule rationale memos, investigation summary reports
+
+Behaviour Analytics: Customer/reviewer behaviour analysis, account activity segmentation, abnormal usage patterns, behavioural risk scoring
+
+Python & Validation: Python, Pandas, NumPy, PySpark, anomaly scoring, lift analysis, calibration checks, risk-score stability checks
+```
+
+This is much more Trustpilot-shaped than the Tesco version. It does not say “customer behaviour ML,” “churn,” “propensity,” or “marketing targeting,” because those are not the hiring problem here.
