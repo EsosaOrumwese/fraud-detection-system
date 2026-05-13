@@ -790,3 +790,446 @@ Fraud Detection & Behaviour Analytics Platform — Exeter, UK | May 2025 – Pre
 ```
 
 That keeps the same project truthful while making the role relevance much sharper.
+
+---
+
+Yes — this is exactly where we split back into specific jobs.
+
+We are now at **job-specific evidence scoring for Trustpilot**. The framework says this step is where we classify evidence as **A = direct match, B = adjacent/useful, C = transferable support, D = remove/compress**, so the CV does not force every experience to sound equally relevant. 
+
+Trustpilot’s strongest signals are: fraud trend detection, SQL, Google BigQuery, Google Looker, detection rules, escalated misuse investigations, data science/engineering partnership, customer/reviewer behaviour analysis, and communication across stakeholders. 
+
+# Trustpilot — Job-Specific Evidence Scoring
+
+## Scoring key
+
+| Tier | Meaning for Trustpilot                                          |
+| ---- | --------------------------------------------------------------- |
+| A    | Direct match; should strongly shape the Trustpilot CV           |
+| B    | Useful supporting evidence; include if it strengthens the story |
+| C    | Transferable but secondary; use lower down or compress          |
+| D    | Weak for this role; remove unless needed for chronology         |
+
+---
+
+## Tier A — Direct Trustpilot evidence
+
+These are the evidence items that should drive the CV.
+
+| Evidence item                                                     | Score | Why it is A for Trustpilot                                                                                                                     |
+| ----------------------------------------------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fraud Detection & Behaviour Analytics Platform**                |     A | Better role-specific title than “Customer Behaviour ML Platform”; it frames the platform around Trustpilot’s fraud/platform-behaviour problem. |
+| **2.35B-row behavioural data surface**                            |     A | Trustpilot asks for comfort with large datasets, and this gives immediate scale.                                                               |
+| **SQL fraud trend queries**                                       |     A | Direct match to Trustpilot’s SQL requirement.                                                                                                  |
+| **Google BigQuery fraud trend queries**                           |     A | Direct match because Trustpilot names Google BigQuery.                                                                                         |
+| **Google Looker fraud dashboard / fraud report**                  |     A | Direct match because Trustpilot names Google Looker.                                                                                           |
+| **Fraud-risk indicator table**                                    |     A | Concrete artefact showing suspicious behaviour translated into usable detection evidence.                                                      |
+| **Detection rules from behavioural analysis**                     |     A | One of the strongest matches; Trustpilot explicitly wants rules formulated from analysis.                                                      |
+| **Anomaly threshold table**                                       |     A | Strong because it connects behaviour patterns to fraud mitigation logic.                                                                       |
+| **Rule-performance comparison**                                   |     A | Shows you can test whether a rule improves detection rather than just inventing thresholds.                                                    |
+| **Known-risk case capture before rule triggers**                  |     A | Strong Trustpilot evidence if defensible; it proves earlier detection against an existing rule baseline.                                       |
+| **High-risk account profile**                                     |     A | Maps directly to investigating suspicious platform behaviour.                                                                                  |
+| **Escalated misuse case pack**                                    |     A | Direct match to escalated misuse investigations.                                                                                               |
+| **Suspicious behaviour timeline**                                 |     A | Concrete investigation artefact; useful for fraud, legal, customer or internal review.                                                         |
+| **Customer/reviewer behaviour report**                            |     A | Direct match to Trustpilot’s customer/reviewer behaviour analysis requirement.                                                                 |
+| **BigQuery customer/reviewer behaviour query**                    |     A | Combines tool match with behaviour-analysis match.                                                                                             |
+| **Looker reviewer-behaviour report**                              |     A | Very strong because it combines Looker + reviewer behaviour + report output.                                                                   |
+| **Model validation report for fraud/anomaly scores**              |     A | Strong if tied to fraud detection; supports data science partnership and trust in detection methods.                                           |
+| **Lift chart / calibration report / risk-score stability report** |     A | Strong if used to show fraud-risk score quality, not generic ML validation.                                                                    |
+| **BigQuery fraud table / SQL view / risk indicator table**        |     A | Strong internal database/tool evidence.                                                                                                        |
+| **Looker dashboard source table**                                 |     A | Strong if it fed fraud dashboards or reviewer-behaviour reports.                                                                               |
+| **Engineering handoff note for fraud data/tool improvement**      |     A | Directly maps to Trustpilot’s engineering collaboration requirement.                                                                           |
+| **Fraud-rule rationale memo**                                     |     A | Concrete report that proves clear communication and defensible rule logic.                                                                     |
+| **Stakeholder fraud investigation report**                        |     A | Direct fit for presenting analysis and investigations across departments.                                                                      |
+
+**Verdict:** These are the core Trustpilot materials. The Trustpilot CV should be built mainly from this pool.
+
+---
+
+## Tier B — Useful supporting evidence
+
+These are helpful, but should not dominate unless we need them to fill a gap.
+
+| Evidence item                                         | Score | Why it is B                                                                                                    |
+| ----------------------------------------------------- | ----: | -------------------------------------------------------------------------------------------------------------- |
+| **Python/PySpark anomaly scoring workflow**           |     B | Useful technical depth, but Trustpilot is more SQL/BigQuery/Looker/rules focused than PySpark-focused.         |
+| **Fraud/anomaly model backtest summary**              |     B | Useful if it supports detection rules or data science collaboration; weaker if it reads like pure ML research. |
+| **Dashboard validation checklist**                    |     B | Useful for report accuracy, but less central than fraud trend detection or detection rules.                    |
+| **SQL reconciliation query for report validation**    |     B | Useful evidence of accuracy and report reliability.                                                            |
+| **Root-cause analysis memo for fraud trend movement** |     B | Strong if the “movement” is fraud/platform behaviour; otherwise supporting.                                    |
+| **Business analytics trend report**                   |     B | Shows trend analysis and recommendation writing, but not fraud/platform-specific.                              |
+| **220-country / 12-sector recovery analysis**         |     B | Good proof of complex trend analysis; should be compressed behind stronger fraud evidence.                     |
+| **Smartphone behavioural classification model**       |     B | Supports behavioural-pattern analysis, but not platform fraud.                                                 |
+| **Model robustness report from sensor project**       |     B | Supports analytical discipline and risk interpretation; secondary to fraud evidence.                           |
+| **Senior-manager risk report**                        |     B | Useful if it was risk/fraud-related; otherwise less Trustpilot-specific.                                       |
+| **Power BI fraud dashboard**                          |     B | Useful if true, but Trustpilot names Looker, so Looker should take priority.                                   |
+
+**Verdict:** B-tier evidence can support the CV, especially in later blocks, but the Trustpilot first experience block should not be built around these if A-tier evidence is available.
+
+---
+
+## Tier C — Transferable support only
+
+These help show discipline, accuracy, or broader analyst capability, but they are not central Trustpilot proof.
+
+| Evidence item                                                   | Score | Why it is C                                                                                |
+| --------------------------------------------------------------- | ----: | ------------------------------------------------------------------------------------------ |
+| **Excel reconciliation workbook**                               |     C | Shows attention to detail and data quality, but Trustpilot is not primarily an Excel role. |
+| **VBA exception-flagging macro**                                |     C | Useful analyst automation evidence, but not requested strongly by Trustpilot.              |
+| **Power BI operational metrics dashboard**                      |     C | Useful dashboard evidence, but Looker is the better Trustpilot tool match.                 |
+| **Operational data reconciliation workbook from South Western** |     C | Good evidence of accuracy; not platform fraud or reviewer behaviour.                       |
+| **HSE/documentation gap tracker**                               |     C | Shows control-gap thinking, but too far from Trustpilot’s fraud platform context.          |
+| **Completions handover pack**                                   |     C | Useful only as lower-level operational data evidence.                                      |
+| **Country-sector policy trend recommendation memo**             |     C | Shows structured analysis, but far from fraud detection unless space allows.               |
+| **Deep learning driver identity model**                         |     C | Behavioural modelling, but less relevant than SQL/BigQuery/Looker fraud evidence.          |
+
+**Verdict:** Use C-tier evidence only in supporting experience blocks, not in the top Trustpilot story.
+
+---
+
+## Tier D — Remove or avoid for Trustpilot
+
+These do not answer Trustpilot’s hiring questions strongly enough.
+
+| Evidence item                                    |                                     Score | Why it is D                                                                                            |
+| ------------------------------------------------ | ----------------------------------------: | ------------------------------------------------------------------------------------------------------ |
+| **Churn-risk scoring**                           |                                         D | Strong for Tesco, weak for Trustpilot unless reframed into fraud-risk behaviour; avoid churn language. |
+| **Propensity / marketing targeting**             |                                         D | Not relevant to Trustpilot’s fraud detection role.                                                     |
+| **Customer offer targeting / campaign audience** |                                         D | Wrong business context.                                                                                |
+| **Payment acceptance dashboard**                 |                          D for Trustpilot | Better for Frasers; Trustpilot is not hiring for payments performance.                                 |
+| **Chargeback trend report**                      | D unless platform fraud evidence needs it | Better for Frasers; not central to Trustpilot.                                                         |
+| **Revenue protection dashboard**                 |                          D for Trustpilot | Better for Arriva.                                                                                     |
+| **Route/location risk report**                   |                          D for Trustpilot | Better for Arriva.                                                                                     |
+| **Oilfield equipment readiness dashboard**       |                                         D | Too far from Trustpilot unless compressed under operational experience.                                |
+| **HSE compliance reporting**                     |                                         D | Not useful enough for a Trustpilot fraud detection CV.                                                 |
+
+**Verdict:** Do not let these contaminate the Trustpilot CV. They may be excellent for Tesco, Arriva, or Frasers, but not here.
+
+---
+
+# Trustpilot-specific evidence priority
+
+For Trustpilot, the priority pool should be:
+
+```text
+1. BigQuery fraud trend queries
+2. Looker fraud dashboard / reviewer-behaviour report
+3. SQL fraud-risk queries
+4. Detection rules from behavioural analysis
+5. Anomaly thresholds and fraud-risk indicators
+6. Escalated misuse case packs / high-risk account profiles
+7. Customer/reviewer behaviour analysis
+8. Model validation report for fraud/anomaly scores
+9. Internal fraud table / SQL view / Looker source table
+10. Engineering handoff note for fraud tool/database improvement
+11. Fraud-rule rationale memo
+12. Stakeholder fraud investigation report
+```
+
+# What this tells us for the Trustpilot CV
+
+The top experience should probably be renamed:
+
+```text
+Fraud Detection & Behaviour Analytics Platform
+```
+
+not:
+
+```text
+Customer Behaviour ML Platform
+```
+
+The headline should probably move toward:
+
+```text
+Fraud Detection Analyst | SQL, BigQuery & Looker | Behavioural Pattern Detection | Detection Rules
+```
+
+And the main block should be designed around these proof functions later:
+
+```text
+1. Large-scale SQL/BigQuery fraud trend analysis
+2. Looker fraud/reviewer-behaviour reporting
+3. Detection rules / anomaly thresholds
+4. Escalated misuse case investigation
+5. Customer/reviewer behaviour analysis
+6. Data science / engineering collaboration
+7. Stakeholder communication through fraud-rule or investigation reports
+```
+
+We are **not drafting bullets yet**. The next methodology step is **designing the Trustpilot bullet portfolio** from the Tier A evidence.
+
+---
+
+Yes. This is **Step 4 for Trustpilot**: design the bullet portfolio from the Tier A evidence, not draft final bullets yet. The methodology says the question here is not “what are good bullets?” but **“what proof function must each bullet perform?”**  Trustpilot’s ad specifically asks for fraud trend analysis using **SQL, Google BigQuery and Google Looker**, rule formulation, escalated misuse investigations, data science/engineering collaboration, customer/reviewer behaviour analysis, and communicating analyses to stakeholders. 
+
+# Trustpilot Bullet Portfolio
+
+## Target experience block
+
+```text
+Data Scientist
+Fraud Detection & Behaviour Analytics Platform — Exeter, UK | May 2025 – Present
+```
+
+The experience title should foreground **fraud detection and behaviour analytics**, not customer churn, propensity, or marketing targeting.
+
+## Portfolio goal
+
+This first experience block must prove:
+
+> You can use SQL, BigQuery and Looker to detect fraud trends in large behavioural datasets, turn suspicious patterns into detection rules and risk indicators, support misuse investigations, improve fraud data assets, and communicate clear evidence to fraud, data science, engineering and wider business stakeholders.
+
+---
+
+# Recommended portfolio: 6 bullets
+
+## Bullet 1 — Large-scale SQL / BigQuery fraud trend analysis
+
+| Field                           | Decision                                                                                                              |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function          | Prove large-scale fraud trend detection using SQL and BigQuery                                                        |
+| Evidence assigned               | 2.35B-row behavioural data surface; SQL fraud trend queries; BigQuery fraud trend queries; fraud-risk indicator table |
+| Trustpilot screen covered       | Fraud trends, large datasets, SQL, Google BigQuery                                                                    |
+| Concrete artefact to name later | BigQuery fraud trend query; SQL fraud-risk query; fraud-risk indicator table                                          |
+| Metric meaning                  | Scale of behavioural data analysed and suspicious pattern detection                                                   |
+| Placeholder values              | `[N] behavioural records`, `[N] fraud-risk indicators`, `[N] suspicious patterns`, `[N] recurring queries`            |
+| Why this must appear            | It is the direct ATS/recruiter proof that you match Trustpilot’s SQL + BigQuery + fraud trend requirement             |
+| Avoid                           | Do not lead with PySpark or generic ML here; Trustpilot’s ad leads with SQL, BigQuery and Looker                      |
+
+**Portfolio role:** this is the **core technical fraud analytics bullet**.
+
+---
+
+## Bullet 2 — Looker fraud / reviewer-behaviour reporting
+
+| Field                           | Decision                                                                                                        |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Primary proof function          | Prove you can prepare readable fraud reports/dashboards in Looker                                               |
+| Evidence assigned               | Looker fraud dashboard; Looker reviewer-behaviour report; Looker dashboard source table                         |
+| Trustpilot screen covered       | Google Looker, reports, customer/reviewer behaviour, clear communication                                        |
+| Concrete artefact to name later | Looker fraud dashboard; Looker reviewer-behaviour report                                                        |
+| Metric meaning                  | Number of fraud/reviewer-behaviour KPIs monitored or reporting periods covered                                  |
+| Placeholder values              | `[N] fraud KPIs`, `[N] reviewer-behaviour metrics`, `[N] reporting periods`, `[M] stakeholder groups`           |
+| Why this must appear            | Trustpilot names Google Looker directly; this gives exact tool alignment and makes the reporting proof concrete |
+| Avoid                           | Do not call it “BI reporting” or “dashboarding” without naming Looker and the actual report/dashboard           |
+
+**Portfolio role:** this is the **Looker reporting + behavioural insight bullet**.
+
+---
+
+## Bullet 3 — Detection rules, thresholds and risk indicators
+
+| Field                           | Decision                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function          | Prove you can convert analysis into fraud mitigation logic                                                                      |
+| Evidence assigned               | Detection rules from behavioural analysis; anomaly threshold table; rule-performance comparison; false-positive review table    |
+| Trustpilot screen covered       | Formulate rules to mitigate fraudulent behaviour                                                                                |
+| Concrete artefact to name later | Fraud detection rule; anomaly threshold table; rule-performance comparison                                                      |
+| Metric meaning                  | Improvement in known-risk capture or false-positive reduction versus previous rule/manual baseline                              |
+| Placeholder values              | `[N] detection rules`, `[X]% known-risk capture`, `[Y]% false-positive reduction`, top `[Z]%` risk band                         |
+| Baseline                        | Existing rule trigger, manual review queue, previous threshold, unranked case list                                              |
+| Why this must appear            | This is one of the clearest Trustpilot-specific differentiators; many data analysts can report, fewer can write detection logic |
+| Avoid                           | Do not say “strengthened fraud prevention” by itself; name the rule, threshold, risk indicator, or rule-performance table       |
+
+**Portfolio role:** this is the **fraud-rule formulation bullet**.
+
+---
+
+## Bullet 4 — Escalated misuse investigations / high-risk account profiles
+
+| Field                           | Decision                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function          | Prove you can support investigations, not just dashboards                                                                       |
+| Evidence assigned               | Escalated misuse case pack; high-risk account profile; suspicious behaviour timeline; SQL case-detail query                     |
+| Trustpilot screen covered       | Escalated cases, platform misuse, legal/customer inquiries, investigations                                                      |
+| Concrete artefact to name later | Escalated misuse case pack; high-risk account profile; suspicious behaviour timeline                                            |
+| Metric meaning                  | Number of cases/accounts profiled or share confirmed as high-risk                                                               |
+| Placeholder values              | `[N] high-risk accounts profiled`, `[N] escalated misuse cases`, `[X]% confirmed high-risk after review]`                       |
+| Why this must appear            | Trustpilot explicitly involves investigations of escalated misuse cases; this proves practical fraud investigation support      |
+| Avoid                           | Do not make this sound like law-enforcement ownership; keep it as evidence packs, profiles, timelines, or investigation support |
+
+**Portfolio role:** this is the **investigation evidence bullet**.
+
+---
+
+## Bullet 5 — Customer/reviewer behaviour analysis and fraud-pattern explanation
+
+| Field                           | Decision                                                                                                              |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function          | Prove you understand platform behaviour, not just technical querying                                                  |
+| Evidence assigned               | BigQuery customer/reviewer behaviour query; customer/reviewer behaviour report; abnormal behaviour segmentation table |
+| Trustpilot screen covered       | Customer and reviewer behaviour analysis; difficult questions using data                                              |
+| Concrete artefact to name later | BigQuery reviewer-behaviour query; Looker reviewer-behaviour report; abnormal behaviour segmentation table            |
+| Metric meaning                  | Concentration of known-risk cases in behaviour segment or number of behaviour signals engineered                      |
+| Placeholder values              | `[N] behaviour signals`, `[N] behaviour segments`, `[X]% of known-risk cases concentrated in top [Y]% segment`        |
+| Why this must appear            | Trustpilot is a review platform; “reviewer/customer behaviour” language should be visible in the CV                   |
+| Avoid                           | Do not use Tesco-style “customer behaviour ML” language unless tied to fraud/platform misuse                          |
+
+**Portfolio role:** this is the **platform behaviour understanding bullet**.
+
+---
+
+## Bullet 6 — Data science / engineering collaboration and internal fraud tooling
+
+| Field                           | Decision                                                                                                                                       |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function          | Prove you can improve fraud detection assets with DS/engineering partners                                                                      |
+| Evidence assigned               | Model validation report; risk-score stability report; BigQuery fraud table; SQL view; Looker source table; engineering handoff note            |
+| Trustpilot screen covered       | Partner with data science experts; work with engineering teams; improve internal tools and databases                                           |
+| Concrete artefact to name later | Model validation report; BigQuery fraud table; SQL view; Looker source table; engineering handoff note                                         |
+| Metric meaning                  | Faster refresh, fewer recurring manual queries, more reliable fraud dashboard source data, or validated score performance                      |
+| Placeholder values              | `[N] SQL views`, `[N] Looker source tables`, `[X]% faster refresh`, `[N] recurring queries replaced`, `[N] validation checks`                  |
+| Why this must appear            | It proves you can operate in Trustpilot’s cross-functional Fraud & Investigations environment rather than only working alone                   |
+| Avoid                           | Do not use generic “collaborated with engineering”; name the BigQuery table, SQL view, Looker source table, validation report, or handoff note |
+
+**Portfolio role:** this is the **internal tooling / cross-functional delivery bullet**.
+
+---
+
+# Optional 7th bullet — Fraud-rule rationale / stakeholder investigation report
+
+If the CV has space, I would include this as a seventh bullet. If space is tight, fold it into Bullet 3 or Bullet 4.
+
+| Field                           | Decision                                                                           |
+| ------------------------------- | ---------------------------------------------------------------------------------- |
+| Primary proof function          | Prove clear written communication of fraud analysis                                |
+| Evidence assigned               | Fraud-rule rationale memo; stakeholder fraud investigation report                  |
+| Trustpilot screen covered       | Present and communicate analyses/investigations to wider stakeholders              |
+| Concrete artefact to name later | Fraud-rule rationale memo; stakeholder fraud investigation report                  |
+| Metric meaning                  | Number of recommendations, investigation findings, or stakeholder groups supported |
+| Placeholder values              | `[N] rule recommendations`, `[N] investigation findings`, `[M] stakeholder groups` |
+| Why useful                      | Trustpilot values clear actionable reports and stakeholder communication           |
+| Why optional                    | Communication can be embedded in the rule, investigation, or Looker bullets        |
+
+---
+
+# Recommended order
+
+I would order the Trustpilot platform bullets like this:
+
+```text
+1. SQL / BigQuery fraud trend analysis
+2. Looker fraud and reviewer-behaviour reporting
+3. Detection rules, thresholds and risk indicators
+4. Escalated misuse case packs / high-risk account profiles
+5. Customer/reviewer behaviour analysis
+6. Data science + engineering collaboration on fraud tables, SQL views, Looker source tables or validation reports
+```
+
+This order gives the recruiter the strongest first scan:
+
+```text
+SQL
+BigQuery
+Looker
+fraud trends
+detection rules
+misuse investigations
+customer/reviewer behaviour
+data science / engineering collaboration
+```
+
+# Evidence deliberately not given a main bullet
+
+| Evidence                         | Reason                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------- |
+| Churn-risk scoring               | Wrong business problem for Trustpilot                                           |
+| Propensity / offer targeting     | Wrong business problem                                                          |
+| Marketing campaign audience      | Wrong business problem                                                          |
+| Payment acceptance / chargebacks | Better for Frasers                                                              |
+| Revenue protection / route risk  | Better for Arriva                                                               |
+| Excel/VBA reconciliation         | Useful but lower priority than SQL/BigQuery/Looker for Trustpilot               |
+| Power BI dashboard               | Useful only if space allows; Trustpilot names Looker, so Looker should dominate |
+| Smartphone sensor model          | Supporting evidence in later block, not main Trustpilot proof                   |
+| Oilfield operational reporting   | Lower-block transferability only                                                |
+
+# Final Step 4 output
+
+For Trustpilot, the bullet portfolio is:
+
+```text
+Bullet 1 must prove: SQL/BigQuery fraud trend analysis at scale.
+Bullet 2 must prove: Looker fraud and reviewer-behaviour reporting.
+Bullet 3 must prove: detection rules, anomaly thresholds and risk indicators.
+Bullet 4 must prove: escalated misuse investigation support through case packs/profiles.
+Bullet 5 must prove: customer/reviewer behaviour analysis and fraud-pattern explanation.
+Bullet 6 must prove: data science/engineering collaboration through fraud tables, SQL views, Looker source tables or validation reports.
+Optional Bullet 7 must prove: clear fraud-rule or investigation reporting for wider stakeholders.
+```
+
+Next step is **Step 5: draft the Trustpilot bullets using the right formula for each proof function**.
+
+---
+
+Yes. Now we draft the **Trustpilot bullets using the correct formula per proof function**. The framework says Step 5 is not one generic bullet formula; it uses different formulas for technical delivery, business/model impact, validation/monitoring, ranking/segmentation, and stakeholder decision proof. 
+
+Trustpilot’s ad specifically wants SQL, Google BigQuery, Google Looker, fraud trend analysis, detection rules, escalated misuse investigations, data science/engineering collaboration, customer/reviewer behaviour analysis, and communication of findings across stakeholders. 
+
+# Trustpilot Draft — Main Experience Block
+
+```text
+Data Scientist
+Fraud Detection & Behaviour Analytics Platform — Exeter, UK | May 2025 – Present
+Fraud analytics platform using SQL, Google BigQuery, Google Looker, Python and behavioural risk scoring across a 2.35B-row activity surface to detect suspicious behaviour, support misuse investigations and improve fraud-rule decisions.
+```
+
+## Draft bullets
+
+```text
+- Built SQL and BigQuery fraud trend queries over a 2.35B-row behaviour surface, producing [N] fraud-risk indicators for suspicious account, usage and transaction patterns.
+
+- Created Looker fraud and reviewer-behaviour dashboards tracking [N] risk metrics, giving Fraud & Investigations stakeholders a recurring view of abnormal platform activity.
+
+- Formulated [N] fraud detection rules from behavioural analysis, improving known-risk case capture by [X]% versus the existing rule-trigger baseline.
+
+- Built anomaly threshold tables and false-positive review outputs, reducing low-confidence fraud flags by [X]% while preserving [Y]% known-risk case coverage.
+
+- Produced [N] escalated misuse case packs with SQL case-detail queries, high-risk account profiles and suspicious behaviour timelines for investigation review.
+
+- Analysed customer and reviewer behaviour in BigQuery, identifying [N] behaviour segments where [X]% of known-risk cases concentrated in the top [Y]% risk band.
+
+- Partnered with data science and engineering workflows by maintaining [N] BigQuery fraud tables, SQL views and Looker source tables, improving fraud dashboard refresh time by [X]%.
+
+- Wrote fraud-rule rationale memos summarising [N] rule recommendations, validation results and investigation findings for fraud, data science, engineering and wider stakeholder review.
+```
+
+# Formula mapping
+
+| Bullet | Formula used                    | Why it fits Trustpilot                                                     |
+| ------ | ------------------------------- | -------------------------------------------------------------------------- |
+| 1      | Technical delivery proof        | Proves SQL, BigQuery, large datasets and fraud trend analysis              |
+| 2      | Technical/reporting proof       | Proves Looker reporting and customer/reviewer behaviour visibility         |
+| 3      | Business/model impact proof     | Proves detection-rule formulation and measurable fraud-risk improvement    |
+| 4      | Validation / rule-quality proof | Proves you considered false positives and coverage, not just more flags    |
+| 5      | Investigation proof             | Proves escalated misuse case support                                       |
+| 6      | Behaviour/ranking proof         | Proves customer/reviewer behaviour analysis and risk concentration         |
+| 7      | Internal tooling proof          | Proves data science/engineering collaboration through concrete data assets |
+| 8      | Stakeholder decision proof      | Proves clear communication through fraud-rule rationale memos              |
+
+# My recommendation
+
+For the CV, I would probably use **6 bullets**, not 8. The strongest 6-bullet version is:
+
+```text
+- Built SQL and BigQuery fraud trend queries over a 2.35B-row behaviour surface, producing [N] fraud-risk indicators for suspicious account, usage and transaction patterns.
+
+- Created Looker fraud and reviewer-behaviour dashboards tracking [N] risk metrics, giving Fraud & Investigations stakeholders a recurring view of abnormal platform activity.
+
+- Formulated [N] fraud detection rules from behavioural analysis, improving known-risk case capture by [X]% versus the existing rule-trigger baseline.
+
+- Produced [N] escalated misuse case packs with SQL case-detail queries, high-risk account profiles and suspicious behaviour timelines for investigation review.
+
+- Analysed customer and reviewer behaviour in BigQuery, identifying [N] behaviour segments where [X]% of known-risk cases concentrated in the top [Y]% risk band.
+
+- Maintained [N] BigQuery fraud tables, SQL views and Looker source tables for fraud dashboards, improving refresh time by [X]% and supporting data science / engineering review.
+```
+
+If we want a **7th bullet**, add the fraud-rule rationale memo:
+
+```text
+- Wrote fraud-rule rationale memos summarising [N] rule recommendations, validation results and investigation findings for fraud, data science, engineering and wider stakeholder review.
+```
+
+That 7th bullet is useful because Trustpilot asks for clear, actionable reports and communication of analyses/investigations to wider stakeholders. 
