@@ -380,129 +380,101 @@ Customer-behaviour ML platform across a 2.35B-row customer behaviour surface.
 
 ---
 
-You’re right — I jumped ahead. The methodology says **score the evidence before designing the bullet portfolio**. The framework is explicit: after building the evidence ledger, the next step is to score evidence as **A = direct match, B = adjacent, C = transferable, D = remove/compress** before deciding what each bullet should prove. 
+Good — then we switch to **assumption-true mode** for scoring.
 
-So here is the corrected next step.
+That means: anything previously marked “unknown” or “if true” is now treated as available evidence for design purposes. We still leave exact values as placeholders, but we no longer downgrade CI/CD, tests, deployment, monitoring, documentation, OOP/code structure, or stakeholder use because of uncertainty.
 
-# Evidence Scoring — Tesco Mobile Data Scientist
+The methodology supports this sequencing: after the evidence ledger, we score evidence as A/B/C/D before designing the bullet portfolio.  Tesco also explicitly asks for production deployment, testing, CI/CD, documentation, security, SQL, Python, PySpark, OOP, databases, multiple data sources, stakeholder explanation, and cloud technologies, so those items become strong direct-match evidence when assumed true. 
 
-Tesco’s ad strongly prioritises customer data, churn/fraud/propensity modelling, SQL/Python/PySpark, data pipelines, production workflows, validation, testing, CI/CD, statistical thinking and stakeholder communication. 
+# Revised Evidence Scoring — Assumption-True Mode
 
-## Scoring key
+| Evidence item                                               | Tier | Why                                                                                                                                               |
+| ----------------------------------------------------------- | ---: | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.35B-row customer behaviour surface                        |    A | Direct proof of large-scale customer data experience                                                                                              |
+| SQL/PySpark feature pipelines                               |    A | Direct match to Tesco’s SQL, PySpark, data pipeline and customer-data requirements                                                                |
+| Python model development                                    |    A | Direct match to building ML models from scratch in Python                                                                                         |
+| Combining multiple customer data sources                    |    A | Direct match to databases and multi-source modelling                                                                                              |
+| Customer-level feature table                                |    A | Strong artefact: shows data preparation for modelling, not just analysis                                                                          |
+| Repeatable scoring pipeline                                 |    A | Direct match to lifecycle ownership and production workflow expectations                                                                          |
+| AWS-hosted workflow                                         |    A | Direct match to cloud technologies when tied to actual scoring/pipeline workflow                                                                  |
+| Churn-risk model                                            |    A | Tesco explicitly names churn as a desirable modelling area                                                                                        |
+| Propensity model / response likelihood model                |    A | Tesco explicitly names propensity and marketing effectiveness                                                                                     |
+| Fraud-risk model / anomaly detection                        |    A | Tesco explicitly names fraud as desirable                                                                                                         |
+| Target-customer capture in top score band                   |    A | Strong ranking-quality evidence for propensity and targeting                                                                                      |
+| At-risk customer lift versus baseline                       |    A | Strong churn/retention evidence if framed as lift or recall against baseline                                                                      |
+| Low-propensity audience reduction at fixed coverage         |    A | Strong marketing-effectiveness evidence                                                                                                           |
+| Threshold testing                                           |    A | Shows analytical decisioning and campaign optimisation                                                                                            |
+| Lift validation                                             |    A | Direct evidence of model quality and statistical judgement                                                                                        |
+| Calibration checks                                          |    A | Strong model-trust evidence                                                                                                                       |
+| Data freshness checks                                       |    A | Strong production/data reliability evidence                                                                                                       |
+| Segment stability checks                                    |    A | Strong repeatability/business-trust evidence                                                                                                      |
+| Drift monitoring                                            |    A | Strong production monitoring evidence                                                                                                             |
+| Data-quality checks                                         |    A | Direct match to testing, reliability and pipeline ownership                                                                                       |
+| Unit tests                                                  |    A | Direct match to Tesco’s software-development and testing requirement                                                                              |
+| CI/CD workflow                                              |    A | Direct match to Tesco’s production lifecycle requirement                                                                                          |
+| Version control                                             |    A | Direct match to software engineering best practices                                                                                               |
+| OOP / modular code structure                                |    A | Direct match to good coding practices and OOP                                                                                                     |
+| Code optimisation                                           |    A | Direct match to code optimisation and maintainable workflows                                                                                      |
+| Documentation                                               |    A | Direct match to documentation and lifecycle ownership                                                                                             |
+| Security-aware workflow handling                            |    A | Direct match to security expectations                                                                                                             |
+| Production deployment / in-house workflow                   |    A | Very strong match because Tesco explicitly asks for fully in-house production workflows                                                           |
+| Monitoring dashboard or monitoring checks                   |    A | Strong production-readiness proof                                                                                                                 |
+| Strategy comparison across outcome measures                 |    A | Direct match to hypothesis-driven analysis and business decision support                                                                          |
+| Stakeholder recommendation                                  |    A | Direct match to communication, ownership and decision-shaping                                                                                     |
+| Explaining model rationale in non-technical language        |    A | Direct match to stakeholder communication requirement                                                                                             |
+| Constructively challenging weak targeting / rollout options |    A | Direct match to constructive challenge and ownership                                                                                              |
+| Customer segmentation                                       |    B | Useful for personalisation, but weaker than churn/propensity unless measured                                                                      |
+| Marketing effectiveness language                            |    B | Relevant, but should be supported by concrete targeting or campaign metrics                                                                       |
+| Customer communication relevance                            |    B | Useful if tied to segmentation, propensity or response-likelihood evidence                                                                        |
+| Stock management                                            |    D | Still avoid unless the platform genuinely has stock/demand evidence; assuming technical truth does not mean inventing a different business domain |
 
-| Tier | Meaning                     | Use in CV                                          |
-| ---- | --------------------------- | -------------------------------------------------- |
-| A    | Direct match to Tesco ad    | Must appear if defensible                          |
-| B    | Useful adjacent evidence    | Include if space allows or if it strengthens a gap |
-| C    | Transferable support        | Use later/lower in CV, not main platform proof     |
-| D    | Weak or risky for this role | Remove, compress, or do not foreground             |
+# What changed from the previous score
 
----
+The big moves are:
 
-## Scored evidence items
+```text
+CI/CD:             Unknown / risky → A
+Production deploy: Unknown / risky → A
+Unit tests:        Low-medium → A
+OOP/code structure: Unknown → A
+Documentation:     Unknown → A
+Security:          Unknown → A
+Monitoring:        A/B → A
+AWS:               B → A
+```
 
-| Evidence item                                        |                               Tier | Why                                                                                   | Confidence  | What we need to verify                                                       |
-| ---------------------------------------------------- | ---------------------------------: | ------------------------------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------- |
-| 2.35B-row customer behaviour surface                 |                                  A | Directly proves large-scale customer data experience                                  | High        | Already fixed                                                                |
-| SQL/PySpark customer feature pipelines               |                                  A | Direct match to SQL, PySpark, data pipelines, multiple data sources                   | Medium-high | Whether SQL and PySpark were both materially used                            |
-| Customer-level scoring outputs                       |                                  A | Connects pipeline work to Tesco’s modelling and decision workflow needs               | Medium      | What scores existed: churn, propensity, anomaly, segmentation                |
-| Churn-risk model / retention-risk score              |                                  A | Tesco explicitly names churn and customer behaviour                                   | Medium      | Churn label, baseline, evaluation type, metric                               |
-| Propensity / response-likelihood score               |                                  A | Tesco explicitly names propensity modelling and marketing effectiveness               | Medium      | Target definition, score-band result, baseline                               |
-| Fraud-risk / anomaly detection features              |                                  A | Tesco says churn, fraud or propensity experience is desirable                         | Medium      | Whether fraud labels/rules existed or it was unsupervised anomaly detection  |
-| Model validation using lift                          |                                  A | Strong statistical/model-quality proof and relevant to “build, validate, optimise”    | Medium      | Lift against what baseline and for which model                               |
-| Calibration checks                                   |                                  A | Proves model trust and statistical maturity                                           | Medium      | Calibration method and whether it was actually evaluated                     |
-| Data freshness checks                                |                                  A | Links model output reliability to production/data pipeline quality                    | Medium      | Freshness threshold and scoring cadence                                      |
-| Segment stability checks                             |                                  A | Strong for repeatable customer scoring and business trust                             | Medium      | Stability metric and number of scoring runs                                  |
-| Monitoring checks                                    |                                A/B | Directly relevant if tied to production or repeatable scoring; weaker if informal     | Medium      | What was monitored: drift, freshness, failures, distribution shifts          |
-| AWS-hosted workflow                                  |                                  B | Cloud is relevant, but AWS alone is not enough unless connected to workflow ownership | Medium      | What was actually hosted on AWS                                              |
-| Repeatable scoring workflow                          |                                  A | Directly supports production-shaped workflow, lifecycle ownership and maintainability | Medium      | Whether repeatable means scheduled, rerunnable, versioned, or manually rerun |
-| Tests / data-quality checks                          |                                  A | Tesco explicitly asks for testing and software practices                              | Low-medium  | Unit tests, data tests, validation gates, CI checks?                         |
-| CI/CD or deployment workflow                         |           A if true, D if not true | Very strong direct match, but risky if overstated                                     | Unknown     | Whether CI/CD genuinely existed                                              |
-| Version control / OOP / code structure               |                                A/B | Matches software engineering practices; valuable if concrete                          | Unknown     | Repo structure, classes/modules, versioning, reviews                         |
-| Documentation of model/pipeline decisions            |                                A/B | Tesco names documentation and communication                                           | Unknown     | What docs existed: README, validation notes, decision memo                   |
-| Combining multiple data sources                      |                                  A | Tesco explicitly asks for databases and combining sources                             | Medium      | Number/type of sources                                                       |
-| Threshold testing for campaign audiences             |                                  A | Strong direct link to marketing effectiveness and customer communications             | Medium      | Threshold logic, target coverage, low-propensity definition                  |
-| Reduction in low-propensity audience inclusion       |                                A/B | Strong if measured; risky if “low-propensity” is vague                                | Medium-low  | Definition of low-propensity, baseline, coverage guardrail                   |
-| Target-customer capture in top score band            |                                  A | Excellent ranking-quality evidence for propensity/customer targeting                  | Medium      | Target definition and score band                                             |
-| Strategy comparison across outcome measures          |                                A/B | Strong stakeholder/hypothesis-driven analysis evidence                                | Medium      | Number of strategies, measures, recommendation                               |
-| Stakeholder recommendation / rollout decision        |                                  A | Directly matches communication, ownership and decision shaping                        | Medium      | Who used it and what decision changed                                        |
-| Customer segmentation into lifecycle/response groups |                                  B | Useful for personalisation, but weaker than churn/propensity unless measured          | Medium      | Segments, use case, whether model-driven or rule-based                       |
-| “Improved communication relevance”                   |                  D unless measured | Too vague without response/conversion/fit metric                                      | Low         | Needs a concrete relevance metric                                            |
-| Stock management evidence                            | D for current platform unless real | Tesco mentions it, but forcing it would be artificial                                 | Low         | Only include if genuine stock/demand work exists                             |
-| “Business decisioning” as a phrase                   |                                C/D | Too abstract unless attached to a concrete decision                                   | Low         | Replace with strategy, threshold, audience, rollout, or recommendation       |
-| “Marketing effectiveness” as a phrase                |                                  B | Relevant keyword, but must be supported by targeting/campaign metric                  | Medium      | Use as outcome, not standalone evidence                                      |
+Because we are now assuming those are true, they stop being “maybe useful” and become **direct-match evidence**.
 
----
+# Updated Tier A evidence pool
 
-# Sorted evidence by priority
+This is now the core pool for the Tesco application:
 
-## Tier A — strongest evidence to foreground
-
-These are the strongest matches for Tesco and should drive the main experience section if defensible:
-
-```text id="n05sbs"
+```text
 - 2.35B-row customer behaviour surface
-- SQL/PySpark customer feature or scoring pipelines
-- customer-level churn-risk scoring
-- propensity / response-likelihood scoring
-- fraud-risk or anomaly detection features
-- combining multiple customer data sources
-- model validation using lift, calibration, freshness and stability checks
-- repeatable scoring workflow
-- testing or data-quality checks, if true
-- stakeholder recommendation from model trade-off analysis
+- SQL/PySpark feature and scoring pipelines
+- Python model development
+- multiple customer data sources
+- customer-level feature table
+- churn-risk model
+- propensity / response-likelihood model
+- fraud-risk or anomaly detection model
+- lift, calibration, freshness, drift and stability validation
+- repeatable AWS-hosted scoring workflow
+- production deployment / in-house workflow
+- unit tests, data-quality checks and CI/CD
+- version control, OOP/modular code and code optimisation
+- documentation and security-aware workflow handling
+- threshold testing for campaign selection
+- strategy comparison across business outcome measures
+- stakeholder recommendation and non-technical explanation
 ```
 
-## Tier B — useful supporting evidence
+# Current scoring verdict
 
-These are good, but should support the A evidence rather than dominate:
+Under assumption-true mode, the platform is a **very strong Tesco match**. The evidence does not just cover the business side — churn, propensity, fraud, marketing effectiveness and customer behaviour — it also covers the lifecycle side: production workflows, CI/CD, testing, documentation, security, cloud, code quality and stakeholder communication.
 
-```text id="z4axg8"
-- AWS-hosted workflow
-- monitoring checks
-- customer segmentation
-- threshold testing
-- campaign targeting
-- marketing effectiveness language
-- documentation
-- strategy comparison
-```
+The next correct methodology step is now:
 
-## Tier C — compress or use elsewhere
+> **Design the bullet portfolio from the Tier A evidence pool.**
 
-These may support the CV but should not be the centre of this Tesco platform block:
-
-```text id="twuisc"
-- generic business decisioning
-- broad stakeholder support
-- general statistical modelling without named validation
-- broad customer communication language without a metric
-```
-
-## Tier D — avoid unless evidence appears
-
-These should not be foregrounded now:
-
-```text id="go89lf"
-- stock management
-- improved customer communication relevance without a metric
-- CI/CD or production deployment if not actually true
-- fully in-house production workflow if the platform was only production-shaped
-- business impact claims without measurement path
-```
-
-# Current verdict
-
-The platform has enough **Tier A evidence** to be a strong Tesco match, but the risky areas are:
-
-```text id="t509jc"
-1. production / CI/CD / deployment
-2. exact validation methods
-3. fraud label versus anomaly-only detection
-4. whether targeting improvements are backtested, live, or simulated
-5. whether stakeholder decisions were actual rollout decisions or recommendation outputs
-```
-
-Those risks do not block us. They tell us where to soften wording later.
-
-So the next step after this is **not writing bullets yet**. It is choosing which Tier A/B evidence items are safe enough to become the bullet portfolio, and which ones need downgraded wording.
+Not final bullet writing yet — first we decide what each bullet must prove.
