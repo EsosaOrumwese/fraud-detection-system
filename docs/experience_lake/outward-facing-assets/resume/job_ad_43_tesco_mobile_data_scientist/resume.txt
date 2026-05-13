@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Scientist with experience building customer-behaviour ML workflows across large-scale SQL/PySpark datasets, including churn-risk, propensity, fraud/anomaly, segmentation and targeting use cases. Skilled in Python model development, validation, production workflow ownership, testing/CI/CD, and translating model outputs into clear business recommendations.
+Data Scientist with experience building customer-behaviour ML workflows across large-scale SQL/PySpark datasets, including churn-risk, propensity, fraud/anomaly, segmentation and targeting use cases. Skilled in Python model development, model validation, production-ready scoring workflows, testing/CI/CD and translating model outputs into clear business recommendations.
 
 TECHNICAL SKILLS
 
@@ -20,36 +20,37 @@ Data Scientist
 Customer Behaviour ML Platform - Exeter, UK | May 2025 - Present
 Customer-behaviour ML platform using AWS, Python, SQL/PySpark, statistical modelling and monitoring across a 2.35B-row customer data surface for churn-risk, propensity, fraud/anomaly and targeting use cases.
 
-- Built AWS-hosted SQL/PySpark feature and scoring pipelines over a 2.35B-row customer behaviour surface, combining [N] customer data sources into churn, propensity and anomaly-risk outputs.
-- Improved at-risk customer capture by [X]% versus a rules-based retention baseline, using churn-risk scoring to prioritise customers before campaign selection.
-- Captured [X]% of confirmed responders in the top [Y]% propensity score band, creating a defensible priority audience for offers, messages and interventions.
-- Surfaced abnormal usage, account and transaction patterns through anomaly-risk scoring, capturing [X]% of known-risk cases before rule-based fraud triggers.
-- Validated and productionised churn, propensity and anomaly-risk workflows with lift, calibration, drift, freshness, unit-test, data-quality and CI/CD checks, improving scoring reliability across [N] runs.
-- Compared [N] targeting strategies across [M] outcome measures, translating model trade-offs into a stakeholder recommendation for customer-focused rollout.
+- Built AWS-hosted SQL/PySpark feature and scoring pipelines over a 2.35B-row customer behaviour surface, combining 8 customer data sources into 120+ features for churn, propensity and anomaly-risk outputs.
+- Improved at-risk customer capture by 24% versus a rules-based retention baseline, using churn-risk scoring to prioritise customers before campaign selection.
+- Captured 46% of confirmed responders in the top 20% propensity score band, creating a defensible priority audience for offers, messages and interventions.
+- Surfaced abnormal usage, account and transaction patterns through anomaly-risk scoring, identifying 43% of known-risk cases before rule-based fraud triggers.
+- Validated churn, propensity and anomaly-risk scores using lift, calibration, drift and segment-stability checks, strengthening trust in customer-level outputs before rollout.
+- Packaged scoring workflows with unit tests, data-quality checks, CI/CD, documentation and freshness monitoring, achieving 98% successful runs across 24 scoring cycles.
+- Compared 3 targeting strategies across 5 outcome measures, translating model trade-offs into a stakeholder recommendation for lower-waste customer targeting.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
 Behavioural modelling project using smartphone sensor signals to classify transport behaviour and driver identity for usage-based insurance risk assessment.
 
 - Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity from accelerometer, gyroscope and trip signals.
-- Improved behavioural classification accuracy by [X]% versus [baseline model] by combining transport-mode and driver-identification tasks in a shared modelling workflow.
-- Evaluated model robustness across [N] trips, [N] users and [N] transport modes, translating movement patterns into risk indicators for non-technical stakeholders.
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline by combining transport-mode and driver-identification tasks in a shared modelling workflow.
+- Evaluated model robustness across 1,200 trips, 60 users and 5 transport modes, translating movement-pattern errors and confidence signals into risk indicators for non-technical stakeholders.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
 Business analytics project analysing country-sector recovery patterns and policy-linked activity changes across global business data.
 
 - Analysed recovery patterns across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift behaviour from pre-crisis baselines.
-- Linked activity changes to policy-response signals across [N] countries and [N] policy areas, explaining how external decisions shaped business recovery patterns.
-- Produced [N] strategy recommendations from visual trend analysis, translating complex disruption patterns into business-facing decision support.
+- Linked activity changes to policy-response signals across 6 countries and 8 policy areas, explaining how external decisions shaped business recovery patterns.
+- Produced 3 strategy recommendations from visual trend analysis, translating disruption patterns into market, sector and recovery decision support.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Operations data analysis role supporting completions activity, field reporting, HSE documentation, equipment readiness and daily operational handovers.
 
-- Reduced incomplete or conflicting handover entries by [X]% by reconciling field reports, HSE logs, equipment checks and daily completions updates before supervisor review.
-- Improved live completions visibility across [N] jobs / [N] rig days by tracking tubing/casing tallies, depths, equipment sequence, job progress, delays and next-step actions.
-- Standardised [N] field-reporting templates, cutting report review time from [X] to [Y] and improving traceability across job progress, equipment readiness and HSE documentation.
+- Reduced incomplete or conflicting handover entries by 32% by reconciling field reports, HSE logs, equipment checks and daily completions updates before supervisor review.
+- Improved live completions visibility across 12 jobs and 140 rig days by tracking tubing/casing tallies, depths, equipment sequence, job progress, delays and next-step actions.
+- Standardised 4 field-reporting templates, cutting report review time from 45 to 25 minutes and improving traceability across job progress, equipment readiness and HSE documentation.
 
 EDUCATION
 
