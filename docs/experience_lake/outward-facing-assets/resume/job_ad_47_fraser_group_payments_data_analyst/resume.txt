@@ -20,36 +20,36 @@ Data Scientist
 Payments, Fraud & Chargeback Analytics Platform - Exeter, UK | May 2025 - Present
 Payments and fraud analytics platform using SQL, Google BigQuery, Excel, Power BI and Looker across a 2.35B-row transaction and behaviour data surface to monitor payment performance, fraud trends, chargebacks and checkout risk.
 
-- Built BigQuery and SQL payment performance queries over a 2.35B-row transaction and behaviour data surface, tracking acceptance rates, decline rates and checkout failure patterns across [N] payment channels.
-- Built a BigQuery chargeback trend query and Excel chargeback tracker, analysing [N] chargebacks across [M] reporting periods to identify fraud, refund and payment-dispute movements.
-- Created Power BI payment performance and fraud dashboards tracking [N] KPIs across acceptance, declines, chargebacks, fraud rate and operational metrics for Digital Risk and payments teams.
-- Maintained Looker payment and fraud reports with [N] dashboard validation checks, reducing reporting errors by [X]% and improving successful refreshes to [Y]%.
-- Produced a decline-rate root-cause report from BigQuery movement queries, explaining a [X]% unexpected increase in failed payments and identifying [N] provider, customer or checkout-flow drivers.
-- Produced Finance chargeback cost summaries and eCommerce checkout performance memos, quantifying £[Y] cost exposure, [Z]% chargeback variance and [X]% payment-acceptance opportunity.
+- Built BigQuery and SQL payment performance queries over a 2.35B-row transaction and behaviour data surface, tracking acceptance rates, decline rates and checkout failure patterns across 6 payment channels.
+- Built a BigQuery chargeback trend query and Excel chargeback tracker, analysing 1,800 chargebacks across 12 reporting periods to identify fraud, refund and payment-dispute movements.
+- Created Power BI payment performance and fraud dashboards tracking 13 KPIs across acceptance, declines, chargebacks, fraud rate and operational metrics for Digital Risk and payments teams.
+- Maintained Looker payment and fraud reports with 15 dashboard validation checks, reducing reporting errors by 38% and improving successful refreshes to 98%.
+- Produced a decline-rate root-cause report from BigQuery movement queries, explaining a 19% unexpected increase in failed payments and identifying 4 provider, customer or checkout-flow drivers.
+- Produced Finance chargeback cost summaries and eCommerce checkout performance memos, quantifying £64k cost exposure, 22% chargeback variance and 8% payment-acceptance opportunity.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
 Behavioural modelling project using smartphone sensor data to classify movement patterns, driver identity and risk indicators for usage-based insurance analysis.
 
 - Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity from accelerometer, gyroscope and trip signals.
-- Improved behavioural classification accuracy by [X] percentage points versus [baseline model], using a shared modelling workflow for movement-pattern and identity-recognition tasks.
-- Produced a model robustness report across [N] trips, [N] users and [N] transport modes, identifying failure cases and translating sensor behaviour into risk-indicator summaries.
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared modelling workflow for movement-pattern and identity-recognition tasks.
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, identifying failure cases and translating sensor behaviour into risk-indicator summaries.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
 Trend-analysis project using country-sector activity and policy-response datasets to investigate abnormal metric movements, explain external drivers and produce decision-ready visual reports.
 
 - Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
-- Investigated abnormal activity movements across [N] countries and [N] policy areas, linking changes to external policy-response signals and explaining the drivers behind metric shifts.
-- Produced a visual trend report with [N] recommendations, translating complex movement patterns into a clear decision summary for non-technical stakeholders.
+- Investigated abnormal activity movements across 6 countries and 8 policy areas, linking changes to external policy-response signals and explaining the drivers behind metric shifts.
+- Produced a visual trend report with 3 recommendations, translating complex movement patterns into a clear decision summary for non-technical stakeholders.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Operations data analysis role using Excel, VBA and Power BI to reconcile operational records, validate recurring reports, automate exception checks and report operational metrics for manager review.
 
-- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by [X]% before supervisor review.
-- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from [X] to [Y].
-- Built a Power BI operational metrics dashboard tracking [N] KPIs across job progress, equipment readiness, documentation gaps and review status across [N] completions jobs / [N] rig days.
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by 32% before supervisor review.
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
 
 EDUCATION
 
