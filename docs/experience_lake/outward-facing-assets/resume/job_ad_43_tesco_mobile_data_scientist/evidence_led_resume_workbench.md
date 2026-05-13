@@ -678,3 +678,449 @@ Bullet 6 must prove: stakeholder decision support and hypothesis-driven analysis
 ```
 
 That is the portfolio we should carry into Step 5. Step 5 is where we draft the actual bullets using the right formula for each proof function.
+
+Yes — Step 5 is now **draft bullets using the right formula**, not one generic formula for everything. The methodology says different proof functions need different bullet structures: business/model impact, ranking/segmentation, technical delivery, validation/monitoring, and stakeholder decision proof. 
+
+For Tesco, the bullets must still reflect the ad’s mix of customer/business problems, churn/propensity/fraud, pipelines, production deployment, testing, CI/CD, documentation, SQL, Python, PySpark, statistical methods, and stakeholder communication.  
+
+# Step 5 — Draft Bullets
+
+## Experience block
+
+```text
+Data Scientist
+Customer Behaviour ML Platform — Exeter, UK | May 2025 – Present
+Customer-behaviour ML platform using AWS, SQL/PySpark, Python, statistical modelling and monitoring across a 2.35B-row customer data surface for churn, propensity, fraud-risk and targeting use cases.
+```
+
+## Bullet draft set
+
+```text
+- Built AWS-hosted SQL/PySpark feature and scoring pipelines over a 2.35B-row customer behaviour surface, combining [N] customer data sources into churn, propensity and anomaly-risk outputs.
+
+- Improved at-risk customer capture by [X]% versus a rules-based retention baseline, using churn-risk scoring to prioritise customers before campaign selection.
+
+- Captured [X]% of confirmed responders in the top [Y]% propensity score band, creating a defensible priority audience for offers, messages and interventions.
+
+- Surfaced abnormal usage, account and transaction patterns through anomaly-risk scoring, capturing [X]% of known-risk cases before rule-based fraud triggers.
+
+- Validated churn, propensity and anomaly-risk outputs using lift, calibration, drift, freshness and stability checks across [N] scoring runs, strengthening trust in customer-level scores.
+
+- Packaged scoring workflows with unit tests, data-quality checks, CI/CD, documentation and monitoring, improving production reliability to [X]% successful runs / [Y]-hour data freshness.
+
+- Compared [N] targeting strategies across [M] outcome measures, translating model trade-offs into a stakeholder recommendation for customer-focused rollout.
+```
+
+# Formula mapping
+
+| Bullet | Formula used                | Why                                                          |
+| ------ | --------------------------- | ------------------------------------------------------------ |
+| 1      | Technical delivery proof    | Proves scale, SQL/PySpark, AWS, customer data, pipelines     |
+| 2      | Business/model impact proof | Proves churn relevance and retention prioritisation          |
+| 3      | Ranking/segmentation proof  | Proves propensity and marketing effectiveness                |
+| 4      | Business/model impact proof | Proves fraud/anomaly modelling                               |
+| 5      | Validation/monitoring proof | Proves statistical judgement and model trust                 |
+| 6      | Production workflow proof   | Proves tests, CI/CD, documentation, monitoring, reliability  |
+| 7      | Stakeholder decision proof  | Proves hypothesis-driven analysis and business communication |
+
+# My recommendation
+
+Although the Step 4 portfolio had **six bullet slots**, I would keep this as a **seven-bullet working draft** for now because Tesco heavily weights both **validation** and **production lifecycle ownership**. Later, we can compress bullets 5 and 6 if the CV needs to be tighter.
+
+A compressed six-bullet version would combine them like this:
+
+```text
+- Validated and productionised scoring workflows with lift, calibration, drift, freshness, unit-test and data-quality checks, improving reliability across [N] scoring runs.
+```
+
+But for now, the seven-bullet version gives us better control before cutting.
+
+We handle the next three blocks as **supporting evidence**, not as equal-weight Tesco proof.
+
+The methodology explicitly says the first platform block should carry most of the Tier A Tesco match, while the university and engineering/oil-and-gas blocks should **support, not compete**.  Tesco is mainly screening for customer data science, churn/fraud/propensity, SQL/Python/PySpark, production workflows, statistical thinking and stakeholder communication, so the later blocks should reinforce those themes without pretending to be customer-telecom work. 
+
+# The rule for the next 3 blocks
+
+```text
+Main platform block = direct match evidence
+Next 3 blocks = supporting proof of modelling, analysis, communication, operational data discipline
+```
+
+So we do **not** make every block sound like Tesco Mobile. That would feel fake.
+
+Instead:
+
+| Experience                                          | Role in the CV                                                                                        |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Smartphone Sensor / Insurance Modelling             | Proves adjacent ML, behavioural modelling, deep learning, validation, risk interpretation             |
+| Business Analytics / Recovery Project               | Proves structured analysis, complex datasets, policy/business interpretation, recommendation-making   |
+| South Western Technologies / Oil & Gas Data Analyst | Proves messy operational data, reporting accuracy, handover quality, safety-critical decision support |
+
+# Recommended bullet count
+
+Because the Tesco platform block will be the strongest and longest, the next three should be tighter:
+
+```text
+Smartphone Sensor ML Project: 3 bullets
+Business Analytics Project: 2–3 bullets
+South Western Technologies: 3 bullets
+```
+
+That gives the CV balance. The recruiter gets the main proof first, then supporting evidence without overload.
+
+---
+
+# 1. Smartphone Sensor / Insurance Modelling Project
+
+## How to position it
+
+This is **Tier B evidence** for Tesco.
+
+It is not customer churn/propensity, but it strongly supports:
+
+```text
+behavioural modelling
+risk classification
+deep learning
+model evaluation
+translation of model outputs into practical decisions
+```
+
+## Context/about line
+
+```text
+Behavioural modelling project using smartphone sensor signals to classify transport behaviour and driver identity for usage-based insurance risk assessment.
+```
+
+## Bullet portfolio
+
+| Bullet | What it must prove                            |
+| ------ | --------------------------------------------- |
+| 1      | Deep learning / behavioural signal modelling  |
+| 2      | Model performance / validation discipline     |
+| 3      | Risk interpretation / stakeholder translation |
+
+## Draft bullets
+
+```text
+- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity, testing behavioural signals for usage-based insurance risk assessment.
+
+- Improved behavioural classification accuracy by [X]% versus [baseline model] by combining transport-mode and driver-identification tasks in a shared modelling workflow.
+
+- Evaluated model robustness across [N] trips, [N] users and [N] transport modes, translating movement patterns into risk indicators for non-technical stakeholders.
+```
+
+## Why these work
+
+They do not pretend this was Tesco-like customer analytics. They prove **transferable DS capability**: modelling behaviour, validating performance, and explaining outputs.
+
+---
+
+# 2. Business Analytics / Recovery & Policy Project
+
+## How to position it
+
+This is **Tier B/C evidence**.
+
+It is not ML-heavy, but it supports Tesco’s need for:
+
+```text
+structured analysis
+complex and diverse datasets
+hypothesis-driven thinking
+business insight
+clear recommendations
+```
+
+## Context/about line
+
+```text
+Business analytics project analysing country-sector recovery patterns and policy-linked activity changes across global business data.
+```
+
+## Bullet portfolio
+
+| Bullet | What it must prove                            |
+| ------ | --------------------------------------------- |
+| 1      | Complex dataset analysis at scope             |
+| 2      | Hypothesis-driven comparison / policy linkage |
+| 3      | Business-facing recommendation                |
+
+## Draft bullets
+
+```text
+- Analysed recovery patterns across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift behaviour from pre-crisis baselines.
+
+- Linked activity changes to policy-response signals across [N] countries and [N] policy areas, explaining how external decisions shaped business recovery patterns.
+
+- Produced [N] strategy recommendations from visual trend analysis, translating complex disruption patterns into business-facing decision support.
+```
+
+## Why these work
+
+This block gives the recruiter evidence that you can handle ambiguity, structure a business question, compare patterns and communicate recommendations. That maps to Tesco’s hypothesis-driven analysis and stakeholder communication requirements, without forcing churn/propensity language.
+
+---
+
+# 3. South Western Technologies — Oil & Gas Data Analyst
+
+## How to position it
+
+This is **Tier C evidence**, but useful.
+
+It should not be written as an engineering role. It should be positioned as:
+
+```text
+Data Analyst in a completions / oilfield operations environment
+```
+
+Its value is:
+
+```text
+messy operational data
+data reconciliation
+handover quality
+reporting accuracy
+traceability
+safety-critical operational visibility
+```
+
+## Context/about line
+
+```text
+Operations data analysis role supporting completions activity, field reporting, HSE documentation, equipment readiness and daily operational handovers.
+```
+
+## Bullet portfolio
+
+| Bullet | What it must prove                                    |
+| ------ | ----------------------------------------------------- |
+| 1      | Reporting accuracy / data reconciliation              |
+| 2      | Operational visibility / live decision support        |
+| 3      | Process improvement / traceability / safety readiness |
+
+## Draft bullets
+
+```text
+- Reduced incomplete or conflicting handover entries by [X]% by reconciling field reports, HSE logs, equipment checks and daily completions updates before supervisor review.
+
+- Improved live completions visibility across [N] jobs / [N] rig days by tracking tubing/casing tallies, depths, equipment sequence, job progress, delays and next-step actions.
+
+- Standardised [N] field-reporting templates, cutting report review time from [X] to [Y] and improving traceability across job progress, equipment readiness and HSE documentation.
+```
+
+## Why these work
+
+They avoid responsibility language like “produced reports” or “maintained records.” They show what improved: handover quality, visibility, review time, traceability and safety readiness.
+
+---
+
+# Overall structure I’d use
+
+```text
+Data Scientist — Customer Behaviour ML Platform
+6–7 bullets
+Carries the Tesco match: customer data, SQL/PySpark, churn, propensity, fraud, validation, production, stakeholders.
+
+Data Scientist — Smartphone Sensor / Insurance Modelling Project
+3 bullets
+Supports ML, behavioural modelling, deep learning, validation and risk translation.
+
+Business Analyst — Recovery / Policy Analytics Project
+2–3 bullets
+Supports structured analysis, complex data, hypothesis-driven reasoning and recommendations.
+
+Data Analyst — South Western Technologies & Oilfield Services
+3 bullets
+Supports operational data, reconciliation, reporting accuracy, stakeholder visibility and decision discipline.
+```
+
+The key is that the next three blocks should **add credibility around your analytical range**, not dilute the Tesco story.
+
+Yes. Now we build the **header/headline** and **professional summary** from the same proof architecture we used for the bullets.
+
+The framework says these layers should not repeat each other: **headline = positioning label**, **professional summary = whole-CV fit argument**, **experience context = project context**, and **bullets = proof**.  For Tesco, the summary needs to reflect their mix of customer data science, churn/fraud/propensity, SQL/Python/PySpark, production workflows, testing/CI/CD, statistical thinking and stakeholder communication. 
+
+# 1. Header / headline
+
+I’d treat the header headline as the line under your name, not the whole contact section.
+
+## Recommended headline
+
+```text
+Data Scientist | Customer Behaviour ML | Churn, Propensity & Fraud Modelling | SQL, Python & PySpark
+```
+
+This is probably the cleanest Tesco version.
+
+It hits:
+
+```text
+Data Scientist          = exact role
+Customer Behaviour ML   = Tesco customer-data/customer-behaviour fit
+Churn, Propensity, Fraud = named desirable modelling areas
+SQL, Python & PySpark   = named technical requirements
+```
+
+## Slightly more production-facing version
+
+```text
+Data Scientist | Customer Behaviour ML | Production ML Workflows | SQL, Python & PySpark
+```
+
+This is useful if we want to foreground Tesco’s production workflow, testing, CI/CD and lifecycle ownership requirements.
+
+## Slightly more business-facing version
+
+```text
+Data Scientist | Customer Analytics & ML | Churn, Propensity, Fraud & Marketing Effectiveness
+```
+
+This is good for recruiter readability, but it loses SQL/PySpark in the headline. I’d only use this if your skills section is very visible near the top.
+
+## My pick
+
+Use this:
+
+```text
+Data Scientist | Customer Behaviour ML | Churn, Propensity & Fraud Modelling | SQL, Python & PySpark
+```
+
+It is specific without becoming a keyword dump.
+
+# 2. Professional summary
+
+The summary should not list every tool or every project. It should answer:
+
+> “Why is this person a believable Tesco Mobile Data Scientist candidate?”
+
+It needs three ingredients:
+
+```text
+1. Customer/business relevance
+2. Technical/lifecycle relevance
+3. Stakeholder/communication relevance
+```
+
+## Recommended professional summary
+
+```text
+Data Scientist with experience building customer-behaviour ML workflows across large-scale SQL/PySpark datasets, including churn-risk, propensity, fraud/anomaly, segmentation and targeting use cases. Strong fit for customer-focused data science roles requiring Python model development, validation, production workflow ownership, testing/CI/CD, and clear translation of model outputs into business recommendations.
+```
+
+This is the strongest balanced version.
+
+It says:
+
+```text
+customer-behaviour ML workflows       = Tesco domain fit
+large-scale SQL/PySpark datasets      = technical + ATS fit
+churn-risk, propensity, fraud/anomaly = named desirable areas
+segmentation and targeting            = marketing/personalisation fit
+Python model development              = model-building requirement
+validation                            = statistical/model trust
+production workflow ownership         = lifecycle requirement
+testing/CI/CD                         = engineering maturity
+business recommendations              = stakeholder communication
+```
+
+## Tighter version
+
+```text
+Data Scientist with experience building customer-behaviour ML workflows using SQL, Python/PySpark and statistical modelling to support churn-risk, propensity, fraud/anomaly and targeting decisions. Strong fit for roles requiring model development, validation, production workflow ownership and clear stakeholder communication.
+```
+
+This is cleaner and less dense, but it drops testing/CI/CD from the summary.
+
+## More technical version
+
+```text
+Data Scientist with experience developing customer-behaviour ML models and production-shaped scoring workflows across large-scale SQL/PySpark datasets. Covers churn-risk, propensity and fraud/anomaly use cases, with emphasis on validation, monitoring, testing/CI/CD, documentation and stakeholder-facing recommendations.
+```
+
+This is good if we want to lean into Tesco’s production workflow requirement more aggressively.
+
+# 3. Final recommended top section
+
+```text
+Esosa Orumwese
+Data Scientist | Customer Behaviour ML | Churn, Propensity & Fraud Modelling | SQL, Python & PySpark
+
+Data Scientist with experience building customer-behaviour ML workflows across large-scale SQL/PySpark datasets, including churn-risk, propensity, fraud/anomaly, segmentation and targeting use cases. Strong fit for customer-focused data science roles requiring Python model development, validation, production workflow ownership, testing/CI/CD, and clear translation of model outputs into business recommendations.
+```
+
+# 4. Why this works
+
+It matches the bullet portfolio without stealing from it.
+
+The headline says:
+
+```text
+This person belongs in the Tesco Data Scientist pile.
+```
+
+The summary says:
+
+```text
+This person fits the Tesco problem mix: customer ML, churn/propensity/fraud, production workflows and stakeholder decisions.
+```
+
+The experience section will then prove it with:
+
+```text
+2.35B-row customer behaviour surface
+SQL/PySpark pipelines
+churn-risk scoring
+propensity ranking
+fraud/anomaly detection
+validation/monitoring/testing/CI/CD
+stakeholder recommendations
+```
+
+I would avoid a softer summary like “curious and collaborative Data Scientist” even though Tesco uses those words, because the CV should **prove** curiosity and collaboration through hypothesis-driven analysis, stakeholder translation and ownership rather than claiming personality traits.
+
+Yes. For Tesco, the technical skills section should be **ATS-aligned but not bloated**.
+
+The ad explicitly asks for SQL, Python, PySpark, production workflows, testing, CI/CD, documentation, security, OOP, statistics, databases, multiple data sources, version control, unit testing and cloud technologies.  The methodology also says the technical screen should surface models/pipelines, production lifecycle, testing/CI/CD, SQL/Python/PySpark, databases/multiple sources and statistical principles. 
+
+So I would structure the skills section like this:
+
+```text
+TECHNICAL SKILLS
+
+Programming & Data: Python, SQL, PySpark, Spark SQL, Pandas, NumPy
+
+Machine Learning & Statistics: Churn modelling, propensity modelling, fraud/anomaly detection, classification, segmentation, statistical modelling, hypothesis testing, model validation, lift analysis, calibration, drift monitoring
+
+Data Pipelines & Production ML: Feature engineering, customer-level scoring pipelines, batch scoring, data quality checks, data freshness checks, monitoring, production workflow deployment, CI/CD
+
+Software Engineering: Object-oriented programming, modular code design, unit testing, version control, code optimisation, documentation
+
+Cloud & Databases: AWS, relational databases, multi-source data integration, large-scale customer datasets
+```
+
+This is the version I’d use.
+
+A slightly tighter CV version:
+
+```text
+TECHNICAL SKILLS
+
+Languages & Data: Python, SQL, PySpark, Spark SQL, Pandas, NumPy  
+ML & Statistics: Churn modelling, propensity modelling, fraud/anomaly detection, classification, segmentation, lift analysis, calibration, drift monitoring, hypothesis testing  
+Pipelines & Production: Feature engineering, customer scoring pipelines, batch scoring, data-quality checks, freshness monitoring, production deployment, CI/CD  
+Software Engineering: OOP, modular code, unit testing, version control, code optimisation, documentation  
+Cloud & Databases: AWS, relational databases, multi-source customer data integration
+```
+
+I prefer the tighter version because it reads like a CV section rather than a skills inventory.
+
+I would **not** include stakeholder communication here. That belongs in the professional summary and bullets. I would also avoid generic skills like “Machine Learning,” “Data Analysis,” or “Problem Solving” unless attached to concrete sub-skills, because they are too broad.
+
+One thing I would consider adding only if true is:
+
+```text
+Tools: Git, GitHub Actions, Docker, MLflow, scikit-learn, TensorFlow/PyTorch
+```
+
+But I would not add that line unless those tools are genuinely part of the evidence. The current version already catches the main Tesco keywords without feeling overstuffed.

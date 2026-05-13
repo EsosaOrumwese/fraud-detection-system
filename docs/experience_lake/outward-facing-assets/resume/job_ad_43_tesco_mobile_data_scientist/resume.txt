@@ -1,65 +1,66 @@
 Esosa Orumwese
-Data Scientist | Customer Retention, Propensity & Fraud Modelling | Marketing Effectiveness & Production ML
+Data Scientist | Customer Behaviour ML | Churn, Propensity & Fraud Modelling | SQL, Python & PySpark
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
-4+ years improving customer retention, targeting, marketing effectiveness, fraud detection, and business decisioning through customer, behavioural, sales, and operational data.
-Experienced in identifying at-risk customers earlier, focusing offers and interventions on higher-fit segments, reducing low-fit targeting, and supporting evidence-led customer decisions.
-Build production-ready SQL/PySpark/Python ML workflows that turn complex datasets into monitored decision outputs and clear recommendations for technical and non-technical stakeholders.
+
+Data Scientist with experience building customer-behaviour ML workflows across large-scale SQL/PySpark datasets, including churn-risk, propensity, fraud/anomaly, segmentation and targeting use cases. 
+Strong fit for customer-focused data science roles requiring Python model development, validation, production workflow ownership, testing/CI/CD, and clear translation of model outputs into business recommendations.
 
 EDUCATION
 
 University of Exeter
-Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Dec 2024
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
 
 Covenant University
-Ota, Nigeria | BEng Mechanical Engineering (First Class) | 2020
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
 
 RELEVANT EXPERIENCE
 
 Data Scientist
 Customer Behaviour ML Platform - Exeter, UK | May 2025 - Present
-AWS-hosted customer-behaviour ML platform using SQL/PySpark pipelines, statistical modelling, scoring, validation, and monitoring across a 2.35B-row customer data surface to support churn, propensity, fraud detection, targeting, and business decisioning.
+Customer-behaviour ML platform using AWS, SQL/PySpark, Python, statistical modelling and monitoring across a 2.35B-row customer data surface for churn, propensity, fraud-risk and targeting use cases.
 
-- Improved retention targeting by 18%, identifying customers likely to disengage before retention decisions using customer behaviour modelling.
-- Focused customer targeting by placing 42% of likely high-benefit customers in the top 20% scored segment for offers, messages, and interventions.
-- Reduced wasted marketing targeting by 11% while maintaining priority-customer coverage through segmentation and propensity scoring.
-- Improved customer communication relevance by grouping customers into retention, upgrade, and intervention segments using lifecycle and response signals.
-- Strengthened fraud detection by surfacing abnormal usage, account activity, and transaction patterns before later rule-based triggers.
-- Supported evidence-led customer decisioning by comparing 3 strategy options across 5 outcome measures before rollout.
+- Built AWS-hosted SQL/PySpark feature and scoring pipelines over a 2.35B-row customer behaviour surface, combining [N] customer data sources into churn, propensity and anomaly-risk outputs.
+- Improved at-risk customer capture by [X]% versus a rules-based retention baseline, using churn-risk scoring to prioritise customers before campaign selection.
+- Captured [X]% of confirmed responders in the top [Y]% propensity score band, creating a defensible priority audience for offers, messages and interventions.
+- Surfaced abnormal usage, account and transaction patterns through anomaly-risk scoring, capturing [X]% of known-risk cases before rule-based fraud triggers.
+- Validated churn, propensity and anomaly-risk outputs using lift, calibration, drift, freshness and stability checks across [N] scoring runs, strengthening trust in customer-level scores.
+- Packaged scoring workflows with unit tests, data-quality checks, CI/CD, documentation and monitoring, improving production reliability to [X]% successful runs / [Y]-hour data freshness.
+- Compared [N] targeting strategies across [M] outcome measures, translating model trade-offs into a stakeholder recommendation for customer-focused rollout.
 
 Data Scientist
-University of Exeter - Exeter, UK | Aug 2024
-Behavioural modelling project using smartphone sensor signals to support usage-based insurance risk decisions without relying on costly in-vehicle telematics.
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Behavioural modelling project using smartphone sensor signals to classify transport behaviour and driver identity for usage-based insurance risk assessment.
 
-- Supported lower-cost usage-based insurance decisioning by modelling transport behaviour and driver identity from smartphone sensor signals.
-- Improved behavioural risk classification reliability by combining transport-mode and driver-identification tasks into a shared deep learning workflow.
-- Translated smartphone movement patterns into risk-assessment insight, helping stakeholders understand how sensor behaviour could support driver-risk decisions.
+- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity, testing behavioural signals for usage-based insurance risk assessment.
+- Improved behavioural classification accuracy by [X]% versus [baseline model] by combining transport-mode and driver-identification tasks in a shared modelling workflow.
+- Evaluated model robustness across [N] trips, [N] users and [N] transport modes, translating movement patterns into risk indicators for non-technical stakeholders.
 
 Business Analyst
-University of Exeter - Exeter, UK | Nov 2023
-Business analytics project explaining disruption, recovery, and policy-linked activity changes across countries and business sectors.
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Business analytics project analysing country-sector recovery patterns and policy-linked activity changes across global business data.
 
-- Explained business recovery patterns across 220 countries and 12 sectors, showing where activity returned, remained disrupted, or shifted from pre-crisis behaviour.
-- Linked recovery trends to policy-response signals across 6 countries and 8 policy areas, helping explain how external decisions shaped business activity.
-- Produced 3 evidence-led strategy recommendations, translating visual trend analysis into business-facing decision support.
+- Analysed recovery patterns across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift behaviour from pre-crisis baselines.
+- Linked activity changes to policy-response signals across [N] countries and [N] policy areas, explaining how external decisions shaped business recovery patterns.
+- Produced [N] strategy recommendations from visual trend analysis, translating complex disruption patterns into business-facing decision support.
 
-Completions Engineer
+Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
-Operations reporting and field-data coordination role supporting live rig decisions, handovers, HSE documentation, and completions execution.
+Operations data analysis role supporting completions activity, field reporting, HSE documentation, equipment readiness and daily operational handovers.
 
-- Improved live operational decision visibility by tracking completion progress, equipment sequence, tubing/casing tallies, depths, and daily rig activity.
-- Reduced reporting ambiguity across 4 operational record types, reconciling field reports, HSE records, equipment checks, and daily updates before handover.
-- Supported safer field execution by coordinating reporting, equipment readiness, and HSE requirements across completions, safety, and field operations teams.
+- Reduced incomplete or conflicting handover entries by [X]% by reconciling field reports, HSE logs, equipment checks and daily completions updates before supervisor review.
+- Improved live completions visibility across [N] jobs / [N] rig days by tracking tubing/casing tallies, depths, equipment sequence, job progress, delays and next-step actions.
+- Standardised [N] field-reporting templates, cutting report review time from [X] to [Y] and improving traceability across job progress, equipment readiness and HSE documentation.
 
 TECHNICAL SKILLS
 
-Data Science & Modelling: Customer behaviour modelling, churn/propensity/fraud modelling, statistical modelling, classification, segmentation, model evaluation, SHAP/explainability.
+Languages & Data: Python, SQL, PySpark, Spark SQL, Pandas, NumPy
 
-Programming & Data Processing: Python, SQL, PySpark, Pandas, NumPy, feature engineering, data modelling, large-scale data preparation.
+ML & Statistics: Churn modelling, propensity modelling, fraud/anomaly detection, classification, segmentation, lift analysis, calibration, drift monitoring, hypothesis testing
 
-Production ML & Engineering: End-to-end ML workflows, deployment, scoring pipelines, model monitoring, drift checks, validation testing, Git, object-oriented programming, unit testing, CI/CD, documentation.
+Pipelines & Production: Feature engineering, customer scoring pipelines, batch scoring, data-quality checks, freshness monitoring, production deployment, CI/CD
 
-Cloud & Data Platforms: AWS, cloud-hosted data pipelines, databases, multi-source data integration.
+Software Engineering: OOP, modular code, unit testing, version control, code optimisation, documentation
 
-Business & Customer Analytics: Customer targeting, marketing effectiveness analysis, customer experience insight, hypothesis-driven analysis, A/B and champion/challenger evaluation, stakeholder-ready recommendations.
+Cloud & Databases: AWS, relational databases, multi-source customer data integration
