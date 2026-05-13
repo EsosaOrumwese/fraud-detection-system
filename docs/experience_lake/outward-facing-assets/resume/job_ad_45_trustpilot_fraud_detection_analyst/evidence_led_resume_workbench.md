@@ -1414,3 +1414,39 @@ Python & Validation: Python, Pandas, NumPy, PySpark, anomaly scoring, lift analy
 ```
 
 This is much more Trustpilot-shaped than the Tesco version. It does not say “customer behaviour ML,” “churn,” “propensity,” or “marketing targeting,” because those are not the hiring problem here.
+
+---
+
+You’re right. I over-expanded the technical skills section.
+
+The skills section should **not become another evidence ledger**. The concrete artefacts — “BigQuery chargeback trend query,” “Power BI payment dashboard,” “Excel reconciliation workbook” — belong mainly in the **experience bullets**, not all in Technical Skills. The skills section’s job is fast ATS/recruiter matching, while the bullets prove the claims. That matches the framework’s layering: summary sells the fit, experience context sets the scene, bullets prove the claims. 
+
+For a one-page CV, I’d keep Technical Skills to **4–5 lines max**.
+
+## Better rule
+
+Use:
+
+```text
+TECHNICAL SKILLS
+SQL & Data Platforms: Google BigQuery, SQL, SQL views, dashboard source tables
+BI & Reporting: Power BI, Google Looker, dashboard validation, KPI reporting
+Excel & Automation: Excel, pivot tables, lookups, index/match, VBA macros
+Fraud/Payments Analytics: fraud trends, chargebacks, payment acceptance, decline-rate analysis, anomaly detection
+Python & Analysis: Python, Pandas, NumPy, data-quality checks, metric variance analysis
+```
+
+That is much more CV-friendly.
+
+## For Trustpilot
+
+```text
+TECHNICAL SKILLS
+Data Platforms: SQL, Google BigQuery, SQL views, BigQuery fraud tables
+BI & Reporting: Google Looker, fraud dashboards, reviewer-behaviour reports
+Fraud Analytics: fraud trend analysis, detection rules, anomaly thresholds, risk indicators
+Investigation Analysis: high-risk account profiles, suspicious behaviour timelines, case evidence packs
+Python & Validation: Python, Pandas, NumPy, PySpark, lift analysis, calibration checks
+```
+
+My recommendation: **5 compact lines maximum**. Let the experience bullets carry the detailed artefacts.

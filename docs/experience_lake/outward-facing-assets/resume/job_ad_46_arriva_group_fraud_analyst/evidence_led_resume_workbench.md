@@ -1468,3 +1468,39 @@ Additional Data Tools: Google BigQuery, Google Looker, Python, Pandas, NumPy
 ```
 
 This is Arriva-shaped because it says the actual things they care about: **revenue protection, fraud-risk indicators, subject profiles, SQL fraud-risk queries, Excel reconciliation workbooks, VBA exception-flagging macros, Power BI dashboards, process-control weaknesses and Senior Manager reporting**.
+
+---
+
+You’re right. I over-expanded the technical skills section.
+
+The skills section should **not become another evidence ledger**. The concrete artefacts — “BigQuery chargeback trend query,” “Power BI payment dashboard,” “Excel reconciliation workbook” — belong mainly in the **experience bullets**, not all in Technical Skills. The skills section’s job is fast ATS/recruiter matching, while the bullets prove the claims. That matches the framework’s layering: summary sells the fit, experience context sets the scene, bullets prove the claims. 
+
+For a one-page CV, I’d keep Technical Skills to **4–5 lines max**.
+
+## Better rule
+
+Use:
+
+```text
+TECHNICAL SKILLS
+SQL & Data Platforms: Google BigQuery, SQL, SQL views, dashboard source tables
+BI & Reporting: Power BI, Google Looker, dashboard validation, KPI reporting
+Excel & Automation: Excel, pivot tables, lookups, index/match, VBA macros
+Fraud/Payments Analytics: fraud trends, chargebacks, payment acceptance, decline-rate analysis, anomaly detection
+Python & Analysis: Python, Pandas, NumPy, data-quality checks, metric variance analysis
+```
+
+That is much more CV-friendly.
+
+## For Arriva
+
+```text
+TECHNICAL SKILLS
+Data Analysis: SQL, Excel, multi-source datasets, fraud-risk queries, case-detail extracts
+Excel & Automation: pivot tables, lookups, index/match, VBA exception macros
+BI & Reporting: Power BI, revenue-protection dashboards, senior-manager fraud reports
+Fraud & Controls: risk indicators, subject profiles, process-control weaknesses, revenue-risk tables
+Additional Tools: Google BigQuery, Google Looker, Python, Pandas
+```
+
+My recommendation: **5 compact lines maximum**. Let the experience bullets carry the detailed artefacts.
