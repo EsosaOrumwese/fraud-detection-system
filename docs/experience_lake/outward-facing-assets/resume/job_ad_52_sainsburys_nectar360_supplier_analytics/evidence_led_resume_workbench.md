@@ -1456,6 +1456,50 @@ Historically high-response customers = customers whose past response behaviour p
 
 ---
 
+# Supporting Experience Draft — Nectar360
+
+Drafting the **other experience blocks** for the Nectar360 CV. These keep **3 bullets for each secondary experience**, staying concrete and supportive of the role’s needs: model-output interpretation, BI/visual reporting, recommendation writing, SQL/BI-adjacent analytics, and stakeholder-readable outputs. The platform block remains the main Nectar360 proof.
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Python modelling project using smartphone sensor windows to classify movement patterns, compare model performance against a baseline and document failure cases across trips, users and transport modes.
+
+- Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity across 1,200 trips, 60 users and 5 transport modes.
+
+- Improved transport-mode and driver-identity classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model architecture for both classification tasks.
+
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases by trip type, user variation and sensor-signal quality.
+```
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Trend-analysis project using country-sector activity data and policy-response tables to compare movements against pre-crisis baselines, isolate external drivers and produce a visual recommendation report.
+
+- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+
+- Investigated abnormal activity movements across 6 countries and 8 policy areas, linking shifts to restriction, support-measure and reopening signals.
+
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
+```
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data role using Excel, VBA and Power BI to reconcile field records, automate exception checks and produce operational KPI dashboards for manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by 32% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting field-report, HSE, equipment and daily-update records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+```
+
+Keep these mostly unchanged because they are already concrete. The Nectar360 tailoring should happen mainly in the **platform block**, headline, summary and skills; forcing the secondary blocks into “supplier analytics” language would make them less credible.
+
+---
+
 ### 2. `[N] customer stages / lifecycle groups`
 
 Avoid this separate placeholder unless you can name the real stages.

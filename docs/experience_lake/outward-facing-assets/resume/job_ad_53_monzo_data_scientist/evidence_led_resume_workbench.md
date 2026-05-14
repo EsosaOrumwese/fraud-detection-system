@@ -1261,3 +1261,83 @@ customer activity frequency + response rate + repeat activity + high-response cu
 ```
 
 That is much more concrete than “engagement,” “conversion,” “retention,” or “profitability” on their own, and it fits Monzo without overclaiming true A/B testing or formal LTV.
+
+## Final platform block direction
+
+Use this **only if the response-rate / high-response grounding is true**. It is shaped for Monzo’s Product Data Scientist role: user behaviour, product metrics, comparison testing, Looker/self-serve analytics, SQL/Python-style analysis, and commercial value thinking.
+
+```text
+Data Scientist
+Product Analytics & User Behaviour Platform - Exeter, UK | May 2025 - Present
+Product analytics platform using SQL, BigQuery, Python and Looker to analyse customer activity, transaction history, response patterns and value-proxy metrics across a 2.35B-row customer behaviour dataset.
+
+- Built BigQuery SQL user-behaviour tables across 2.35B rows of customer activity, transaction and response-history data, tracking activity frequency, response rate, repeat activity and value-proxy metrics across customer segments.
+
+- Developed a Looker customer behaviour report tracking activity frequency, response rate, repeat activity and high-benefit customer concentration across 12 reporting periods.
+
+- Compared 3 customer-selection options — top-score-band segment, broader mid-score segment and baseline selection — across target capture, response rate, segment coverage, low-yield inclusion and score-band stability, producing a ranked option table for product review.
+
+- Built a ranked customer segment table capturing 42% of high-response customers in the top 20% score band, creating a priority list for the next customer-segment review.
+
+- Used BigQuery variance queries to investigate a 19% movement in response rate versus the previous reporting period, producing a root-cause table with activity-volume, segment-mix, response-pattern and source-table quality drivers.
+
+- Built a value-proxy table using transaction value and high-benefit customer labels, comparing customer segments by response rate, score band and value concentration.
+
+- Added 15 validation checks across BigQuery source tables and Looker reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98% for customer behaviour reporting.
+```
+
+---
+
+# Supporting Experience Draft — Monzo
+
+Drafting the **other experience blocks only** for Monzo.
+
+These should support the platform block. Monzo’s main signals are product/user behaviour analysis, quantitative analysis, SQL/Python, A/B or comparison-based measurement, Looker/self-serve analytics, product recommendations, LTV/profitability thinking and collaboration with product/engineering/finance.
+
+## Data Scientist — University of Exeter
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Python modelling project using smartphone accelerometer, gyroscope and trip-signal windows to classify user behaviour and test model reliability.
+
+- Trained deep learning models on smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
+
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared model workflow for movement-pattern and identity-recognition tasks.
+
+- Tested model robustness across 1,200 trips, 60 users and 5 transport modes, documenting failure cases where sensor patterns were misclassified.
+```
+
+This block proves **Python/statistical modelling, baseline comparison and robustness testing**. It should stay concrete and not overclaim product analytics.
+
+## Business Analyst — University of Exeter
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Business analytics project using country-sector activity tables and policy-response data to compare performance movements against pre-crisis baselines.
+
+- Built a country-sector performance table across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+
+- Merged activity data with 8 policy-response areas across 6 countries, explaining abnormal movement patterns through restrictions, support measures and reopening signals.
+
+- Produced a visual trend report with 3 recommendations, using country-sector comparisons and policy-driver charts to flag market/sector groups with persistent disruption or structural-shift patterns.
+```
+
+This block supports **quantitative analysis, driver analysis and recommendation writing**. It is useful for Monzo because it shows you can go beyond reporting numbers and explain movement.
+
+## Data Analyst — South Western Technologies & Oilfield Services Ltd
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations reporting role using Excel, VBA and Power BI to reconcile field reports, HSE logs, equipment checks and daily completions records for manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks, reducing incomplete or conflicting field-report entries by 32% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational KPI dashboard tracking 9 metrics across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+```
+
+This block is weaker for Monzo than the platform and modelling blocks, but it proves **data quality, automation, dashboarding and self-starter reporting improvement**. Keep it lower in the CV.
