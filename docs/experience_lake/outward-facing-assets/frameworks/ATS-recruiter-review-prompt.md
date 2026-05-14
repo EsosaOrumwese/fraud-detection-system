@@ -1,3 +1,6 @@
 > Alright we will soon move to reviewing the resume that we have before sggesting the set of placeholder selection for the resume as seen in the appendix of fraser's workbench. 
 > For now as the ATS and consequently the Hiring Manager who scans CVs in seconds looking for signals and until caught honing in for whatever it is she looks for per job ad, we need to approach our resume from that manner. 
 > SHe has a lot of applications on her table and wouldn't give my resume the time it deserves if it feels its not worth it compared to what shes looking for. Getting an interview is the aim so we have to keep that in mind. Are you ready for the review?
+
+---Scan for Abstractness---
+> I'll send the resume once again and now you'll scan it, focusing on "abstractness" and "concreteness". We need to root out every for of concreteness. If you refer to the methodology, this was an issue with my former CV and this needs to be rooted out such that someone reading my CV experience is hit with the impact not just seeing/reading polished terms. What do you understand by this?
