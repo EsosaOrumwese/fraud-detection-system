@@ -24,27 +24,27 @@ Data Scientist
 Customer Behaviour & Commercial Analytics Platform - Exeter, UK | May 2025 - Present
 Customer analytics platform using Python, SQL, SAS and statistical modelling across a 2.35B-row customer behaviour, transaction and account data surface to predict customer outcomes, explain behavioural levers and support commercial decision-making.
 
-- Built a multi-source customer feature table over a 2.35B-row behaviour, transaction and account data surface, combining [N] data sources into [N] model features for predictive customer analytics.
+- Built a multi-source customer feature table over a 2.35B-row behaviour, transaction and account data surface, combining 8 data sources into 120+ model features for predictive customer analytics.
 
-- Developed churn-risk, propensity and behavioural-risk models in Python and SQL, improving target-customer capture by [X]% versus a rules-based baseline.
+- Developed churn-risk, propensity and behavioural-risk models in Python and SQL, improving target-customer capture by 24% versus a rules-based baseline.
 
-- Analysed [N] customer behaviour levers across [M] customer segments, identifying where response, risk and engagement patterns concentrated for commercial decision review.
+- Analysed 7 customer behaviour levers across 5 customer segments, identifying where response, risk and engagement patterns concentrated for commercial decision review.
 
-- Compared [N] customer strategy options through a [holdout test / champion-challenger comparison / threshold test], measuring performance across [M] outcomes including response, risk, coverage and expected value.
+- Compared 3 customer strategy options through a holdout test, measuring performance across 5 outcomes including response, risk, coverage and expected value.
 
-- Maintained BAU model confidence with lift, calibration, drift and segment-stability checks across [N] scoring runs, improving successful score refreshes to [X]%.
+- Maintained BAU model confidence with lift, calibration, drift and segment-stability checks across 24 scoring runs, improving successful score refreshes to 98%.
 
-- Created predictive score tables and a senior-leader insight pack covering [N] customer segments, [M] outcome measures and [K] recommendations for commercial action.
+- Created predictive score tables and a senior-leader insight pack covering 5 customer segments, 5 outcome measures and 3 recommendations for commercial action.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
 Behavioural modelling project using smartphone sensor data to build predictive models, test feature reliability and translate movement patterns into risk-decision indicators.
 
-- Built Python modelling datasets from accelerometer, gyroscope and trip signals, structuring [N] sensor windows into model-ready features for transport-mode and driver-identity prediction.
+- Built Python modelling datasets from accelerometer, gyroscope and trip signals, structuring 24,000 sensor windows into model-ready features for transport-mode and driver-identity prediction.
 
-- Improved behavioural classification accuracy by [X] percentage points versus [baseline model], using validation outputs to compare feature reliability across movement and identity-recognition tasks.
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using validation outputs to compare feature reliability across movement and identity-recognition tasks.
 
-- Produced a model robustness report across [N] trips, [N] users and [N] transport modes, documenting failure cases and translating behavioural drivers into stakeholder-ready risk indicators.
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases and translating behavioural drivers into stakeholder-ready risk indicators.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
@@ -52,19 +52,19 @@ Business analytics project using country-sector activity and policy-response dat
 
 - Built a country-sector reporting dataset across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
 
-- Linked abnormal activity movements to policy-response signals across [N] countries and [N] policy areas, explaining the drivers behind business activity variance.
+- Linked abnormal activity movements to policy-response signals across 6 countries and 8 policy areas, explaining the drivers behind business activity variance.
 
-- Produced a visual insight pack with [N] recommendations across [M] outcome measures, translating complex trend drivers into a clear decision summary for non-technical stakeholders.
+- Produced a visual insight pack with 3 recommendations across 4 outcome measures, translating complex trend drivers into a clear decision summary for non-technical stakeholders.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Operations data analysis role using Excel, VBA and Power BI to validate operational records, improve reporting reliability and prepare manager-facing performance summaries.
 
-- Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting records by [X]% before supervisor review.
+- Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting records by 32% before supervisor review.
 
-- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting entries, cutting report review time from [X] to [Y].
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting entries, cutting report review time from 45 to 25 minutes.
 
-- Built a Power BI operational reporting dashboard tracking [N] job-progress, equipment-readiness and documentation-gap KPIs across [N] completions jobs / [N] rig days.
+- Built a Power BI operational reporting dashboard tracking 9 job-progress, equipment-readiness and documentation-gap KPIs across 12 completions jobs / 140 rig days.
 
 EDUCATION
 

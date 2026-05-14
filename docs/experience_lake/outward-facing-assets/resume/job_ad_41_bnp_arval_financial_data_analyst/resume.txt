@@ -1,5 +1,5 @@
 Esosa Orumwese
-Financial Data Analyst | SQL, SAS & Finance Data Flows | Data Modelling & Governance
+Financial Data Analyst | SQL Finance Data Flows | SAS, Data Modelling & Governance
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
@@ -21,14 +21,14 @@ Analysis & Reporting Tools: Excel, pivot tables, lookups, index/match, Power BI,
 RELEVANT EXPERIENCE
 
 Data Scientist
-Financial Data Flows & Reporting Analytics Platform - Exeter, UK | May 2025 - Present
+Finance Data Flows & Reporting Validation - Exeter, UK | May 2025 - Present
 Finance reporting platform using SQL, SAS, Excel and Power BI across a 2.35B-row transaction, customer and behavioural data surface to build reporting data flows, validate source-to-report outputs and support finance data requests.
 
 - Built SQL finance reporting tables and scheduled data extracts over a 2.35B-row transaction, customer and behavioural data surface, supporting 6 recurring finance reports across 12 reporting periods.
 
 - Modelled complex reporting datasets with SQL views joining 9 source tables, standardising 65 finance reporting fields for revenue, cost, customer and transaction analysis.
 
-- Created 4 SAS reporting datasets using PROC SQL and SAS data steps, producing governed outputs for finance reporting, validation and monthly review.
+- Created 4 SAS reporting and validation outputs using PROC SQL and data steps, supporting governed finance reporting and monthly review.
 
 - Built SQL validation checks, an Excel reconciliation workbook and a KPI definition log, reducing source-to-report differences by 31% across 5 finance reporting tables.
 
