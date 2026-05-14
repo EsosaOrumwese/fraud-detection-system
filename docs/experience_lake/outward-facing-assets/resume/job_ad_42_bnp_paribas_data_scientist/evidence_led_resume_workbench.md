@@ -493,3 +493,521 @@ Customer behaviour + predictive modelling + commercial insight + model validatio
 ```
 
 The next methodology step is **job-specific evidence scoring** for BNP Personal Finance Data Scientist: A/B/C/D scoring against this job ad.
+
+---
+
+Now we move to **evidence scoring** for the **BNP Paribas Personal Finance Data Scientist** role.
+
+The role is asking for commercial value through advanced analytics, customer behaviour understanding, predictive models/business tools, A/B testing where possible, BAU model maintenance, senior-leader communication, Python/R/SAS/SQL, large datasets, and GenAI/agentic AI exposure as a desirable extra. The scoring step should separate direct-match evidence from supporting evidence before we design the bullet portfolio.
+
+# BNP Personal Finance - Evidence Scoring
+
+## Scoring key
+
+| Tier | Meaning for this role |
+| --- | --- |
+| A | Direct match; should strongly shape the CV |
+| B | Useful adjacent evidence; include if it strengthens the story |
+| C | Transferable support; use lower down or compress |
+| D | Weak for this role; remove or avoid |
+
+---
+
+# Tier A - Direct BNP Personal Finance evidence
+
+These should drive the main experience block.
+
+| Evidence item | Tier | Why it is A |
+| --- | ---: | --- |
+| **Customer Behaviour & Commercial Analytics Platform** | A | Best role-specific platform title; it matches customer behaviour, commercial value and analytics without pretending the platform was built inside BNP. |
+| **2.35B-row customer behaviour / transaction / account data surface** | A | Direct proof of large-dataset experience, which the ad explicitly asks for. |
+| **Multi-source customer feature table** | A | Direct match to analysing a range of data sources across departments. |
+| **SQL customer data model** | A | Direct match to SQL, data manipulation and large customer datasets. |
+| **Python predictive model** | A | Direct match to data science tools and predictive model development. |
+| **SAS model/reporting output** | A | Strong because BNP names SAS directly among expected data-analysis tools. |
+| **Churn-risk model** | A | Strong customer-behaviour predictive model; relevant if framed as predicting customer disengagement or behaviour. |
+| **Propensity / response model** | A | Strong match to customer behaviour, commercial levers and business decisioning. |
+| **Customer risk score / behavioural risk model** | A | Relevant to consumer finance if framed carefully around responsible customer insight, not regulated credit-decision ownership. |
+| **Predictive score table** | A | Shows the model became a usable business output, not just notebook work. |
+| **Customer prioritisation table** | A | Strong if connected to commercial/customer strategy decisions. |
+| **Lift / calibration / stability validation report** | A | Direct proof of model confidence, validation and maintained trust. |
+| **BAU model maintenance log / scoring refresh report** | A | Direct match to maintaining and improving BAU processes, including model maintenance. |
+| **Holdout test / champion-challenger comparison / A/B test report** | A | Directly answers the A/B testing requirement if real; if not, a controlled evaluation still scores highly but should be named accurately. |
+| **Strategy comparison across outcome measures** | A | Strong for "test, predict and explain" plus commercial decision-making. |
+| **Customer insight dashboard / model output report** | A | Direct match to business tools using ML/AI and actionable insight. |
+| **Senior-leader insight pack** | A | Direct match to clear presentation and communication to senior leaders. |
+| **Model rationale memo / customer behaviour presentation** | A | Direct match to educating/informing non-technical stakeholders. |
+| **Commercial lever analysis** | A | Strong because the ad specifically wants customer behaviours and associated levers. |
+
+**Verdict:** The main CV story should be built around **customer behaviour, predictive models, multi-source customer data, controlled evaluation, validation/BAU maintenance, business tools, and senior-leader communication**.
+
+---
+
+# Tier B - Useful supporting evidence
+
+These are valuable, but they should support the A-tier story rather than dominate.
+
+| Evidence item | Tier | Why it is B |
+| --- | ---: | --- |
+| **PySpark feature pipeline** | B/A | A if framed as multi-source customer data preparation; B if it reads like data engineering rather than commercial analytics. |
+| **Looker / Power BI customer insight dashboard** | B | Useful business-tool/reporting evidence, but BNP does not name BI tools directly. |
+| **Fraud/anomaly score** | B | Useful if framed as customer behaviour/risk insight; not central unless the customer outcome is clear. |
+| **Payment/transaction analysis** | B | Useful for consumer finance if framed around customer behaviour and commercial levers, not Frasers-style payment operations. |
+| **Revenue/cost variance summary** | B | Useful commercial awareness, but should not replace predictive modelling evidence. |
+| **Codex-assisted analytics prototype** | B | Good differentiator because GenAI/agentic AI is desirable, but it should not be a core bullet unless tied to actual analytics workflow improvement. |
+| **AI-assisted code review / documentation workflow** | B | Useful GenAI evidence; keep supporting and concrete. |
+| **Business analytics trend report** | B | Good support for explaining drivers and recommendations, but not customer predictive modelling. |
+| **Visual report with recommendations** | B | Useful for communication and business insight. |
+| **South Western reporting automation** | B/C | Useful for process improvement and BAU discipline, but less relevant than model maintenance and customer analytics. |
+| **Excel reconciliation workbook / data-quality checks** | B | Useful if positioned as data quality and confidence-building; not central to a DS role. |
+
+**Verdict:** B-tier evidence can help round out the CV, especially around communication, commercial awareness, GenAI, and process discipline. But the first block must remain customer analytics and predictive modelling.
+
+---
+
+# Tier C - Transferable support only
+
+These can stay in supporting experience blocks but should not shape the headline or main platform block.
+
+| Evidence item | Tier | Why it is C |
+| --- | ---: | --- |
+| **Smartphone behavioural classification model** | C/B | B if used to support behavioural modelling; C if it takes too much space from customer/commercial predictive work. |
+| **Model robustness report from sensor project** | C/B | Useful validation evidence, but not commercial/customer finance. |
+| **Transport-mode / driver-identity modelling** | C | Behavioural modelling support, but domain is not consumer finance. |
+| **Country-sector recovery analysis** | C/B | B for stakeholder communication and driver explanation; C if too prominent. |
+| **Policy-response linkage analysis** | C | Good analytical thinking, but not core customer behaviour. |
+| **Power BI operational dashboard** | C | Useful reporting evidence only; not central for this DS role. |
+| **VBA exception macro** | C | Process automation, but too analyst/operations-oriented. |
+| **Operational data reconciliation** | C | Shows data quality, but not predictive customer analytics. |
+
+---
+
+# Tier D - Remove or avoid
+
+These should not drive this BNP Personal Finance Data Scientist CV.
+
+| Evidence item | Tier | Why it is D |
+| --- | ---: | --- |
+| **Fraud Detection & Behaviour Analytics Platform** | D | Wrong positioning for this role. |
+| **Payments, Fraud & Chargeback Analytics Platform** | D | Frasers-specific; not the centre here. |
+| **Financial Data Flows & Reporting Analytics Platform** | D | Arval-specific; too finance-data-flow heavy for this DS role. |
+| **Revenue Protection Analytics Platform** | D | Arriva-specific. |
+| **Detection rules / suspicious account timelines** | D/B | Only useful if reframed as customer-risk insight; otherwise Trustpilot/Arriva-specific. |
+| **Subject profiles** | D | Fraud/revenue protection-specific, not relevant enough. |
+| **Chargeback trend tracker** | D | Frasers-specific. |
+| **SharePoint Lists / Microsoft Forms SaaS export review** | D | Arval-specific; weak for this DS role. |
+| **Power BI operational control dashboard** | D/C | Only supporting at best; not a main DS proof point. |
+| **HSE/documentation gap reporting** | D | Too far from BNP Personal Finance. |
+
+---
+
+# BNP Personal Finance priority pool
+
+The strongest evidence pool for this CV is:
+
+```text
+1. 2.35B-row customer behaviour / transaction / account data surface
+2. Multi-source customer feature table
+3. SQL customer data model
+4. Python predictive model
+5. SAS model/reporting output
+6. Churn-risk model
+7. Propensity / response model
+8. Customer risk / behavioural risk score
+9. Predictive score table or customer prioritisation table
+10. Holdout test / champion-challenger comparison / A/B test report
+11. Lift, calibration and stability validation report
+12. BAU model maintenance log or scoring refresh report
+13. Customer insight dashboard / model output report
+14. Senior-leader insight pack
+15. Model rationale memo or customer behaviour presentation
+16. Codex-assisted analytics prototype as GenAI/agentic AI support
+```
+
+# What this means for the CV
+
+The main experience block should probably be renamed:
+
+```text
+Customer Behaviour & Commercial Analytics Platform
+```
+
+or:
+
+```text
+Customer Behaviour & Consumer Finance Analytics Platform
+```
+
+My pick is:
+
+```text
+Customer Behaviour & Commercial Analytics Platform
+```
+
+It is strong, role-relevant, and safer than pretending the platform was originally a consumer-finance product.
+
+The likely headline direction is:
+
+```text
+Data Scientist | Customer Behaviour & Commercial Analytics | Predictive Models, A/B Testing & SQL/SAS
+```
+
+or, if we want the finance angle stronger:
+
+```text
+Data Scientist | Consumer Finance Analytics | Predictive Modelling, Customer Behaviour & SQL/SAS
+```
+
+The next step is **designing the bullet portfolio** from the Tier A evidence pool.
+
+---
+
+This is **Step 4: design the bullet portfolio** for the BNP Paribas Personal Finance Data Scientist role.
+
+This is **not bullet drafting yet**. The methodology says we should decide what each bullet must prove before writing it - the question is "what proof functions must this experience block perform?" rather than "what are six good bullets?"
+
+BNP Personal Finance wants a Data Scientist who can deliver commercial value through advanced analytics, understand/test/predict/explain customer behaviour, use multiple data sources, implement predictive models/business tools with ML/AI, apply A/B testing where possible, maintain BAU model processes, and communicate clearly to senior leaders.
+
+# BNP Personal Finance Bullet Portfolio
+
+## Target main experience block
+
+```text
+Data Scientist
+Customer Behaviour & Commercial Analytics Platform - Exeter, UK | May 2025 - Present
+```
+
+This title is stronger than "Customer Behaviour ML Platform" for this role because BNP is asking for **commercial value, customer behaviour, business levers and actionable insight**, not just model-building.
+
+## Portfolio goal
+
+This experience block must prove:
+
+> You can use Python, SQL, SAS and large multi-source customer datasets to build predictive models, explain customer behaviour levers, test commercial strategies, maintain trusted model outputs, and present clear insight to senior business stakeholders.
+
+---
+
+## Recommended portfolio: 7 bullets
+
+For this role, I would start with **7 working bullets**, then cut to 6 if space is tight. BNP's ad has both modelling and senior/commercial insight requirements, so we need enough room to show the full range.
+
+---
+
+## Bullet 1 - Multi-source customer data scale and feature foundation
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove large-dataset and multi-source customer data capability |
+| Evidence assigned | 2.35B-row customer behaviour / transaction / account data surface; multi-source customer feature table; SQL/PySpark customer data pipeline |
+| BNP screen covered | Large datasets; range of data sources across business departments; Python/SQL/SAS data analysis |
+| Concrete artefacts to name later | SQL customer data model; multi-source customer feature table; customer behaviour feature table |
+| Metric meaning | Number of sources/features/customer records prepared for modelling |
+| Placeholder values | `[N] data sources`, `[N] features`, `[N] customer records`, 2.35B-row surface |
+| Why this must appear | It gives immediate technical credibility and proves the platform is grounded in serious customer data, not a small academic model |
+| Avoid | Do not make this a pure data engineering bullet; it should lead into customer behaviour modelling and commercial insight |
+
+**Portfolio role:** the **customer data foundation bullet**.
+
+---
+
+## Bullet 2 - Predictive customer modelling
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove you can build predictive models for customer/commercial outcomes |
+| Evidence assigned | Churn-risk model; propensity/response model; customer risk score; predictive score table |
+| BNP screen covered | Predictive models; customer behaviour; commercial value; advanced analytical methods |
+| Concrete artefacts to name later | Churn-risk model; propensity model; predictive score table |
+| Metric meaning | Lift in target-customer capture or score-band concentration versus baseline |
+| Placeholder values | `[X]% lift`, `[Y]% target customers captured in top [Z]% score band`, `[baseline]` |
+| Why this must appear | BNP explicitly wants predictive modelling and customer behaviour prediction |
+| Avoid | Do not claim direct revenue uplift unless there is a measured business outcome; model lift/capture is safer and more defensible |
+
+**Portfolio role:** the **predictive modelling bullet**.
+
+---
+
+## Bullet 3 - Customer behaviour levers and commercial insight
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove you can explain customer behaviour, not just predict it |
+| Evidence assigned | Customer behaviour analysis; behavioural segment table; customer lever analysis; customer insight report |
+| BNP screen covered | Understand, test, predict and explain customer behaviours and associated levers |
+| Concrete artefacts to name later | Customer behaviour lever analysis; behavioural segment table; customer insight report |
+| Metric meaning | Number of behaviour levers/segments identified and linked to commercial decisions |
+| Placeholder values | `[N] behaviour levers`, `[N] customer segments`, `[M] commercial recommendations`, `[X]% concentration of target behaviour` |
+| Why this must appear | This is one of the most BNP-specific bullets; it prevents the CV from sounding like a generic ML CV |
+| Avoid | Do not use vague "generated insight"; name the customer levers, segment table, or insight report |
+
+**Portfolio role:** the **behaviour explanation / commercial insight bullet**.
+
+---
+
+## Bullet 4 - A/B testing or controlled evaluation
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove you can test whether strategies or model-led interventions work |
+| Evidence assigned | A/B test report if real; otherwise holdout test, champion/challenger comparison, threshold test or backtest |
+| BNP screen covered | Implement A/B testing techniques to demonstrate results where possible |
+| Concrete artefacts to name later | A/B test report; holdout test; champion/challenger comparison; threshold test |
+| Metric meaning | Outcome difference between test/control, challenger/champion or threshold options |
+| Placeholder values | `[N] strategies`, `[M] outcome measures`, `[X]% uplift`, `[Y]% difference versus holdout]` |
+| Why this must appear | BNP names A/B testing, so we need some form of controlled evaluation if defensible |
+| Avoid | Do not call it A/B testing unless it was real. Use the actual artefact name: holdout test, champion/challenger comparison, threshold test, or backtest |
+
+**Portfolio role:** the **testing / commercial experiment bullet**.
+
+---
+
+## Bullet 5 - Model validation, BAU maintenance and confidence
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove model quality does not stop at first build |
+| Evidence assigned | Lift chart; calibration report; drift/stability checks; BAU model maintenance log; scoring refresh report |
+| BNP screen covered | Maintain and improve BAU processes including model maintenance; ensure confidence in the team |
+| Concrete artefacts to name later | Model maintenance log; scoring refresh report; lift/calibration/stability report |
+| Metric meaning | Number of scoring runs/checks, refresh reliability, calibration/stability threshold |
+| Placeholder values | `[N] scoring runs`, `[N] validation checks`, `[X]% successful refreshes`, `[Y]% calibration error`, `[Z]% stability]` |
+| Why this must appear | This is a direct BNP requirement and a strong hiring-manager credibility point |
+| Avoid | Do not bury this in the context line; model maintenance is a distinct proof function here |
+
+**Portfolio role:** the **BAU model maintenance / trust bullet**.
+
+---
+
+## Bullet 6 - ML/AI business tool or decision output
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove the model became something business users could actually use |
+| Evidence assigned | Predictive score table; customer insight dashboard; model output report; customer prioritisation table; business decision tool |
+| BNP screen covered | Implementation of predictive models and business tools utilising ML/AI |
+| Concrete artefacts to name later | Predictive score table; customer insight dashboard; model output report; customer prioritisation table |
+| Metric meaning | Number of outputs/users/segments/decisions supported |
+| Placeholder values | `[N] score tables`, `[N] customer segments`, `[M] business outputs`, `[N] decision users`, `[X]% manual selection time reduction]` |
+| Why this must appear | It proves you can bridge model output and business use, which is central to BNP's commercial analytics need |
+| Avoid | Do not say "business decisioning" abstractly; name the score table, insight dashboard, prioritisation table or model output report |
+
+**Portfolio role:** the **ML/AI business output bullet**.
+
+---
+
+## Bullet 7 - Senior-leader communication and education
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove you can communicate advanced analytics clearly |
+| Evidence assigned | Senior-leader insight pack; model rationale memo; customer behaviour presentation; A/B/holdout test results summary |
+| BNP screen covered | Clear presentation and communication to senior leaders; outputs tailored to educate and inform; leader/educator for data and AI |
+| Concrete artefacts to name later | Senior-leader insight pack; model rationale memo; customer behaviour presentation |
+| Metric meaning | Number of recommendations, outcome measures, senior-facing outputs or stakeholder groups |
+| Placeholder values | `[N] recommendations`, `[M] outcome measures`, `[N] senior-facing insight packs`, `[K] stakeholder groups` |
+| Why this must appear | BNP explicitly asks for senior-leader communication and education; this is not optional |
+| Avoid | Do not write "communicated insights" alone. Use a concrete artefact: senior-leader insight pack, model rationale memo or presentation |
+
+**Portfolio role:** the **senior communication / education bullet**.
+
+---
+
+## Optional 8th bullet - GenAI / agentic AI innovation
+
+This is optional. I would include it only if space allows or if we decide GenAI is a differentiator for this BNP role.
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove credible GenAI / agentic AI exposure |
+| Evidence assigned | Codex-assisted analytics prototype; AI-assisted code review; prompt-led documentation workflow |
+| BNP screen covered | Explore and innovate new solutions using technology such as generative AI; GenAI/agentic AI desirable |
+| Concrete artefacts to name later | Codex-assisted analytics prototype; AI-assisted code review; analytics workflow documentation |
+| Metric meaning | Number of workflow components prototyped, review issues caught or documentation outputs produced |
+| Placeholder values | `[N] workflow components`, `[X]% faster prototype cycle`, `[N] documentation notes`, `[N] code review issues]` |
+| Why optional | It is desirable, not central. It should support the CV, not replace predictive modelling/customer insight proof |
+| Avoid | Do not imply Codex did the analysis. The wording must show you owned model logic, validation and interpretation |
+
+**Portfolio role:** the **GenAI differentiator bullet**.
+
+---
+
+# Recommended order
+
+I would order the BNP Personal Finance platform bullets like this:
+
+```text
+1. Multi-source customer data scale and feature foundation
+2. Predictive customer modelling
+3. Customer behaviour levers and commercial insight
+4. A/B testing / holdout / champion-challenger evaluation
+5. Model validation, BAU maintenance and confidence
+6. ML/AI business tool or decision output
+7. Senior-leader communication and education
+```
+
+If we include Codex/GenAI, it should either be a short 8th bullet or folded into Bullet 6 if it genuinely helped produce the business tool.
+
+# If we need a 6-bullet version
+
+If the CV becomes too long, combine Bullet 6 and Bullet 7:
+
+```text
+Bullet 6 must prove: ML/AI business outputs plus senior-leader communication.
+```
+
+Then the compressed portfolio becomes:
+
+```text
+1. Multi-source customer data and scale
+2. Predictive customer modelling
+3. Customer behaviour levers and commercial insight
+4. A/B / holdout / champion-challenger evaluation
+5. Model validation and BAU maintenance
+6. Business tool / senior-leader recommendation
+```
+
+# Evidence deliberately not given a main bullet
+
+| Evidence | Reason |
+| --- | --- |
+| Fraud detection rules | Too Trustpilot-specific |
+| Chargebacks and payment acceptance | Too Frasers-specific |
+| Finance data flows / SaaS processing | Too Arval-specific |
+| Revenue protection / subject profiles | Too Arriva-specific |
+| Excel/VBA operational reporting | Useful lower-block evidence only |
+| Deep learning sensor project | Supporting experience, not main BNP Personal Finance proof |
+| Pure CI/CD/software engineering | Not central unless tied to model maintenance or BAU process confidence |
+
+# Final Step 4 output
+
+For BNP Personal Finance, the bullet portfolio is:
+
+```text
+Bullet 1 must prove: multi-source customer data scale and feature foundation.
+Bullet 2 must prove: predictive modelling for customer/commercial outcomes.
+Bullet 3 must prove: customer behaviour levers and commercial insight.
+Bullet 4 must prove: A/B testing or controlled evaluation.
+Bullet 5 must prove: model validation, BAU maintenance and confidence checks.
+Bullet 6 must prove: ML/AI business tools or decision outputs.
+Bullet 7 must prove: senior-leader communication and analytics education.
+Optional Bullet 8 must prove: GenAI/agentic AI innovation through Codex-assisted analytics workflow.
+```
+
+Next step: **draft the BNP Personal Finance bullets using the right formula for each proof function.**
+
+---
+
+Now we draft the **BNP Personal Finance main platform bullets** using the correct formula for each proof function.
+
+The BNP role asks for commercial value through advanced analytics, understanding/testing/predicting/explaining customer behaviour, using multiple data sources, implementing predictive models/business tools with ML/AI, A/B testing where possible, BAU model maintenance, senior-leader communication, and tools such as Python, SAS and SQL. The framework also says Step 5 should use different bullet formulas - technical delivery, business/model impact, ranking/segmentation, validation/monitoring, and stakeholder decision proof - rather than one generic bullet pattern.
+
+# BNP Personal Finance Draft - Main Experience Block
+
+```text
+Data Scientist
+Customer Behaviour & Commercial Analytics Platform - Exeter, UK | May 2025 - Present
+Customer analytics platform using Python, SQL, SAS and statistical modelling across a 2.35B-row customer behaviour, transaction and account data surface to predict customer outcomes, explain behavioural levers and support commercial decision-making.
+```
+
+## Draft bullets
+
+```text
+- Built a multi-source customer feature table over a 2.35B-row behaviour, transaction and account data surface, combining [N] data sources into [N] model features for predictive customer analytics.
+
+- Developed churn-risk, propensity and behavioural-risk models in Python and SQL, improving target-customer capture by [X]% versus a rules-based baseline.
+
+- Analysed [N] customer behaviour levers across [M] customer segments, identifying where response, risk and engagement patterns concentrated for commercial decision review.
+
+- Compared [N] customer strategy options through a [holdout test / champion-challenger comparison / threshold test], measuring performance across [M] outcomes including response, risk, coverage and expected value.
+
+- Maintained BAU model confidence with lift, calibration, drift and segment-stability checks across [N] scoring runs, improving successful score refreshes to [X]%.
+
+- Created predictive score tables and a customer insight dashboard covering [N] segments, giving commercial stakeholders a reusable view of customer risk, propensity and behavioural drivers.
+
+- Produced a senior-leader insight pack summarising [N] recommendations, model rationale and controlled-evaluation results, translating customer behaviour analysis into commercial action options.
+```
+
+# Formula mapping
+
+| Bullet | Formula used | Why it fits BNP |
+| --- | --- | --- |
+| 1 | Technical delivery proof | Proves large datasets, multi-source data, SQL/Python/SAS-ready customer feature foundation |
+| 2 | Business/model impact proof | Proves predictive modelling for customer outcomes |
+| 3 | Behaviour explanation proof | Proves "understand and explain customer behaviours and associated levers" |
+| 4 | Testing / evaluation proof | Proves A/B testing or controlled evaluation requirement without overclaiming |
+| 5 | Validation/BAU maintenance proof | Proves model maintenance, confidence checks and BAU process reliability |
+| 6 | ML/AI business tool proof | Proves models became usable business outputs |
+| 7 | Stakeholder decision proof | Proves senior-leader communication and commercial recommendation |
+
+# Important wording choice for Bullet 4
+
+Only use **A/B test** if it was real.
+
+If it was not a true A/B test, use one of these instead:
+
+```text
+holdout test
+champion-challenger comparison
+threshold test
+backtest
+pre/post intervention analysis
+```
+
+For example:
+
+```text
+- Compared 3 customer strategy options through a holdout test, measuring performance across 5 outcomes including response, risk, coverage and expected value.
+```
+
+or:
+
+```text
+- Compared 3 model-led customer strategies through a champion-challenger evaluation, measuring performance across 5 outcomes including response, risk, coverage and expected value.
+```
+
+That is more defensible than forcing "A/B testing" because the ad says A/B testing. The framework's metric credibility rule still applies: the artefact name must match what actually happened.
+
+# Stronger 6-bullet CV version
+
+For the final CV, I would probably use this tighter version:
+
+```text
+Data Scientist
+Customer Behaviour & Commercial Analytics Platform - Exeter, UK | May 2025 - Present
+Customer analytics platform using Python, SQL, SAS and statistical modelling across a 2.35B-row customer behaviour, transaction and account data surface to predict customer outcomes, explain behavioural levers and support commercial decision-making.
+
+- Built a multi-source customer feature table over a 2.35B-row behaviour, transaction and account data surface, combining [N] data sources into [N] model features for predictive customer analytics.
+
+- Developed churn-risk, propensity and behavioural-risk models in Python and SQL, improving target-customer capture by [X]% versus a rules-based baseline.
+
+- Analysed [N] customer behaviour levers across [M] customer segments, identifying where response, risk and engagement patterns concentrated for commercial decision review.
+
+- Compared [N] customer strategy options through a [holdout test / champion-challenger comparison / threshold test], measuring performance across [M] outcomes including response, risk, coverage and expected value.
+
+- Maintained BAU model confidence with lift, calibration, drift and segment-stability checks across [N] scoring runs, improving successful score refreshes to [X]%.
+
+- Created predictive score tables and a senior-leader insight pack covering [N] customer segments, [M] outcome measures and [K] recommendations for commercial action.
+```
+
+This combines the business tool and senior-leader communication proof into one final bullet, which keeps the main block tighter.
+
+# Optional GenAI / Codex bullet
+
+If including GenAI/agentic AI because BNP lists it as desirable, make it a short optional bullet:
+
+```text
+- Used Codex-assisted development to prototype [N] Python/SQL analytics workflow components, while retaining ownership of model logic, validation checks and commercial interpretation.
+```
+
+This is safe because it positions Codex as an accelerator, not as the substance of the work.
+
+Include this only if space allows. The core BNP story should remain:
+
+```text
+customer behaviour
+predictive modelling
+commercial insight
+controlled evaluation
+model maintenance
+senior-leader communication
+```
