@@ -11,3 +11,7 @@
 > This chat's job will be solely for exposing abstract words or parts of a resume that leave the hiring manager unable to be grounded in the actuality of the event. Hence coming off as polished, AI generated, and at worst unimpressive. Leading to it being rejected even if it passes the ATS due to it being no competitive and not really qualifying as solid experience per the job ad.  
 >
 > I watched a career coach on Youtube and she spoke of this. Attached are two linkedin profile grabs of her clients that embody this. So you understand what I'm going for concretness in terms of experience while maintaining conciseness and relevancy
+
+
+---Placeholders-for-evidence-ledger---
+> Proceed with the evidence ledger first and the grounding dictionary (using placeholders where necessary for numbers or placeholders-for-questions to uncover meaning. 
