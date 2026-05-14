@@ -20,11 +20,11 @@ Data Scientist
 Commercial KPI Reporting & Variance Analysis Platform - Exeter, UK | May 2025 - Present
 BigQuery, Looker and Power BI reporting platform using SQL KPI tables, dashboard source tables, period-comparison reports and validation checks across 2.35B rows of customer activity, transaction and response-history data.
 
-- Built BigQuery SQL KPI tables across 2.35B rows of customer activity, transaction and response-history data, creating 6 dashboard source tables for weekly Looker/Power BI reports.
-- Developed Looker and Power BI KPI dashboards tracking 13 metrics across [metric family 1], [metric family 2], [metric family 3], [metric family 4] and report QA across 12 reporting periods, with variance tables and trend charts.
-- Used BigQuery variance queries to investigate a 19% movement in [specific KPI] versus [baseline period], producing a root-cause table showing [driver 1], [driver 2], [driver 3] and [driver 4].
-- Compared 3 [audience / reporting / operational] options — [option 1], [option 2] and [option 3] — across [measure 1], [measure 2], [measure 3], [measure 4] and [measure 5], producing a ranked option table showing the strongest option, weaker options and metric trade-offs.
-- Built a ranked [customer / segment / exception] table capturing 42% of [target definition] in the top 20% score band, creating a priority list for [next audience review / performance review / option recommendation].
+- Built BigQuery SQL KPI tables across 2.35B rows of customer activity, transaction and response-history data, creating 6 dashboard source tables for weekly Looker/Power BI commercial performance reports.
+- Developed Looker and Power BI dashboards tracking 13 KPIs across customer response, transaction movement, activity variance, exception volume and report QA across 12 reporting periods.
+- Used BigQuery variance queries to investigate a 19% movement in response or activity performance versus the prior reporting period, producing a root-cause table across 4 customer, transaction, process and data-quality drivers.
+- Compared 3 commercial performance options across audience size, response capture, expected value, low-response removal and coverage, producing a ranked recommendation table with trade-offs for review.
+- Built a ranked customer/segment table capturing 42% of target responders in the top 20% score band, creating a priority list for performance review and commercial action.
 - Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
 
 Data Analyst
