@@ -1,0 +1,61 @@
+Esosa Orumwese
+Commercial Data Analyst | Customer Segmentation & Supplier Analytics | SQL, BigQuery & Power BI
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Commercial Data Analyst using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer activity tables, segmentation outputs, score-band reports and dashboard views across 2.35B rows of customer activity, lifecycle and response-history data. Strong fit for Nectar360 supplier analytics requiring granular SQL, customer segmentation, model-output interpretation and stakeholder-facing recommendation reports.
+
+TECHNICAL SKILLS
+
+SQL & Data Platforms: SQL, Google BigQuery, ETL tables, customer activity tables, dashboard source tables
+Customer Analytics: customer segmentation, lifecycle-response analysis, score-band analysis, response-history analysis
+Python & Modelling: Python, PySpark, Pandas, NumPy, propensity scoring, lift charts, calibration checks
+BI & Reporting: Power BI, Looker, customer segment dashboards, score-band views, visual recommendation reports
+Stakeholder Outputs: recommendation memos, dashboard commentary, model-output summaries, non-technical reports
+
+RELEVANT EXPERIENCE
+
+Data Analyst
+Customer Behaviour & Segmentation Analytics Platform - Exeter, UK | May 2025 - Present
+Customer segmentation analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer activity tables, lifecycle-response segment tables, score-band reports, model validation packs and recommendation memos across 2.35B rows of customer activity, lifecycle and response-history data.
+
+- Built SQL, BigQuery and Python/PySpark ETL tables across 2.35B rows of customer activity, lifecycle and response-history data, joining customer status, past response behaviour and activity counts into customer segment and dashboard source tables.
+- Built lifecycle-response tables using customer status, activity level and response-history windows, separating customer groups before segmentation and score-band reporting.
+- Created customer segment tables for 7 groups, adding customer counts, response-history fields, score-band labels and high-response customer flags for stakeholder-facing segment reports.
+- Interpreted propensity score outputs by capturing 42% of historically high-response customers in the top 20% score band, producing a ranked customer table for segment and model-output review.
+- Produced a model validation pack with lift charts, calibration checks and score-band stability tables across 6 validation periods before releasing ranked customer score tables.
+- Built Power BI / Looker dashboard views showing segment size, score-band distribution, response-history mix and historically high-response customer coverage across 7 customer segments.
+- Turned SQL tables, segment outputs and score-band dashboard views into a recommendation memo comparing 3 customer segment options across 5 measures: segment size, score-band capture, expected response-rate, low-response mix and coverage.
+
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Python modelling project using smartphone sensor windows to classify movement patterns, compare model performance against a baseline and document failure cases across trips, users and transport modes.
+
+- Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity across 1,200 trips, 60 users and 5 transport modes.
+- Improved transport-mode and driver-identity classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model architecture for both classification tasks.
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases by trip type, user variation and sensor-signal quality.
+
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Trend-analysis project using country-sector activity data and policy-response tables to compare movements against pre-crisis baselines, isolate external drivers and produce a visual recommendation report.
+
+- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+- Investigated abnormal activity movements across 6 countries and 8 policy areas, linking shifts to restriction, support-measure and reopening signals.
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
+
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data role using Excel, VBA and Power BI to reconcile field records, automate exception checks and produce operational KPI dashboards for manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by 32% before supervisor review.
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting field-report, HSE, equipment and daily-update records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
