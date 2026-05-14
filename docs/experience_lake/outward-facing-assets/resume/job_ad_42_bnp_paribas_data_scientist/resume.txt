@@ -9,13 +9,9 @@ Data Scientist with experience building customer-behaviour analytics workflows a
 TECHNICAL SKILLS
 
 Programming & Data: Python, SQL, SAS, PROC SQL, PySpark, Pandas, NumPy
-
 Predictive Modelling: churn-risk modelling, propensity modelling, behavioural-risk scoring, customer segmentation, feature engineering
-
 Experimentation & Validation: A/B testing concepts, holdout tests, champion-challenger evaluation, lift analysis, calibration checks, drift monitoring, segment stability
-
 Commercial Analytics: customer behaviour analysis, customer lever analysis, predictive score tables, customer insight dashboards, senior-leader insight packs
-
 AI & Workflow: Generative AI-assisted analytics prototyping, model documentation, code review, workflow validation
 
 RELEVANT EXPERIENCE
@@ -25,15 +21,10 @@ Customer Behaviour & Commercial Analytics Platform - Exeter, UK | May 2025 - Pre
 Customer analytics platform using Python, SQL, SAS and statistical modelling across a 2.35B-row customer behaviour, transaction and account data surface to predict customer outcomes, explain behavioural levers and support commercial decision-making.
 
 - Built a multi-source customer feature table over a 2.35B-row behaviour, transaction and account data surface, combining 8 data sources into 120+ model features for predictive customer analytics.
-
 - Developed churn-risk, propensity and behavioural-risk models in Python and SQL, improving priority-customer capture by 24% versus a rules-based baseline.
-
 - Analysed 7 customer behaviour levers across 5 customer segments, identifying where response, risk and engagement patterns concentrated for commercial decision review.
-
 - Compared 3 customer strategy options through a holdout test, measuring performance across 5 outcomes including response, risk, coverage and expected value.
-
 - Maintained BAU model confidence with lift, calibration, drift and segment-stability checks across 24 scoring runs, improving successful score refreshes to 98%.
-
 - Created predictive score tables and a senior-leader insight pack covering 5 customer segments, 5 outcome measures and 3 recommendations for commercial action.
 
 Data Scientist
@@ -41,9 +32,7 @@ University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
 Behavioural modelling project using smartphone sensor data to build predictive models, test feature reliability and translate movement patterns into risk-decision indicators.
 
 - Built Python modelling datasets from accelerometer, gyroscope and trip signals, structuring 24,000 sensor windows into model-ready features for transport-mode and driver-identity prediction.
-
 - Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using validation outputs to compare feature reliability across movement and identity-recognition tasks.
-
 - Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases and translating behavioural drivers into stakeholder-ready risk indicators.
 
 Business Analyst
@@ -51,9 +40,7 @@ University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
 Business analytics project using country-sector activity and policy-response datasets to explain abnormal business movements, compare drivers and produce decision-ready recommendations.
 
 - Built a country-sector reporting dataset across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
-
 - Linked abnormal activity movements to policy-response signals across 6 countries and 8 policy areas, explaining the drivers behind business activity variance.
-
 - Produced a visual insight pack with 3 recommendations across 4 outcome measures, translating complex trend drivers into a clear decision summary for non-technical stakeholders.
 
 Data Analyst
@@ -61,9 +48,7 @@ South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 
 Operations data analysis role using Excel, VBA and Power BI to validate operational records, improve reporting reliability and prepare manager-facing performance summaries.
 
 - Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting records by 32% before supervisor review.
-
 - Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting entries, cutting report review time from 45 to 25 minutes.
-
 - Built a Power BI operational reporting dashboard tracking 9 job-progress, equipment-readiness and documentation-gap KPIs across 12 completions jobs / 140 rig days.
 
 EDUCATION
