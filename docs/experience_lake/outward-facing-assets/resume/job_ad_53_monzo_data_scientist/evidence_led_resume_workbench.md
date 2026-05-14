@@ -302,3 +302,574 @@ product recommendation memo
 Big warning for this role:
 
 > Do not make the CV a generic ML platform story. Monzo wants product behaviour analysis, experiments, user engagement, commercial interpretation and squad-ready product recommendations.
+
+---
+
+# Monzo Evidence Ledger
+
+This is **not evidence scoring yet** and **not bullet drafting yet**. The goal is to collect candidate evidence and force the meaning to become concrete before we write anything. Monzo wants Product Data Scientists who can analyse user behaviour, guide product teams on what to measure, run or support A/B experiments, work with finance on user lifetime value/profitability, liaise with engineers on data collection, and use SQL/Python/Looker in cross-functional squads.
+
+## Experience sources we are mining
+
+```text
+1. Platform experience
+   Main source for SQL/BigQuery user-behaviour tables, Looker/Power BI dashboards, ranking tables, root-cause reports, metric definitions, validation checks, and strategy comparisons.
+
+2. Behavioural modelling project
+   Supporting source for Python/statistical modelling, baseline comparison, model evaluation, robustness checks and failure-case analysis.
+
+3. Business analytics project
+   Supporting source for trend analysis, baseline comparison, movement explanation and recommendation reports.
+
+4. South Western Technologies
+   Supporting source for Excel/VBA/Power BI reporting automation and operational data quality, but likely lower priority for Monzo.
+```
+
+Your existing evidence includes a 2.35B-row transaction/behaviour data surface, BigQuery/SQL queries, Power BI dashboards, Looker reports, dashboard validation checks, a root-cause report, finance/eCommerce summaries, Python modelling, 7pp model accuracy improvement, and robustness testing across 1,200 trips / 60 users / 5 transport modes.
+
+---
+
+## 1. SQL user-behaviour / product metrics table
+
+| Ledger field                | Candidate evidence                                                                                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Concrete artefact           | BigQuery user-behaviour table; SQL product metrics table; customer activity table; dashboard source table                                                                                               |
+| Experience source           | Platform experience                                                                                                                                                                                     |
+| What it proves              | You can use SQL to analyse how users/customers behave across activity, transactions, response, segments or product-like journeys                                                                        |
+| Tools                       | SQL, BigQuery                                                                                                                                                                                           |
+| Dataset                     | 2.35B-row transaction and behaviour data surface                                                                                                                                                        |
+| Metric meaning              | Product/user behaviour metrics, not generic “KPIs”                                                                                                                                                      |
+| Candidate values            | `2.35B rows`; `[N] user-behaviour tables`; `[N] product metrics`; `[N] reporting periods`                                                                                                               |
+| Monzo bucket covered        | User engagement, product-behaviour analysis, SQL quantitative analysis                                                                                                                                  |
+| Concrete CV direction later | `Built BigQuery SQL user-behaviour tables across 2.35B rows of transaction, activity and response-history data...`                                                                                      |
+| Grounding questions         | What were the actual behaviour fields: logins, usage events, transactions, responses, account activity, campaign response, churn flags, fraud flags, payments? Which are closest to product engagement? |
+
+### Meaning placeholders to resolve
+
+```text
+[user-behaviour table] = [actual table/query name or description]
+[product metric] = [activation / engagement / retention / response / conversion / usage frequency / transaction activity]
+[user population] = [customers / accounts / transactions / sessions / events]
+```
+
+---
+
+## 2. Engagement / retention / response cohort analysis
+
+| Ledger field                | Candidate evidence                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Concrete artefact           | Engagement cohort table; retention-risk table; response-rate report; customer segment table                                                            |
+| Experience source           | Platform experience                                                                                                                                    |
+| What it proves              | You can analyse which users are active, at risk, high-response, high-value, or likely to return/convert                                                |
+| Tools                       | SQL, BigQuery, Python, Looker                                                                                                                          |
+| Dataset                     | Customer activity, transaction, lifecycle and response signals                                                                                         |
+| Metric meaning              | Engagement or response movement across user groups                                                                                                     |
+| Candidate values            | `[N] cohorts`; `[N] segments`; `[X]% response-rate movement`; `[Y]% retention-risk lift`; `[Z]% high-response capture`                                 |
+| Monzo bucket covered        | User engagement, product metrics, product strategy                                                                                                     |
+| Concrete CV direction later | `Built a BigQuery cohort table comparing [engaged / inactive / high-response] users across [N] reporting periods...`                                   |
+| Grounding questions         | Did you actually have retention/churn labels? Was the stronger evidence response rate, high-benefit customers, high-risk users, or activity frequency? |
+
+### Meaning placeholders to resolve
+
+```text
+[engagement metric] = [response rate / activity frequency / transaction frequency / repeat usage / churn-risk flag / segment movement]
+[cohort definition] = [new users / active users / inactive users / high-response users / high-value users / at-risk users]
+[baseline] = [previous period / 12-period average / unsegmented users / rules baseline]
+```
+
+---
+
+## 3. A/B experiment or controlled comparison
+
+| Ledger field                | Candidate evidence                                                                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Concrete artefact           | Experiment readout; control/treatment table; holdout comparison; threshold test; strategy comparison table                                                                      |
+| Experience source           | Platform experience                                                                                                                                                             |
+| What it proves              | You can measure whether an action worked using comparison groups, baselines or outcome measures                                                                                 |
+| Tools                       | SQL, BigQuery, Python                                                                                                                                                           |
+| Dataset                     | Customer behaviour, transaction, response or score-band data                                                                                                                    |
+| Metric meaning              | Uplift or difference between options/groups                                                                                                                                     |
+| Candidate values            | `3 options`; `5 outcome measures`; `[X]% uplift`; `[N] users / records`; `[baseline]`                                                                                           |
+| Monzo bucket covered        | A/B experimentation or controlled comparison                                                                                                                                    |
+| Concrete CV direction later | `Compared 3 [audience/product/threshold] options across 5 outcome measures using a holdout/backtest table...`                                                                   |
+| Grounding questions         | Was this a true A/B experiment with control/treatment? Or a backtest, threshold test, pre/post analysis, or strategy comparison? Do not call it A/B unless it was actually A/B. |
+
+### Meaning placeholders to resolve
+
+```text
+[comparison type] = [true A/B experiment / holdout comparison / pre-post analysis / backtest / threshold test / strategy comparison]
+[groups] = [control vs treatment / top-score-band vs baseline / high-response segment vs broad segment / before vs after]
+[success metric] = [response rate / conversion / retention / value proxy / low-yield inclusion / capture rate]
+[decision] = [ship / reject / iterate / prioritise segment / change threshold / recommend option]
+```
+
+---
+
+## 4. Product metrics / “measure what matters”
+
+| Ledger field                | Candidate evidence                                                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Concrete artefact           | KPI definition sheet; metric table; dashboard metric dictionary; product metrics dashboard                                                       |
+| Experience source           | Platform experience                                                                                                                              |
+| What it proves              | You can define the right metrics before analysis, not just report whatever is available                                                          |
+| Tools                       | SQL, BigQuery, Looker                                                                                                                            |
+| Dataset                     | Dashboard source tables, customer/user behaviour tables                                                                                          |
+| Metric meaning              | Named metrics with formulas, source tables, filters and baselines                                                                                |
+| Candidate values            | `[N] metric definitions`; `[N] dashboard metrics`; `[N] source tables`                                                                           |
+| Monzo bucket covered        | Measure what matters, product analytics, Looker/self-serve analytics                                                                             |
+| Concrete CV direction later | `Documented [N] product metric definitions with SQL formula, source table, grain and filters...`                                                 |
+| Grounding questions         | Did you document definitions? Which metrics were defined? Were they engagement, response, risk, value, conversion, retention, reporting quality? |
+
+### Meaning placeholders to resolve
+
+```text
+[metric definition] = metric name + SQL formula + grain + source table + filters + limitation
+[metric family] = [engagement / response / retention / conversion / profitability proxy / risk / report quality]
+[user of metric] = [product team / finance / risk / marketing / analyst users]
+```
+
+---
+
+## 5. Looker / self-serve product analytics
+
+| Ledger field                | Candidate evidence                                                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Concrete artefact           | Looker product metrics dashboard; Looker KPI report; dashboard source table; dashboard validation checklist                                      |
+| Experience source           | Platform experience                                                                                                                              |
+| What it proves              | You can support self-serve analytics with reliable dashboards, freeing analysis time for harder product questions                                |
+| Tools                       | Looker, BigQuery, SQL                                                                                                                            |
+| Dataset                     | Dashboard source tables from transaction/behaviour data                                                                                          |
+| Metric meaning              | Dashboard coverage, metrics tracked, refresh reliability                                                                                         |
+| Candidate values            | `13 KPIs`; `12 reporting periods`; `15 validation checks`; `98% refresh success`; `38% reporting error reduction`                                |
+| Monzo bucket covered        | Looker, self-serve analytics, better decisions faster                                                                                            |
+| Concrete CV direction later | `Maintained Looker product metrics reports with 15 validation checks, reducing reporting errors by 38%...`                                       |
+| Grounding questions         | Were these dashboards used by product-like users, finance/risk/eCommerce users, or mainly your own analysis? What exact metrics did Looker show? |
+
+### Meaning placeholders to resolve
+
+```text
+[Looker report] = [product metrics report / customer behaviour dashboard / response dashboard / risk dashboard]
+[dashboard users] = [product / finance / risk / marketing / analyst users]
+[refresh metric] = [successful refreshes / validated refreshes / reporting issue reduction]
+```
+
+---
+
+## 6. LTV / profitability / value proxy analysis
+
+| Ledger field                | Candidate evidence                                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Concrete artefact           | High-value customer table; high-benefit segment table; cost-exposure table; value/risk trade-off report; finance summary                                |
+| Experience source           | Platform experience                                                                                                                                     |
+| What it proves              | You can connect user behaviour to value, cost, risk or profitability proxies                                                                            |
+| Tools                       | SQL, BigQuery, Excel/Looker                                                                                                                             |
+| Dataset                     | Transaction values, chargeback/cost exposure, high-benefit/high-response customer records, risk labels                                                  |
+| Metric meaning              | Value proxy, cost exposure, high-benefit capture, profitability-risk trade-off                                                                          |
+| Candidate values            | `£64k cost exposure`; `42% high-benefit/high-response capture in top 20% score band`; `[X]% payment-acceptance opportunity`; `[Z]% chargeback variance` |
+| Monzo bucket covered        | Lifetime value, user profitability, commercial interpretation                                                                                           |
+| Concrete CV direction later | `Built a value-segment table ranking users by [value proxy], capturing 42% of [high-value/high-response] users in the top 20% score band...`            |
+| Grounding questions         | What is the truthful value proxy: transaction value, response value, cost exposure, fraud risk avoided, high-benefit label, revenue at risk?            |
+
+### Meaning placeholders to resolve
+
+```text
+[value proxy] = [transaction value / cost exposure / high-benefit label / response value / risk-adjusted value]
+[profitability lens] = [value segment / cost exposure / risk-value trade-off / LTV proxy]
+[target group] = [high-benefit customers / high-response customers / high-value customers / low-risk high-value users]
+```
+
+---
+
+## 7. Product recommendation / strategy influence
+
+| Ledger field                | Candidate evidence                                                                                                                              |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Concrete artefact           | Ranked option table; product recommendation memo; strategy comparison table; next-action table                                                  |
+| Experience source           | Platform experience; Business Analytics project                                                                                                 |
+| What it proves              | You can turn analysis into a product/team recommendation                                                                                        |
+| Tools                       | SQL, BigQuery, Looker, written report                                                                                                           |
+| Dataset                     | Behaviour, response, segment, outcome-measure tables                                                                                            |
+| Metric meaning              | Options compared and recommendation output                                                                                                      |
+| Candidate values            | `3 options`; `5 outcome measures`; `3 recommendations`; `[N] recommendation table rows`                                                         |
+| Monzo bucket covered        | Product strategy, product recommendation, commercial interpretation                                                                             |
+| Concrete CV direction later | `Compared 3 [audience/product/threshold] options across 5 measures and produced a ranked recommendation table...`                               |
+| Grounding questions         | What did the recommendation actually say? Prioritise a segment? Change threshold? Monitor a KPI? Update dashboard? Investigate data collection? |
+
+### Meaning placeholders to resolve
+
+```text
+[option types] = [audience options / threshold options / reporting options / product action options]
+[outcome measures] = [target capture / response / retention proxy / cost proxy / stability / low-yield inclusion]
+[recommendation] = [prioritise X / reject Y / change threshold / collect new event / monitor metric weekly]
+```
+
+---
+
+## 8. Engineer-facing data collection / data quality
+
+| Ledger field                | Candidate evidence                                                                                                                                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Concrete artefact           | Data-quality issue table; missing-field note; source-table validation query; event-tracking gap list; dashboard validation checklist                     |
+| Experience source           | Platform experience                                                                                                                                      |
+| What it proves              | You can identify when missing/broken data blocks product analysis and create a concrete artefact engineers can act on                                    |
+| Tools                       | SQL, BigQuery, Looker                                                                                                                                    |
+| Dataset                     | Source tables, dashboard source tables, event/transaction/behaviour records                                                                              |
+| Metric meaning              | Issues found, checks added, refresh reliability                                                                                                          |
+| Candidate values            | `15 validation checks`; `18 source-to-report issues`; `38% reporting error reduction`; `98% refresh success`                                             |
+| Monzo bucket covered        | Liaise with engineers, collect right data, self-starter issue identification                                                                             |
+| Concrete CV direction later | `Created a source-table issue log from SQL validation checks, flagging [N] missing-field, duplicate, join and refresh issues for engineering follow-up.` |
+| Grounding questions         | Did engineers receive this? Was there a PR, issue, ticket, README, or handoff note? Or was it internal QA?                                               |
+
+### Meaning placeholders to resolve
+
+```text
+[data issue] = [missing event / late source table / duplicate records / join mismatch / broken filter / missing value]
+[engineering artefact] = [ticket / PR comment / issue log / handoff note / validation query]
+[workflow] = [dashboard QA / source-table validation / metric definition / data collection improvement]
+```
+
+---
+
+## 9. Python modelling / statistical evaluation
+
+| Ledger field                | Candidate evidence                                                                                                      |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Concrete artefact           | Python model notebook; model evaluation report; robustness table; confusion matrix; baseline comparison                 |
+| Experience source           | Behavioural modelling project; platform if Python/PySpark modelling used                                                |
+| What it proves              | You can use Python/statistical modelling and evaluate against a baseline                                                |
+| Tools                       | Python, deep learning framework, Pandas/NumPy                                                                           |
+| Dataset                     | Smartphone accelerometer, gyroscope and trip-signal windows; platform behaviour data if applicable                      |
+| Metric meaning              | Accuracy improvement versus baseline; robustness across users/trips/modes                                               |
+| Candidate values            | `7 percentage-point accuracy improvement`; `single-task CNN baseline`; `1,200 trips`; `60 users`; `5 transport modes`   |
+| Monzo bucket covered        | Python, quantitative analysis, statistical grounding                                                                    |
+| Concrete CV direction later | `Improved classification accuracy by 7pp versus a single-task CNN baseline and tested robustness across 1,200 trips...` |
+| Grounding questions         | For Monzo, can this be kept as supporting evidence only? It is not product analytics, so it should not dominate.        |
+
+### Meaning placeholders to resolve
+
+```text
+[baseline model] = single-task CNN baseline
+[evaluation metric] = accuracy / F1 / precision / recall
+[failure cases] = [which modes/users/trips were misclassified]
+```
+
+---
+
+## 10. Finance-facing / commercial interpretation
+
+| Ledger field                | Candidate evidence                                                                                                                                    |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Concrete artefact           | Finance cost summary; cost-exposure table; chargeback cost summary; value/risk table                                                                  |
+| Experience source           | Platform experience                                                                                                                                   |
+| What it proves              | You can put numbers into a commercial / finance perspective                                                                                           |
+| Tools                       | SQL, BigQuery, Excel                                                                                                                                  |
+| Dataset                     | Transaction values, payment disputes, chargebacks, customer behaviour                                                                                 |
+| Metric meaning              | Cost exposure, value proxy, user profitability proxy                                                                                                  |
+| Candidate values            | `£64k cost exposure`; `[Z]% variance`; `[X]% opportunity`                                                                                             |
+| Monzo bucket covered        | Commercial mindset, LTV/profitability, finance collaboration                                                                                          |
+| Concrete CV direction later | `Built a finance-facing cost exposure table quantifying £64k across [chargeback/payment-dispute/value-risk] records...`                               |
+| Grounding questions         | Is the £64k relevant to user profitability or only payments/chargebacks? Can it be reframed as value/risk proxy without faking finance collaboration? |
+
+### Meaning placeholders to resolve
+
+```text
+[finance artefact] = [cost exposure table / value-risk summary / profitability proxy table]
+[cost/value field] = [transaction value / dispute value / chargeback value / provider fee / risk cost proxy]
+[finance user] = [Finance / Digital Risk / product owner / analyst audience]
+```
+
+# Grounding Dictionary — Monzo
+
+This is the guardrail against abstractness. Before any bullet is drafted, each term below needs a real object.
+
+## User engagement
+
+Do not write:
+
+```text
+improved user engagement
+```
+
+Ground it as:
+
+```text
+[engagement metric] = response rate / activity frequency / transaction frequency / repeat usage / product event count / retention proxy
+[table] = BigQuery engagement cohort table / customer activity table / Looker product metrics report
+[baseline] = previous period / 12-period average / unsegmented users
+```
+
+## Product behaviour
+
+Do not write:
+
+```text
+analysed user behaviour
+```
+
+Ground it as:
+
+```text
+[behaviour signals] = transactions / account activity / feature events / response history / usage frequency / lifecycle flags
+[artefact] = SQL user-behaviour table / cohort table / segment table
+```
+
+## A/B experiments
+
+Do not write:
+
+```text
+A/B experiment
+```
+
+unless true.
+
+Ground it as:
+
+```text
+[experiment type] = true A/B / holdout comparison / pre-post analysis / backtest / threshold test
+[groups] = control vs treatment / top-score-band vs baseline / before vs after
+[success metric] = response rate / conversion / retention proxy / value proxy / capture rate
+[result] = [X]% uplift / [Y]pp difference / ranked recommendation
+```
+
+## Measure what matters
+
+Do not write:
+
+```text
+helped teams measure what matters
+```
+
+Ground it as:
+
+```text
+[metric definition sheet] = metric name + SQL formula + source table + grain + filters + limitation
+[metrics] = activation / engagement / retention / response / conversion / profitability proxy / risk
+```
+
+## LTV / profitability
+
+Do not write:
+
+```text
+user profitability analysis
+```
+
+unless the data supports it.
+
+Ground it as:
+
+```text
+[value proxy] = transaction value / cost exposure / high-benefit label / revenue-at-risk / risk-adjusted value
+[artefact] = LTV proxy table / value segment table / finance cost summary / value-risk table
+[baseline] = previous period / score band / user segment / product feature group
+```
+
+## Product recommendation
+
+Do not write:
+
+```text
+informed product strategy
+```
+
+Ground it as:
+
+```text
+[artefact] = ranked option table / experiment readout / feature-impact report / recommendation memo
+[recommendation] = prioritise segment / change threshold / collect new event / monitor KPI / reject option
+[decision workflow] = product review / metric review / experiment readout / squad planning
+```
+
+## Engineer collaboration
+
+Do not write:
+
+```text
+liaised with engineers
+```
+
+unless there is an artefact.
+
+Ground it as:
+
+```text
+[artefact] = event-tracking request / missing-field list / source-table issue log / validation query / PR note / data-quality ticket
+[data gap] = missing event / wrong join key / stale table / duplicate records / broken filter / missing field
+```
+
+# Biggest blanks to resolve before scoring
+
+```text
+1. What exact user/product metrics did the platform track?
+2. Was there any true A/B experiment, or only backtests / threshold tests / strategy comparisons?
+3. What was the closest Monzo-relevant engagement metric: response rate, retention risk, activity frequency, conversion, transaction activity?
+4. What is the truthful value/profitability proxy: high-benefit customers, transaction value, cost exposure, chargeback/dispute exposure, risk-adjusted value?
+5. Did any analysis produce an event-tracking request, missing-field list, engineer handoff, Git issue, or data-quality ticket?
+6. Who used the Looker/Power BI outputs: product-like users, finance, risk, marketing, or only portfolio/demo users?
+7. What decision did the ranked option table support: threshold choice, segment priority, outreach/audience selection, monitoring plan, feature/action recommendation?
+```
+
+This ledger gives us the evidence pool. The next step will be **evidence scoring**, but only after these meaning placeholders are tightened enough that we are not carrying abstractness into the bullets.
+
+---
+
+# Monzo Evidence Scoring
+
+This is **not bullet portfolio design yet**. This step decides which evidence is **A = direct match**, **B = useful support**, **C = transferable only**, and **D = remove/compress** for Monzo’s **Product Data Scientist** role.
+
+Monzo wants a product-facing Data Scientist who can analyse user behaviour, guide product teams on what to measure, run or support A/B experiments, work with finance on lifetime value/user profitability, liaise with engineers on data collection, and use SQL/Python in cross-functional squads.
+
+## Scoring key
+
+| Tier  | Meaning for Monzo                                                                                                                                                                                                                               |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A** | Direct match to product/user behaviour analysis, experimentation, product metrics, SQL/Python quantitative analysis, user value/profitability, product recommendations, Looker/self-serve analytics, or engineer/product/finance collaboration. |
+| **B** | Useful support, but not the main Monzo story.                                                                                                                                                                                                   |
+| **C** | Transferable evidence only; use lower down or compress.                                                                                                                                                                                         |
+| **D** | Wrong centre of gravity; remove or heavily reframe.                                                                                                                                                                                             |
+
+---
+
+# Tier A — Direct Monzo evidence
+
+These should drive the CV.
+
+| Evidence item                                                                                                   |          Score | Why it is A for Monzo                                                                                                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------- | -------------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **BigQuery SQL user-behaviour / customer activity tables over 2.35B rows**                                      |              A | Direct match to SQL analysis over user/product behaviour data. Monzo wants quantitative analysis that explains how users interact with products.                                                                   |
+| **Response-rate / engagement / activity cohort analysis**                                                       |              A | Strong match to user engagement and product behaviour, especially if grounded as response rate, activity frequency, transaction frequency, retention proxy, or conversion.                                         |
+| **Ranked customer segment table capturing 42% of high-response / high-benefit customers in top 20% score band** |              A | Strong product analytics evidence if framed as ranking users for engagement, value, or response. It must not say “target records.” It needs a named target group.                                                  |
+| **3-option comparison across 5 outcome measures**                                                               |              A | Strong experiment-adjacent evidence if honestly framed as holdout, backtest, threshold test, or strategy comparison. Monzo asks for A/B experiment experience, so this must be grounded carefully.                 |
+| **Looker product metrics / customer behaviour reports with validation checks**                                  |              A | Monzo’s self-serve analytics culture is Looker-heavy, and they say self-serve Looker covers most day-to-day decisions.                                                                                             |
+| **Metric definitions / KPI logic for engagement, response, value or risk metrics**                              | A if confirmed | Direct match to “measure things that matter.” This is a high-value bullet if you can name metric definitions, formulas, source tables and filters.                                                                 |
+| **Value / profitability proxy table**                                                                           |  A if grounded | Monzo explicitly mentions lifetime value and user profitability. Evidence like high-benefit users, transaction value, cost exposure, or value-risk trade-off can be A only if the value proxy is clearly defined.  |
+| **Engineer-facing data-quality / missing-field / source-table validation artefact**                             | A if confirmed | Monzo says DSs liaise with engineers to ensure the right data is collected. A source-table issue log, event-tracking gap list, validation query, or handoff note would be strong.                                  |
+
+**Verdict:** The Monzo CV should be built around **user-behaviour SQL tables, engagement/response metrics, comparison or experiment-style measurement, Looker product metrics, value/profitability proxies, and product recommendation tables**.
+
+---
+
+# Tier B — Useful supporting evidence
+
+These should support the main Monzo story, but not dominate.
+
+| Evidence item                                                                        | Score | Why it is B                                                                                                                                                              |
+| ------------------------------------------------------------------------------------ | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Dashboard validation checks: 15 checks, 38% error reduction, 98% refresh success** |    B+ | Strong for reliable self-serve analytics, but Monzo’s centre is product decisions, not dashboard QA. Use if tied to Looker product metrics.                              |
+| **BigQuery variance/root-cause report explaining a 19% movement**                    | B+/A- | A if the movement is a product metric like response rate, activity frequency, activation, retention, conversion, or value proxy. B if it remains generic “KPI movement.” |
+| **Finance chargeback cost summary / £64k cost exposure**                             | B+/A- | A only if reframed as a user profitability or value-risk proxy. B if it remains payments/chargebacks because that becomes Frasers-shaped.                                |
+| **Python modelling / customer behaviour modelling**                                  |    B+ | Monzo prefers SQL and Python. Strong if tied to product metrics, segmentation, or user behaviour; weaker if it stays generic ML.                                         |
+| **Behavioural modelling project: 7pp accuracy improvement vs CNN baseline**          |     B | Good proof of Python/statistical evaluation and baseline thinking, but not product analytics. Keep supporting, not lead.                                                 |
+| **Model robustness across 1,200 trips, 60 users, 5 transport modes**                 | B-/C+ | Useful for statistical judgement and limitations, but the domain is far from fintech/product engagement.                                                                 |
+| **Business analytics trend report with 3 recommendations**                           |     B | Supports recommendation writing and baseline comparison. Useful, but less direct than product/user behaviour evidence.                                                   |
+| **South Western Excel/VBA/Power BI reporting evidence**                              | B-/C+ | Demonstrates automation and data-quality discipline, but not product data science. Use lightly if space allows.                                                          |
+
+---
+
+# Tier C — Transferable only
+
+Use these lower down or compress.
+
+| Evidence item                                 |       Score | Why it is C                                                                                                                                         |
+| --------------------------------------------- | ----------: | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Payments/fraud/chargeback wording**         | C for Monzo | Monzo has possible Payments/Fincrime squads, but the ad is broad Product DS. Do not lead with chargebacks unless we target Payments/Fincrime later. |
+| **Power BI dashboards**                       |         C/B | Useful general dashboarding, but Monzo specifically highlights Looker. Power BI should be secondary.                                                |
+| **Excel reconciliation workbook / VBA macro** |           C | Good for reporting discipline, but too Data Analyst / operations-heavy for Product DS unless space remains.                                         |
+| **Oilfield operational KPI dashboard**        |           C | Strong concrete evidence, wrong domain. Compress or keep lower down.                                                                                |
+| **Country-sector / policy-response project**  |         C/B | Useful for analysis and recommendations, but not user-product behaviour.                                                                            |
+| **Deep learning transport classification**    |           C | Technically credible but far from product analytics, experimentation, user engagement and LTV.                                                      |
+
+---
+
+# Tier D — Remove or avoid for Monzo
+
+These pull the CV toward the wrong job.
+
+| Evidence item                                               | Score | Why it is D                                                                                                                                                                                                                                |
+| ----------------------------------------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Commercial Performance Analyst framing**                  |     D | Wrong job family. Monzo is Product Data Scientist, not Sainsbury’s performance analyst.                                                                                                                                                    |
+| **Analytics engineering / SQL modelling as the main story** |   D/B | Useful but not central. Monzo wants product behaviour, experiments, profitability and product recommendations.                                                                                                                             |
+| **Payments Data Analyst headline / Frasers framing**        |     D | Too narrow and wrong centre unless assigned to a Payments squad, which happens only after interview allocation.                                                                                                                            |
+| **Fraud detection as main identity**                        |   D/B | Potentially useful if assigned Fincrime, but the ad is general across Growth, Payments, Borrowing, Fincrime, Wealth, Core. Don’t overfit before allocation.                                                                                |
+| **Generic ML platform / PySpark-heavy language**            |     D | Makes you look like an ML platform candidate, not an embedded product data scientist.                                                                                                                                                      |
+| **Abstract phrases without artefacts**                      |     D | “Product strategy,” “user engagement,” “commercial insight,” “stakeholder collaboration,” and “data-driven decisions” must be tied to tables, dashboards, experiment readouts, value proxies, metric definitions, or recommendation memos. |
+
+---
+
+# Monzo-specific priority pool
+
+The highest-value evidence pool is:
+
+```text
+1. BigQuery SQL user-behaviour tables across customer activity / transaction / response-history data
+2. Engagement, response, retention-proxy or conversion metrics with named definitions
+3. Ranked customer segment table capturing 42% of high-response/high-benefit users in top 20% score band
+4. 3-option controlled comparison / threshold test / backtest across 5 outcome measures
+5. Looker product metrics dashboard or customer behaviour report with metric definitions
+6. Python customer behaviour or segmentation analysis
+7. Value / profitability proxy table using transaction value, high-benefit label, cost exposure or risk-adjusted value
+8. BigQuery variance query explaining a specific product/user metric movement
+9. Product recommendation table or experiment-style readout
+10. Engineer-facing data-quality or event-tracking gap artefact, if real
+```
+
+# What this tells us for the Monzo CV
+
+The main experience block should **not** be called:
+
+```text
+Commercial Performance Analytics Platform
+```
+
+or:
+
+```text
+Payments, Fraud & Chargeback Analytics Platform
+```
+
+or:
+
+```text
+SQL Data Modelling & Self-Serve BI Platform
+```
+
+For Monzo, better platform labels are:
+
+```text
+Product Analytics & User Behaviour Platform
+```
+
+or:
+
+```text
+User Engagement & Product Analytics Platform
+```
+
+or, if we want the experimentation angle stronger:
+
+```text
+Product Experimentation & User Behaviour Analytics Platform
+```
+
+My current favourite:
+
+```text
+Product Analytics & User Behaviour Platform
+```
+
+It is broad enough for user metrics, Looker reports, ranking tables, controlled comparisons, value proxies and product recommendations.
+
+# Scoring conclusion
+
+The platform experience can be strong for Monzo, but only if we ground the abstract terms before drafting:
+
+```text
+“KPI movement” must become response rate / activity frequency / retention proxy / conversion / value proxy.
+“3 options” must become threshold options / audience options / product action options / reporting options.
+“Target records” must become high-response users / high-benefit users / high-value users / at-risk users.
+“Value” must become transaction value / cost exposure / high-benefit label / risk-adjusted value.
+“Collaboration” must become event-tracking note / source-table issue log / metric-definition table / finance-facing value table.
+```
+
+The next step is **bullet portfolio design for the platform experience only**, unless you want to tighten the grounding dictionary first.
