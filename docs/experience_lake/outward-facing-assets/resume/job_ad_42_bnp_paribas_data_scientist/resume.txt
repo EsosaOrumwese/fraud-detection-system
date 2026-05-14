@@ -1,0 +1,79 @@
+Esosa Orumwese
+Data Scientist | Customer Behaviour & Commercial Analytics | Predictive Modelling, SQL & SAS
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Data Scientist with experience building customer-behaviour analytics workflows across large transaction, account and behavioural datasets. Developed Python, SQL and SAS predictive models, customer feature tables, validation checks and controlled strategy comparisons across a 2.35B-row data surface, translating behavioural levers into commercial recommendations for senior stakeholders.
+
+TECHNICAL SKILLS
+
+Programming & Data: Python, SQL, SAS, PROC SQL, PySpark, Pandas, NumPy
+
+Predictive Modelling: churn-risk modelling, propensity modelling, behavioural-risk scoring, customer segmentation, feature engineering
+
+Experimentation & Validation: holdout tests, champion-challenger evaluation, lift analysis, calibration checks, drift monitoring, segment stability
+
+Commercial Analytics: customer behaviour analysis, customer lever analysis, predictive score tables, customer insight dashboards, senior-leader insight packs
+
+AI & Workflow: Codex-assisted analytics prototyping, model documentation, code review, workflow validation
+
+RELEVANT EXPERIENCE
+
+Data Scientist
+Customer Behaviour & Commercial Analytics Platform - Exeter, UK | May 2025 - Present
+Customer analytics platform using Python, SQL, SAS and statistical modelling across a 2.35B-row customer behaviour, transaction and account data surface to predict customer outcomes, explain behavioural levers and support commercial decision-making.
+
+- Built a multi-source customer feature table over a 2.35B-row behaviour, transaction and account data surface, combining [N] data sources into [N] model features for predictive customer analytics.
+
+- Developed churn-risk, propensity and behavioural-risk models in Python and SQL, improving target-customer capture by [X]% versus a rules-based baseline.
+
+- Analysed [N] customer behaviour levers across [M] customer segments, identifying where response, risk and engagement patterns concentrated for commercial decision review.
+
+- Compared [N] customer strategy options through a [holdout test / champion-challenger comparison / threshold test], measuring performance across [M] outcomes including response, risk, coverage and expected value.
+
+- Maintained BAU model confidence with lift, calibration, drift and segment-stability checks across [N] scoring runs, improving successful score refreshes to [X]%.
+
+- Created predictive score tables and a senior-leader insight pack covering [N] customer segments, [M] outcome measures and [K] recommendations for commercial action.
+
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Behavioural modelling project using smartphone sensor data to build predictive models, test feature reliability and translate movement patterns into risk-decision indicators.
+
+- Built Python modelling datasets from accelerometer, gyroscope and trip signals, structuring [N] sensor windows into model-ready features for transport-mode and driver-identity prediction.
+
+- Improved behavioural classification accuracy by [X] percentage points versus [baseline model], using validation outputs to compare feature reliability across movement and identity-recognition tasks.
+
+- Produced a model robustness report across [N] trips, [N] users and [N] transport modes, documenting failure cases and translating behavioural drivers into stakeholder-ready risk indicators.
+
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Business analytics project using country-sector activity and policy-response datasets to explain abnormal business movements, compare drivers and produce decision-ready recommendations.
+
+- Built a country-sector reporting dataset across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+
+- Linked abnormal activity movements to policy-response signals across [N] countries and [N] policy areas, explaining the drivers behind business activity variance.
+
+- Produced a visual insight pack with [N] recommendations across [M] outcome measures, translating complex trend drivers into a clear decision summary for non-technical stakeholders.
+
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data analysis role using Excel, VBA and Power BI to validate operational records, improve reporting reliability and prepare manager-facing performance summaries.
+
+- Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting records by [X]% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting entries, cutting report review time from [X] to [Y].
+
+- Built a Power BI operational reporting dashboard tracking [N] job-progress, equipment-readiness and documentation-gap KPIs across [N] completions jobs / [N] rig days.
+
+- Produced manager-facing reporting notes explaining recurring data issues, KPI definitions and operational variance drivers, helping non-technical users understand report changes before handover.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+Focused on machine learning, statistical modelling, Python, SQL, data management and applied AI, with project work translating behavioural datasets into predictive models, validation reports and decision-ready recommendations.
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+First Class engineering degree with strong grounding in mathematics, numerical analysis, systems thinking, process optimisation and data-led problem solving in technical environments.
