@@ -4,15 +4,15 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Commercial Data Analyst with experience using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer-feature tables, propensity score tables, audience cut-off tests, model validation packs and KPI dashboards across a 2.35B-row customer behaviour data surface. Compared 3 audience selection strategies across 5 measures - target-customer capture, low-response inclusion, audience size, coverage and rollout risk - producing recommendation memos for offer and campaign selection.
+Commercial Data Analyst with experience using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer-feature tables, propensity score tables, audience cut-off tests, model validation packs and KPI dashboards across a 2.35B-row customer behaviour data surface. Compared 3 audience selection strategies across 5 measures - target-customer capture, low-response inclusion, audience size, coverage and score-band stability - producing campaign selection memos for offer and audience decisions.
 
 TECHNICAL SKILLS
 
 Commercial Analytics: promotion response analysis, audience cut-off tests, customer segmentation, target-customer capture, low-response audience reduction
 SQL & Data Platforms: SQL, Google BigQuery, customer-feature tables, dashboard source tables, ETL transformations
 Python & Modelling: Python, PySpark, Pandas, NumPy, propensity scoring, lift charts, calibration checks, model validation packs
-BI & Dashboards: Power BI, Looker, commercial KPI dashboards, audience performance dashboards, dashboard validation checks
-Measurement & Recommendation Outputs: baseline comparisons, score-band analysis, 3-option strategy comparisons, 5-measure outcome tables, recommendation memos
+BI & Dashboards: Power BI, Looker, customer response dashboards, audience performance dashboards, dashboard validation checks
+Measurement Outputs: baseline comparisons, score-band analysis, 3-option audience selection reports, 5-measure outcome tables, campaign selection memos
 
 RELEVANT EXPERIENCE
 
@@ -25,7 +25,7 @@ Customer response analytics platform using SQL, Google BigQuery, Python/PySpark,
 - Validated propensity ranking quality by capturing 42% of target customers in the top 20% score band, producing a ranked audience table for offer and campaign selection.
 - Built audience threshold tests across [N] score cut-offs, reducing low-response audience inclusion by 11% while preserving [Y]% target-customer coverage.
 - Produced a model validation pack with lift charts, calibration checks and score-band stability tables across [N] validation periods before releasing ranked customer score tables.
-- Compared 3 audience selection strategies across 5 measures - audience size, target-customer capture, response-rate proxy, low-response inclusion and coverage - producing a recommendation memo for rollout selection.
+- Compared 3 audience selection strategies across 5 measures - audience size, target-customer capture, response-rate proxy, low-response inclusion and coverage - producing a campaign selection memo for offer targeting.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
