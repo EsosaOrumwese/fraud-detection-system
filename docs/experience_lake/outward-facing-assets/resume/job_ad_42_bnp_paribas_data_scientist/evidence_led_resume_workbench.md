@@ -1065,3 +1065,175 @@ Operations data analysis role using Excel, VBA and Power BI to validate operatio
 This block supports **data quality, reporting reliability, KPI explanation, process improvement and non-technical communication**.
 
 If space becomes tight, cut the fourth South Western bullet first. The first three already prove Excel, VBA, Power BI, reporting accuracy and operational data discipline.
+
+---
+
+For the **BNP Paribas Personal Finance Data Scientist** CV, the headline and summary should sell you as a **commercial customer-behaviour data scientist**, not a fraud analyst, payments analyst, or finance data-flow analyst.
+
+The ad's strongest themes are: delivery of commercial value through advanced analytics, understanding/testing/predicting/explaining customer behaviour and behavioural levers, predictive models and ML/AI business tools, A/B testing, BAU model maintenance, senior-leader communication, and tools such as Python, SAS and SQL.
+
+The framework also says the headline should act as the positioning label, while the summary sells the whole-CV fit; they should not duplicate every bullet.
+
+## Headline options
+
+### Option 1 - strongest balanced version
+
+```text
+Data Scientist | Customer Behaviour & Commercial Analytics | Predictive Modelling, SQL & SAS
+```
+
+This is my preferred version. It is clear, concise, and role-shaped.
+
+### Option 2 - more consumer-finance positioned
+
+```text
+Data Scientist | Consumer Finance Analytics | Customer Behaviour, Predictive Models & SQL/SAS
+```
+
+This is strong if we want to make the BNP Personal Finance angle more obvious. The only slight risk is that "Consumer Finance Analytics" may sound like direct industry experience. It is still okay if the bullets support transaction/customer/commercial analytics.
+
+### Option 3 - A/B testing included
+
+```text
+Data Scientist | Customer Behaviour Analytics | Predictive Modelling, A/B Testing & SQL/SAS
+```
+
+Use this only if the controlled-evaluation evidence is strong enough. If we end up using "holdout test" or "champion-challenger comparison" instead of true A/B testing, I would avoid putting A/B testing in the headline.
+
+## My recommended headline
+
+```text
+Data Scientist | Customer Behaviour & Commercial Analytics | Predictive Modelling, SQL & SAS
+```
+
+It hits the target role, the business domain, and the core technical capability without overloading the line.
+
+## Professional summary
+
+### Recommended version
+
+```text
+Data Scientist with experience building customer-behaviour and commercial analytics workflows across large transaction, account and behavioural datasets. Developed Python, SQL and SAS predictive modelling outputs, customer feature tables, validation checks and controlled strategy comparisons across a 2.35B-row data surface, translating customer behaviour levers into clear recommendations for commercial and senior business stakeholders.
+```
+
+This works because it names actual things:
+
+```text
+Python, SQL and SAS predictive modelling outputs
+customer feature tables
+validation checks
+controlled strategy comparisons
+2.35B-row data surface
+customer behaviour levers
+commercial and senior business stakeholders
+```
+
+It is also careful. It does not claim direct consumer finance experience if the original platform was broader. It frames the evidence through customer/commercial analytics, which is what the BNP role needs.
+
+### Slightly more BNP/consumer-finance version
+
+```text
+Data Scientist with experience building customer-behaviour and commercial analytics workflows across large transaction, account and behavioural datasets. Developed Python, SQL and SAS predictive modelling outputs, customer feature tables, model validation checks and controlled strategy comparisons across a 2.35B-row data surface, supporting customer insight, responsible decisioning and commercial recommendations for senior stakeholders.
+```
+
+This version adds **responsible decisioning**, which fits BNP Personal Finance's mission around responsible consumer finance. Use it only if comfortable discussing the work in terms of responsible customer decisions, not regulated credit decisioning.
+
+### More concise version
+
+```text
+Data Scientist with experience building customer-behaviour analytics workflows across large transaction, account and behavioural datasets. Developed Python, SQL and SAS predictive models, customer feature tables, validation checks and controlled strategy comparisons across a 2.35B-row data surface, translating behavioural levers into commercial recommendations for senior stakeholders.
+```
+
+This is the cleanest one-page CV version.
+
+## My pick
+
+Use this:
+
+```text
+Esosa Orumwese
+Data Scientist | Customer Behaviour & Commercial Analytics | Predictive Modelling, SQL & SAS
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Data Scientist with experience building customer-behaviour analytics workflows across large transaction, account and behavioural datasets. Developed Python, SQL and SAS predictive models, customer feature tables, validation checks and controlled strategy comparisons across a 2.35B-row data surface, translating behavioural levers into commercial recommendations for senior stakeholders.
+```
+
+This gives the right first impression: **customer behaviour, predictive modelling, SQL/SAS, large datasets, controlled evaluation, commercial recommendations, senior stakeholders**.
+
+---
+
+For the **BNP Personal Finance Data Scientist** CV, the skills section should stay compact and point directly at the role's centre: **customer behaviour, predictive modelling, commercial analytics, A/B/controlled evaluation, model maintenance, Python, SQL, SAS, large datasets, and senior-stakeholder outputs**. The ad asks for advanced analytics, customer behaviour insight, predictive models/business tools, A/B testing, BAU model maintenance, senior communication, Python/R/SAS/SQL, large datasets, and GenAI/agentic AI exposure as desirable.
+
+## Technical Skills
+
+### Recommended version
+
+```text
+TECHNICAL SKILLS
+
+Programming & Data: Python, SQL, SAS, PROC SQL, PySpark, Pandas, NumPy
+
+Predictive Modelling: churn-risk modelling, propensity modelling, behavioural-risk scoring, customer segmentation, feature engineering
+
+Experimentation & Validation: holdout tests, champion-challenger evaluation, lift analysis, calibration checks, drift monitoring, segment stability
+
+Commercial Analytics: customer behaviour analysis, customer lever analysis, predictive score tables, customer insight dashboards, senior-leader insight packs
+
+AI & Workflow: Codex-assisted analytics prototyping, model documentation, code review, workflow validation
+```
+
+This is compact enough for a CV and still hits the BNP language. I included **Codex-assisted analytics prototyping** because GenAI/agentic AI is desirable, but it is not overemphasised.
+
+### If you want to include A/B testing directly
+
+Only use this if actual A/B testing can be defended:
+
+```text
+Experimentation & Validation: A/B testing, holdout tests, champion-challenger evaluation, lift analysis, calibration checks, drift monitoring
+```
+
+If it was not true A/B testing, keep the safer version with **holdout tests** and **champion-challenger evaluation**.
+
+---
+
+## Education
+
+For the final CV, keep Education lean. No descriptions needed unless the application form asks.
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+```
+
+## Education description/context lines for application forms
+
+If the BNP application asks for a description of each degree, use these.
+
+### MSc Data Science with Artificial Intelligence
+
+```text
+Focused on machine learning, statistical modelling, Python, SQL, data management and applied AI, with project work covering behavioural modelling, predictive analytics, model validation and stakeholder-ready insight outputs.
+```
+
+### BEng Mechanical Engineering
+
+```text
+First Class engineering degree with strong grounding in mathematics, numerical analysis, systems thinking, process optimisation and data-led problem solving in technical environments.
+```
+
+## Slightly more BNP-targeted version
+
+If the application form gives enough space, use this MSc description instead:
+
+```text
+Focused on machine learning, statistical modelling, Python, SQL, data management and applied AI, with project work translating behavioural datasets into predictive models, validation reports and decision-ready recommendations.
+```
+
+My pick: use the compact skills section above, keep Education lean on the CV, and use the degree descriptions only in application-form fields.
