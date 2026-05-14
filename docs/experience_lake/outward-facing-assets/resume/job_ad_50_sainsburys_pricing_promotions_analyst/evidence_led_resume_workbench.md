@@ -2204,3 +2204,437 @@ Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 – Dec 2020
 ```
 
 Education works as-is. The MSc supports the numerate/analytical background requirement, and the Engineering degree reinforces quantitative problem-solving without needing extra explanation.
+
+---
+
+# Appendix — Sainsbury’s Target Value Selection
+
+These are **suggested target values, not facts**. Use them only if you can defend the source table, metric definition, baseline, period, calculation, and claim strength. The framework rule still applies: a number only belongs on the CV if the reader can understand **what was measured, against what, and why it matters**.
+
+Sainsbury’s role is looking for SQL, Python, ETL pipelines, statistical models, dynamic dashboards, commercial storytelling, and analysis that shapes pricing and promotion decisions. Since your strongest evidence is promotion/customer-response analytics rather than explicit pricing, the values should strengthen **audience selection, response ranking, threshold testing, validation, and campaign recommendation**.
+
+## Main platform block values
+
+```text
+7 offer / retention / intervention audience segments
+5 score cut-offs tested
+42% target-customer capture in the top 20% score band
+11% reduction in low-response audience inclusion
+91% target-customer coverage preserved
+6 validation periods
+3 audience selection strategies
+5 outcome measures
+2.35B-row customer behaviour data surface
+```
+
+## Target-value draft bullets
+
+```text
+- Built SQL, BigQuery and Python/PySpark customer-feature ETL tables across a 2.35B-row customer behaviour data surface, joining lifecycle fields, response-history fields and activity counts into scoring and dashboard source tables.
+
+- Created lifecycle-response segment tables for 7 offer, retention and intervention audiences, adding segment counts, response-history fields and target-customer flags for audience selection.
+
+- Validated propensity ranking quality by capturing 42% of target customers in the top 20% score band, producing a ranked audience table for offer and campaign selection.
+
+- Built audience threshold tests across 5 score cut-offs, reducing low-response audience inclusion by 11% while preserving 91% target-customer coverage.
+
+- Produced a model validation pack with lift charts, calibration checks and score-band stability tables across 6 validation periods before releasing ranked customer score tables.
+
+- Compared 3 audience selection strategies across 5 measures - audience size, target-customer capture, response-rate proxy, low-response inclusion and coverage - producing a campaign selection memo for offer targeting.
+```
+
+## Safer version if some values are not fully defendable
+
+Use this if the **91% coverage**, **5 cut-offs**, or **6 validation periods** are not yet firmly traceable.
+
+```text
+- Created lifecycle-response segment tables for offer, retention and intervention audiences, adding segment counts, response-history fields and target-customer flags for audience selection.
+
+- Built audience threshold tests across multiple score cut-offs, reducing low-response audience inclusion by 11% while preserving target-customer coverage.
+
+- Produced a model validation pack with lift charts, calibration checks and score-band stability tables before releasing ranked customer score tables.
+```
+
+## Supporting block values
+
+Keep these as-is unless you later find a stronger source number.
+
+### Smartphone modelling project
+
+```text
+7 percentage-point accuracy improvement
+single-task CNN baseline
+1,200 trips
+60 users
+5 transport modes
+```
+
+### Business analytics project
+
+```text
+220 countries
+12 sectors
+6 countries
+8 policy areas
+3 recommendations
+```
+
+### South Western Technologies
+
+```text
+32% fewer incomplete/conflicting entries
+45 to 25 minutes report review time
+9 KPIs
+12 completions jobs
+140 rig days
+```
+
+# Defence caution
+
+The values that need the strongest interview defence are:
+
+```text
+91% target-customer coverage preserved
+11% reduction in low-response audience inclusion
+42% target-customer capture in top 20%
+7 audience segments
+5 score cut-offs
+6 validation periods
+```
+
+The safer values are:
+
+```text
+2.35B-row data surface
+3 audience selection strategies
+5 outcome measures
+7 percentage-point accuracy improvement
+1,200 trips / 60 users / 5 transport modes
+220 countries / 12 sectors
+6 countries / 8 policy areas
+3 recommendations
+32% fewer conflicting entries
+45 to 25 minutes
+9 KPIs / 12 jobs / 140 rig days
+```
+
+# Interview defence notes
+
+## 42% target-customer capture in top 20% score band
+
+Meaning:
+
+```text
+42% of the validation target group appeared in the highest-scoring 20% of customers.
+```
+
+Defensible calculation:
+
+```text
+target-customer capture =
+target customers in top 20% score band / total target customers
+```
+
+Interview answer:
+
+```text
+The 42% was a ranking-quality metric. I sorted customers by propensity score, split them into score bands, and measured how many target customers landed in the top 20%. It showed whether the score table concentrated likely responders or high-benefit customers near the top of the ranked audience.
+```
+
+Safer wording:
+
+```text
+capturing 42% of target customers in the top 20% score band
+```
+
+Avoid saying:
+
+```text
+improved campaign performance by 42%
+```
+
+That would be a different and much stronger claim.
+
+---
+
+## 11% reduction in low-response audience inclusion
+
+Meaning:
+
+```text
+The selected score cut-off removed 11% of low-response / low-benefit customers from the audience compared with the baseline audience.
+```
+
+Defensible calculation:
+
+```text
+low-response inclusion reduction =
+(baseline low-response count - selected-threshold low-response count)
+÷ baseline low-response count
+```
+
+Interview answer:
+
+```text
+I defined low-response customers using the validation label or response-rate proxy, then compared the broad baseline audience against the thresholded audience. The selected cut-off reduced low-response inclusion by 11%, while preserving most of the target-customer group.
+```
+
+Safer wording:
+
+```text
+reducing low-response audience inclusion by 11%
+```
+
+Avoid saying:
+
+```text
+reduced wasted marketing spend by 11%
+```
+
+unless you have spend data.
+
+---
+
+## 91% target-customer coverage preserved
+
+Meaning:
+
+```text
+After applying the threshold, 91% of the target-customer group remained in the selected audience.
+```
+
+Defensible calculation:
+
+```text
+target-customer coverage =
+target customers retained after threshold / target customers in baseline audience
+```
+
+Interview answer:
+
+```text
+Coverage was the share of target customers retained after applying the score cut-off. I used it as a guardrail so the threshold test did not just reduce audience size, but preserved the customers the campaign was meant to reach.
+```
+
+Safer wording:
+
+```text
+while preserving target-customer coverage
+```
+
+Use the 91% only if you can reproduce the calculation.
+
+---
+
+## 7 audience segments
+
+Meaning:
+
+```text
+The lifecycle-response table grouped customers into 7 audience segments across offer, retention and intervention use cases.
+```
+
+Possible segment examples, only if true:
+
+```text
+high-response offer audience
+medium-response offer audience
+low-response suppression audience
+retention-priority audience
+upgrade/cross-sell audience
+intervention audience
+control / review audience
+```
+
+Interview answer:
+
+```text
+The 7 segments came from combining lifecycle fields, response-history fields and score bands. Each segment had counts, target-customer flags and response-history fields so the audience table could be reviewed before campaign selection.
+```
+
+Safer wording:
+
+```text
+created lifecycle-response segment tables for offer, retention and intervention audiences
+```
+
+---
+
+## 5 score cut-offs tested
+
+Meaning:
+
+```text
+You compared five possible score thresholds before choosing the audience cut-off.
+```
+
+Example cut-offs:
+
+```text
+top 5%
+top 10%
+top 20%
+top 30%
+top 40%
+```
+
+Defensible calculation path:
+
+```text
+For each cut-off:
+- calculate audience size
+- calculate target-customer capture
+- calculate low-response inclusion
+- calculate coverage
+- compare the trade-off table
+```
+
+Interview answer:
+
+```text
+I tested five score cut-offs and compared the audience size, target-customer capture, low-response inclusion and coverage at each threshold. The goal was to choose a cut-off that reduced poor-fit audience inclusion without losing too much of the target group.
+```
+
+Safer wording:
+
+```text
+across multiple score cut-offs
+```
+
+---
+
+## 6 validation periods
+
+Meaning:
+
+```text
+The validation pack checked score quality across 6 time windows, scoring cycles or validation slices.
+```
+
+Defensible examples:
+
+```text
+6 monthly validation periods
+6 scoring runs
+6 historical windows
+6 campaign/response periods
+```
+
+Interview answer:
+
+```text
+The 6 validation periods were historical windows used to check whether the ranking and score-band behaviour stayed stable. I used lift charts, calibration checks and score-band stability tables to test whether the scores behaved consistently before releasing the ranked customer table.
+```
+
+Safer wording:
+
+```text
+across validation periods
+```
+
+---
+
+## 3 audience selection strategies / 5 outcome measures
+
+Meaning:
+
+```text
+You compared three ways of selecting the campaign audience using five defined measures.
+```
+
+Recommended 5 measures:
+
+```text
+audience size
+target-customer capture
+response-rate proxy
+low-response inclusion
+coverage
+```
+
+Defensible structure:
+
+```text
+Strategy 1: broad baseline audience
+Strategy 2: score-thresholded audience
+Strategy 3: segment + threshold audience
+```
+
+Interview answer:
+
+```text
+I compared three audience selection strategies: a broad baseline audience, a score-thresholded audience, and a segment-plus-threshold audience. I compared them across five measures: audience size, target-customer capture, response-rate proxy, low-response inclusion and coverage. The output was a campaign selection memo showing the trade-off between reach and audience quality.
+```
+
+Safer wording:
+
+```text
+compared 3 audience selection strategies across 5 measures
+```
+
+# Private evidence-led notes for Sainsbury sensitive metrics
+
+```text
+Metric: 42% target-customer capture
+Artefact: ranked audience table / top-score-band capture report
+Dataset: customer score table joined to validation target labels
+Baseline: ranked score distribution; optional random/unscored audience comparator
+Formula: target customers in top 20% score band / total target customers
+Claim strength: validation/ranking-quality metric, not live campaign uplift
+Caveat: define “target customer” clearly
+
+Metric: 11% low-response audience reduction
+Artefact: audience threshold test table
+Dataset: customer score table joined to response labels or response-rate proxy
+Baseline: broad audience / previous threshold / unsegmented list
+Formula: (baseline low-response count - thresholded low-response count) / baseline low-response count
+Claim strength: audience-quality improvement, not spend saving
+Caveat: do not call it cost reduction unless cost data exists
+
+Metric: 91% target-customer coverage preserved
+Artefact: threshold test table
+Dataset: target-customer labels by score band
+Baseline: target customers in baseline audience
+Formula: target customers retained after threshold / target customers in baseline
+Claim strength: threshold guardrail
+Caveat: only use if it was measured
+
+Metric: 7 audience segments
+Artefact: lifecycle-response segment table
+Dataset: lifecycle fields, response-history fields, activity counts, score bands
+Baseline: unsegmented audience table
+Formula: count of defined audience groups used in the segment table
+Claim strength: segmentation scope
+Caveat: be ready to name the segment categories
+
+Metric: 5 score cut-offs
+Artefact: audience cut-off test table
+Dataset: ranked customer score table
+Baseline: broad audience / previous audience selection
+Formula: count of score thresholds compared
+Claim strength: option-testing scope
+Caveat: be ready to explain the cut-off levels
+
+Metric: 6 validation periods
+Artefact: model validation pack
+Dataset: historical validation windows / scoring runs / campaign response periods
+Baseline: prior scoring period or random/rules baseline
+Formula: count of validation periods used for lift, calibration and stability checks
+Claim strength: validation coverage
+Caveat: only use if time windows were actually separated
+```
+
+My recommended final target set is:
+
+```text
+7 audience segments
+5 score cut-offs
+42% target-customer capture in top 20%
+11% low-response inclusion reduction
+91% target-customer coverage preserved
+6 validation periods
+3 strategies
+5 measures
+```
+
+That set is strong without pretending you did explicit price-change or margin analysis.

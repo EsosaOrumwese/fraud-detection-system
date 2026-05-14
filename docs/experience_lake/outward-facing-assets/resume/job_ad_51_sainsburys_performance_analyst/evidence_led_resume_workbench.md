@@ -1599,3 +1599,463 @@ Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
 ```
 
 I would **not** add extra education context here. Your projects already appear in the experience section, and repeating them under Education would waste space.
+
+---
+
+Yes — this is the **Sainsbury’s Target Placeholder Value Selection Appendix**.
+
+These are **target values, not automatically final facts**. Use each value only if you can defend the table/query/report, metric definition, baseline, reporting period, and calculation path. For Sainsbury’s, the values must support **commercial KPI reporting, deep-dive analysis, tools/reports, event or strategy performance, automation, accurate reporting, and recommendations**.
+
+# Appendix — Sainsbury’s Target Value Selection
+
+## Main platform block values
+
+```text
+2.35B-row data surface
+6 dashboard source tables
+13 performance metrics
+12 reporting periods
+19% KPI movement explained
+4 operational, behavioural or data-quality drivers
+3 strategy options
+5 outcome measures
+42% of target records captured in top 20% score band
+15 validation checks
+38% reporting error reduction
+98% successful dashboard refreshes
+```
+
+## Supporting block values
+
+```text
+South Western Technologies:
+32% fewer incomplete/conflicting field-report entries
+45 to 25 minutes report review time
+9 operational KPIs
+12 completions jobs
+140 rig days
+
+Business Analytics Project:
+220 countries
+12 sectors
+6 countries
+8 policy-response areas
+3 recommendations
+
+Behavioural Modelling Project:
+7 percentage-point accuracy improvement
+single-task CNN baseline
+1,200 trips
+60 users
+5 transport modes
+```
+
+# Target-value platform draft
+
+```text
+Data Scientist
+Commercial Performance Analytics Platform - Exeter, UK | May 2025 - Present
+BigQuery, Looker and Power BI reporting platform using SQL KPI tables, dashboard source tables, period-comparison reports and validation checks across a 2.35B-row data surface.
+
+- Built BigQuery SQL KPI tables over a 2.35B-row data surface, creating 6 dashboard source tables used in weekly Looker/Power BI KPI reports.
+
+- Developed Looker and Power BI KPI dashboards tracking 13 performance metrics across 12 reporting periods, with period-by-period variance tables and trend charts.
+
+- Used BigQuery variance queries to explain a 19% KPI movement, producing a root-cause table with 4 operational, behavioural or data-quality drivers.
+
+- Compared 3 strategy options across 5 outcome measures, producing a ranked option table showing the top-performing option, weaker options and metric trade-offs.
+
+- Built a ranked segment table capturing 42% of target records in the top 20% score band, creating a priority list for the next strategy comparison.
+
+- Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+```
+
+# Defence priority
+
+## Strong / easier to defend
+
+These are concrete if you can point to a report, table, workbook, dashboard, or project output:
+
+```text
+2.35B-row data surface
+6 dashboard source tables
+13 performance metrics
+12 reporting periods
+15 validation checks
+98% successful refreshes
+32% fewer incomplete/conflicting records
+45 to 25 minutes review time
+9 KPIs
+12 jobs / 140 rig days
+220 countries / 12 sectors
+6 countries / 8 policy-response areas
+3 recommendations
+7pp accuracy improvement
+1,200 trips / 60 users / 5 transport modes
+```
+
+## Needs stronger defence
+
+These are more exposed in interview because the hiring manager may ask “how exactly did you calculate that?”
+
+```text
+19% KPI movement
+4 drivers
+3 strategy options / 5 outcome measures
+42% in top 20% score band
+38% reporting error reduction
+```
+
+# Interview defence notes
+
+## 1. 2.35B-row data surface
+
+Meaning:
+
+```text
+Total row count across the BigQuery data surface used for KPI tables, dashboard source tables, ranking analysis and variance queries.
+```
+
+Defence:
+
+```text
+The 2.35B figure refers to the BigQuery data surface available for the platform, not necessarily every row used in every report. For each dashboard or analysis, I filtered the relevant tables by date range, entity and metric definition before building the KPI tables.
+```
+
+Safer wording if needed:
+
+```text
+across a BigQuery data surface containing 2.35B records
+```
+
+## 2. 6 dashboard source tables
+
+Meaning:
+
+```text
+Six reusable BigQuery tables or views feeding recurring Looker/Power BI KPI reports.
+```
+
+Defence:
+
+```text
+I counted a dashboard source table as a reusable BigQuery table or view used by a recurring dashboard, not a one-off SQL query. The six tables fed weekly KPI reports and reduced repeated manual query work.
+```
+
+Safer wording:
+
+```text
+creating reusable dashboard source tables for weekly Looker/Power BI KPI reports
+```
+
+## 3. 13 performance metrics across 12 reporting periods
+
+Meaning:
+
+```text
+13 KPIs tracked repeatedly across 12 reporting periods.
+```
+
+Defence:
+
+```text
+The 13 metrics were the recurring KPIs tracked in the dashboard, and the 12 reporting periods were the periods used for trend and variance comparison. I used the same metric definitions across each period so movement could be compared consistently.
+```
+
+Safer wording:
+
+```text
+tracking recurring performance metrics across 12 reporting periods
+```
+
+## 4. 19% KPI movement
+
+Meaning:
+
+```text
+A measured change in one KPI against a baseline period.
+```
+
+Formula:
+
+```text
+(current period KPI - baseline period KPI) / baseline period KPI
+```
+
+Possible baselines:
+
+```text
+previous reporting period
+rolling average
+pre-change period
+expected threshold
+```
+
+Defence:
+
+```text
+The 19% was the movement between the reporting period being investigated and the baseline period. I used BigQuery variance queries to break the movement down by relevant dimensions, then summarised the drivers in a root-cause table.
+```
+
+Safer wording if the baseline is not clean:
+
+```text
+Used BigQuery variance queries to investigate an unexpected KPI movement, producing a root-cause table with 4 drivers.
+```
+
+## 5. 4 operational, behavioural or data-quality drivers
+
+Meaning:
+
+```text
+Four driver categories identified from the variance query and root-cause table.
+```
+
+Defence:
+
+```text
+The four drivers came from segmenting the KPI movement by operational factors, behavioural patterns and data-quality checks. I treated them as explanatory drivers, not proven causal effects unless the analysis supported causality.
+```
+
+Safer wording:
+
+```text
+identifying 4 likely drivers behind the KPI movement
+```
+
+## 6. 3 strategy options across 5 outcome measures
+
+Meaning:
+
+```text
+Three possible options compared against five defined outcome metrics.
+```
+
+Example outcome measures:
+
+```text
+coverage
+capture rate
+low-yield inclusion
+cost / effort proxy
+stability across periods
+```
+
+Defence:
+
+```text
+I compared three strategy options using the same five outcome measures for each option. The ranked option table showed which option performed best overall, which options were weaker, and where the trade-offs were.
+```
+
+Safer wording:
+
+```text
+Compared 3 strategy options across 5 outcome measures, producing a ranked option table with metric trade-offs.
+```
+
+## 7. 42% of target records in top 20% score band
+
+Meaning:
+
+```text
+A ranking-quality measure: 42% of the target group appeared in the highest-scored 20% of records.
+```
+
+Formula:
+
+```text
+target records in top 20% score band / all target records
+```
+
+Defence:
+
+```text
+The 42% figure measures concentration in the top score band. I sorted records by score, split them into score bands, and measured how many target records appeared in the top 20%. It was a ranking-quality measure used to build a priority list.
+```
+
+Safer wording if “target records” is hard to define:
+
+```text
+Built a ranked segment table showing concentration of target records in the top score band, creating a priority list for the next strategy comparison.
+```
+
+## 8. 15 validation checks
+
+Meaning:
+
+```text
+Fifteen checks across BigQuery source tables and Looker/Power BI reports.
+```
+
+Possible checks:
+
+```text
+row count checks
+missing-value checks
+duplicate checks
+date-range checks
+join-key checks
+aggregation checks
+refresh checks
+KPI total checks
+filter checks
+source-to-dashboard reconciliation checks
+```
+
+Defence:
+
+```text
+The 15 validation checks covered source tables and dashboard outputs. They checked row counts, missing values, duplicate records, joins, date ranges, aggregations, filters and dashboard totals before the reports were used.
+```
+
+Safer wording:
+
+```text
+Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports.
+```
+
+## 9. 38% reporting error reduction
+
+Meaning:
+
+```text
+Reduction in reporting issues after adding validation checks.
+```
+
+Formula:
+
+```text
+(previous issue count - new issue count) / previous issue count
+```
+
+Example:
+
+```text
+Before checks: 42 report issues
+After checks: 26 report issues
+Reduction: (42 - 26) / 42 = 38%
+```
+
+Defence:
+
+```text
+I defined reporting errors as issues found during report QA, such as mismatched totals, stale refreshes, duplicate rows, missing fields, broken joins or incorrect filters. I compared the issue count before and after adding the validation checks.
+```
+
+Safer wording if error counts were informal:
+
+```text
+Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing repeated reporting issues.
+```
+
+## 10. 98% successful dashboard refreshes
+
+Meaning:
+
+```text
+98% of scheduled dashboard refreshes completed and passed checks.
+```
+
+Formula:
+
+```text
+successful validated refreshes / scheduled refreshes
+```
+
+Defence:
+
+```text
+I counted a dashboard refresh as successful only if it completed on schedule and passed the core validation checks. The 98% came from successful validated refreshes divided by scheduled refreshes across the reporting period.
+```
+
+Safer wording if no refresh log exists:
+
+```text
+improving dashboard refresh reliability across recurring KPI reports
+```
+
+# Supporting block defence notes
+
+## South Western — 32% fewer incomplete/conflicting records
+
+Formula:
+
+```text
+(previous incomplete/conflicting entries - new incomplete/conflicting entries) / previous incomplete/conflicting entries
+```
+
+Defence:
+
+```text
+The Excel workbook compared field reports, HSE logs, equipment checks and daily completions records. I counted incomplete or conflicting entries before and after adding pivot-table, lookup and index/match checks.
+```
+
+## South Western — 45 to 25 minutes
+
+Formula:
+
+```text
+average report review time before macro vs after macro
+```
+
+Defence:
+
+```text
+The VBA macro refreshed the report and flagged missing, duplicated and conflicting records. The review time fell from about 45 minutes to about 25 minutes because the reviewer no longer had to manually scan each file.
+```
+
+## Business Analytics — 220 countries / 12 sectors
+
+Meaning:
+
+```text
+Scope of country-sector performance table.
+```
+
+Defence:
+
+```text
+The table compared activity by country and sector against a pre-crisis baseline, then grouped patterns into rebound, persistent disruption and structural-shift categories.
+```
+
+## Behavioural Modelling — 7pp improvement
+
+Meaning:
+
+```text
+Accuracy improvement against a single-task CNN baseline.
+```
+
+Formula:
+
+```text
+shared workflow accuracy - single-task CNN baseline accuracy
+```
+
+Defence:
+
+```text
+The 7 percentage-point improvement compares the shared model workflow against the single-task CNN baseline on the same classification task and evaluation split.
+```
+
+# Final recommendation
+
+Use the current values if you can defend them. The highest-risk ones are:
+
+```text
+38% reporting error reduction
+98% successful refreshes
+42% in top 20% score band
+19% KPI movement
+3 strategy options / 5 outcome measures
+```
+
+If any of those are shaky, keep the artefact and soften the metric. For example:
+
+```text
+Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing repeated reporting issues.
+
+Built a ranked segment table showing concentration of target records in the top score band, creating a priority list for the next strategy comparison.
+
+Used BigQuery variance queries to investigate an unexpected KPI movement, producing a root-cause table with 4 drivers.
+```
