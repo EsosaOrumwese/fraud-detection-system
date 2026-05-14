@@ -1113,3 +1113,151 @@ value/profitability proxy
 actual recommendation made
 engineer-facing artefact, if any
 ```
+
+---
+
+# Monzo Platform Experience Draft — Platform Only
+
+Drafting **platform experience bullets only**, using the portfolio formulas and keeping unresolved meaning placeholders visible. Monzo wants product data science: user behaviour analysis, measuring what matters, A/B experiments, lifetime value/user profitability, engineer collaboration, SQL/Python, and Looker/self-serve analytics.
+
+```text
+Data Scientist
+Product Analytics & User Behaviour Platform - Exeter, UK | May 2025 - Present
+Product analytics platform using SQL, BigQuery, Python and Looker to analyse customer activity, response history, value segments and product-behaviour metrics across a 2.35B-row data surface.
+
+- Built BigQuery SQL user-behaviour tables across 2.35B rows of customer activity, transaction and response-history data, tracking [N] product metrics across [N] customer segments.
+
+- Developed a Looker product metrics report tracking [engagement metric], [response / conversion metric], [retention proxy] and [value proxy] across [N] reporting periods.
+
+- Compared 3 [audience / threshold / product-action] options across 5 outcome measures — [measure 1], [measure 2], [measure 3], [measure 4] and [measure 5] — producing a ranked option table for product review.
+
+- Built a ranked customer segment table capturing 42% of [high-response / high-benefit / high-value] customers in the top 20% score band, creating a priority list for [audience review / product action / threshold decision].
+
+- Used BigQuery variance queries to investigate a [X]% movement in [engagement / response / conversion / retention proxy], producing a root-cause table with [N] behavioural, value or data-quality drivers.
+
+- Built a [value / profitability / risk-adjusted value] proxy table using [transaction value / cost exposure / high-benefit label], helping compare user segments by commercial value and product-behaviour outcome.
+
+- Added 15 validation checks across BigQuery source tables and Looker reports, reducing reporting errors by [X]% and improving dashboard refresh reliability for product metrics reporting.
+```
+
+## Formula mapping
+
+```text
+Bullet 1 = SQL/product-behaviour proof
+Bullet 2 = product metrics / Looker proof
+Bullet 3 = controlled comparison / experiment-readiness proof
+Bullet 4 = ranking / user segment prioritisation proof
+Bullet 5 = deep-dive / root-cause analysis proof
+Bullet 6 = LTV / profitability proxy proof
+Bullet 7 = self-serve analytics reliability proof
+```
+
+The most important unresolved meanings before final CV use are:
+
+```text
+[engagement metric]
+[response / conversion metric]
+[retention proxy]
+[value proxy]
+3 option types
+5 outcome measures
+target group behind 42%
+specific metric behind the [X]% movement
+value/profitability proxy formula
+```
+
+## Suggested fills
+
+Use the **response-rate / high-response user pathway** as the primary grounding, because it fits Monzo’s user engagement focus without pretending we have true banking LTV or live A/B tests. Monzo explicitly wants user interaction analysis, “measure what matters,” A/B experiments, lifetime value/user profitability thinking, SQL/Python, Looker, and engineer collaboration.
+
+```text
+engagement metric = customer activity frequency
+response / conversion metric = response rate
+retention proxy = repeat activity / inactivity flag
+value proxy = high-benefit customer label or transaction-value proxy
+```
+
+For the comparison:
+
+```text
+3 option types =
+1. top-score-band customer segment
+2. broader mid-score customer segment
+3. baseline / unranked customer selection
+```
+
+For the 5 outcome measures:
+
+```text
+5 outcome measures =
+1. target capture rate
+2. response rate
+3. segment coverage
+4. low-yield inclusion rate
+5. score-band stability across reporting periods
+```
+
+For the 42%:
+
+```text
+target group behind 42% = high-response customers
+```
+
+If the original evidence was really “high-benefit customers,” use that instead. For Monzo, **high-response customers** is better for user engagement; **high-benefit customers** is better for profitability/value. Do not mix them unless the same group truly means both.
+
+For the movement:
+
+```text
+specific metric behind [X]% movement = response rate
+baseline = previous reporting period
+```
+
+So:
+
+```text
+19% movement in response rate versus the previous reporting period
+```
+
+For the value/profitability proxy:
+
+```text
+value proxy formula =
+customer value proxy = transaction value or high-benefit score over the observation window
+```
+
+If you have cost/risk fields:
+
+```text
+risk-adjusted value proxy =
+transaction value - cost exposure / risk exposure
+```
+
+If you do **not** have actual cost fields, do **not** call it profitability. Call it **value proxy** or **high-benefit customer segment**.
+
+## Filled bullet direction
+
+```text
+- Built BigQuery SQL user-behaviour tables across 2.35B rows of customer activity, transaction and response-history data, tracking activity frequency, response rate, repeat activity and value-proxy metrics across customer segments.
+
+- Developed a Looker customer behaviour report tracking activity frequency, response rate, repeat activity and high-benefit customer concentration across 12 reporting periods.
+
+- Compared 3 customer-selection options — top-score-band segment, broader mid-score segment and baseline selection — across target capture, response rate, segment coverage, low-yield inclusion and score-band stability, producing a ranked option table for product review.
+
+- Built a ranked customer segment table capturing 42% of high-response customers in the top 20% score band, creating a priority list for the next customer-segment review.
+
+- Used BigQuery variance queries to investigate a 19% movement in response rate versus the previous reporting period, producing a root-cause table with activity-volume, segment-mix, response-pattern and source-table quality drivers.
+
+- Built a value-proxy table using transaction value and high-benefit customer labels, comparing customer segments by response rate, score band and value concentration.
+
+- Added 15 validation checks across BigQuery source tables and Looker reports, reducing reporting errors by [X]% and improving dashboard refresh reliability for customer behaviour reporting.
+```
+
+## Safest final recommendation
+
+Use this core story:
+
+```text
+customer activity frequency + response rate + repeat activity + high-response customers + transaction/high-benefit value proxy
+```
+
+That is much more concrete than “engagement,” “conversion,” “retention,” or “profitability” on their own, and it fits Monzo without overclaiming true A/B testing or formal LTV.
