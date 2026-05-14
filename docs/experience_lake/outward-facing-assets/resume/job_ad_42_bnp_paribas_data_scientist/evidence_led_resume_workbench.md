@@ -1011,3 +1011,57 @@ controlled evaluation
 model maintenance
 senior-leader communication
 ```
+
+---
+
+For the **BNP Personal Finance Data Scientist** CV, the remaining blocks should support the main story without pretending they are consumer-finance roles.
+
+The BNP role wants customer behaviour insight, predictive models, testing/evaluation, model maintenance, senior communication, large datasets, Python/SAS/SQL, and clear outputs for non-technical stakeholders. The framework also says supporting experiences should reinforce the target role without competing with the main evidence block.
+
+Here is the BNP-shaped version of the remaining experience blocks.
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Behavioural modelling project using smartphone sensor data to build predictive models, test feature reliability and translate movement patterns into risk-decision indicators.
+
+- Built Python modelling datasets from accelerometer, gyroscope and trip signals, structuring [N] sensor windows into model-ready features for transport-mode and driver-identity prediction.
+
+- Improved behavioural classification accuracy by [X] percentage points versus [baseline model], using validation outputs to compare feature reliability across movement and identity-recognition tasks.
+
+- Produced a model robustness report across [N] trips, [N] users and [N] transport modes, documenting failure cases and translating behavioural drivers into stakeholder-ready risk indicators.
+```
+
+This block supports **predictive modelling, behavioural feature engineering, validation, robustness testing and non-technical explanation**.
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Business analytics project using country-sector activity and policy-response datasets to explain abnormal business movements, compare drivers and produce decision-ready recommendations.
+
+- Built a country-sector reporting dataset across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+
+- Linked abnormal activity movements to policy-response signals across [N] countries and [N] policy areas, explaining the drivers behind business activity variance.
+
+- Produced a visual insight pack with [N] recommendations across [M] outcome measures, translating complex trend drivers into a clear decision summary for non-technical stakeholders.
+```
+
+This block supports **driver explanation, commercial awareness, visual outputs, recommendations and non-technical communication**.
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data analysis role using Excel, VBA and Power BI to validate operational records, improve reporting reliability and prepare manager-facing performance summaries.
+
+- Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting records by [X]% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting entries, cutting report review time from [X] to [Y].
+
+- Built a Power BI operational reporting dashboard tracking [N] job-progress, equipment-readiness and documentation-gap KPIs across [N] completions jobs / [N] rig days.
+
+- Produced manager-facing reporting notes explaining recurring data issues, KPI definitions and operational variance drivers, helping non-technical users understand report changes before handover.
+```
+
+This block supports **data quality, reporting reliability, KPI explanation, process improvement and non-technical communication**.
+
+If space becomes tight, cut the fourth South Western bullet first. The first three already prove Excel, VBA, Power BI, reporting accuracy and operational data discipline.
