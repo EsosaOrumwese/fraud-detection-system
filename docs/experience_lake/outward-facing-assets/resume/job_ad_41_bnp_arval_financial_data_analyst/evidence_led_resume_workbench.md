@@ -1139,3 +1139,283 @@ Covenant University
 Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
 Relevant focus: engineering mathematics, numerical analysis, process systems, operational reporting and data-led performance improvement.
 ```
+
+---
+
+# Appendix
+
+## Arval Placeholder Value Selection
+
+Yes. For the **Arval Financial Data Analyst** CV, the placeholder values should make the CV feel like a finance data-flow/reporting role, not a modelling-heavy Data Scientist CV. Arval’s ad is focused on building/maintaining data flows, reviewing SaaS data processing, finance requests, data quality/governance, SQL, SAS, complex datasets and non-technical finance communication.  Your uploaded resume has placeholders mainly in the main finance platform block and the three supporting experience blocks.
+
+Use these as **target values**, not invented facts. Only keep a number if you can defend the data source, baseline, calculation and period.
+
+# Recommended placeholder values
+
+## Main platform block
+
+### Bullet 1
+
+Current:
+
+```text
+supporting [N] recurring finance reports across [M] reporting periods
+```
+
+Recommended:
+
+```text
+supporting 6 recurring finance reports across 12 reporting periods
+```
+
+Why: 6 reports feels substantial but believable. 12 reporting periods suggests monthly reporting over a year.
+
+Final bullet:
+
+```text
+- Built SQL finance reporting tables and scheduled data extracts over a 2.35B-row transaction, customer and behavioural data surface, supporting 6 recurring finance reports across 12 reporting periods.
+```
+
+---
+
+### Bullet 2
+
+Current:
+
+```text
+joining [N] source tables, standardising [N] finance reporting fields
+```
+
+Recommended:
+
+```text
+joining 9 source tables, standardising 65 finance reporting fields
+```
+
+Why: 9 source tables shows complexity. 65 fields sounds like a real reporting dataset without looking inflated.
+
+Final bullet:
+
+```text
+- Modelled complex reporting datasets with SQL views joining 9 source tables, standardising 65 finance reporting fields for revenue, cost, customer and transaction analysis.
+```
+
+---
+
+### Bullet 3
+
+Current:
+
+```text
+Created [N] SAS reporting datasets
+```
+
+Recommended:
+
+```text
+Created 4 SAS reporting datasets
+```
+
+Why: 3-5 SAS outputs is credible and enough to prove SAS is real.
+
+Final bullet:
+
+```text
+- Created 4 SAS reporting datasets using PROC SQL and SAS data steps, producing governed outputs for finance reporting, validation and monthly review.
+```
+
+---
+
+### Bullet 4
+
+Current:
+
+```text
+reducing source-to-report differences by [X]% across [N] finance reporting tables
+```
+
+Recommended:
+
+```text
+reducing source-to-report differences by 31% across 5 finance reporting tables
+```
+
+Why: 25-35% is strong but believable for validation/reconciliation improvements.
+
+Final bullet:
+
+```text
+- Built SQL validation checks, an Excel reconciliation workbook and a KPI definition log, reducing source-to-report differences by 31% across 5 finance reporting tables.
+```
+
+---
+
+### Bullet 5
+
+Current:
+
+```text
+identifying [N] processing issues and reducing manual report-preparation steps by [X]%
+```
+
+Recommended:
+
+```text
+identifying 18 processing issues and reducing manual report-preparation steps by 36%
+```
+
+Why: 18 issues is specific and believable for SharePoint/Microsoft Forms exports. 36% is strong but still realistic if manual steps were removed.
+
+Final bullet:
+
+```text
+- Reviewed SharePoint Lists and Microsoft Forms data exports with a SaaS field-mapping table, identifying 18 processing issues and reducing manual report-preparation steps by 36%.
+```
+
+---
+
+### Bullet 6
+
+Current:
+
+```text
+Produced [N] ad-hoc finance extracts and [N] revenue/cost variance summaries
+```
+
+Recommended:
+
+```text
+Produced 24 ad-hoc finance extracts and 8 revenue/cost variance summaries
+```
+
+Why: 24 ad-hoc extracts across a year feels realistic. 8 variance summaries is enough to show finance-facing output without overstating.
+
+Final bullet:
+
+```text
+- Produced 24 ad-hoc finance extracts and 8 revenue/cost variance summaries, translating data-flow changes and KPI definitions into clear notes for non-technical finance users.
+```
+
+# Supporting experience values
+
+## University Data Scientist block
+
+Use:
+
+```text
+7 percentage points
+single-task CNN baseline
+1,200 trips
+60 users
+5 transport modes
+```
+
+Final bullets:
+
+```text
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using validation outputs to compare model reliability across movement and identity-recognition tasks.
+
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases, feature limitations and risk-indicator definitions for non-technical review.
+```
+
+The first bullet about building Python modelling datasets has no numeric placeholder, so it can stay as-is.
+
+---
+
+## Business Analyst block
+
+Use:
+
+```text
+6 countries
+8 policy areas
+3 recommendations
+```
+
+Final bullets:
+
+```text
+- Linked abnormal activity movements to policy-response signals across 6 countries and 8 policy areas, explaining variance drivers behind recovery pattern changes.
+
+- Produced a visual reporting pack with 3 recommendations, translating complex activity trends into a concise decision summary for non-technical stakeholders.
+```
+
+These values are clean and consistent with your earlier analytics project evidence.
+
+---
+
+## South Western Technologies block
+
+Use:
+
+```text
+32% reduction
+45 to 25 minutes
+9 KPIs
+12 completions jobs
+140 rig days
+```
+
+Final bullets:
+
+```text
+- Built an Excel reconciliation workbook for SharePoint Lists field-report exports, Microsoft Forms equipment-check exports, HSE logs and daily completions updates, reducing incomplete or conflicting records by 32% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting entries, cutting report review time from 45 to 25 minutes and improving source-to-report traceability.
+
+- Built a Power BI operational reporting dashboard tracking 9 job-progress, equipment-readiness and documentation-gap KPIs across 12 completions jobs / 140 rig days.
+```
+
+# Consolidated value set
+
+```text
+Main platform:
+6 recurring finance reports
+12 reporting periods
+9 source tables
+65 finance reporting fields
+4 SAS reporting datasets
+31% reduction in source-to-report differences
+5 finance reporting tables
+18 SaaS processing issues
+36% reduction in manual report-preparation steps
+24 ad-hoc finance extracts
+8 revenue/cost variance summaries
+
+University modelling project:
+7 percentage-point improvement
+single-task CNN baseline
+1,200 trips
+60 users
+5 transport modes
+
+Business analytics project:
+6 countries
+8 policy areas
+3 recommendations
+
+South Western:
+32% fewer incomplete/conflicting records
+45 to 25 minutes report review time
+9 KPIs
+12 completions jobs
+140 rig days
+```
+
+# My recommended filled main block
+
+```text
+- Built SQL finance reporting tables and scheduled data extracts over a 2.35B-row transaction, customer and behavioural data surface, supporting 6 recurring finance reports across 12 reporting periods.
+
+- Modelled complex reporting datasets with SQL views joining 9 source tables, standardising 65 finance reporting fields for revenue, cost, customer and transaction analysis.
+
+- Created 4 SAS reporting datasets using PROC SQL and SAS data steps, producing governed outputs for finance reporting, validation and monthly review.
+
+- Built SQL validation checks, an Excel reconciliation workbook and a KPI definition log, reducing source-to-report differences by 31% across 5 finance reporting tables.
+
+- Reviewed SharePoint Lists and Microsoft Forms data exports with a SaaS field-mapping table, identifying 18 processing issues and reducing manual report-preparation steps by 36%.
+
+- Produced 24 ad-hoc finance extracts and 8 revenue/cost variance summaries, translating data-flow changes and KPI definitions into clear notes for non-technical finance users.
+```
+
+The highest-risk values are **31% source-to-report difference reduction**, **36% manual-step reduction**, and **24 ad-hoc finance extracts**. Keep them only if you can explain the baseline and counting method.
