@@ -4,15 +4,15 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Performance Analyst using BigQuery SQL, Looker, Power BI, Excel and VBA to build KPI tables, dashboard source tables, variance reports, reconciliation workbooks and automated refresh checks across 2.35B rows of customer activity, transaction and response-history data plus operational reporting records. Produced weekly KPI dashboards, period-comparison reports, root-cause tables and option-ranking summaries to explain metric movements, compare options and improve recurring report accuracy.
+Performance Analyst with experience using BigQuery SQL, Power BI, Looker, Excel/VBA and Python to build KPI tables, dashboards, variance reports and reporting QA checks. Turned metric movements into root-cause summaries, option rankings and recurring report improvements for commercial and operational review.
 
 TECHNICAL SKILLS
 
-Commercial Performance Analytics: KPI dashboards, variance analysis, period-comparison reports, root-cause tables, option-ranking summaries, ranked recommendation tables
-SQL & Data Analysis: SQL, Google BigQuery, SQL KPI tables, dashboard source tables, variance queries, reporting QA checks
-BI & Data Visualisation: Power BI, Google Looker, KPI dashboards, trend charts, performance reports, dashboard refresh validation
-Excel & Automation: Excel, pivot tables, lookups, index/match, VBA report-refresh macros, exception-flagging macros
-Statistical & Reporting Methods: baseline comparison, pre/post analysis, metric movement analysis, validation checks, report QA
+SQL & Data: SQL, BigQuery, KPI tables, dashboard source tables, variance queries, reporting QA
+BI & Reporting: Power BI, Looker, KPI dashboards, trend charts, performance reports
+Excel & Automation: Excel, pivot tables, lookups, index/match, VBA refresh macros
+Commercial Analysis: variance analysis, baseline comparison, pre/post analysis, root-cause analysis, option ranking
+Data Quality: validation checks, reconciliation, dashboard refresh checks, report QA, data limitation notes
 
 RELEVANT EXPERIENCE
 

@@ -4,15 +4,15 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Commercial Data Analyst using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer activity tables, propensity score tables, audience cut-off tests, model validation packs and KPI dashboards across 2.35B rows of customer activity, lifecycle and response-history data. Compared 3 promotion audience options across audience size, offer-response customer capture, expected response-rate, historically low-response customer removal and coverage, producing a recommendation memo on which score cut-off to use for offer targeting.
+Commercial Data Analyst with experience using SQL, BigQuery and Python/PySpark to analyse customer response, promotion audiences and score cut-offs. Built validation packs, dashboards and recommendation memos that helped compare offer-targeting trade-offs.
 
 TECHNICAL SKILLS
 
-Commercial Analytics: promotion response analysis, customer segmentation, audience cut-off testing, offer targeting, response-history analysis, coverage trade-off analysis
-SQL & Data Platforms: SQL, Google BigQuery, ETL transformations, customer activity tables, dashboard source tables, scoring tables
-Python & Modelling: Python, PySpark, Pandas, NumPy, propensity scoring, lift charts, calibration checks, score-band validation
-BI & Reporting: Power BI, Looker, customer response dashboards, audience performance dashboards, KPI validation checks
-Decision Outputs: baseline comparisons, score-band tables, 3-option audience recommendations, model validation packs, offer-targeting memos
+SQL & Data: SQL, BigQuery, ETL tables, customer activity tables, dashboard source tables
+Python & Modelling: Python, PySpark, Pandas, NumPy, propensity scoring, score-band validation
+Commercial Analytics: promotion response analysis, customer segmentation, offer targeting, cut-off testing, coverage trade-offs
+BI & Reporting: Power BI, Looker, customer response dashboards, audience performance dashboards, KPI checks
+Decision Outputs: baseline comparisons, lift charts, validation packs, recommendation memos
 
 RELEVANT EXPERIENCE
 
