@@ -1341,3 +1341,53 @@ Operations reporting role using Excel, VBA and Power BI to reconcile field repor
 ```
 
 This block is weaker for Monzo than the platform and modelling blocks, but it proves **data quality, automation, dashboarding and self-starter reporting improvement**. Keep it lower in the CV.
+
+---
+
+# Header and Professional Summary — Monzo
+
+## Recommended headline
+
+```text
+Product Data Scientist | User Behaviour, Experiment Measurement & Product Analytics | SQL, Python & Looker
+```
+
+Use **Experiment Measurement**, not **A/B Testing**, unless we can defend true A/B experiment experience. Monzo does ask for A/B experiment experience, but current evidence is safer as controlled comparison / option comparison unless proven otherwise.
+
+## Professional summary
+
+```text
+Product Data Scientist with experience using SQL, BigQuery, Python and Looker to analyse customer activity, response history, ranked customer segments and value-proxy metrics. Built user-behaviour tables, customer behaviour reports and option-comparison tables to explain response movements and guide product review.
+```
+
+This keeps the top tight. The detailed proof stays in the bullets.
+
+---
+
+# Technical Skills and Education — Monzo
+
+For Monzo, keep skills compact. The job’s core signals are **SQL, Python, product analytics, user behaviour, experimentation, Looker, commercial interpretation and cross-functional product work**.
+
+```text
+TECHNICAL SKILLS
+
+Product Analytics: user behaviour analysis, response-rate analysis, customer segmentation, experiment measurement
+SQL & Data: SQL, Google BigQuery, user-behaviour tables, variance queries, metric definitions
+Python & Statistics: Python, Pandas, NumPy, baseline comparison, model evaluation, robustness testing
+BI & Reporting: Google Looker, Power BI, product metrics reports, KPI dashboards, validation checks
+Commercial Analysis: value-proxy analysis, ranked customer segments, option-comparison tables
+```
+
+Education should stay simple:
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+```
+
+Do not add project context under Education because the experience section already carries the proof.

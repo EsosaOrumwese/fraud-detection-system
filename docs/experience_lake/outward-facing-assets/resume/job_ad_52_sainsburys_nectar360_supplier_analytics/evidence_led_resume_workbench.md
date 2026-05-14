@@ -1500,6 +1500,50 @@ Keep these mostly unchanged because they are already concrete. The Nectar360 tai
 
 ---
 
+# Header and Professional Summary — Nectar360
+
+Headline/header + professional summary for the Nectar360 Supplier Analytics role.
+
+```text
+Esosa Orumwese
+Commercial Data Analyst | Customer Segmentation & Supplier Analytics | SQL, BigQuery & Power BI
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+```
+
+```text
+PROFESSIONAL SUMMARY
+
+Commercial Data Analyst using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer activity tables, segmentation outputs, score-band reports and dashboard views across 2.35B rows of customer activity, lifecycle and response-history data. Strong fit for Nectar360-style supplier analytics requiring granular SQL, customer segmentation, model-output interpretation and stakeholder-facing recommendation reports.
+```
+
+This is short enough to scan, and it keeps the detailed proof inside the experience bullets. It also matches the role’s focus on complex SQL, granular customer/product/transaction-style data, segmentation, BI tools, model-output interpretation and stakeholder-facing recommendations.
+
+---
+
+# Technical Skills and Education — Nectar360
+
+```text
+TECHNICAL SKILLS
+
+SQL & Data Platforms: SQL, Google BigQuery, ETL tables, customer activity tables, dashboard source tables
+Customer Analytics: customer segmentation, lifecycle-response analysis, score-band analysis, response-history analysis
+Python & Modelling: Python, PySpark, Pandas, NumPy, propensity scoring, lift charts, calibration checks
+BI & Reporting: Power BI, Looker, customer segment dashboards, score-band views, visual recommendation reports
+Stakeholder Outputs: recommendation memos, dashboard commentary, model-output summaries, non-technical reports
+```
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+```
+
+---
+
 ### 2. `[N] customer stages / lifecycle groups`
 
 Avoid this separate placeholder unless you can name the real stages.
