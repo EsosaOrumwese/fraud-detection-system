@@ -1079,3 +1079,63 @@ Financial Data Analyst with experience building SQL and SAS reporting datasets, 
 ```
 
 That gives Arval the right first impression: **finance data analyst, SQL/SAS, data flows, reporting datasets, governance, and finance-user communication**.
+
+---
+
+For Arval, the skills section should stay **compact** and reinforce the exact role: SQL, SAS, finance data flows, data modelling, SaaS processing review, data quality/governance, and finance-user reporting. The ad explicitly asks for building/maintaining data flows, reviewing SaaS processing, finance data requests, SQL, SAS, data governance, large financial datasets and communication with non-technical finance users.
+
+## Technical Skills
+
+```text
+TECHNICAL SKILLS
+
+SQL & Data Modelling: SQL reporting tables, SQL views, source-to-report joins, complex datasets
+
+SAS & Reporting Outputs: SAS, PROC SQL, SAS data steps, SAS reporting datasets, SAS validation outputs
+
+Data Quality & Governance: source-to-report reconciliation, data-quality checks, KPI definition logs, data dictionaries
+
+Finance Reporting & SaaS: finance reporting extracts, revenue/cost variance workbooks, SharePoint Lists exports, Microsoft Forms exports
+
+Analysis & Reporting Tools: Excel, pivot tables, lookups, index/match, Power BI, Python, Pandas
+```
+
+This is short enough for the top of the CV but still concrete. It avoids turning the skills section into an evidence ledger.
+
+## Education
+
+For Arval, keep education descriptions short. The MSc should reinforce SQL/SAS/data/reporting readiness; the BEng should reinforce numerical ability, process thinking and data-quality discipline.
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+Relevant focus: SQL, Python, statistical modelling, data management, machine learning and reporting-ready analysis across large behavioural and business datasets.
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+Relevant focus: engineering mathematics, numerical analysis, process systems, operational reporting and data-led performance improvement.
+```
+
+## Slightly more Arval-targeted MSc line
+
+If the MSc should feel closer to the Financial Data Analyst role:
+
+```text
+Relevant focus: SQL, statistical modelling, data management, validation checks and reporting-ready analysis across large behavioural and business datasets.
+```
+
+My pick is this final Education version:
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+Relevant focus: SQL, statistical modelling, data management, validation checks and reporting-ready analysis across large behavioural and business datasets.
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+Relevant focus: engineering mathematics, numerical analysis, process systems, operational reporting and data-led performance improvement.
+```

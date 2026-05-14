@@ -1,0 +1,79 @@
+Esosa Orumwese
+Financial Data Analyst | SQL, SAS & Finance Data Flows | Data Modelling & Governance
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Financial Data Analyst with experience building SQL and SAS reporting datasets, finance data flows and source-to-report validation checks across large transaction, customer and behavioural datasets. Built SQL reporting models, SAS validation outputs, Excel reconciliation workbooks and finance-ready reporting extracts across a 2.35B-row data surface, translating data quality issues, KPI definitions and variance outputs into clear notes for non-technical finance users.
+
+TECHNICAL SKILLS
+
+SQL & Data Modelling: SQL reporting tables, SQL views, source-to-report joins, complex datasets
+
+SAS & Reporting Outputs: SAS, PROC SQL, SAS data steps, SAS reporting datasets, SAS validation outputs
+
+Data Quality & Governance: source-to-report reconciliation, data-quality checks, KPI definition logs, data dictionaries
+
+Finance Reporting & SaaS: finance reporting extracts, revenue/cost variance workbooks, SharePoint Lists exports, Microsoft Forms exports
+
+Analysis & Reporting Tools: Excel, pivot tables, lookups, index/match, Power BI, Python, Pandas
+
+RELEVANT EXPERIENCE
+
+Data Scientist
+Financial Data Flows & Reporting Analytics Platform - Exeter, UK | May 2025 - Present
+Finance reporting platform using SQL, SAS, Excel and Power BI across a 2.35B-row transaction, customer and behavioural data surface to build reporting data flows, validate source-to-report outputs and support finance data requests.
+
+- Built SQL finance reporting tables and scheduled data extracts over a 2.35B-row transaction, customer and behavioural data surface, supporting [N] recurring finance reports across [M] reporting periods.
+
+- Modelled complex reporting datasets with SQL views joining [N] source tables, standardising [N] finance reporting fields for revenue, cost, customer and transaction analysis.
+
+- Created [N] SAS reporting datasets using PROC SQL and SAS data steps, producing governed outputs for finance reporting, validation and monthly review.
+
+- Built SQL validation checks, an Excel reconciliation workbook and a KPI definition log, reducing source-to-report differences by [X]% across [N] finance reporting tables.
+
+- Reviewed SharePoint Lists and Microsoft Forms data exports with a SaaS field-mapping table, identifying [N] processing issues and reducing manual report-preparation steps by [X]%.
+
+- Produced [N] ad-hoc finance extracts and [N] revenue/cost variance summaries, translating data-flow changes and KPI definitions into clear notes for non-technical finance users.
+
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Analytical modelling project using smartphone sensor datasets to build validated model outputs, test feature reliability and translate technical results into risk-indicator summaries.
+
+- Built Python modelling datasets from accelerometer, gyroscope and trip signals, structuring sensor windows into model-ready features for transport-mode and driver-identity analysis.
+
+- Improved behavioural classification accuracy by [X] percentage points versus [baseline model], using validation outputs to compare model reliability across movement and identity-recognition tasks.
+
+- Produced a model robustness report across [N] trips, [N] users and [N] transport modes, documenting failure cases, feature limitations and risk-indicator definitions for non-technical review.
+
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Business analytics project using country-sector activity and policy-response datasets to build visual reports, explain abnormal movements and produce decision-ready recommendations.
+
+- Built a country-sector reporting dataset across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+
+- Linked abnormal activity movements to policy-response signals across [N] countries and [N] policy areas, explaining variance drivers behind recovery pattern changes.
+
+- Produced a visual reporting pack with [N] recommendations, translating complex activity trends into a concise decision summary for non-technical stakeholders.
+
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data analysis role using Excel, VBA, Power BI, SharePoint Lists and Microsoft Forms exports to reconcile operational records, review SaaS data processing and prepare manager-facing reports.
+
+- Built an Excel reconciliation workbook for SharePoint Lists field-report exports, Microsoft Forms equipment-check exports, HSE logs and daily completions updates, reducing incomplete or conflicting records by [X]% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting entries, cutting report review time from [X] to [Y] and improving source-to-report traceability.
+
+- Built a Power BI operational reporting dashboard tracking [N] job-progress, equipment-readiness and documentation-gap KPIs across [N] completions jobs / [N] rig days.
+
+- Produced manager-facing reporting notes explaining data issues, KPI definitions and recurring documentation gaps, helping non-technical operations users understand report changes before handover.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+Relevant focus: SQL, statistical modelling, data management, validation checks and reporting-ready analysis across large behavioural and business datasets.
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+Relevant focus: engineering mathematics, numerical analysis, process systems, operational reporting and data-led performance improvement.
