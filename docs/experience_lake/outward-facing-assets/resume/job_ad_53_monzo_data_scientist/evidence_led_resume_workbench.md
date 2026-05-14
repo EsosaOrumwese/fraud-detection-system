@@ -873,3 +873,243 @@ The platform experience can be strong for Monzo, but only if we ground the abstr
 ```
 
 The next step is **bullet portfolio design for the platform experience only**, unless you want to tighten the grounding dictionary first.
+
+---
+
+# Monzo Bullet Portfolio Design
+
+This is **not bullet drafting yet**. This step decides what each platform bullet must prove before we write it.
+
+Monzo wants a Product Data Scientist who can analyse user behaviour, guide teams on what to measure, support A/B experiments, work with finance on lifetime value/user profitability, liaise with engineers on data collection, and use SQL/Python inside cross-functional product squads.
+
+# Target platform block
+
+Best title direction:
+
+```text
+Data Scientist
+Product Analytics & User Behaviour Platform — Exeter, UK | May 2025 – Present
+```
+
+Alternative:
+
+```text
+Data Scientist
+User Engagement & Product Analytics Platform — Exeter, UK | May 2025 – Present
+```
+
+I prefer:
+
+```text
+Product Analytics & User Behaviour Platform
+```
+
+It is broad enough for SQL user-behaviour tables, engagement metrics, Looker reports, ranking tables, controlled comparisons, value proxies, and product recommendation outputs.
+
+---
+
+# Platform bullet portfolio — Monzo
+
+## Bullet 1 — SQL user-behaviour table
+
+| Field              | Decision                                                                             |
+| ------------------ | ------------------------------------------------------------------------------------ |
+| Must prove         | You can use SQL/BigQuery to analyse user behaviour at scale.                         |
+| Evidence assigned  | 2.35B-row transaction / activity / response-history data; SQL user-behaviour tables. |
+| Concrete artefacts | BigQuery user-behaviour table, SQL product metrics table, customer activity table.   |
+| Metric meaning     | Named user/product metrics, not generic “KPIs.”                                      |
+| Meaning to fill    | `[behaviour signals]`, `[user population]`, `[metric families]`.                     |
+| Avoid              | “Analysed user behaviour” without naming the table and signals.                      |
+
+**Portfolio role:** this is the **SQL product analytics bullet**.
+
+---
+
+## Bullet 2 — Engagement / response / retention metric analysis
+
+| Field              | Decision                                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| Must prove         | You can measure user engagement or product behaviour in a way a product squad would care about.          |
+| Evidence assigned  | Response-rate table, cohort table, ranked customer segment table, retention/churn-risk evidence if true. |
+| Concrete artefacts | Engagement cohort table, response-rate report, retention-risk table, segment table.                      |
+| Metric meaning     | Response rate, activity frequency, repeat usage, retention proxy, conversion, or churn-risk flag.        |
+| Meaning to fill    | `[engagement metric]`, `[cohort definition]`, `[baseline]`.                                              |
+| Avoid              | “Improved engagement” unless we know the exact metric and baseline.                                      |
+
+**Portfolio role:** this is the **user engagement bullet**.
+
+---
+
+## Bullet 3 — Experiment or controlled comparison
+
+| Field              | Decision                                                                                            |
+| ------------------ | --------------------------------------------------------------------------------------------------- |
+| Must prove         | You can measure whether an action, option, threshold, or segment choice worked.                     |
+| Evidence assigned  | 3 options, 5 outcome measures, ranked option table.                                                 |
+| Concrete artefacts | A/B readout if true, holdout comparison, threshold test, backtest table, strategy comparison table. |
+| Metric meaning     | Uplift, response difference, capture rate, conversion, retention proxy, value proxy.                |
+| Meaning to fill    | `[comparison type]`, `[groups]`, `[success metric]`, `[decision]`.                                  |
+| Avoid              | Calling it an A/B experiment unless it was a real A/B test with control/treatment.                  |
+
+**Portfolio role:** this is the **experimentation / measurement bullet**.
+
+For now, the safe slot label is:
+
+```text
+controlled comparison
+```
+
+Not:
+
+```text
+A/B experiment
+```
+
+unless confirmed.
+
+---
+
+## Bullet 4 — Looker product metrics / self-serve analytics
+
+| Field              | Decision                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------- |
+| Must prove         | You can build or maintain Looker metrics that help teams answer routine product questions quickly.            |
+| Evidence assigned  | Looker reports, dashboard source tables, metric definitions, validation checks.                               |
+| Concrete artefacts | Looker product metrics report, customer behaviour dashboard, dashboard source table, metric definition sheet. |
+| Metric meaning     | Metrics tracked, refresh reliability, report users, reporting periods.                                        |
+| Meaning to fill    | `[Looker report name/type]`, `[dashboard users]`, `[metric list]`.                                            |
+| Avoid              | “Self-serve insight” without the Looker report, metrics, and user group.                                      |
+
+**Portfolio role:** this is the **Looker / self-serve analytics bullet**.
+
+Monzo specifically highlights Looker as the self-serve layer for day-to-day decisions, so this should appear but not dominate the whole block.
+
+---
+
+## Bullet 5 — Value / profitability proxy
+
+| Field              | Decision                                                                                             |
+| ------------------ | ---------------------------------------------------------------------------------------------------- |
+| Must prove         | You can connect user behaviour to value, cost, profitability, or commercial trade-offs.              |
+| Evidence assigned  | High-benefit customers, high-response customers, transaction value, cost exposure, value/risk table. |
+| Concrete artefacts | Value segment table, LTV proxy table, cost-exposure table, high-benefit ranking table.               |
+| Metric meaning     | Transaction value, cost exposure, high-benefit label, risk-adjusted value, profitability proxy.      |
+| Meaning to fill    | `[value proxy]`, `[target group]`, `[commercial lens]`.                                              |
+| Avoid              | “User profitability” unless we can explain the proxy and formula.                                    |
+
+**Portfolio role:** this is the **LTV / profitability proxy bullet**.
+
+This matters because Monzo explicitly mentions lifetime value and user profitability with finance.
+
+---
+
+## Bullet 6 — Product recommendation table
+
+| Field              | Decision                                                                                     |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| Must prove         | You can turn analysis into a product recommendation, not just a dashboard.                   |
+| Evidence assigned  | Ranked option table, strategy comparison, next-action table.                                 |
+| Concrete artefacts | Product recommendation memo, ranked option table, experiment readout, feature-impact report. |
+| Metric meaning     | Options compared and recommendation produced.                                                |
+| Meaning to fill    | `[option types]`, `[outcome measures]`, `[recommendation]`, `[decision workflow]`.           |
+| Avoid              | “Informed product strategy” without the table/memo/readout and what it recommended.          |
+
+**Portfolio role:** this is the **product strategy / recommendation bullet**.
+
+---
+
+## Bullet 7 — Engineer-facing data quality / instrumentation
+
+| Field              | Decision                                                                                                         |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Must prove         | You can identify data gaps or source-table issues that block product analysis.                                   |
+| Evidence assigned  | Validation checks, source-table issues, missing fields, freshness/join/duplicate issues.                         |
+| Concrete artefacts | Source-table issue log, SQL validation query, missing-field list, event-tracking note, PR comment.               |
+| Metric meaning     | Issues found, checks added, reporting errors reduced, refreshes improved.                                        |
+| Meaning to fill    | `[data issue]`, `[engineering artefact]`, `[workflow]`.                                                          |
+| Avoid              | “Liaised with engineers” unless there was an issue log, handoff note, tracking request, PR, or validation query. |
+
+**Portfolio role:** this is the **engineer collaboration / data collection bullet**.
+
+Monzo explicitly says the DS should liaise with engineers to make sure the right data is collected.
+
+---
+
+## Bullet 8 — Python / statistical evaluation
+
+| Field              | Decision                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Must prove         | You can use Python/statistical methods, not just SQL dashboards.                                                        |
+| Evidence assigned  | Python modelling, segmentation, model evaluation, 7pp improvement if using supporting project, platform Python if true. |
+| Concrete artefacts | Python notebook, segmentation script, model evaluation table, baseline comparison.                                      |
+| Metric meaning     | Accuracy, lift, response difference, segment capture, robustness.                                                       |
+| Meaning to fill    | `[Python artefact]`, `[metric]`, `[baseline]`.                                                                          |
+| Avoid              | Making deep learning the centre of the Monzo platform block.                                                            |
+
+**Portfolio role:** this is the **Python / quantitative analysis bullet**.
+
+This may be merged into another bullet if the platform block is too long.
+
+---
+
+# Recommended platform order
+
+```text
+1. BigQuery SQL user-behaviour table
+2. Engagement / response / retention metric analysis
+3. Controlled comparison / experiment-style measurement
+4. Looker product metrics report
+5. Value / profitability proxy table
+6. Product recommendation table
+7. Engineer-facing source-table / data-quality artefact
+8. Python / statistical evaluation
+```
+
+# Likely 6-bullet final portfolio
+
+For a CV, I would probably compress it to 6 bullets:
+
+```text
+1. SQL user-behaviour table over 2.35B rows.
+2. Engagement / response / retention metric analysis.
+3. Controlled comparison across options and outcome measures.
+4. Value / profitability proxy or ranked high-value user table.
+5. Looker product metrics dashboard with validated metric definitions.
+6. Product recommendation or engineer-facing data-quality output.
+```
+
+The key decision is whether Bullet 6 should be:
+
+```text
+Product recommendation table
+```
+
+or:
+
+```text
+Engineer-facing data-quality / event-tracking artefact
+```
+
+For Monzo, both are valuable. The stronger one depends on what evidence we can make more concrete.
+
+# Final portfolio output
+
+```text
+Bullet 1 must prove: SQL analysis of user/product behaviour at scale.
+Bullet 2 must prove: engagement, response, retention or conversion metric analysis.
+Bullet 3 must prove: experiment-style measurement through A/B, holdout, pre/post, backtest or threshold comparison.
+Bullet 4 must prove: value, profitability or commercial trade-off thinking.
+Bullet 5 must prove: Looker/self-serve product metrics with defined metrics and validation.
+Bullet 6 must prove: product recommendation or engineer-facing data-quality action.
+```
+
+Before drafting, the most important meanings to lock are:
+
+```text
+specific engagement metric
+comparison type: true A/B, holdout, pre/post, backtest or threshold test
+target group behind the 42%
+value/profitability proxy
+actual recommendation made
+engineer-facing artefact, if any
+```

@@ -486,3 +486,213 @@ customer segmentation + granular SQL + model-output interpretation + BI reports 
 ```
 
 The next step is the **evidence ledger + grounding dictionary**, where we list what evidence we actually have and translate internal phrases into Nectar360 hiring-manager language.
+
+---
+
+# Nectar360 Evidence Scoring
+
+This is still **not bullet portfolio design**. The purpose here is to decide what evidence should lead the CV, what should support, what should be compressed, and what must not be claimed. The role asks for complex SQL over large granular datasets, customer/product/transaction-style analysis, customer journeys, segmentation, campaign attribution/model-output interpretation, BI visualisation, end-to-end analysis, and stakeholder-facing recommendations for FMCG/GM clients.
+
+# Scoring key
+
+| Tier  | Meaning for Nectar360                                                 |
+| ----- | --------------------------------------------------------------------- |
+| **A** | Direct match. Should drive the platform block.                        |
+| **B** | Useful adjacent evidence. Supports the story but should not dominate. |
+| **C** | Transferable only. Use lower down or compress.                        |
+| **D** | Avoid or keep unclaimed unless new evidence proves it.                |
+
+---
+
+# Tier A — Direct Nectar360 evidence
+
+These should drive the main platform block.
+
+| Evidence item                                                                                        | Score | Why it is A                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------- | ----: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **2.35B rows of customer activity, lifecycle and response-history data**                             |     A | Strong match to large granular customer/loyalty-style data. Nectar360 explicitly wants large granular datasets and customer/product/transaction-level analysis.      |
+| **SQL / BigQuery customer activity tables**                                                          |     A | Direct match to SQL/database interrogation. Stronger if we can say joins, subqueries, window functions and aggregations were used.                                   |
+| **Python/PySpark customer-feature tables**                                                           |     A | Supports complex data-source integration and analysis-ready tables. Good for end-to-end extraction-to-analysis story.                                                |
+| **Customer lifecycle / response-history tables**                                                     |     A | Directly supports customer journey/lifecycle analysis without pretending to have Nectar journey data.                                                                |
+| **Customer segment tables**                                                                          |     A | Segmentation is directly named in the ad. Segment tables with customer counts and response-history fields are very strong.                                           |
+| **Ranked customer table / propensity score output**                                                  |     A | Strong adjacent evidence for campaign attribution/model-output interpretation. It proves you can interpret scoring outputs even if not true multi-touch attribution. |
+| **Score-band table / top-score-band capture**                                                        |     A | Concrete model-output interpretation: score bands, customer capture, ranking quality.                                                                                |
+| **Model validation pack with lift charts, calibration checks and stability tables**                  |     A | Direct evidence for statistical techniques and model-output interpretation.                                                                                          |
+| **Power BI / Looker customer segment dashboard views**                                               |     A | Direct match to BI/data visualisation for non-technical stakeholders. Power BI/Looker are valid “Tableau or equivalent” tools.                                       |
+| **Recommendation memo from segment / score-band analysis**                                           |     A | Direct match to stakeholder-facing reports and recommendations. Must be phrased as a concrete memo/report, not “insight.”                                            |
+| **End-to-end chain: SQL table -> segment/scoring table -> dashboard/model pack -> recommendation memo** |     A | This is probably the strongest story for the role because the essential criteria ask for end-to-end analysis from extraction to recommendation.                    |
+| **Joined customer activity + lifecycle + response-history sources**                                  |     A | Direct match to integrating complex data sources for analytical outputs.                                                                                             |
+
+**Verdict:** The top platform block should be built around:
+
+```text
+complex SQL / BigQuery tables
+2.35B rows of customer activity data
+customer lifecycle and response-history analysis
+segmentation tables
+propensity / score-band outputs
+model validation pack
+Power BI / Looker dashboard views
+recommendation memo
+```
+
+---
+
+# Tier B — Useful adjacent evidence
+
+These help, but should not be the main centre.
+
+| Evidence item                                     | Score | Why it is B                                                                                                                                           |
+| ------------------------------------------------- | ----: | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Campaign / promotion audience cut-off tests**   |   B/A | A if framed as supplier-style customer segmentation or model-output interpretation. B if it sounds too promotion-only rather than supplier analytics. |
+| **42% capture in top 20% score band**             |   B/A | A if the target group is clearly defined as likely responders / customers matching response definition. B if “target customer” stays vague.           |
+| **11% low-response reduction / 91% coverage**     |     B | Useful for customer audience quality and recommendation logic, but less central than segmentation/journey/model-output interpretation.                |
+| **3 audience options / 5 measures**               |   B/A | A if framed as a stakeholder-facing recommendation report. B if it stays as internal targeting logic.                                                 |
+| **Business Analytics visual trend report**        |     B | Good for visual storytelling and recommendations, but not customer/supplier/FMCG data.                                                                |
+| **220-country / 12-sector baseline analysis**     |     B | Strong scope and baseline comparison, useful for analytical maturity, but domain is not Nectar360.                                                    |
+| **6-country / 8-policy-area driver analysis**     |     B | Good for explaining metric movement and external drivers; supporting evidence only.                                                                   |
+| **3 recommendations from visual report**          |     B | Supports stakeholder-facing recommendation ability.                                                                                                   |
+| **Smartphone model evaluation / 7pp improvement** |   B/C | B for model evaluation and baseline comparison; C for role relevance because the domain is distant.                                                   |
+| **South Western Power BI dashboard**              |   B/C | B for BI/dashboard proof if needed; C because the domain is oilfield operations, not customer/supplier analytics.                                     |
+| **Excel/VBA reconciliation and automation**       |   B/C | Useful for concrete data discipline, but not central to this role unless space allows.                                                                |
+
+**Verdict:** B-tier evidence can strengthen the secondary experience blocks, but the main platform should not become promotion-only, academic-trend-only, or operational-reporting-led.
+
+---
+
+# Tier C — Transferable support only
+
+Use these lower down, or compress if space is tight.
+
+| Evidence item                                                | Score | Why it is C                                                                                    |
+| ------------------------------------------------------------ | ----: | ---------------------------------------------------------------------------------------------- |
+| **Smartphone sensor project as a whole**                     |     C | Shows Python/modelling, but not customer/product/transaction/supplier analytics.               |
+| **Model robustness across 1,200 trips / 60 users / 5 modes** |     C | Concrete and credible, but domain is far from Nectar360.                                       |
+| **South Western Excel reconciliation workbook**              |     C | Very concrete, but oilfield records are not supplier/customer analytics.                       |
+| **VBA report-refresh macro**                                 |     C | Good automation proof, but secondary for this job.                                             |
+| **Power BI operational metrics dashboard**                   |     C | Shows dashboard skill, but the dashboard content is operational rather than customer/supplier. |
+| **HSE / field-report / completions data**                    |     C | Concrete but wrong domain. Use only as supporting data-quality/reporting proof.                |
+| **Operational data quality language**                        |     C | Not a core Nectar360 signal; avoid making this CV feel like Thames.                            |
+
+---
+
+# Tier D — Avoid or do not claim yet
+
+These are unsafe unless you provide new evidence.
+
+| Evidence item                                                 |             Score | Why it is D                                                                                                                    |
+| ------------------------------------------------------------- | ----------------: | ------------------------------------------------------------------------------------------------------------------------------ |
+| **SKU-level analysis**                                        | D until confirmed | The ad names SKU/product-level data, but we do not yet have proof.                                                             |
+| **Product/category ranging analysis**                         | D until confirmed | Ranging is named in the role, but we cannot claim it without product/range data.                                               |
+| **Category health analysis**                                  | D until confirmed | “Health” in the ad may mean supplier/category health, but we need evidence.                                                    |
+| **FMCG client-facing delivery**                               | D until confirmed | Do not say you delivered to FMCG clients unless true.                                                                          |
+| **External supplier/client presentations**                    | D until confirmed | Use “stakeholder-facing” or “supplier-style” unless actual external clients saw the work.                                      |
+| **Campaign multi-touch attribution outputs**                  | D until confirmed | The job mentions N360 Pollen MTA outputs, but unless you worked with MTA outputs, use “propensity / score-band model outputs.” |
+| **Nectar360 / Pollen platform language**                      |                 D | Do not mimic their internal platform. You did not work on N360 Pollen.                                                         |
+| **Ranging recommendation**                                    | D until confirmed | Unsafe without product/SKU/range evidence.                                                                                     |
+| **Retail/FMCG supplier analytics claim as direct experience** |               D/B | B only as positioning direction. D if stated as actual prior client experience without proof.                                  |
+
+**Verdict:** The main gaps are still:
+
+```text
+SKU / product / ranging / health evidence
+true FMCG client-facing delivery
+true multi-touch attribution output interpretation
+```
+
+We can still compete, but the CV must be honest: **customer segmentation + model-output interpretation + BI recommendation outputs**, not fake supplier/SKU work.
+
+---
+
+# Evidence priority pool for the platform block
+
+The highest-value evidence pool is:
+
+```text
+1. SQL / BigQuery customer activity tables
+2. 2.35B rows of customer activity, lifecycle and response-history data
+3. Python/PySpark customer-feature tables
+4. Customer lifecycle / response-history segmentation tables
+5. Ranked customer table / propensity score output
+6. Score-band table and top-score-band capture
+7. Model validation pack with lift charts, calibration checks and stability tables
+8. Power BI / Looker customer segment dashboard views
+9. Recommendation memo from segment / score-band analysis
+10. End-to-end chain from SQL extraction to recommendation memo
+```
+
+That is the evidence that should carry the first experience block.
+
+---
+
+# What this tells us for positioning
+
+The platform should **not** be framed as:
+
+```text
+Pricing & Promotion Analytics Platform
+Payments/Fraud Platform
+Operational Insight Platform
+Generic Customer Behaviour ML Platform
+```
+
+Best direction:
+
+```text
+Customer Segmentation & Supplier-Style Analytics Platform
+```
+
+or safer:
+
+```text
+Customer Behaviour & Segmentation Analytics Platform
+```
+
+I prefer the safer version unless we later decide “supplier-style” is needed in the context line:
+
+```text
+Customer Behaviour & Segmentation Analytics Platform
+```
+
+It is grounded, true to the evidence, and directly relevant to segmentation/customer journey/client analytics.
+
+---
+
+# Initial experience weighting
+
+| Experience                                     | Nectar360 weight | Why                                                                                           |
+| ---------------------------------------------- | ---------------: | --------------------------------------------------------------------------------------------- |
+| **Customer Behaviour / Segmentation Platform** |        Very high | Main evidence for SQL, large customer data, segmentation, model outputs, BI, recommendations. |
+| **Business Analytics Project**                 |           Medium | Good for visual reports, recommendations, baseline comparisons.                               |
+| **Smartphone Modelling Project**               |       Low-medium | Supports Python/model evaluation, but domain-distant.                                         |
+| **South Western Data Analyst**                 |       Low-medium | Supports Power BI/Excel/reporting discipline, but domain-distant.                             |
+
+---
+
+# Final scoring verdict
+
+The Nectar360 CV should be built around:
+
+```text
+complex SQL over granular customer data
+customer lifecycle / response-history analysis
+segmentation tables
+propensity / score-band model outputs
+Power BI / Looker dashboard views
+end-to-end extraction-to-recommendation chain
+stakeholder-facing customer segment reports
+```
+
+It should avoid leading with:
+
+```text
+pricing
+promotion cut-offs as the whole story
+SKU/ranging unless proven
+FMCG client delivery unless proven
+multi-touch attribution unless proven
+operational reporting
+deep learning sensor modelling
+```
+
+The next step is **bullet portfolio design for the platform block**.
