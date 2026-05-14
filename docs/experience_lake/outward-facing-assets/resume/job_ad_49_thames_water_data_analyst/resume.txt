@@ -1,0 +1,59 @@
+Esosa Orumwese
+Data Analyst | Operational Analytics & Reporting | SQL, Power BI, Python & Data Quality
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Data Analyst with experience interrogating, transforming and validating large operational and behavioural datasets using SQL, Power BI, Excel/VBA, Python and Google BigQuery. Built operational dashboards, reconciliation workflows, data-quality checks and metric-movement analyses across a 2.35B-row data surface and field-operations datasets, translating complex records into clear stakeholder reporting and decision-ready operational insight.
+
+TECHNICAL SKILLS
+
+SQL & Databases: SQL, Google BigQuery, database interrogation, data transformation, reporting tables
+BI & Reporting: Power BI, Looker, operational dashboards, KPI reporting, dashboard validation
+Excel & Automation: Excel, pivot tables, lookups, index/match, VBA report-refresh macros, exception checks
+Data Quality & Operations Insight: data-quality checks, reconciliation, metric variance analysis, operational reporting, data limitation summaries
+Python & Analysis: Python, Pandas, NumPy, data cleaning, repeatable analysis workflows
+
+RELEVANT EXPERIENCE
+
+Data Scientist
+Operational Insight & Data Quality Analytics Platform - Exeter, UK | May 2025 - Present
+Large-scale analytics platform using SQL, Google BigQuery, Power BI, Looker and Python across a 2.35B-row event and behaviour data surface to transform complex records into validated reporting, metric-movement analysis and stakeholder decision summaries.
+
+- Built SQL and BigQuery transformation queries across a 2.35B-row event and behaviour data surface, converting raw activity records into reusable reporting tables for operational analysis.
+- Designed operational metric reports tracking [N] KPIs across [M] reporting periods, giving stakeholders a clearer view of activity patterns, exceptions and performance movements.
+- Created Power BI dashboards from transformed SQL/BigQuery outputs, monitoring [N] operational metrics and reducing reliance on manual spreadsheet-based reporting.
+- Maintained Looker and Power BI reporting outputs with [N] validation checks, reducing reporting errors by [X]% and improving successful refreshes to [Y]%.
+- Produced metric-movement analysis from BigQuery variance queries, explaining a [X]% unexpected change in [operational metric] and identifying [N] data, process or behaviour drivers.
+- Translated dashboard findings and data-quality limitations into [N] stakeholder decision summaries, helping business users interpret trends, caveats and recommended next actions.
+
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Behavioural modelling project using Python and smartphone sensor data to classify movement patterns, evaluate model reliability and translate complex signals into risk indicators.
+
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared workflow for movement-pattern and identity-recognition tasks.
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, identifying failure cases and translating sensor behaviour into risk-indicator summaries.
+
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Trend-analysis project using country-sector activity and policy-response datasets to investigate abnormal metric movements, explain external drivers and produce decision-ready visual reports.
+
+- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+- Investigated abnormal activity movements across 6 countries and 8 policy areas, linking changes to external policy-response signals and explaining the drivers behind metric shifts.
+- Produced a visual trend report with 3 recommendations, translating complex movement patterns into a clear decision summary for non-technical stakeholders.
+
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data analysis role using Excel, VBA and Power BI to reconcile field records, validate recurring reports, automate exception checks and report operational metrics for manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by 32% before supervisor review.
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting operational records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020

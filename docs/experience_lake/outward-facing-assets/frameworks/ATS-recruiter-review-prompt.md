@@ -1,0 +1,3 @@
+> Alright we will soon move to reviewing the resume that we have before sggesting the set of placeholder selection for the resume as seen in the appendix of fraser's workbench. 
+> For now as the ATS and consequently the Hiring Manager who scans CVs in seconds looking for signals and until caught honing in for whatever it is she looks for per job ad, we need to approach our resume from that manner. 
+> SHe has a lot of applications on her table and wouldn't give my resume the time it deserves if it feels its not worth it compared to what shes looking for. Getting an interview is the aim so we have to keep that in mind. Are you ready for the review?
