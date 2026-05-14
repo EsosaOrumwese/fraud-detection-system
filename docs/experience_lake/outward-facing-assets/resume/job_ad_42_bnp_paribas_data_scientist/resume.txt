@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Scientist with experience building customer-behaviour analytics workflows across large transaction, account and behavioural datasets. Developed Python, SQL and SAS predictive models, customer feature tables, validation checks and controlled strategy comparisons across a 2.35B-row data surface, translating behavioural levers into commercial recommendations for senior stakeholders.
+Data Scientist with experience building customer-behaviour analytics workflows across large transaction, account and behavioural datasets. Developed Python, SQL and SAS predictive models, customer feature tables, validation checks and controlled strategy comparisons across a 2.35B-row data surface, translating behavioural levers into commercial recommendations for senior business stakeholders.
 
 TECHNICAL SKILLS
 
@@ -12,7 +12,7 @@ Programming & Data: Python, SQL, SAS, PROC SQL, PySpark, Pandas, NumPy
 
 Predictive Modelling: churn-risk modelling, propensity modelling, behavioural-risk scoring, customer segmentation, feature engineering
 
-Experimentation & Validation: holdout tests, champion-challenger evaluation, lift analysis, calibration checks, drift monitoring, segment stability
+Experimentation & Validation: A/B testing concepts, holdout tests, champion-challenger evaluation, lift analysis, calibration checks, drift monitoring, segment stability
 
 Commercial Analytics: customer behaviour analysis, customer lever analysis, predictive score tables, customer insight dashboards, senior-leader insight packs
 
@@ -65,8 +65,6 @@ Operations data analysis role using Excel, VBA and Power BI to validate operatio
 - Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting entries, cutting report review time from [X] to [Y].
 
 - Built a Power BI operational reporting dashboard tracking [N] job-progress, equipment-readiness and documentation-gap KPIs across [N] completions jobs / [N] rig days.
-
-- Produced manager-facing reporting notes explaining recurring data issues, KPI definitions and operational variance drivers, helping non-technical users understand report changes before handover.
 
 EDUCATION
 
