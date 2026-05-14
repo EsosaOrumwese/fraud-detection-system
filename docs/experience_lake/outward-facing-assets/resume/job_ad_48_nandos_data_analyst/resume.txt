@@ -1,5 +1,5 @@
 Esosa Orumwese
-Data Analyst | SQL Data Modelling, Looker BI & Data Quality | BigQuery, Git & Self-Serve Insight
+Data Analyst | BigQuery SQL Modelling, Looker BI & Data Quality | Git & Self-Serve Insight
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
@@ -8,7 +8,7 @@ Data Analyst with experience building BigQuery SQL models, Looker KPI reports, v
 
 TECHNICAL SKILLS
 
-SQL & Cloud Data Modelling: SQL, Google BigQuery, reusable SQL models, transformation tables, dashboard source tables
+SQL & Cloud Data Modelling: SQL, Google BigQuery, transformation-layer SQL models, reusable model tables, dashboard source tables
 BI & Self-Serve Reporting: Google Looker, Power BI, KPI dashboards, self-serve reports, dashboard validation
 Data Quality & Governance: data-quality checks, SQL validation queries, KPI definitions, data limitations, model documentation
 Workflow & Automation: Git, branching, pull requests, code review, VBA macros, reusable SQL/Python workflows
@@ -16,17 +16,17 @@ Analysis & Communication: Python, Pandas, NumPy, root-cause analysis, metric mov
 
 RELEVANT EXPERIENCE
 
-Data Scientist
+Data Analyst
 SQL Data Modelling & Self-Serve BI Platform - Exeter, UK | May 2025 - Present
 BigQuery and Looker reporting platform using SQL models, dashboard source tables, Git-reviewed changes and validation checks across a 2.35B-row data surface.
 
 - Built 8 reusable BigQuery SQL models over a 2.35B-row data surface, creating 6 dashboard source tables used by Looker reports for recurring KPI tracking.
 - Developed Looker KPI reports from modelled BigQuery tables, tracking 13 metrics across 12 reporting periods for 3 user groups.
-- Added 15 validation checks across Looker reports and BigQuery source tables, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+- Added 15 SQL validation tests across Looker reports and BigQuery source tables, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
 - Reconciled BigQuery source tables against Looker dashboard totals using SQL validation queries, identifying 18 freshness, join, duplicate or aggregation issues before weekly KPI reports refreshed.
 - Managed 14 SQL model changes through Git branches and pull-request reviews, leaving reviewed change history for KPI SQL, dashboard source tables and reporting logic.
 - Documented 13 KPI definitions with formulas, source tables, filters, model assumptions and data limitations for technical and non-technical dashboard users.
-- Converted an unclear Looker KPI movement into a BigQuery root-cause analysis, explaining a 19% variance and identifying 4 operational, behavioural or data-quality drivers.
+- Converted an unclear stakeholder KPI movement into a BigQuery root-cause analysis, explaining a 19% variance and identifying 4 operational, behavioural or data-quality drivers.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024

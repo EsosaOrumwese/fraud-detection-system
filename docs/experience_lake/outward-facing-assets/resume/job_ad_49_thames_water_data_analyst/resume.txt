@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Analyst with experience using SQL, Google BigQuery, Power BI, Excel/VBA and Python to build reporting tables, dashboards, reconciliation workbooks and data-quality checks across a 2.35B-row event surface and field-operations records. Produced KPI reports, variance summaries and validation notes that helped managers review exceptions, reporting errors and operational trends.
+Data Analyst with experience using SQL, Power BI, Excel/VBA and Python to transform large operational datasets into reporting tables, dashboards, reconciliation workbooks and data-quality checks. Produced KPI reports, variance summaries and validation notes that helped managers review exceptions, reporting errors, operational trends and data limitations before decisions.
 
 TECHNICAL SKILLS
 
@@ -17,15 +17,15 @@ Python & Analysis: Python, Pandas, NumPy, data cleaning, repeatable analysis wor
 RELEVANT EXPERIENCE
 
 Data Analyst
-Operational Insight & Data Quality Analytics Platform - Exeter, UK | May 2025 - Present
-Large-scale reporting and data-quality platform using SQL, Google BigQuery, Power BI, Looker and Python to turn a 2.35B-row event and behaviour data surface into reporting tables, KPI dashboards, validation checks and variance summaries.
+Operational Reporting & Data Quality Workstream - Exeter, UK | May 2025 - Present
+Large-scale operational reporting workstream using SQL, BigQuery, Power BI, Excel/VBA and Python to turn event and field-operations data into reporting tables, KPI dashboards, validation checks and variance commentary for manager review.
 
 - Built SQL and BigQuery transformation queries across a 2.35B-row event and behaviour data surface, converting raw activity records into reusable reporting tables for Power BI and Looker KPI reports.
 - Designed a 12-period operational KPI report tracking 14 metrics, separating activity variance, exception volumes and reporting-trend breaks before recurring review.
 - Created Power BI dashboards from transformed SQL/BigQuery outputs, replacing recurring spreadsheet summaries with a 14-metric view of activity, exceptions and reporting status.
 - Maintained Power BI and Looker dashboards with 15 validation checks, reducing reporting errors by 38% and improving successful refreshes to 98%.
 - Used BigQuery variance queries to explain a 19% increase in exception volume, separating the movement into 4 data-quality, process and behaviour driver categories.
-- Produced 6 dashboard commentary notes summarising variance drivers, validation failures and data limitations, with follow-up actions for recurring reporting issues.
+- Produced 6 dashboard commentary notes summarising variance drivers, validation failures, data limitations and follow-up actions for recurring operational reporting issues.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
