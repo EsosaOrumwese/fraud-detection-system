@@ -1,10 +1,10 @@
 Esosa Orumwese
-Data Scientist | Customer Behaviour & Commercial Analytics | Predictive Modelling, SQL & SAS
+Data Scientist | Customer Behaviour & Commercial Analytics | Predictive Modelling, Python, SQL & SAS
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Scientist with experience building customer-behaviour analytics workflows across large transaction, account and behavioural datasets. Developed Python, SQL and SAS predictive models, customer feature tables, validation checks and controlled strategy comparisons across a 2.35B-row data surface, translating behavioural levers into commercial recommendations for senior business stakeholders.
+Data Scientist with experience building customer-behaviour analytics workflows across large transaction, account and behavioural datasets. Developed Python, SQL and SAS predictive models, customer feature tables, validation checks and controlled strategy comparisons across a 2.35B-row data surface, translating behavioural levers into commercial recommendations for senior stakeholders.
 
 TECHNICAL SKILLS
 
@@ -16,7 +16,7 @@ Experimentation & Validation: A/B testing concepts, holdout tests, champion-chal
 
 Commercial Analytics: customer behaviour analysis, customer lever analysis, predictive score tables, customer insight dashboards, senior-leader insight packs
 
-AI & Workflow: Codex-assisted analytics prototyping, model documentation, code review, workflow validation
+AI & Workflow: Generative AI-assisted analytics prototyping, model documentation, code review, workflow validation
 
 RELEVANT EXPERIENCE
 
@@ -26,7 +26,7 @@ Customer analytics platform using Python, SQL, SAS and statistical modelling acr
 
 - Built a multi-source customer feature table over a 2.35B-row behaviour, transaction and account data surface, combining 8 data sources into 120+ model features for predictive customer analytics.
 
-- Developed churn-risk, propensity and behavioural-risk models in Python and SQL, improving target-customer capture by 24% versus a rules-based baseline.
+- Developed churn-risk, propensity and behavioural-risk models in Python and SQL, improving priority-customer capture by 24% versus a rules-based baseline.
 
 - Analysed 7 customer behaviour levers across 5 customer segments, identifying where response, risk and engagement patterns concentrated for commercial decision review.
 
