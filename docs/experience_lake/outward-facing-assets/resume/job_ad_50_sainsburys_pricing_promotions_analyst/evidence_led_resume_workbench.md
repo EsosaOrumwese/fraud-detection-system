@@ -835,3 +835,482 @@ Commercial Data Analyst with promotion, customer targeting and statistical analy
 ```
 
 until we confirm whether you have actual price/product/category/margin data.
+
+---
+
+Yes — proceeding with **Sainsbury’s evidence scoring**.
+
+This is still **not bullet portfolio design** and not drafting. The purpose of scoring is to decide which evidence is strong enough to lead the CV, which evidence should support, and which evidence should be cut or softened. The methodology says the evidence ledger is the truth-checking step before bullet shape and final wording.
+
+Sainsbury’s role is centred on **Pricing & Promotion Analytics**, SQL, Python, ETL pipelines, statistical models, dynamic dashboards, commercial stakeholders, ambiguity, storytelling, pace, and commercial levers behind pricing/promotions.
+
+# Sainsbury’s — Evidence Scoring
+
+## Scoring key
+
+| Tier  | Meaning for Sainsbury’s                                                                                                                                                        |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **A** | Direct match to pricing/promotions, customer analytics, SQL/Python ETL, statistical modelling, dashboards, commercial option comparison, or commercial recommendation writing. |
+| **B** | Useful adjacent evidence; strengthens the CV but should not lead.                                                                                                              |
+| **C** | Transferable only; use lower down or compress.                                                                                                                                 |
+| **D** | Avoid or do not claim unless new evidence appears.                                                                                                                             |
+
+---
+
+# Tier A — Direct Sainsbury evidence
+
+These should drive the main platform block.
+
+| Evidence item                                                           | Score | Why it is A for Sainsbury’s                                                                                                                                                                          |
+| ----------------------------------------------------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **2.35B-row customer behaviour data surface**                           |     A | Strong scale match. Sainsbury’s stresses massive customer/transaction data, including over 1.2B annual transactions. Your 2.35B-row data surface proves you can work at comparable analytical scale. |
+| **SQL/BigQuery/Python customer feature pipelines**                      |     A | Direct match to SQL, Python, ETL pipelines and analysis-ready datasets. Phrase as **SQL/Python customer-feature ETL tables**, not vague “data workflows.”                                            |
+| **Customer-level feature table**                                        |     A | Concrete artefact for commercial analytics. It can support targeting, segmentation, response modelling and dashboards.                                                                               |
+| **Propensity score table / ranked customer audience**                   |     A | Strong fit for promotion analytics because promotions need customer prioritisation, offer-response likelihood and segment selection.                                                                 |
+| **42% of likely high-benefit customers in top 20% score band**          |     A | Very strong ranking-quality evidence. It shows modelled customer prioritisation with a clear top-band capture metric.                                                                                |
+| **Low-yield audience reduction by 11%**                                 |     A | Strong commercial efficiency evidence if “low-yield” is defined clearly: low response probability, low benefit, low value, or poor conversion history.                                               |
+| **Audience threshold test / segment cutoff table**                      |     A | Direct evidence of commercial trade-off analysis: where to cut the audience, what to preserve, what waste to remove.                                                                                 |
+| **Customer segment table using lifecycle and response signals**         |     A | Strong promotion/customer understanding evidence. Sainsbury’s values customer understanding through data, loyalty and digital interactions.                                                          |
+| **3 strategy options / 5 outcome measures**                             |     A | Strong commercial decision evidence. This maps to comparing pricing/promotion options before rollout.                                                                                                |
+| **Model validation report / lift chart / calibration checks**           |     A | Direct match to statistical models and robust analysis. Use concrete metric language: lift, calibration, score-band capture, segment stability.                                                      |
+| **Power BI or Looker customer-response dashboard**                      |     A | Strong if the dashboard tracks commercial metrics: response rate, segment capture, audience size, lift, conversion, offer coverage or low-yield inclusion.                                           |
+| **Commercial recommendation memo / strategy comparison report**         |     A | Direct match to storytelling and influencing decisions, but only if phrased as a concrete artefact: “3-option targeting report,” “promotion audience recommendation,” “dashboard commentary note.”   |
+| **Metric definition table / baseline definition / threshold test plan** |     A | Strong evidence for structuring ambiguity. Sainsbury’s asks for ambiguity handling; this proves it through actual analytical objects.                                                                |
+
+**Verdict:** The strongest Sainsbury CV should be built around **customer-scale data, SQL/Python ETL, propensity ranking, promotion-response segmentation, threshold testing, statistical validation and strategy-option comparison**.
+
+---
+
+# Tier B — Useful adjacent evidence
+
+These support the Sainsbury story, but should not dominate the top block.
+
+| Evidence item                                       | Score | Why it is B                                                                                                                                               |
+| --------------------------------------------------- | ----: | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dynamic dashboard source tables**                 |   B/A | A if tied to commercial/customer KPIs. B if generic dashboard source tables.                                                                              |
+| **Python/Pandas uplift or metric-variance scripts** |   B/A | A if they measured response lift or segment performance. B if they were generic variance scripts.                                                         |
+| **Engineering / Data Science handoff tables**       |     B | Useful because Sainsbury mentions Engineering and Data Science partners, but not as important as commercial analytics evidence.                           |
+| **Reusable model output table**                     |     B | Good technical evidence, but the CV must show what commercial question the table answered.                                                                |
+| **Recurring reporting across 12 periods**           |     B | Useful for pace and repeatability, but only strong if tied to commercial dashboards or promotion cycles.                                                  |
+| **Business Analytics trend report**                 |     B | Good for baseline comparison, external-driver explanation and visual storytelling, but not retail pricing/promotion evidence.                             |
+| **220-country / 12-sector analysis**                |     B | Strong scope metric; useful as supporting trend-analysis proof. Not a main Sainsbury bullet unless framed around baseline comparison and recommendations. |
+| **6-country / 8-policy-area movement analysis**     |     B | Useful for explaining drivers behind metric shifts. Not commercial retail evidence.                                                                       |
+| **Visual report with 3 recommendations**            |     B | Good storytelling evidence. It supports the role’s communication requirement.                                                                             |
+| **South Western Power BI dashboard**                |   B/C | B for Power BI/dashboard proof; C if it pulls the CV into oilfield operations. Use only as supporting dashboard evidence.                                 |
+| **Excel/VBA reporting automation**                  |   B/C | Useful for analytical discipline and speed, but not central to Sainsbury unless the role values Excel process ownership.                                  |
+| **Dashboard validation checks**                     |     B | Helpful for accuracy, but Sainsbury is more commercial analytics than reporting QA. Do not let validation dominate.                                       |
+
+**Verdict:** B-tier evidence can strengthen the CV after the platform block, but the top experience must not read like generic dashboards, operational reporting, or academic trend analysis.
+
+---
+
+# Tier C — Transferable support only
+
+These should be compressed or placed lower.
+
+| Evidence item                                                       | Score | Why it is C                                                                                                                                |
+| ------------------------------------------------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Smartphone sensor modelling project**                             |   C/B | B only for Python/statistical modelling/baseline comparison. C for domain relevance. Sainsbury is not hiring for sensor classification.    |
+| **7 percentage-point accuracy improvement vs CNN baseline**         |   C/B | Useful modelling evidence, but less relevant than customer response / promotion lift metrics. Keep if space allows.                        |
+| **Model robustness report across 1,200 trips / 60 users / 5 modes** |     C | Concrete but domain-distant. Good for analytical rigour, not commercial pricing.                                                           |
+| **South Western Excel reconciliation workbook**                     |     C | Strong concrete work, but oilfield operational reconciliation is far from pricing/promotions. Use only if you need Excel/process evidence. |
+| **VBA exception-flagging macro**                                    |     C | Concrete automation evidence, but not central to Sainsbury.                                                                                |
+| **Power BI operational metrics dashboard from South Western**       |   C/B | B for Power BI; C for commercial relevance. Do not let this displace commercial/customer analytics.                                        |
+| **Operational data quality / HSE records / completions updates**    |     C | Good for disciplined data work, but wrong centre of gravity.                                                                               |
+| **Fraud/anomaly detection evidence**                                |     C | Not the target problem. Only useful if reframed as anomaly/variance analysis, not fraud.                                                   |
+
+**Verdict:** These are useful for a fuller CV, but they should sit below the main commercial/customer analytics evidence.
+
+---
+
+# Tier D — Remove, avoid, or do not claim yet
+
+These are risky for Sainsbury unless we get new evidence.
+
+| Evidence item                                    |             Score | Why it is D                                                                                                                                    |
+| ------------------------------------------------ | ----------------: | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Explicit pricing analysis**                    | D until confirmed | Do not claim price-change, margin, category pricing, or price sensitivity analysis unless you actually had price/product/category/margin data. |
+| **Price sensitivity model**                      | D until confirmed | Strong for the job, but unsafe without real pricing data.                                                                                      |
+| **Sales/margin movement after price change**     | D until confirmed | Do not invent retail commercial outcomes.                                                                                                      |
+| **Product/category price report**                | D until confirmed | Only use if the platform had product/category/price fields.                                                                                    |
+| **Value Strategy pricing comparison**            | D until confirmed | The job mentions Value Strategy, but your evidence must support it.                                                                            |
+| **Snowflake / R / Jira**                         |     D unless real | The ad says these are advantageous, but we should not add them unless you used them.                                                           |
+| **Payments/fraud/chargebacks/checkout risk**     |                 D | Frasers language. Wrong centre of gravity here.                                                                                                |
+| **Operational data quality as main positioning** |               D/B | Useful support, but not the lead story for Sainsbury.                                                                                          |
+| **Water networks / field operations language**   |                 D | Thames language. Wrong employer problem.                                                                                                       |
+
+**Verdict:** The main gap is **explicit pricing evidence**. We can still compete by making the CV strongly promotion/customer/commercial analytics-led, but we must not fake pricing bullets.
+
+---
+
+# Sainsbury-specific priority pool
+
+For Sainsbury, the highest-value evidence pool is:
+
+```text
+1. 2.35B-row customer behaviour data surface
+2. SQL/BigQuery/Python customer-feature ETL tables
+3. Customer-level feature table
+4. Propensity score table / ranked customer audience
+5. 42% of likely high-benefit customers captured in top 20% score band
+6. 11% low-yield audience reduction through threshold testing
+7. Customer segment table using lifecycle and response signals
+8. Audience threshold test / segment cutoff table
+9. Model validation report / lift chart / calibration checks
+10. 3 strategy options compared across 5 outcome measures
+11. Power BI / Looker dashboard tracking customer response, segment capture and campaign/audience KPIs
+12. Commercial recommendation memo or strategy comparison report
+13. Metric definition table / baseline definition / threshold test plan
+```
+
+# What this tells us for the Sainsbury CV
+
+The main platform block should **not** be titled:
+
+```text
+Operational Insight & Data Quality Analytics Platform
+```
+
+or:
+
+```text
+Payments, Fraud & Chargeback Analytics Platform
+```
+
+For Sainsbury, stronger options are:
+
+```text
+Customer Promotion & Commercial Analytics Platform
+```
+
+or:
+
+```text
+Customer Response & Promotion Analytics Platform
+```
+
+or, slightly safer if explicit promotion data is limited:
+
+```text
+Customer Behaviour & Commercial Analytics Platform
+```
+
+My preferred title right now:
+
+```text
+Customer Response & Commercial Analytics Platform
+```
+
+It avoids overclaiming explicit “pricing” while still aligning with promotions, customer behaviour, commercial decisions, SQL/Python, dashboards and statistical models.
+
+# Initial experience weighting
+
+| Experience                                             | Sainsbury weight | Why                                                                                                                      |
+| ------------------------------------------------------ | ---------------: | ------------------------------------------------------------------------------------------------------------------------ |
+| **Customer Behaviour / Commercial Analytics Platform** |        Very high | Main evidence for customer scale, SQL/Python ETL, propensity, segmentation, ranking, validation and strategy comparison. |
+| **Business Analytics Project**                         |           Medium | Useful for baseline comparison, driver explanation, visual reporting and recommendations.                                |
+| **Smartphone Sensor Project**                          |       Low-medium | Supports Python/statistical modelling, but domain is far away.                                                           |
+| **South Western Technologies**                         |       Low-medium | Supports Power BI, Excel/VBA, concrete reporting discipline; not commercial analytics.                                   |
+
+# Final scoring verdict
+
+The Sainsbury CV should be built around:
+
+```text
+customer behaviour data
+SQL/Python ETL tables
+promotion/offer-response analysis
+propensity ranking
+customer segmentation
+threshold testing
+statistical validation
+dynamic dashboards
+commercial option comparison
+recommendation reports
+```
+
+And it should avoid being pulled into:
+
+```text
+pricing claims without price data
+operational reporting
+fraud / payments / chargebacks
+water networks / field operations
+sensor deep learning as the lead story
+generic “insight” or “business value” language
+```
+
+The next step is **bullet portfolio design**, starting with the platform experience.
+
+---
+
+Yes — proceeding with **bullet portfolio design for the platform experience only**.
+
+This is **not bullet drafting yet**. We are deciding what each platform bullet must prove before writing the bullets. Sainsbury’s role is focused on Price & Promotion Analytics: SQL, Python, ETL pipelines, statistical models, dynamic dashboards, commercial stakeholders, ambiguity, storytelling, and decisions around pricing/promotions.
+
+# Target platform block
+
+For Sainsbury, the platform should **not** be titled:
+
+```text
+Operational Insight & Data Quality Analytics Platform
+```
+
+That was Thames-shaped.
+
+It should also not be:
+
+```text
+Payments, Fraud & Chargeback Analytics Platform
+```
+
+That was Frasers-shaped.
+
+For this role, the strongest platform title is:
+
+```text
+Data Analyst
+Customer Response & Commercial Analytics Platform — Exeter, UK | May 2025 – Present
+```
+
+Alternative, slightly broader:
+
+```text
+Data Analyst
+Customer Behaviour & Commercial Analytics Platform — Exeter, UK | May 2025 – Present
+```
+
+My recommendation:
+
+```text
+Customer Response & Commercial Analytics Platform
+```
+
+It is concrete enough for promotions/customer response without overclaiming direct pricing work.
+
+# Portfolio goal
+
+This platform block must prove:
+
+```text
+You can build SQL/Python customer datasets, measure customer response and targeting quality, compare commercial options, validate statistical outputs, build dashboards, and turn the results into recommendation artefacts for commercial/marketing stakeholders.
+```
+
+Not:
+
+```text
+You built a generic dashboard platform.
+```
+
+Not:
+
+```text
+You did operational data quality.
+```
+
+Not:
+
+```text
+You directly analysed pricing/margin if that evidence is not real.
+```
+
+# Recommended platform portfolio: 7 bullets
+
+## Bullet 1 — Large customer data + SQL/Python ETL
+
+| Field                            | Decision                                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove you can build analysis-ready customer datasets from large behavioural data.                                   |
+| Evidence assigned                | 2.35B-row customer behaviour surface; SQL/BigQuery/Python feature pipelines; customer-level feature table.          |
+| Sainsbury screen covered         | Large transaction/customer data, SQL, Python, ETL pipelines.                                                        |
+| Concrete artefacts to name later | SQL customer-feature table; BigQuery transformation query; Python/PySpark feature pipeline; dashboard source table. |
+| Metric meaning                   | Dataset scale, number of source tables/features, repeatable table outputs.                                          |
+| Placeholder values               | `2.35B rows`, `[N] source tables`, `[N] customer features`, `[N] customer records`.                                 |
+| Why this must appear             | Sainsbury stresses data scale and ETL; this is the strongest technical entry point.                                 |
+| Avoid                            | Do not call it “large-scale insight” or “data-driven analysis.” Name the table/pipeline.                            |
+
+**Portfolio role:** this is the **SQL/Python ETL bullet**.
+
+---
+
+## Bullet 2 — Promotion / offer-response segmentation
+
+| Field                            | Decision                                                                                                |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove you can segment customers for commercial actions such as offers, messages or interventions.       |
+| Evidence assigned                | Customer segment table using lifecycle and response signals; offer/message/intervention audience table. |
+| Sainsbury screen covered         | Promotions, customer understanding, commercial analytics, loyalty-style segmentation.                   |
+| Concrete artefacts to name later | Customer segment table; lifecycle-response segment report; offer-response audience table.               |
+| Metric meaning                   | Segment count, response difference, coverage, audience size.                                            |
+| Placeholder values               | `[N] customer segments`, `[X]% segment coverage`, `[Y]% response difference`, `[N] audience records`.   |
+| Why this must appear             | Promotions need customer groups, not just models. This proves usable commercial segmentation.           |
+| Avoid                            | Do not say “improved customer relevance.” Say what segment table was built and what it contained.       |
+
+**Portfolio role:** this is the **customer segmentation / promotion audience bullet**.
+
+---
+
+## Bullet 3 — Propensity ranking and top-score-band capture
+
+| Field                            | Decision                                                                                                      |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove modelled customer prioritisation and ranking quality.                                                   |
+| Evidence assigned                | Propensity score table; ranked customer audience; 42% of likely high-benefit customers in top 20% score band. |
+| Sainsbury screen covered         | Statistical models, promotion response, customer prioritisation, commercial targeting.                        |
+| Concrete artefacts to name later | Propensity score table; lift chart; top-score-band capture report; ranked audience table.                     |
+| Metric meaning                   | Share of target/high-benefit customers captured in the top score band.                                        |
+| Placeholder values               | `42% of likely high-benefit customers in top 20% score band`, `[N] scored customers`.                         |
+| Why this must appear             | This is one of the strongest recruiter-readable commercial analytics metrics.                                 |
+| Avoid                            | Do not write “improved targeting.” Name the score band and capture metric.                                    |
+
+**Portfolio role:** this is the **ranking-quality bullet**.
+
+---
+
+## Bullet 4 — Threshold testing and low-yield audience reduction
+
+| Field                            | Decision                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Primary proof function           | Prove you can compare cutoffs and reduce wasted commercial audience selection.                               |
+| Evidence assigned                | Audience threshold test; segment cutoff table; 11% low-yield audience reduction.                             |
+| Sainsbury screen covered         | Promotion efficiency, commercial trade-offs, ambiguous problem structuring.                                  |
+| Concrete artefacts to name later | Threshold test table; segment cutoff report; low-yield audience inclusion report.                            |
+| Metric meaning                   | Reduction in low-yield audience inclusion while preserving target coverage.                                  |
+| Placeholder values               | `11% reduction in low-yield audience inclusion`, `[Y]% priority-customer coverage`, `[N] thresholds tested`. |
+| Why this must appear             | This shows commercial judgement: not just who to target, but where to draw the line.                         |
+| Avoid                            | Do not say “improved marketing effectiveness.” Say the threshold test reduced low-yield inclusion.           |
+
+**Portfolio role:** this is the **commercial efficiency / threshold test bullet**.
+
+---
+
+## Bullet 5 — Statistical validation against a baseline
+
+| Field                            | Decision                                                                                                |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove that the scoring/segmentation outputs were tested, not just produced.                             |
+| Evidence assigned                | Model validation report; lift chart; calibration checks; segment stability checks; baseline comparison. |
+| Sainsbury screen covered         | Statistical models, robust high-impact analysis, baselines, measurement discipline.                     |
+| Concrete artefacts to name later | Model validation report; lift chart; calibration report; score-band stability table.                    |
+| Metric meaning                   | Lift, calibration, capture rate, or stability versus baseline.                                          |
+| Placeholder values               | `[X]% lift`, `[Y]% calibration error`, `[N] validation periods`, `[baseline]`.                          |
+| Why this must appear             | Sainsbury asks for robust analysis and statistical models; this proves measurement quality.             |
+| Avoid                            | Do not leave metric meaning open as `[lift / recall / AUC]`. Choose one metric when drafting.           |
+
+**Portfolio role:** this is the **statistical validation bullet**.
+
+---
+
+## Bullet 6 — Dynamic commercial dashboard
+
+| Field                            | Decision                                                                                                                                         |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Primary proof function           | Prove you can build dashboards for recurring commercial/customer metrics.                                                                        |
+| Evidence assigned                | Power BI/Looker dashboard; dashboard source tables; customer response / segment capture / audience KPI reporting.                                |
+| Sainsbury screen covered         | Dynamic dashboards, SQL/Python outputs, commercial reporting.                                                                                    |
+| Concrete artefacts to name later | Power BI customer-response dashboard; Looker commercial KPI dashboard; promotion audience dashboard.                                             |
+| Metric meaning                   | KPI count, refresh cadence, reporting periods, stakeholder groups.                                                                               |
+| Placeholder values               | `[N] KPIs`, `[M] reporting periods`, `[weekly/monthly] refresh`, `[K] stakeholder groups`.                                                       |
+| Why this must appear             | The ad explicitly names dynamic dashboards; the dashboard must track commercial metrics, not generic operational KPIs.                           |
+| Avoid                            | Do not use “operational dashboard” here. Use commercial/customer metrics: response, segment capture, uplift, audience size, low-yield inclusion. |
+
+**Portfolio role:** this is the **dynamic dashboard bullet**.
+
+---
+
+## Bullet 7 — Commercial option comparison and recommendation artefact
+
+| Field                            | Decision                                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Primary proof function           | Prove you can compare commercial options and produce a recommendation.                             |
+| Evidence assigned                | 3 strategy options; 5 outcome measures; commercial recommendation memo; dashboard commentary note. |
+| Sainsbury screen covered         | Pricing/promotion decisions, storytelling, stakeholder influence, ambiguity structuring.           |
+| Concrete artefacts to name later | 3-option strategy comparison report; 5-metric outcome table; commercial recommendation memo.       |
+| Metric meaning                   | Number of options compared and outcome measures used.                                              |
+| Placeholder values               | `3 strategy options`, `5 outcome measures`, `[N] recommendation notes`.                            |
+| Why this must appear             | This is the closest evidence to “shapes pricing and promotion decisions across the business.”      |
+| Avoid                            | Do not say “supported strategic decision-making.” Name the 3-option comparison and the 5 measures. |
+
+**Portfolio role:** this is the **commercial recommendation bullet**.
+
+# Recommended order
+
+I would order the platform bullets like this:
+
+```text
+1. SQL/Python ETL over 2.35B-row customer behaviour data
+2. Customer segmentation for offer / promotion-style audiences
+3. Propensity ranking and top-score-band capture
+4. Threshold testing and low-yield audience reduction
+5. Statistical validation against baseline
+6. Dynamic commercial dashboard
+7. 3-option / 5-measure commercial recommendation report
+```
+
+This gives the recruiter the right scan:
+
+```text
+SQL
+Python
+ETL
+2.35B rows
+customer data
+segments
+propensity
+promotion response
+threshold testing
+statistical validation
+dashboards
+commercial recommendation
+```
+
+# If we need a 6-bullet version
+
+For a one-page CV, we may later combine bullets 2 and 3:
+
+```text
+Customer segmentation + propensity ranking
+```
+
+That gives:
+
+```text
+1. SQL/Python ETL over 2.35B-row customer data
+2. Customer segmentation and propensity ranking
+3. Threshold testing and low-yield audience reduction
+4. Statistical validation against baseline
+5. Dynamic commercial dashboard
+6. 3-option / 5-measure commercial recommendation report
+```
+
+# Evidence deliberately not assigned to platform bullets
+
+| Evidence                                  | Reason                                         |
+| ----------------------------------------- | ---------------------------------------------- |
+| Explicit price-change analysis            | Not confirmed; do not invent pricing evidence. |
+| Margin movement                           | Not confirmed; unsafe.                         |
+| Product/category pricing report           | Not confirmed; unsafe.                         |
+| Operational data-quality platform wording | Thames-shaped, wrong centre for Sainsbury.     |
+| Fraud / chargebacks / checkout risk       | Frasers-shaped, wrong centre.                  |
+| Deep learning sensor modelling            | Supporting evidence only, not platform lead.   |
+| South Western Excel/VBA reporting         | Useful lower down, not the platform story.     |
+
+# Final portfolio output
+
+```text
+Bullet 1 must prove: SQL/Python ETL over a 2.35B-row customer behaviour data surface.
+
+Bullet 2 must prove: customer segmentation for offer/promotion-style commercial audiences.
+
+Bullet 3 must prove: propensity ranking quality through top-score-band target capture.
+
+Bullet 4 must prove: threshold testing that reduced low-yield audience inclusion.
+
+Bullet 5 must prove: statistical validation through lift, calibration, capture or stability checks against a baseline.
+
+Bullet 6 must prove: dynamic dashboarding for commercial/customer-response KPIs.
+
+Bullet 7 must prove: commercial option comparison through a 3-strategy, 5-measure recommendation report.
+```
+
+This platform portfolio is Sainsbury-shaped without overclaiming explicit pricing data.
