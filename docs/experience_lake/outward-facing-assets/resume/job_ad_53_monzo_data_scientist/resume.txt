@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Product Data Scientist with experience using SQL, BigQuery, Python and Looker to analyse customer activity, response history, ranked customer segments and value-proxy metrics. Built user-behaviour tables, customer behaviour reports and option-comparison tables to explain response movements and guide product review.
+Product Data Scientist with experience using SQL, BigQuery, Python and Looker to analyse customer activity, response history, ranked customer segments, transaction-value and high-benefit customer metrics. Built user-behaviour tables, customer behaviour reports and option-comparison tables to explain response movements and guide customer-segment review.
 
 TECHNICAL SKILLS
 
@@ -18,14 +18,14 @@ RELEVANT EXPERIENCE
 
 Data Scientist
 Product Analytics & User Behaviour Platform - Exeter, UK | May 2025 - Present
-Product analytics platform using SQL, BigQuery, Python and Looker to analyse customer activity, transaction history, response patterns and value-proxy metrics across a 2.35B-row customer behaviour dataset.
+Product analytics platform using SQL, BigQuery, Python and Looker to analyse customer activity, transaction history, response patterns, transaction-value and high-benefit customer metrics across a 2.35B-row customer behaviour dataset.
 
-- Built BigQuery SQL user-behaviour tables across 2.35B rows of customer activity, transaction and response-history data, tracking activity frequency, response rate, repeat activity and value-proxy metrics across customer segments.
+- Built BigQuery SQL user-behaviour tables across 2.35B rows of customer activity, transaction and response-history data, tracking activity frequency, response rate, repeat activity, transaction-value and high-benefit customer metrics across customer segments.
 - Developed a Looker customer behaviour report tracking activity frequency, response rate, repeat activity and high-benefit customer concentration across 12 reporting periods.
-- Compared 3 customer-selection options - top-score-band segment, broader mid-score segment and baseline selection - across target capture, response rate, segment coverage, low-yield inclusion and score-band stability, producing a ranked option table for product review.
-- Built a ranked customer segment table capturing 42% of high-response customers in the top 20% score band, creating a priority list for the next customer-segment review.
+- Compared 3 customer-selection options - top-score-band segment, broader mid-score segment and baseline selection - across target capture, response rate, segment coverage, low-yield inclusion and score-band stability, producing a backtested option table for the next customer-segment review.
+- Built a ranked customer segment table capturing 42% of high-response customers in the top 20% score band, creating a priority list for the next targeting-threshold review.
 - Used BigQuery variance queries to investigate a 19% movement in response rate versus the previous reporting period, producing a root-cause table with activity-volume, segment-mix, response-pattern and source-table quality drivers.
-- Built a value-proxy table using transaction value and high-benefit customer labels, comparing customer segments by response rate, score band and value concentration.
+- Built a transaction-value and high-benefit customer table, comparing customer segments by response rate, score band and value concentration.
 - Added 15 validation checks across BigQuery source tables and Looker reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98% for customer behaviour reporting.
 
 Data Scientist

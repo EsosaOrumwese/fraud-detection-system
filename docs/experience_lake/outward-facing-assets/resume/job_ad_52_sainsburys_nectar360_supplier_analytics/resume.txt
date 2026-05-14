@@ -1,10 +1,10 @@
 Esosa Orumwese
-Commercial Data Analyst | Customer Segmentation & Supplier Analytics | SQL, BigQuery & Power BI
+Commercial Data Analyst | Customer Segmentation & Retail Analytics | SQL, BigQuery & Power BI
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Commercial Data Analyst using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer activity tables, segmentation outputs, score-band reports and dashboard views across 2.35B rows of customer activity, lifecycle and response-history data. Strong fit for Nectar360 supplier analytics requiring granular SQL, customer segmentation, model-output interpretation and stakeholder-facing recommendation reports.
+Commercial Data Analyst using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer activity tables, segment tables, score-band reports and dashboard views across 2.35B rows of customer activity, lifecycle and response-history data. Produced model validation packs and recommendation memos from customer segment and score-band analysis.
 
 TECHNICAL SKILLS
 
@@ -18,11 +18,11 @@ RELEVANT EXPERIENCE
 
 Data Analyst
 Customer Behaviour & Segmentation Analytics Platform - Exeter, UK | May 2025 - Present
-Customer segmentation analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer activity tables, lifecycle-response segment tables, score-band reports, model validation packs and recommendation memos across 2.35B rows of customer activity, lifecycle and response-history data.
+Customer segmentation analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to turn 2.35B rows of customer activity, lifecycle and response-history data into segment tables, score-band reports, validation packs and recommendation memos.
 
-- Built SQL, BigQuery and Python/PySpark ETL tables across 2.35B rows of customer activity, lifecycle and response-history data, joining customer status, past response behaviour and activity counts into customer segment and dashboard source tables.
+- Built SQL, BigQuery and Python/PySpark ETL tables across 2.35B rows of customer activity, lifecycle and response-history data, using joins, aggregations and score-band ranking logic to create customer segment and dashboard source tables.
 - Built lifecycle-response tables using customer status, activity level and response-history windows, separating customer groups before segmentation and score-band reporting.
-- Created customer segment tables for 7 groups, adding customer counts, response-history fields, score-band labels and high-response customer flags for stakeholder-facing segment reports.
+- Created customer segment tables for 7 groups, adding customer counts, response-history fields, score-band labels and high-response customer flags for customer segment reports.
 - Interpreted propensity score outputs by capturing 42% of historically high-response customers in the top 20% score band, producing a ranked customer table for segment and model-output review.
 - Produced a model validation pack with lift charts, calibration checks and score-band stability tables across 6 validation periods before releasing ranked customer score tables.
 - Built Power BI / Looker dashboard views showing segment size, score-band distribution, response-history mix and historically high-response customer coverage across 7 customer segments.
