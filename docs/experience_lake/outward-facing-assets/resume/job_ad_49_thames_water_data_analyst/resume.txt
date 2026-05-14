@@ -21,11 +21,11 @@ Operational Insight & Data Quality Analytics Platform - Exeter, UK | May 2025 - 
 Large-scale analytics platform using SQL, Google BigQuery, Power BI, Looker and Python across a 2.35B-row event and behaviour data surface to transform complex records into validated reporting, metric-movement analysis and stakeholder decision summaries.
 
 - Built SQL and BigQuery transformation queries across a 2.35B-row event and behaviour data surface, converting raw activity records into reusable reporting tables for operational analysis.
-- Designed operational metric reports tracking [N] KPIs across [M] reporting periods, highlighting activity variance, exception volumes and reporting trends for stakeholder review.
-- Created Power BI dashboards from transformed SQL/BigQuery outputs, monitoring [N] operational metrics and reducing reliance on manual spreadsheet-based reporting.
-- Maintained Power BI and Looker reporting outputs with [N] validation checks, reducing reporting errors by [X]% and improving successful refreshes to [Y]%.
-- Produced metric-movement analysis from BigQuery variance queries, explaining a [X]% unexpected change in [operational metric] and identifying [N] data, process or behaviour drivers.
-- Translated dashboard findings, variance drivers and data-quality limitations into [N] stakeholder summaries, clarifying trend movements, caveats and recommended follow-up actions.
+- Designed operational metric reports tracking 14 KPIs across 12 reporting periods, highlighting activity variance, exception volumes and reporting trends for stakeholder review.
+- Created Power BI dashboards from transformed SQL/BigQuery outputs, monitoring 14 operational metrics and reducing reliance on manual spreadsheet-based reporting.
+- Maintained Power BI and Looker reporting outputs with 15 validation checks, reducing reporting errors by 38% and improving successful refreshes to 98%.
+- Produced metric-movement analysis from BigQuery variance queries, explaining a 19% unexpected increase in exception volume and identifying 4 data, process or behaviour drivers.
+- Translated dashboard findings, variance drivers and data-quality limitations into 6 stakeholder summaries, clarifying trend movements, caveats and recommended follow-up actions.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
