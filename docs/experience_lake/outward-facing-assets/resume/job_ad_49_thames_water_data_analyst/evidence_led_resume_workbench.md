@@ -1836,3 +1836,241 @@ Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 – Dec 2020
 ```
 
 This education section works as-is. Thames says a degree or equivalent experience in an analytical subject such as Science, Maths or Geography is advantageous, and your MSc Data Science plus Engineering background supports that without needing extra explanation. 
+
+---
+
+# Appendix — Thames Water Target Value Selection
+
+These are **suggested target values, not facts**. Use them only where you can defend the measurement path: source data, metric definition, baseline, reporting period, calculation, and user of the output. That matches the evidence-led rule: do not add impressive numbers unless the recruiter can understand what was measured and how it changed. 
+
+For Thames, the values should emphasise **operational reporting, SQL/database transformation, Power BI dashboards, data quality, metric movement and stakeholder decision support** because the role is centred on large datasets, database interrogation, dashboards, data quality, secure data use and operational insight. 
+
+## Main platform block values
+
+```text
+14 operational KPIs
+12 reporting periods
+15 validation checks
+38% reporting error reduction
+98% successful dashboard/report refreshes
+19% unexpected increase in exception volume
+4 data, process or behaviour drivers
+6 stakeholder summaries
+```
+
+## Target-value draft bullets
+
+```text
+- Built SQL and BigQuery transformation queries across a 2.35B-row event and behaviour data surface, converting raw activity records into reusable reporting tables for operational analysis.
+
+- Designed operational metric reports tracking 14 KPIs across 12 reporting periods, highlighting activity variance, exception volumes and reporting trends for stakeholder review.
+
+- Created Power BI dashboards from transformed SQL/BigQuery outputs, monitoring 14 operational metrics and reducing reliance on manual spreadsheet-based reporting.
+
+- Maintained Power BI and Looker reporting outputs with 15 validation checks, reducing reporting errors by 38% and improving successful refreshes to 98%.
+
+- Produced metric-movement analysis from BigQuery variance queries, explaining a 19% unexpected increase in exception volume and identifying 4 data, process or behaviour drivers.
+
+- Translated dashboard findings, variance drivers and data-quality limitations into 6 stakeholder summaries, clarifying trend movements, caveats and recommended follow-up actions.
+```
+
+## Safer version if the strongest values are not fully defendable
+
+```text
+- Maintained Power BI and Looker reporting outputs with 15 validation checks, improving report reliability across recurring dashboard refreshes.
+
+- Produced metric-movement analysis from BigQuery variance queries, identifying 4 data, process or behaviour drivers behind recurring exception-volume changes.
+
+- Translated dashboard findings, variance drivers and data-quality limitations into stakeholder summaries, clarifying trend movements, caveats and recommended follow-up actions.
+```
+
+Use the stronger version if you can defend the numbers. Use the safer version if the exact error reduction, refresh rate or metric movement was not formally tracked.
+
+# Supporting block values
+
+These already look good and Thames-relevant.
+
+## Smartphone project
+
+```text
+7 percentage-point accuracy improvement
+single-task CNN baseline
+1,200 trips
+60 users
+5 transport modes
+```
+
+Keep as-is.
+
+## Business analytics project
+
+```text
+220 countries
+12 sectors
+6 countries
+8 policy areas
+3 recommendations
+```
+
+Keep as-is. These are clean scope metrics and support external-data trend analysis.
+
+## South Western Technologies
+
+```text
+32% fewer incomplete/conflicting entries
+45 to 25 minutes report review time
+9 KPIs
+12 completions jobs
+140 rig days
+```
+
+Keep as-is. This is probably your strongest Thames-supporting older experience because it proves Excel, VBA, Power BI, operational records, data quality and manager-facing reporting.
+
+# Defence caution
+
+The strongest values to defend are:
+
+```text
+38% reporting error reduction
+98% successful refreshes
+19% unexpected increase in exception volume
+14 operational KPIs
+6 stakeholder summaries
+```
+
+The safest values are:
+
+```text
+2.35B rows
+12 reporting periods
+15 validation checks
+4 drivers
+220 countries / 12 sectors
+6 countries / 8 policy areas
+3 recommendations
+32% fewer conflicting entries
+45 to 25 minutes
+9 KPIs / 12 jobs / 140 rig days
+```
+
+# Interview defence notes
+
+## 38% reporting error reduction
+
+Meaning:
+
+```text
+Recurring reporting issues fell by 38% after validation checks were introduced.
+```
+
+Defensible formula:
+
+```text
+(previous error count - post-check error count) / previous error count
+```
+
+Example defence:
+
+```text
+I treated reporting errors as issues caught before stakeholder release, such as duplicate records, missing fields, stale refreshes, mismatched totals or incorrect filters. I compared the number of issues before and after introducing the validation checks; the error count fell by 38% across comparable reporting cycles.
+```
+
+Safer wording:
+
+```text
+improving report reliability through 15 validation checks
+```
+
+## 98% successful refreshes
+
+Meaning:
+
+```text
+98% of expected dashboard/report refreshes completed successfully and passed core checks.
+```
+
+Defensible formula:
+
+```text
+successful refreshes / scheduled refreshes
+```
+
+Example defence:
+
+```text
+I counted a refresh as successful only if it completed on schedule and passed the core validation checks. The 98% figure came from comparing successful refreshes against scheduled refreshes across recurring reporting periods.
+```
+
+Safer wording:
+
+```text
+improving successful dashboard refreshes across recurring reporting cycles
+```
+
+## 19% unexpected increase in exception volume
+
+Meaning:
+
+```text
+An exception-volume metric rose 19% against a previous period, rolling average or expected range.
+```
+
+Defensible formula:
+
+```text
+(current-period exception volume - baseline exception volume) / baseline exception volume
+```
+
+Example defence:
+
+```text
+The 19% referred to an unexpected movement in exception volume compared with the previous period or rolling baseline. I used BigQuery variance queries to isolate where the movement came from and grouped the drivers into data, process and behaviour-related causes.
+```
+
+Safer wording:
+
+```text
+identifying 4 data, process or behaviour drivers behind recurring exception-volume changes
+```
+
+## 14 operational KPIs
+
+Meaning:
+
+```text
+The reports/dashboards tracked 14 recurring operational measures.
+```
+
+Defence prompt:
+
+```text
+Be ready to list the KPI categories, for example activity volume, exception volume, missing-record rate, duplicate-record count, reporting refresh status, variance flags, data-quality pass rate, operational segment counts or review status.
+```
+
+Safer wording:
+
+```text
+tracking recurring operational KPIs
+```
+
+## 6 stakeholder summaries
+
+Meaning:
+
+```text
+You produced 6 decision-ready summaries, commentary notes or insight outputs for stakeholder review.
+```
+
+Defence prompt:
+
+```text
+Be ready to describe what the 6 summaries were: dashboard commentary, variance explanations, data-quality limitation notes, follow-up recommendations or operational insight briefs.
+```
+
+Safer wording:
+
+```text
+translated dashboard findings into stakeholder summaries
+```
+
+My recommended target set for the final Thames CV is the stronger version **only if** you can defend the 38%, 98%, and 19%. Otherwise, keep the numbers for KPIs, periods, checks and drivers, and soften the outcome claims.

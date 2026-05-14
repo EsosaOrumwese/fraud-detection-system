@@ -1516,3 +1516,210 @@ Relevant project work: SQL/BI reporting, business trend analysis, behavioural mo
 ```
 
 But my recommendation is **not** to add it. The relevant projects are already in the experience section, and repeating them under Education would waste space.
+
+---
+
+Yes — this is the **Nando’s Target Value Selection Appendix**.
+
+These are **suggested target values, not facts**. Use them only where the measurement path can be defended: source table, metric definition, baseline, reporting period, Git evidence, documentation artefact, and interview explanation. That matches the methodology rule: placeholders are useful only when they prompt defensible evidence, not invented impact. 
+
+For Nando’s, the values should quantify **SQL models, dashboard source tables, Looker KPIs, validation checks, refresh reliability, Git workflow, KPI definitions and root-cause analysis** because the role is centred on SQL modelling, Looker BI, data quality, documentation, pipeline support, Git/code review, automation and business-problem translation. 
+
+# Appendix — Nando’s Target Value Selection
+
+## Main platform block values
+
+```text
+8 reusable BigQuery SQL models
+6 dashboard source tables
+13 KPIs
+12 reporting periods
+3 stakeholder groups
+15 dashboard validation checks
+38% reporting error reduction
+98% successful dashboard/report refreshes
+18 source-to-report issues identified before release
+14 SQL model changes managed through Git branches / pull-request reviews
+13 KPI definitions documented
+19% metric movement explained
+4 operational, behavioural or data-quality drivers identified
+```
+
+## Target-value platform draft
+
+```text
+Data Scientist
+SQL Data Modelling & Self-Serve BI Platform - Exeter, UK | May 2025 - Present
+Cloud analytics and BI platform using SQL, BigQuery, Looker, Git and data-quality checks across a 2.35B-row data surface to build reusable reporting models, validated dashboards and business-facing metric summaries.
+
+- Built 8 reusable BigQuery SQL models over a 2.35B-row data surface, creating 6 dashboard source tables for recurring KPI reporting and self-serve analysis.
+
+- Developed Looker reporting outputs from modelled BigQuery tables, tracking 13 KPIs across 12 reporting periods for self-serve performance monitoring across 3 stakeholder groups.
+
+- Added 15 dashboard validation checks across Looker reports and source tables, reducing reporting errors by 38% and improving successful refreshes to 98% before stakeholder release.
+
+- Reconciled source tables against dashboard outputs using SQL validation queries, identifying 18 freshness, join, duplicate or aggregation issues before they affected recurring reports.
+
+- Managed 14 SQL model changes through Git branches and pull-request reviews, improving traceability of reporting logic, KPI updates and dashboard source-table changes.
+
+- Documented 13 KPI definitions, model assumptions and data limitations, improving consistency of metric interpretation across technical and non-technical stakeholders.
+
+- Translated an unclear stakeholder question into a scoped BigQuery root-cause analysis, explaining a 19% metric movement and identifying 4 operational, behavioural or data-quality drivers.
+```
+
+## Supporting block values
+
+These can stay as they are because they already have clear scope and measurement logic.
+
+```text
+Behavioural modelling project:
+7 percentage-point accuracy improvement
+single-task CNN baseline
+1,200 trips
+60 users
+5 transport modes
+
+Business analytics project:
+220 countries
+12 sectors
+6 countries
+8 policy areas
+3 recommendations
+
+South Western Technologies:
+32% fewer incomplete/conflicting operational records
+45 to 25 minutes report review time
+9 KPIs
+12 completions jobs
+140 rig days
+```
+
+# Defence caution
+
+The most important values to defend are:
+
+```text
+8 reusable BigQuery SQL models
+6 dashboard source tables
+38% reporting error reduction
+98% successful refreshes
+18 source-to-report issues
+14 Git / pull-request model changes
+13 KPI definitions
+19% metric movement
+4 drivers
+```
+
+If any of these cannot be defended, soften the wording rather than forcing the number.
+
+## Safer alternatives
+
+```text
+If 8 SQL models / 6 source tables are not cleanly countable:
+- Built reusable BigQuery SQL models and dashboard source tables for recurring KPI reporting and self-serve analysis.
+
+If 38% reporting error reduction is not formally tracked:
+- Added 15 dashboard validation checks across Looker reports and source tables, reducing repeated reporting issues before stakeholder release.
+
+If 98% successful refreshes is not supported by a refresh log:
+- Added 15 dashboard validation checks across Looker reports and source tables, improving refresh reliability before stakeholder release.
+
+If 18 source-to-report issues is not tracked:
+- Reconciled source tables against dashboard outputs using SQL validation queries, catching freshness, join, duplicate and aggregation issues before they affected recurring reports.
+
+If 14 Git changes is not easy to prove:
+- Managed SQL model changes through Git branches and pull-request reviews, improving traceability of reporting logic and KPI updates.
+
+If 13 KPI definitions is not documented:
+- Documented core KPI definitions, model assumptions and data limitations, improving consistency of metric interpretation across technical and non-technical stakeholders.
+
+If 19% movement is not a formal metric:
+- Translated an unclear stakeholder question into a scoped BigQuery root-cause analysis, identifying operational, behavioural and data-quality drivers behind an unexpected metric movement.
+```
+
+# Interview defence notes
+
+## 38% reporting error reduction
+
+This should mean repeated reporting errors fell after adding validation checks.
+
+```text
+Formula:
+(previous reporting issue count - post-check issue count) / previous reporting issue count
+```
+
+Example defence:
+
+```text
+I defined reporting errors as validation failures found before stakeholder release, such as mismatched totals, duplicate rows, stale refreshes, incorrect joins, missing values or broken filters. I compared comparable reporting cycles before and after introducing the 15 validation checks. The issue count fell by 38%.
+```
+
+## 98% successful refreshes
+
+This should mean dashboards or reports refreshed successfully and passed core validation checks.
+
+```text
+Formula:
+successful validated refreshes / scheduled refreshes
+```
+
+Example defence:
+
+```text
+I counted a refresh as successful only if the report completed on schedule and passed the core validation checks. The 98% figure came from successful refreshes divided by scheduled refreshes across the reporting period.
+```
+
+## 8 SQL models and 6 dashboard source tables
+
+This should mean reusable BigQuery views/tables/scripts, not one-off ad-hoc queries.
+
+```text
+SQL model = reusable query/view/table used for transformation or reporting
+Dashboard source table = modelled table consumed by Looker/BI outputs
+```
+
+Example defence:
+
+```text
+The 8 SQL models were reusable BigQuery transformations, not one-off queries. Six of them became dashboard source tables used for recurring KPI reporting and self-serve analysis.
+```
+
+## 13 KPI definitions
+
+This should mean unique metrics with clear logic.
+
+```text
+KPI definition = metric name + formula + grain + source table + filters + limitation
+```
+
+Example defence:
+
+```text
+I documented 13 KPI definitions covering the metric formula, source table, aggregation grain, filters and limitations, so technical and non-technical users interpreted the dashboards consistently.
+```
+
+## 19% metric movement and 4 drivers
+
+This should mean a measured change against a defined baseline.
+
+```text
+Formula:
+(current period metric - baseline metric) / baseline metric
+```
+
+Baseline could be:
+
+```text
+previous period
+rolling average
+expected threshold
+pre-change period
+```
+
+Example defence:
+
+```text
+The 19% was the size of the metric movement compared with the chosen baseline. I used BigQuery to segment the movement by relevant dimensions, then identified four likely drivers: operational, behavioural and data-quality factors.
+```
+
+My recommended final platform values are the ones above. They make the Nando’s CV feel concrete without drifting into fake business impact.
