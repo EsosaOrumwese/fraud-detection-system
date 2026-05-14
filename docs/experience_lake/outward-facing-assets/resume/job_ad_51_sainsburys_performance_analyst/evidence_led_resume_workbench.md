@@ -1803,6 +1803,459 @@ Safer wording if the baseline is not clean:
 Used BigQuery variance queries to investigate an unexpected KPI movement, producing a root-cause table with 4 drivers.
 ```
 
+---
+
+Yes — this should become a **Concrete Grounding Appendix** inside the Sainsbury’s workbench.
+
+The purpose is to stop strong-looking numbers from floating without business objects. Sainsbury’s is asking for advanced tools/reports, KPI performance analysis, deep dives, recommendations, deal/event performance, secondary-space allocation strategy, statistical analysis, data visualisation, automation and accurate reporting, so every metric in the CV needs a named table, KPI, driver, option, baseline and use.
+
+# Appendix — Concrete Grounding for Abstract Placeholders
+
+## 1. “13 performance metrics”
+
+### Current CV wording
+
+```text
+Developed Looker and Power BI KPI dashboards tracking 13 performance metrics across 12 reporting periods...
+```
+
+### Concrete grounding needed
+
+```text
+13 performance metrics =
+1. customer activity volume
+2. transaction count
+3. transaction value
+4. response rate
+5. conversion / completion rate
+6. segment coverage
+7. top-score-band capture
+8. low-yield inclusion rate
+9. exception rate
+10. reporting error count
+11. dashboard refresh success rate
+12. duplicate / join mismatch count
+13. variance versus baseline
+```
+
+### CV-safe wording
+
+```text
+Developed Looker and Power BI KPI dashboards tracking 13 metrics across activity volume, transaction count, response rate, segment coverage, score-band capture, exception rate and report QA across 12 reporting periods.
+```
+
+### Defence note
+
+Use only the metric families that were actually tracked. If some of the 13 were internal report QA metrics rather than commercial/performance metrics, keep them grouped separately:
+
+```text
+tracking 13 KPI and report-quality metrics across activity volume, response rate, segment coverage, score-band capture, exception rate, reporting errors and refresh success.
+```
+
+---
+
+## 2. “19% KPI movement”
+
+### Current CV wording
+
+```text
+Used BigQuery variance queries to explain a 19% KPI movement...
+```
+
+### Concrete grounding needed
+
+```text
+19% KPI movement =
+[specific KPI] moved by 19% versus [baseline]
+```
+
+### Strong candidate definitions
+
+Choose the truthful one:
+
+```text
+response rate fell / rose by 19% versus the previous reporting period
+activity volume moved by 19% versus the 12-period average
+exception rate increased by 19% versus the prior reporting period
+segment coverage moved by 19% versus the baseline segment mix
+conversion / completion rate moved by 19% versus the previous period
+reporting error count fell by 19% versus pre-check reporting cycles
+```
+
+### Preferred CV wording
+
+```text
+Used BigQuery variance queries to investigate a 19% movement in response rate versus the previous reporting period, producing a root-cause table with 4 drivers.
+```
+
+If response rate is not true, use the actual KPI:
+
+```text
+Used BigQuery variance queries to investigate a 19% movement in [specific KPI] versus [baseline], producing a root-cause table with 4 drivers.
+```
+
+### Defence note
+
+Formula:
+
+```text
+(current period KPI - baseline period KPI) / baseline period KPI
+```
+
+Baseline options:
+
+```text
+previous reporting period
+12-period average
+pre-change period
+expected threshold
+```
+
+---
+
+## 3. “4 operational, behavioural or data-quality drivers”
+
+### Current CV wording
+
+```text
+...producing a root-cause table with 4 operational, behavioural or data-quality drivers.
+```
+
+### Concrete grounding needed
+
+```text
+4 drivers =
+[driver 1], [driver 2], [driver 3], [driver 4]
+```
+
+### Candidate driver set
+
+Choose the truthful set:
+
+```text
+1. activity-volume drop in a specific segment
+2. response-rate change in a high-priority segment
+3. transaction mix shift across customer groups
+4. missing / late records from one source table
+```
+
+Alternative if the movement was report-quality related:
+
+```text
+1. stale dashboard refresh
+2. duplicate records from a join issue
+3. missing source-table values
+4. wrong date filter / reporting-period mismatch
+```
+
+Alternative if the movement was operational:
+
+```text
+1. delayed record submission
+2. incomplete field-report entries
+3. equipment-readiness gaps
+4. documentation backlog
+```
+
+### Preferred CV wording
+
+```text
+Used BigQuery variance queries to investigate a 19% movement in [specific KPI], producing a root-cause table showing segment activity drop, response-rate change, transaction-mix shift and missing source-table records.
+```
+
+### Defence note
+
+Be careful with causality. Use **drivers** or **likely drivers**, not “causes,” unless the analysis proved causation.
+
+---
+
+## 4. “3 strategy options”
+
+### Current CV wording
+
+```text
+Compared 3 strategy options across 5 outcome measures...
+```
+
+### Concrete grounding needed
+
+```text
+3 strategy options =
+[option 1], [option 2], [option 3]
+```
+
+### Candidate option sets
+
+Choose the truthful set.
+
+#### If this was audience / segment work
+
+```text
+1. prioritise top-score-band segment
+2. use a broader mid-score segment
+3. keep unranked / baseline selection
+```
+
+#### If this was reporting / dashboard work
+
+```text
+1. weekly KPI dashboard
+2. exception-only report
+3. full-period comparison report
+```
+
+#### If this was intervention / action selection
+
+```text
+1. high-response segment first
+2. high-value segment first
+3. low-risk / broad-coverage segment first
+```
+
+#### If this was operational process work
+
+```text
+1. manual review process
+2. Excel exception-flagging process
+3. automated dashboard validation process
+```
+
+### Preferred CV wording
+
+If audience/segment evidence is true:
+
+```text
+Compared 3 audience options — top-score-band segment, broader mid-score segment and baseline selection — across 5 outcome measures, producing a ranked option table.
+```
+
+If reporting-process evidence is true:
+
+```text
+Compared 3 reporting options — weekly KPI dashboard, exception-only report and full-period comparison report — across 5 outcome measures, producing a ranked option table.
+```
+
+---
+
+## 5. “5 outcome measures”
+
+### Current CV wording
+
+```text
+Compared 3 strategy options across 5 outcome measures...
+```
+
+### Concrete grounding needed
+
+```text
+5 outcome measures =
+[measure 1], [measure 2], [measure 3], [measure 4], [measure 5]
+```
+
+### Candidate measure set
+
+For audience / segment work:
+
+```text
+1. target capture rate
+2. response rate
+3. segment coverage
+4. low-yield inclusion rate
+5. stability across reporting periods
+```
+
+For reporting-process work:
+
+```text
+1. refresh success rate
+2. reporting error count
+3. manual review time
+4. number of issues caught before report use
+5. dashboard coverage of required KPIs
+```
+
+For commercial / operational performance work:
+
+```text
+1. activity volume
+2. completion rate
+3. exception rate
+4. variance versus baseline
+5. segment coverage
+```
+
+### Preferred CV wording
+
+```text
+Compared 3 audience options across target capture, response rate, segment coverage, low-yield inclusion and period stability, producing a ranked option table.
+```
+
+Or, if reporting-process evidence is the truth:
+
+```text
+Compared 3 reporting options across refresh success, reporting errors, review time, issues caught before report use and KPI coverage, producing a ranked option table.
+```
+
+---
+
+## 6. “42% target records in top 20% score band”
+
+### Current CV wording
+
+```text
+Built a ranked segment table capturing 42% of target records in the top 20% score band...
+```
+
+### Concrete grounding needed
+
+```text
+42% target records =
+42% of [specific target group] captured in top 20% score band
+```
+
+### Candidate target definitions
+
+Choose the truthful one:
+
+```text
+high-response customers
+high-value customers
+high-priority customers
+exception records
+at-risk customers
+high-benefit customer records
+target segment records
+```
+
+### Preferred CV wording
+
+If high-response customers is true:
+
+```text
+Built a ranked customer segment table capturing 42% of high-response customers in the top 20% score band, creating a priority list for the next audience review.
+```
+
+If high-benefit is safer:
+
+```text
+Built a ranked customer segment table capturing 42% of high-benefit customer records in the top 20% score band, creating a priority list for the next option review.
+```
+
+If “target group” is not clean:
+
+```text
+Built a ranked segment table showing target-record concentration in the top score band, creating a priority list for the next option review.
+```
+
+### Defence note
+
+Formula:
+
+```text
+target records in top 20% score band / all target records
+```
+
+Do not say “target records” in the final CV if we can name the target group.
+
+---
+
+## 7. “Priority list used for...”
+
+### Current CV wording
+
+```text
+creating a priority list for the next strategy comparison
+```
+
+### Concrete grounding needed
+
+```text
+priority list used for =
+[next weekly review / next audience review / next option recommendation / next performance review]
+```
+
+### Best candidate endings
+
+Choose the truthful one:
+
+```text
+creating a priority list for the next weekly performance review
+creating a priority list for the next audience review
+creating a priority list for the next option recommendation
+creating a priority list for the next dashboard review
+creating a priority list for the next segment performance review
+```
+
+### Preferred CV wording
+
+If audience/segment is true:
+
+```text
+...creating a priority list for the next audience review.
+```
+
+If performance review is safer:
+
+```text
+...creating a priority list for the next weekly performance review.
+```
+
+If recommendation table is the real output:
+
+```text
+...feeding the ranked option table used for the next recommendation.
+```
+
+---
+
+# Recommended grounded version of the platform bullets
+
+This is the best version **if the assumptions below are true**:
+
+```text
+- Built BigQuery SQL KPI tables across 2.35B rows of customer activity, transaction and response-history data, creating 6 dashboard source tables for weekly Looker/Power BI reporting.
+
+- Developed Looker and Power BI KPI dashboards tracking 13 metrics across activity volume, transaction count, response rate, segment coverage, score-band capture, exception rate and report QA across 12 reporting periods.
+
+- Used BigQuery variance queries to investigate a 19% movement in response rate versus the previous reporting period, producing a root-cause table showing segment activity drop, response-rate change, transaction-mix shift and missing source-table records.
+
+- Compared 3 audience options — top-score-band segment, broader mid-score segment and baseline selection — across target capture, response rate, segment coverage, low-yield inclusion and period stability.
+
+- Built a ranked customer segment table capturing 42% of high-response customers in the top 20% score band, creating a priority list for the next audience review.
+
+- Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+```
+
+# Safer version if some specifics are not confirmed
+
+```text
+- Built BigQuery SQL KPI tables across 2.35B rows of customer activity, transaction and response-history data, creating 6 dashboard source tables for weekly Looker/Power BI reporting.
+
+- Developed Looker and Power BI KPI dashboards tracking 13 recurring performance and report-quality metrics across 12 reporting periods.
+
+- Used BigQuery variance queries to investigate an unexpected KPI movement, producing a root-cause table with 4 likely drivers.
+
+- Compared 3 option sets across 5 defined outcome measures, producing a ranked recommendation table with metric trade-offs.
+
+- Built a ranked segment table showing target-record concentration in the top score band, creating a priority list for the next option review.
+
+- Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing repeated reporting errors and improving dashboard refresh reliability.
+```
+
+# Final appendix note
+
+The most important blanks to fill before submission are:
+
+```text
+Specific KPI behind 19% movement
+Exact 4 drivers
+Exact 3 option types
+Exact 5 outcome measures
+Exact target group behind 42%
+Exact review or recommendation workflow that used the priority list
+```
+
+Once those are filled, the bullets stop sounding like “performance analytics language” and become visible work: **KPI tables, dashboard source tables, variance queries, root-cause tables, ranked segment tables, and recommendation tables.**
+
 ## 5. 4 operational, behavioural or data-quality drivers
 
 Meaning:

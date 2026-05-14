@@ -1,30 +1,30 @@
 Esosa Orumwese
-Performance Analyst | Commercial KPI Dashboards, Variance Tables & Recommendation Packs | SQL, Excel & Power BI
+Performance Analyst | Commercial KPI Reporting, Variance Analysis & Dashboards | SQL, Excel, Power BI & BigQuery
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Performance Analyst with experience building BigQuery SQL KPI tables, Looker/Power BI dashboards, Excel reporting workbooks and VBA refresh macros across large operational and behavioural datasets. Produced period-comparison reports, BigQuery variance queries, ranked segment tables and option-recommendation tables to explain KPI movements, compare strategy options and improve recurring performance reports.
+Performance Analyst using BigQuery SQL, Looker, Power BI, Excel and VBA to build KPI tables, dashboard source tables, variance reports, reconciliation workbooks and automated refresh checks across 2.35B rows of customer activity, transaction and response-history data plus operational reporting records. Produced weekly KPI dashboards, period-comparison reports, root-cause tables and option-ranking summaries to explain metric movements, compare options and improve recurring report accuracy.
 
 TECHNICAL SKILLS
 
-Commercial Performance Analytics: KPI dashboards, variance tables, period-comparison reports, ranked segment tables, strategy comparison tables, recommendation packs
-SQL & Data Analysis: SQL, Google BigQuery, SQL KPI tables, dashboard source tables, variance queries, root-cause tables
-BI & Data Visualisation: Power BI, Google Looker, KPI dashboards, trend charts, performance reports
+Commercial Performance Analytics: KPI dashboards, variance analysis, period-comparison reports, root-cause tables, option-ranking summaries, ranked recommendation tables
+SQL & Data Analysis: SQL, Google BigQuery, SQL KPI tables, dashboard source tables, variance queries, reporting QA checks
+BI & Data Visualisation: Power BI, Google Looker, KPI dashboards, trend charts, performance reports, dashboard refresh validation
 Excel & Automation: Excel, pivot tables, lookups, index/match, VBA report-refresh macros, exception-flagging macros
-Statistical & Reporting Methods: baseline comparison, pre/post analysis, metric movement analysis, data validation checks, report QA
+Statistical & Reporting Methods: baseline comparison, pre/post analysis, metric movement analysis, validation checks, report QA
 
 RELEVANT EXPERIENCE
 
 Data Scientist
-Commercial Performance Analytics Platform - Exeter, UK | May 2025 - Present
-BigQuery, Looker and Power BI reporting platform using SQL KPI tables, dashboard source tables, period-comparison reports and validation checks across a 2.35B-row data surface.
+Commercial KPI Reporting & Variance Analysis Platform - Exeter, UK | May 2025 - Present
+BigQuery, Looker and Power BI reporting platform using SQL KPI tables, dashboard source tables, period-comparison reports and validation checks across 2.35B rows of customer activity, transaction and response-history data.
 
-- Built BigQuery SQL KPI tables over a 2.35B-row data surface, creating 6 dashboard source tables used in weekly Looker/Power BI KPI reports.
-- Developed Looker and Power BI KPI dashboards tracking 13 performance metrics across 12 reporting periods, with period-by-period variance tables and trend charts.
-- Used BigQuery variance queries to explain a 19% KPI movement, producing a root-cause table with 4 operational, behavioural or data-quality drivers.
-- Compared 3 strategy options across 5 outcome measures, producing a ranked option table showing the top-performing option, weaker options and metric trade-offs.
-- Built a ranked segment table capturing 42% of target records in the top 20% score band, creating a priority list for the next strategy comparison.
+- Built BigQuery SQL KPI tables across 2.35B rows of customer activity, transaction and response-history data, creating 6 dashboard source tables for weekly Looker/Power BI reports.
+- Developed Looker and Power BI KPI dashboards tracking 13 metrics across [metric family 1], [metric family 2], [metric family 3], [metric family 4] and report QA across 12 reporting periods, with variance tables and trend charts.
+- Used BigQuery variance queries to investigate a 19% movement in [specific KPI] versus [baseline period], producing a root-cause table showing [driver 1], [driver 2], [driver 3] and [driver 4].
+- Compared 3 [audience / reporting / operational] options — [option 1], [option 2] and [option 3] — across [measure 1], [measure 2], [measure 3], [measure 4] and [measure 5], producing a ranked option table showing the strongest option, weaker options and metric trade-offs.
+- Built a ranked [customer / segment / exception] table capturing 42% of [target definition] in the top 20% score band, creating a priority list for [next audience review / performance review / option recommendation].
 - Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
 
 Data Analyst
