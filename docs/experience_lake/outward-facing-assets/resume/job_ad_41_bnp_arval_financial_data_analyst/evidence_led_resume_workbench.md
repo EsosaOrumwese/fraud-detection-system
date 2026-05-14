@@ -468,3 +468,536 @@ process improvement
 ```
 
 The next methodology step is **job-specific evidence scoring for Arval**: A/B/C/D scoring against this Financial Data Analyst job ad.
+
+---
+
+Now we move to **Step 3: scoring each evidence item against the Arval job ad**.
+
+For this Arval role, the highest-scoring evidence is anything that proves **SQL data flows, SAS reporting outputs, data modelling, large financial/reporting datasets, data quality/governance, SaaS data-processing review, finance data requests, and communication with non-technical finance users**. The ad explicitly says the role will build/maintain data flows, review SaaS data processing, manage finance data requests, uphold data quality/governance, and demonstrate SQL, SAS, complex datasets and non-technical finance communication.
+
+# Arval Evidence Scoring
+
+## Scoring key
+
+| Tier | Meaning for Arval |
+| --- | --- |
+| A | Direct match; should strongly shape the CV |
+| B | Adjacent/useful; include if it strengthens the story |
+| C | Transferable support; use lower down or compress |
+| D | Weak for this role; remove or avoid |
+
+---
+
+# Tier A - Direct Arval evidence
+
+These should drive the first/main experience block.
+
+| Evidence item | Tier | Why it is A for Arval |
+| --- | ---: | --- |
+| **Financial Data Flows & Reporting Analytics Platform** | A | Strong role-specific platform label. It matches the finance-team/data-flow centre of the ad. |
+| **SQL finance reporting table** | A | Direct match to SQL, data modelling and large datasets for reporting. |
+| **SQL reporting model** | A | Direct proof of data modelling for finance/reporting use. |
+| **SQL views for reporting datasets** | A | Concrete artefact showing maintainable reporting data structures. |
+| **SQL joins across finance/customer/transaction/source tables** | A | Directly supports complex dataset maintenance and data modelling. |
+| **2.35B-row data surface** | A | Strong large-dataset proof if framed as finance/reporting data, not ML or fraud. |
+| **SAS reporting dataset** | A | Direct match because the ad explicitly asks for SAS programming. |
+| **SAS validation output** | A | Strong because it links SAS to controlled reporting and governance. |
+| **PROC SQL query / SAS data step** | A | Concrete SAS artefact; better than merely listing SAS in skills. |
+| **Finance data flow / scheduled reporting extract** | A | Direct match to building and maintaining data flows. |
+| **Data-quality checklist** | A | Direct match to data quality and governance practices. |
+| **SQL validation checks** | A | Strong proof of trusted reporting datasets. |
+| **KPI definition log** | A | Direct governance artefact; useful for finance users and reporting consistency. |
+| **Data dictionary** | A | Strong governance evidence if real. |
+| **Source-to-report reconciliation** | A | Strong proof of finance reporting trust and data quality. |
+| **SaaS export review** | A | Direct match to reviewing SaaS data processing. |
+| **SaaS field-mapping table** | A | Concrete SaaS-processing artefact; very Arval-specific. |
+| **SaaS process issue log** | A | Good proof of reviewing existing processing and improving current resources. |
+| **Finance reporting pack** | A | Direct match to finance reporting needs. |
+| **Ad-hoc finance extract** | A | Direct match to general finance data requests. |
+| **Revenue/cost variance workbook** | A | Strong finance-facing evidence and commercial awareness. |
+| **Finance KPI dashboard** | A | Good if the dashboard supports finance reporting, variance checks or monthly review. |
+| **Finance data issue memo** | A | Direct proof of communicating data issues to non-technical finance users. |
+| **KPI definition note / reporting change note** | A | Strong proof of finance communication and governance. |
+
+**Verdict:** The Arval CV should be built mainly around **SQL reporting models, SAS reporting datasets, finance data flows, SaaS export reviews, data-quality/governance artefacts, finance extracts and non-technical finance notes**.
+
+---
+
+# Tier B - Useful supporting evidence
+
+These are relevant but should support the A-tier story rather than dominate.
+
+| Evidence item | Tier | Why it is B |
+| --- | ---: | --- |
+| **Excel reconciliation workbook** | B/A | A if framed as finance/source-to-report reconciliation; B if it remains operational/oilfield. |
+| **VBA report-refresh macro** | B | Useful process-improvement proof, but the ad names SAS/SQL more than VBA. |
+| **Power BI finance/reporting dashboard** | B | Useful for reporting, but the ad does not specifically ask for Power BI. |
+| **Google BigQuery reporting table** | B | Useful large-data evidence, but Arval names SQL/SAS, not BigQuery. |
+| **Python data-quality script** | B | Useful if tied to validation, but not central to the ad. |
+| **Payment/transaction dataset** | B | Useful as finance/commercial data if not framed as Frasers-specific payment analytics. |
+| **Cost exposure or revenue exposure summary** | B | Useful commercial awareness, but should not dominate unless it supports finance reporting. |
+| **Dashboard validation checklist** | B | Useful reporting-quality evidence; stronger if paired with SQL/SAS governance. |
+| **Business analytics trend report** | B | Supports analytical thinking and business recommendations, but not finance data flows. |
+| **Visual trend report with recommendations** | B | Useful for communication with non-technical stakeholders. |
+| **South Western SaaS tool review** | B/A | A if we name a suitable SaaS tool and link it to data processing review; B if it stays generic. |
+
+For the South Western SaaS point, since SaaS tools are defendable, choose a concrete and plausible tool such as **SharePoint Lists**, **Microsoft Forms**, **Zoho Creator**, **Smartsheet**, or **Odoo** depending on what can be defended. For an oilfield reporting context, the safest concrete options are usually:
+
+```text
+SharePoint Lists field-report export
+Smartsheet operations tracker
+Microsoft Forms HSE/equipment-check export
+Odoo operations/reporting export
+```
+
+Do **not** name Salesforce, NetSuite, SAP, or Oracle unless they were actually used.
+
+---
+
+# Tier C - Transferable support only
+
+These are credible but should stay in lower blocks or be compressed.
+
+| Evidence item | Tier | Why it is C |
+| --- | ---: | --- |
+| **Fraud-risk indicators** | C | Strong elsewhere, but Arval is finance data flows, not fraud. Use only if reframed as risk/variance indicators. |
+| **Chargeback tracker** | C | Better for Frasers; only useful if reframed as finance variance/reporting evidence. |
+| **Payment acceptance analysis** | C | Frasers-specific, not central to Arval. |
+| **Anomaly scoring workflow** | C | Analytical, but too data-science heavy unless tied to data quality or variance detection. |
+| **Model validation report** | C | Good analytical discipline, but not the main finance data analyst proof. |
+| **Behavioural modelling project** | C | Shows analytical ability; not central to SQL/SAS finance data flows. |
+| **Deep learning model** | C | Too far from the role's finance reporting/data flow focus. |
+| **Country-sector recovery analysis** | C/B | B if used for business communication; C if it takes too much space. |
+| **Operational control dashboard** | C/B | B if tied to Power BI reporting/process improvement; C if too oilfield-specific. |
+| **HSE documentation gap tracker** | C | Shows control checks but too operational unless reframed carefully as data-quality evidence. |
+
+---
+
+# Tier D - Remove or avoid for Arval
+
+These do not answer the job's hiring question strongly enough.
+
+| Evidence item | Tier | Why it is D |
+| --- | ---: | --- |
+| **Churn modelling** | D | Wrong role. This is not a customer ML role. |
+| **Propensity modelling** | D | Wrong role. |
+| **Fraud detection rules** | D | Strong for Trustpilot, weak for Arval unless converted to data-quality rules. |
+| **Subject profiles** | D | Strong for Arriva, not for finance data flows. |
+| **Route/risk-hotspot analysis** | D | Arriva-specific. |
+| **Reviewer/account behaviour dashboards** | D | Trustpilot-specific. |
+| **Payments, fraud and chargeback platform title** | D | Frasers-specific. |
+| **Revenue protection platform title** | D | Arriva-specific; avoid unless applying to fraud/revenue protection. |
+| **CI/CD / production ML language** | D/B | Not needed unless tied to maintained data flows or scheduled reporting extracts. |
+| **PySpark-heavy platform language** | D/B | Only useful if it supports large data processing; otherwise SQL/SAS should dominate. |
+
+---
+
+# Arval-specific priority pool
+
+The strongest evidence pool for this CV should be:
+
+```text
+1. SQL finance reporting table
+2. SQL reporting model
+3. SQL views for reporting datasets
+4. SAS reporting dataset
+5. PROC SQL / SAS data step
+6. SAS validation output
+7. Finance data flow / scheduled reporting extract
+8. SaaS export review
+9. SaaS field-mapping table
+10. Data-quality checklist
+11. Source-to-report reconciliation
+12. KPI definition log / data dictionary
+13. Finance reporting pack
+14. Ad-hoc finance extract
+15. Revenue/cost variance workbook
+16. Finance data issue memo / reporting change note
+```
+
+# What this tells us for the Arval CV
+
+The main experience should probably be renamed to:
+
+```text
+Financial Data Flows & Reporting Analytics Platform
+```
+
+or:
+
+```text
+Finance Data Modelling & Reporting Platform
+```
+
+My pick:
+
+```text
+Financial Data Flows & Reporting Analytics Platform
+```
+
+because Arval leads with building and maintaining data flows.
+
+The headline should probably move toward:
+
+```text
+Financial Data Analyst | SQL, SAS & Finance Data Flows | Data Modelling & Governance
+```
+
+And the main platform block should later prove:
+
+```text
+1. SQL finance data flows and reporting tables
+2. SAS reporting datasets / SAS validation outputs
+3. Data modelling across complex financial datasets
+4. SaaS export review and field mapping
+5. Data quality, reconciliation and governance
+6. Finance data requests / variance reporting
+7. Non-technical finance communication
+```
+
+This is a good Arval fit because it follows the actual job problem: **finance data flows, reporting datasets, SQL, SAS, SaaS processing, governance and finance-user communication** - not generic analytics or fraud.
+
+---
+
+This is **Step 4: design the bullet portfolio** for the **Arval BNP Paribas Financial Data Analyst** CV.
+
+This is **not bullet drafting yet**. We are deciding what each bullet must prove before writing it. The framework says this step should define the proof function of each bullet before we choose wording or metrics.
+
+Arval's ad is asking for finance data flows, SaaS data-processing review, finance data requests, data quality/governance, SQL, SAS, complex datasets, large financial datasets, and communication with non-technical finance users.
+
+# Arval Bullet Portfolio
+
+## Target main experience block
+
+```text
+Data Scientist
+Financial Data Flows & Reporting Analytics Platform - Exeter, UK | May 2025 - Present
+```
+
+I would use this title rather than "Customer Behaviour ML Platform," "Fraud Risk Platform," or "Payments Platform." It points directly at Arval's real hiring problem: **finance data flows and reporting datasets**.
+
+## Portfolio goal
+
+This experience block must prove:
+
+> You can build and maintain SQL/SAS-led finance reporting data flows, model complex datasets, review SaaS data processing, uphold data quality/governance, respond to finance data requests, and communicate clearly with non-technical finance users.
+
+---
+
+# Recommended portfolio: 6 bullets
+
+## Bullet 1 - SQL finance data flows and reporting tables
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove you can build and maintain finance data flows |
+| Evidence assigned | SQL finance reporting table, SQL reporting model, scheduled reporting extract |
+| Arval screen covered | Building and maintaining data flows; maintaining large datasets for reporting |
+| Concrete artefacts to name later | SQL finance reporting table; scheduled finance reporting extract; SQL reporting model |
+| Metric meaning | Number of reporting tables/data flows maintained and reporting periods supported |
+| Placeholder values | `[N] finance reporting tables`, `[N] scheduled extracts`, `[M] reporting periods` |
+| Why this must appear | This is the core of the job ad. It should be the first bullet because it answers the role title directly. |
+| Avoid | Do not lead with ML, fraud, payments, or PySpark. This is a finance data-flow role. |
+
+**Portfolio role:** the **core finance data-flow bullet**.
+
+---
+
+## Bullet 2 - SQL data modelling across complex datasets
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove strong SQL, data modelling and complex dataset maintenance |
+| Evidence assigned | SQL views, SQL joins, reporting-ready table, source-to-report model |
+| Arval screen covered | Strong SQL, data modelling, maintaining complex datasets |
+| Concrete artefacts to name later | SQL views; reporting-ready fact table; SQL joins across finance/customer/transaction/source tables |
+| Metric meaning | Number of source tables joined, reporting fields standardised, or records processed |
+| Placeholder values | `[N] source tables`, `[N] SQL views`, `[N] reporting fields`, 2.35B-row data surface |
+| Why this must appear | It gives technical credibility beyond "I know SQL." |
+| Avoid | Do not say "data modelling" abstractly; name the SQL views, reporting table, or source joins. |
+
+**Portfolio role:** the **SQL modelling / complex datasets bullet**.
+
+---
+
+## Bullet 3 - SAS reporting dataset and validation output
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove SAS is real and directly relevant |
+| Evidence assigned | SAS reporting dataset, PROC SQL query, SAS validation output, SAS data-quality check |
+| Arval screen covered | SAS programming, data governance standards, large reporting datasets |
+| Concrete artefacts to name later | SAS reporting dataset; PROC SQL query; SAS validation output |
+| Metric meaning | Number of SAS reporting outputs or validation checks produced |
+| Placeholder values | `[N] SAS reporting datasets`, `[N] PROC SQL queries`, `[N] SAS validation checks` |
+| Why this must appear | Arval names SAS directly. If SAS is defendable, it should not be buried in skills only. |
+| Avoid | Do not just list SAS in the skills section with no proof in experience. |
+
+**Portfolio role:** the **SAS proof bullet**.
+
+---
+
+## Bullet 4 - Data quality, reconciliation and governance
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove trusted reporting data through checks, reconciliation and controlled definitions |
+| Evidence assigned | SQL validation checks, Excel reconciliation workbook, data-quality checklist, KPI definition log, data dictionary |
+| Arval screen covered | Data quality, governance practices, finance reporting accuracy |
+| Concrete artefacts to name later | SQL validation checks; Excel reconciliation workbook; KPI definition log; data dictionary |
+| Metric meaning | Reporting error reduction, reconciliation coverage, duplicate/missing record checks, KPI definitions documented |
+| Placeholder values | `[N] validation checks`, `[X]% reporting error reduction`, `[N] KPI definitions`, `[N] duplicate/missing records flagged` |
+| Why this must appear | This proves the finance team can trust the data, which is central to the role. |
+| Avoid | Do not write "ensured data governance." Name the checklist, definition log, or reconciliation output. |
+
+**Portfolio role:** the **data quality / governance bullet**.
+
+---
+
+## Bullet 5 - SaaS data processing review and workflow improvement
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove you can review existing SaaS processing and improve current resources |
+| Evidence assigned | Microsoft SharePoint Lists field-report export, Microsoft Forms equipment-check export, SaaS field-mapping table, process issue log |
+| Arval screen covered | Reviewing existing data processing in SaaS programs; utilising current resources effectively |
+| Concrete artefacts to name later | SharePoint Lists field-report export; Microsoft Forms equipment-check export; SaaS field-mapping table; process issue log |
+| Metric meaning | Manual processing time reduction, fields mapped, processing issues logged, recurring issues removed |
+| Placeholder values | `[N] SaaS fields mapped`, `[N] processing issues logged`, review time from `[X]` to `[Y]`, `[X]% manual-step reduction` |
+| Why this must appear | This is an Arval-specific differentiator. Many applicants will mention SQL; fewer will show SaaS data-processing review. |
+| Avoid | Do not say "worked with SaaS tools." Name the actual export, form, list, mapping table, or issue log. |
+
+**Portfolio role:** the **SaaS processing / process improvement bullet**.
+
+---
+
+## Bullet 6 - Finance requests, variance reporting and non-technical communication
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove finance-facing reporting support and communication |
+| Evidence assigned | Finance reporting pack, ad-hoc finance extract, revenue/cost variance workbook, KPI definition note, finance data issue memo |
+| Arval screen covered | Managing finance requests/reporting needs; communicating with non-technical finance team members; financial concepts |
+| Concrete artefacts to name later | Finance reporting pack; ad-hoc finance extract; revenue/cost variance workbook; KPI definition note; finance data issue memo |
+| Metric meaning | Number of finance requests, variance checks, reporting packs, stakeholder groups, or KPI notes |
+| Placeholder values | `[N] finance requests`, `[N] variance checks`, `[N] KPI notes`, `[M] finance stakeholders` |
+| Why this must appear | It prevents the section from reading like back-end data engineering only. Arval wants someone who supports finance users. |
+| Avoid | Do not say "stakeholder communication." Name the finance extract, variance workbook, KPI note, or data issue memo. |
+
+**Portfolio role:** the **finance-user support bullet**.
+
+---
+
+# Recommended order
+
+I would order the six proof functions like this:
+
+```text
+1. SQL finance data flows and reporting tables
+2. SQL data modelling across complex datasets
+3. SAS reporting dataset and validation output
+4. Data quality, reconciliation and governance
+5. SaaS data processing review and workflow improvement
+6. Finance requests, variance reporting and non-technical communication
+```
+
+Why this order works:
+
+| Position | Reason |
+| --- | --- |
+| 1 | Opens with Arval's central need: building and maintaining finance data flows |
+| 2 | Immediately proves SQL/data modelling/complex datasets |
+| 3 | Shows SAS is real, not a skills-section decoration |
+| 4 | Covers data quality and governance |
+| 5 | Covers SaaS processing review, which is very job-specific |
+| 6 | Ends with finance-team requests and non-technical communication |
+
+# Evidence deliberately not given a main bullet
+
+| Evidence | Reason |
+| --- | --- |
+| Fraud detection rules | Trustpilot/Arriva-specific; not central to Arval finance data flows |
+| Chargeback trend tracker | Frasers-specific unless reframed as finance variance reporting |
+| Revenue-protection dashboard | Arriva-specific wording; use finance reporting dashboard or finance KPI dashboard instead |
+| Customer churn / propensity | Wrong role |
+| Python/PySpark ML workflows | Secondary unless used for reporting data prep; SQL/SAS should dominate |
+| Deep learning sensor model | Supporting experience only, not top-block proof |
+| Power BI operational dashboard | Useful in South Western block, but not stronger than SQL/SAS/data-flow proof in the top block |
+
+# Final Step 4 output
+
+For Arval, the bullet portfolio is:
+
+```text
+Bullet 1 must prove: SQL finance data flows and reporting tables.
+Bullet 2 must prove: SQL data modelling across complex datasets.
+Bullet 3 must prove: SAS reporting datasets and validation outputs.
+Bullet 4 must prove: data quality, reconciliation and governance.
+Bullet 5 must prove: SaaS data-processing review and workflow improvement.
+Bullet 6 must prove: finance requests, variance reporting and non-technical finance communication.
+```
+
+Next step: draft the Arval bullets using the right formula for each proof function.
+
+---
+
+Now we move to **Step 5: draft the Arval bullets**.
+
+The Arval ad is asking for finance data flows, SaaS data-processing review, finance data requests, data quality/governance, SQL, SAS, complex datasets, large financial datasets and communication with non-technical finance users. The framework says Step 5 should use different bullet formulas depending on the proof function - technical delivery, validation/governance, process improvement, or stakeholder decision proof.
+
+# Arval Draft - Main Experience Block
+
+```text
+Data Scientist
+Financial Data Flows & Reporting Analytics Platform - Exeter, UK | May 2025 - Present
+Finance reporting platform using SQL, SAS, Excel and Power BI across a 2.35B-row financial and behavioural data surface to build reporting data flows, validate source-to-report outputs and support finance data requests.
+```
+
+## Draft bullets
+
+```text
+- Built SQL finance reporting tables and scheduled data extracts over a 2.35B-row financial and behavioural data surface, supporting [N] recurring finance reports across [M] reporting periods.
+
+- Modelled complex reporting datasets with SQL views joining [N] source tables, standardising [N] finance reporting fields for revenue, cost, customer and transaction analysis.
+
+- Created [N] SAS reporting datasets using PROC SQL and SAS data steps, producing governed outputs for finance reporting, validation and monthly review.
+
+- Built SQL validation checks, an Excel reconciliation workbook and a KPI definition log, reducing source-to-report differences by [X]% across [N] finance reporting tables.
+
+- Reviewed SharePoint Lists and Microsoft Forms data exports with a SaaS field-mapping table, identifying [N] processing issues and reducing manual report-preparation steps by [X]%.
+
+- Produced [N] ad-hoc finance extracts and [N] revenue/cost variance summaries, translating data-flow changes and KPI definitions into clear notes for non-technical finance users.
+```
+
+# Formula mapping
+
+| Bullet | Formula used | Why it fits Arval |
+| --- | --- | --- |
+| 1 | Technical delivery proof | Proves SQL, data flows, scheduled extracts and finance reporting |
+| 2 | Technical/data modelling proof | Proves SQL data modelling, complex datasets and reporting fields |
+| 3 | Technical delivery / tool proof | Proves SAS is real and tied to reporting outputs |
+| 4 | Validation/governance proof | Proves data quality, reconciliation, KPI definitions and trusted reporting |
+| 5 | Process improvement proof | Proves SaaS processing review and effective use of current resources |
+| 6 | Stakeholder/finance request proof | Proves ad-hoc finance support and non-technical communication |
+
+# Stronger 6-bullet CV version
+
+For the actual CV, I would use this six-bullet version:
+
+```text
+Data Scientist
+Financial Data Flows & Reporting Analytics Platform - Exeter, UK | May 2025 - Present
+Finance reporting platform using SQL, SAS, Excel and Power BI across a 2.35B-row financial and behavioural data surface to build reporting data flows, validate source-to-report outputs and support finance data requests.
+
+- Built SQL finance reporting tables and scheduled data extracts over a 2.35B-row financial and behavioural data surface, supporting [N] recurring finance reports across [M] reporting periods.
+
+- Modelled complex reporting datasets with SQL views joining [N] source tables, standardising [N] finance reporting fields for revenue, cost, customer and transaction analysis.
+
+- Created [N] SAS reporting datasets using PROC SQL and SAS data steps, producing governed outputs for finance reporting, validation and monthly review.
+
+- Built SQL validation checks, an Excel reconciliation workbook and a KPI definition log, reducing source-to-report differences by [X]% across [N] finance reporting tables.
+
+- Reviewed SharePoint Lists and Microsoft Forms data exports with a SaaS field-mapping table, identifying [N] processing issues and reducing manual report-preparation steps by [X]%.
+
+- Produced [N] ad-hoc finance extracts and [N] revenue/cost variance summaries, translating data-flow changes and KPI definitions into clear notes for non-technical finance users.
+```
+
+# Slightly safer version of the context line
+
+If **"financial data surface"** is too strong for the platform, use this:
+
+```text
+Finance reporting platform using SQL, SAS, Excel and Power BI across a 2.35B-row transaction, customer and behavioural data surface to build reporting data flows, validate source-to-report outputs and support finance data requests.
+```
+
+That is safer because it does not imply all 2.35B rows were purely financial records. It still fits Arval because finance reporting often draws on transaction, customer and contract-style data.
+
+# My recommendation
+
+Use the safer context line:
+
+```text
+Finance reporting platform using SQL, SAS, Excel and Power BI across a 2.35B-row transaction, customer and behavioural data surface to build reporting data flows, validate source-to-report outputs and support finance data requests.
+```
+
+Then use the six bullets above. They are concrete, Arval-shaped, and not bloated.
+
+---
+
+For Arval, the remaining experience blocks should support the finance data analyst story, but they should **not compete with the main SQL/SAS finance data-flow block**.
+
+The Arval role is focused on building and maintaining data flows, reviewing SaaS data processing, managing finance data requests, upholding data quality/governance, SQL, SAS, complex datasets, large financial datasets and communication with non-technical finance users. The methodology also says supporting experiences should reinforce the proof architecture without pretending to be the main match.
+
+Here is the Arval-shaped version of the **remaining experience blocks**.
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Analytical modelling project using smartphone sensor datasets to build validated model outputs, test feature reliability and translate technical results into risk-indicator summaries.
+
+- Built Python modelling datasets from accelerometer, gyroscope and trip signals, structuring sensor windows into model-ready features for transport-mode and driver-identity analysis.
+
+- Improved behavioural classification accuracy by [X] percentage points versus [baseline model], using validation outputs to compare model reliability across movement and identity-recognition tasks.
+
+- Produced a model robustness report across [N] trips, [N] users and [N] transport modes, documenting failure cases, feature limitations and risk-indicator definitions for non-technical review.
+```
+
+Why this works for Arval: it does not pretend to be finance work. It supports **large/complex datasets, validation, documented outputs, metric definitions and non-technical explanation**.
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Business analytics project using country-sector activity and policy-response datasets to build visual reports, explain abnormal movements and produce decision-ready recommendations.
+
+- Built a country-sector reporting dataset across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+
+- Linked abnormal activity movements to policy-response signals across [N] countries and [N] policy areas, explaining variance drivers behind recovery pattern changes.
+
+- Produced a visual reporting pack with [N] recommendations, translating complex activity trends into a concise decision summary for non-technical stakeholders.
+```
+
+Why this works for Arval: it supports **variance analysis, reporting datasets, trend explanation, and non-technical business communication**. That is closer to Arval than a generic "strategy project" framing.
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data analysis role using Excel, VBA, Power BI, SharePoint Lists and Microsoft Forms exports to reconcile operational records, review SaaS data processing and prepare manager-facing reports.
+
+- Built an Excel reconciliation workbook for SharePoint Lists field-report exports, Microsoft Forms equipment-check exports, HSE logs and daily completions updates, reducing incomplete or conflicting records by [X]% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting entries, cutting report review time from [X] to [Y] and improving source-to-report traceability.
+
+- Built a Power BI operational reporting dashboard tracking [N] job-progress, equipment-readiness and documentation-gap KPIs across [N] completions jobs / [N] rig days.
+
+- Produced manager-facing reporting notes explaining data issues, KPI definitions and recurring documentation gaps, helping non-technical operations users understand report changes before handover.
+```
+
+Why this works for Arval: this is the strongest supporting block. It gives concrete evidence for **Excel, VBA, Power BI, SaaS export review, data-quality checks, source-to-report reconciliation, KPI definitions and non-technical communication**.
+
+If space is tight, use only 3 South Western bullets and drop the fourth:
+
+```text
+- Built an Excel reconciliation workbook for SharePoint Lists field-report exports, Microsoft Forms equipment-check exports, HSE logs and daily completions updates, reducing incomplete or conflicting records by [X]% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting entries, cutting report review time from [X] to [Y] and improving source-to-report traceability.
+
+- Built a Power BI operational reporting dashboard tracking [N] job-progress, equipment-readiness and documentation-gap KPIs across [N] completions jobs / [N] rig days.
+```
+
+Recommended Arval experience structure:
+
+```text
+1. Financial Data Flows & Reporting Analytics Platform
+   Direct match: SQL, SAS, finance data flows, reporting tables, data quality, governance, finance requests.
+
+2. University Data Scientist project
+   Supporting match: model-ready datasets, validation outputs, robustness reports, technical-to-non-technical explanation.
+
+3. University Business Analyst project
+   Supporting match: reporting datasets, variance explanation, visual reporting, business recommendations.
+
+4. South Western Data Analyst role
+   Strong supporting match: Excel, VBA, Power BI, SaaS exports, reconciliation, source-to-report traceability, KPI definitions.
+```
+
+This keeps the CV Arval-shaped without forcing finance language into every project.
