@@ -1314,3 +1314,893 @@ Bullet 7 must prove: commercial option comparison through a 3-strategy, 5-measur
 ```
 
 This platform portfolio is Sainsbury-shaped without overclaiming explicit pricing data.
+
+---
+
+Yes — drafting the **Sainsbury-shaped platform bullets** now.
+
+The Sainsbury job is asking for pricing and promotion analytics, SQL, Python, ETL pipelines, statistical models, dynamic dashboards, commercial stakeholders, ambiguity handling and data storytelling. The methodology says the bullet must be anchored to concrete artefacts, metric meaning, baseline and defensible consequence — not polished “business impact” language.
+
+# Sainsbury Draft — Platform Experience Block
+
+```text id="j9mytr"
+Data Analyst
+Customer Response & Commercial Analytics Platform — Exeter, UK | May 2025 – Present
+Commercial analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker across a 2.35B-row customer behaviour data surface to build customer-feature tables, propensity scores, audience cut-off tests, validation reports and commercial strategy comparisons.
+```
+
+## Working draft bullets
+
+```text id="ycw6av"
+- Built SQL, BigQuery and Python/PySpark customer-feature ETL tables across a 2.35B-row customer behaviour data surface, joining lifecycle, response and activity signals into scoring and dashboard source tables.
+
+- Created a lifecycle-response segment table grouping customers into [N] offer, retention and intervention audiences, with segment counts, response signals and high-benefit customer flags for commercial review.
+
+- Validated propensity ranking quality by capturing 42% of likely high-benefit customers in the top 20% score band, producing a ranked audience table for offer and campaign targeting.
+
+- Built an audience threshold test table across [N] score cut-offs, reducing low-yield audience inclusion by 11% while preserving [Y]% high-benefit customer coverage.
+
+- Produced a model validation pack with lift charts, calibration checks and score-band stability tables across [N] validation periods before customer scores were used in audience decisions.
+
+- Created a Power BI / Looker commercial KPI dashboard tracking [N] metrics across segment capture, response rate, audience size, low-yield inclusion and score-band performance.
+
+- Compared 3 customer targeting strategies across 5 outcome measures, producing a commercial recommendation memo that showed the trade-off between reach, response quality, low-yield inclusion, coverage and rollout risk.
+```
+
+# Stronger 6-bullet CV version
+
+For the actual CV, I would likely use this tighter version:
+
+```text id="g4mgxs"
+Data Analyst
+Customer Response & Commercial Analytics Platform — Exeter, UK | May 2025 – Present
+Commercial analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker across a 2.35B-row customer behaviour data surface to build customer-feature tables, propensity scores, audience cut-off tests, validation reports and commercial strategy comparisons.
+
+- Built SQL, BigQuery and Python/PySpark customer-feature ETL tables across a 2.35B-row customer behaviour data surface, joining lifecycle, response and activity signals into scoring and dashboard source tables.
+
+- Created lifecycle-response segment tables for [N] offer, retention and intervention audiences, with segment counts, response signals and high-benefit customer flags for commercial review.
+
+- Validated propensity ranking quality by capturing 42% of likely high-benefit customers in the top 20% score band, producing a ranked audience table for offer and campaign targeting.
+
+- Built audience threshold tests across [N] score cut-offs, reducing low-yield audience inclusion by 11% while preserving [Y]% high-benefit customer coverage.
+
+- Produced a model validation pack with lift charts, calibration checks and score-band stability tables across [N] validation periods before customer scores were used in audience decisions.
+
+- Compared 3 customer targeting strategies across 5 outcome measures, producing a commercial recommendation memo that showed the trade-off between reach, response quality, low-yield inclusion, coverage and rollout risk.
+```
+
+# Why I would cut the dashboard bullet if space is tight
+
+The dashboard bullet is useful because Sainsbury asks for dynamic dashboards. But the other six bullets are stronger for the platform because they prove:
+
+```text id="ycb68o"
+SQL/Python ETL
+customer-feature tables
+customer segmentation
+propensity ranking
+promotion-style audience selection
+threshold testing
+statistical validation
+commercial recommendation writing
+```
+
+If we keep 7 bullets, include the dashboard. If we need 6, the dashboard can move into the skills section or context line unless the final job scan shows dashboards are underrepresented.
+
+# Safer wording if “high-benefit customer” is not final
+
+Use this version until the label is defined:
+
+```text id="defncp"
+- Validated propensity ranking quality by capturing 42% of target customers in the top 20% score band, producing a ranked audience table for offer and campaign targeting.
+```
+
+Then define “target customers” later as one of:
+
+```text id="707is2"
+likely responders
+high-value customers
+high-benefit customers
+campaign-eligible customers
+retention-priority customers
+```
+
+# Important caveat
+
+I deliberately did **not** write pricing bullets like:
+
+```text id="1ifcxu"
+analysed price changes
+modelled price sensitivity
+measured margin movement
+built product/category price reports
+```
+
+because we have not confirmed price, product, category or margin data. This version competes through **promotion/customer response/commercial analytics evidence** without pretending you already did explicit pricing work.
+
+Yes — the Sainsbury platform draft is **mostly concrete**, but there is still some abstractness hiding in polished commercial phrases.
+
+The main issue is not the structure. The structure is right. The issue is that a few phrases still make the recruiter think rather than **see the artefact**.
+
+## Abstractness audit
+
+### Context line
+
+Current:
+
+```text
+Commercial analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker across a 2.35B-row customer behaviour data surface to build customer-feature tables, propensity scores, audience cut-off tests, validation reports and commercial strategy comparisons.
+```
+
+Mostly good, but this phrase is still a bit abstract:
+
+```text
+commercial strategy comparisons
+```
+
+Better:
+
+```text
+3-option audience selection reports
+```
+
+Concrete version:
+
+```text
+Customer response analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker across a 2.35B-row customer behaviour data surface to build customer-feature tables, propensity scores, audience cut-off tests, validation reports and 3-option audience selection reports.
+```
+
+---
+
+### Bullet 1
+
+Current:
+
+```text
+Built SQL, BigQuery and Python/PySpark customer-feature ETL tables across a 2.35B-row customer behaviour data surface, joining lifecycle, response and activity signals into scoring and dashboard source tables.
+```
+
+This is strong. Slight issue: “signals” can be abstract unless the feature groups are clear.
+
+Sharper version:
+
+```text
+Built SQL, BigQuery and Python/PySpark customer-feature ETL tables across a 2.35B-row customer behaviour data surface, joining lifecycle fields, response-history fields and activity counts into scoring and dashboard source tables.
+```
+
+If “activity counts” is not accurate, use the real feature type.
+
+---
+
+### Bullet 2
+
+Current:
+
+```text
+Created lifecycle-response segment tables for [N] offer, retention and intervention audiences, with segment counts, response signals and high-benefit customer flags for commercial review.
+```
+
+Weak phrase:
+
+```text
+commercial review
+```
+
+Also, “high-benefit customer” must be defined later.
+
+Sharper version:
+
+```text
+Created lifecycle-response segment tables for [N] offer, retention and intervention audiences, adding segment counts, response-history fields and target-customer flags for audience selection.
+```
+
+This is more concrete. “Audience selection” is still a business use, but it is clearer than “commercial review.”
+
+---
+
+### Bullet 3
+
+Current:
+
+```text
+Validated propensity ranking quality by capturing 42% of likely high-benefit customers in the top 20% score band, producing a ranked audience table for offer and campaign targeting.
+```
+
+This is strong. The metric is concrete. The only risk is “high-benefit customers.”
+
+Sharper version:
+
+```text
+Validated propensity ranking quality by capturing 42% of target customers in the top 20% score band, producing a ranked audience table for offer and campaign selection.
+```
+
+Then define “target customers” in your evidence notes as one of:
+
+```text
+likely responders
+high-value customers
+campaign-eligible customers
+retention-priority customers
+```
+
+---
+
+### Bullet 4
+
+Current:
+
+```text
+Built audience threshold tests across [N] score cut-offs, reducing low-yield audience inclusion by 11% while preserving [Y]% high-benefit customer coverage.
+```
+
+This is strong, but “low-yield” must be defined.
+
+Sharper version:
+
+```text
+Built audience threshold tests across [N] score cut-offs, reducing low-response / low-benefit audience inclusion by 11% while preserving [Y]% target-customer coverage.
+```
+
+Choose one:
+
+```text
+low-response
+low-benefit
+low-value
+low-conversion
+```
+
+Do not leave “low-yield” unless you can explain it cleanly.
+
+---
+
+### Bullet 5
+
+Current:
+
+```text
+Produced a model validation pack with lift charts, calibration checks and score-band stability tables across [N] validation periods before customer scores were used in audience decisions.
+```
+
+Mostly concrete. Weak phrase:
+
+```text
+audience decisions
+```
+
+Sharper version:
+
+```text
+Produced a model validation pack with lift charts, calibration checks and score-band stability tables across [N] validation periods before releasing ranked customer score tables.
+```
+
+This is more concrete because it names what was released.
+
+---
+
+### Bullet 6
+
+Current:
+
+```text
+Compared 3 customer targeting strategies across 5 outcome measures, producing a commercial recommendation memo that showed the trade-off between reach, response quality, low-yield inclusion, coverage and rollout risk.
+```
+
+This has the most abstract residue.
+
+Weak phrases:
+
+```text
+customer targeting strategies
+commercial recommendation memo
+response quality
+rollout risk
+```
+
+Better:
+
+```text
+Compared 3 audience selection strategies across 5 measures — audience size, target-customer capture, response-rate proxy, low-response inclusion and coverage — producing a recommendation memo for rollout selection.
+```
+
+This is much more concrete. It names the measures instead of using polished labels.
+
+---
+
+## Cleaner concrete platform draft
+
+```text
+Data Analyst
+Customer Response & Commercial Analytics Platform — Exeter, UK | May 2025 – Present
+Customer response analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker across a 2.35B-row customer behaviour data surface to build customer-feature tables, propensity scores, audience cut-off tests, validation reports and 3-option audience selection reports.
+
+- Built SQL, BigQuery and Python/PySpark customer-feature ETL tables across a 2.35B-row customer behaviour data surface, joining lifecycle fields, response-history fields and activity counts into scoring and dashboard source tables.
+
+- Created lifecycle-response segment tables for [N] offer, retention and intervention audiences, adding segment counts, response-history fields and target-customer flags for audience selection.
+
+- Validated propensity ranking quality by capturing 42% of target customers in the top 20% score band, producing a ranked audience table for offer and campaign selection.
+
+- Built audience threshold tests across [N] score cut-offs, reducing low-response audience inclusion by 11% while preserving [Y]% target-customer coverage.
+
+- Produced a model validation pack with lift charts, calibration checks and score-band stability tables across [N] validation periods before releasing ranked customer score tables.
+
+- Compared 3 audience selection strategies across 5 measures — audience size, target-customer capture, response-rate proxy, low-response inclusion and coverage — producing a recommendation memo for rollout selection.
+```
+
+## Verdict
+
+This revised version is much closer to the Ben/Mark standard.
+
+It replaces abstract phrases like:
+
+```text
+commercial strategy comparisons
+commercial review
+audience decisions
+response quality
+rollout risk
+```
+
+with concrete objects:
+
+```text
+customer-feature ETL tables
+segment tables
+ranked audience table
+threshold tests
+model validation pack
+lift charts
+calibration checks
+score-band stability tables
+3-option audience selection report
+```
+
+The remaining things to define before finalising are:
+
+```text
+target customers
+low-response / low-benefit audience
+response-rate proxy
+[Y]% target-customer coverage
+[N] offer / retention / intervention audiences
+[N] score cut-offs
+[N] validation periods
+```
+
+---
+
+Yes — moving to **bullet portfolio design for the other experience blocks**.
+
+This is **not bullet drafting yet**. We are deciding what each supporting block must prove for the Sainsbury role before writing the actual bullets. The Sainsbury ad is looking for pricing/promotion analytics, SQL, Python, ETL pipelines, statistical models, dynamic dashboards, ambiguity structuring, storytelling, speed, and partnership with Value Strategy, Commercial, Engineering and Data Science.
+
+The methodology rule still applies: each bullet slot needs a **proof job** before wording. We are not trying to make every experience sound like Sainsbury’s. We are deciding what concrete evidence each block contributes.
+
+# Supporting Experience Bullet Portfolio — Sainsbury’s
+
+## 1. Smartphone Sensor / Behavioural Modelling Project
+
+This block should support **Python, statistical modelling, baseline comparison, model evaluation and failure-case analysis**. It should not try to sound like retail or pricing.
+
+### Context role
+
+```text
+Data Scientist
+University of Exeter — Exeter, UK | Jan 2024 – Aug 2024
+```
+
+### Context line job
+
+The context line should frame it as a technical modelling/evaluation project:
+
+```text
+Python modelling project using smartphone sensor windows to classify movement patterns, compare model performance against a baseline and document failure cases across trips, users and transport modes.
+```
+
+### Bullet portfolio
+
+```text
+Bullet 1 must prove: Python modelling and baseline comparison.
+```
+
+Purpose: show Sainsbury that you can use Python/statistical modelling and compare performance against a defined baseline.
+
+Concrete evidence assigned:
+
+```text
+Python models
+smartphone sensor windows
+accelerometer / gyroscope / trip signals
+transport-mode classification
+driver-identity classification
+7 percentage-point accuracy improvement
+single-task CNN baseline
+```
+
+Avoid:
+
+```text
+behavioural insight
+risk indicators
+complex signals
+model impact
+```
+
+Those are too abstract unless tied to the model report.
+
+---
+
+```text
+Bullet 2 must prove: model robustness and failure-case documentation.
+```
+
+Purpose: show analytical judgement: you can test where a model works, where it fails, and what evidence supports that conclusion.
+
+Concrete evidence assigned:
+
+```text
+model robustness report
+1,200 trips
+60 users
+5 transport modes
+failure-case table
+trip type / user variation / sensor-signal quality
+```
+
+Avoid:
+
+```text
+translated outputs into insight
+supported risk interpretation
+improved reliability
+```
+
+Use the concrete report, dataset scope and failure-case categories.
+
+### Smartphone portfolio output
+
+```text
+Bullet 1 must prove: Python model performance versus a defined baseline.
+Bullet 2 must prove: robustness testing and failure-case documentation across trips, users and transport modes.
+```
+
+Recommended count: **2 bullets**.
+
+This block is useful for Sainsbury, but it should not dominate because the domain is not pricing, promotions or retail.
+
+---
+
+## 2. Business Analytics Project — University of Exeter
+
+This block should support **ambiguous problem structuring, baseline comparison, metric movement analysis, external-driver explanation, visual storytelling and recommendation writing**. This is relevant to Sainsbury’s “simplifying complexity” and “compelling data stories” requirement.
+
+### Context role
+
+```text
+Business Analyst
+University of Exeter — Exeter, UK | Sep 2023 – Nov 2023
+```
+
+### Context line job
+
+The context line should make the artefacts visible:
+
+```text
+Trend-analysis project using country-sector activity data and policy-response tables to compare movements against pre-crisis baselines, isolate external drivers and produce a visual recommendation report.
+```
+
+### Bullet portfolio
+
+```text
+Bullet 1 must prove: large dataset baseline comparison.
+```
+
+Purpose: show that you can structure a large analysis around a clear comparison point.
+
+Concrete evidence assigned:
+
+```text
+country-sector trend analysis
+220 countries
+12 sectors
+pre-crisis baseline
+rebound / persistent disruption / structural-shift categories
+```
+
+Avoid:
+
+```text
+complex trend insight
+business recovery understanding
+strategic analysis
+```
+
+---
+
+```text
+Bullet 2 must prove: driver explanation behind metric movement.
+```
+
+Purpose: show that you can explain what changed and why, not just report movement.
+
+Concrete evidence assigned:
+
+```text
+6 countries
+8 policy areas
+activity movement table
+restriction signals
+support-measure signals
+reopening signals
+policy-response comparison
+```
+
+Avoid:
+
+```text
+explained external decisions
+linked trends to policy
+generated insight
+```
+
+Use the driver categories.
+
+---
+
+```text
+Bullet 3 must prove: visual storytelling and recommendation output.
+```
+
+Purpose: show Sainsbury that you can turn analysis into a report that recommends action.
+
+Concrete evidence assigned:
+
+```text
+visual trend report
+country-sector charts
+policy comparison charts
+3 recommendations
+decision summary
+```
+
+Avoid:
+
+```text
+non-technical stakeholders
+clear decision support
+actionable narrative
+```
+
+Better to name the report and the charts.
+
+### Business Analytics portfolio output
+
+```text
+Bullet 1 must prove: 220-country / 12-sector baseline trend analysis.
+Bullet 2 must prove: driver explanation using 6-country / 8-policy-area comparison.
+Bullet 3 must prove: visual report with 3 recommendations.
+```
+
+Recommended count: **3 bullets**.
+
+This block is not retail, but it is strong for **ambiguity, baselines, driver analysis and storytelling**.
+
+---
+
+## 3. South Western Technologies — Data Analyst
+
+This block should support **Power BI, Excel, VBA, dashboard/reporting discipline, process automation and accuracy under operational pressure**. It is not commercial analytics, so it should not be over-weighted for Sainsbury.
+
+### Context role
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd — Rivers, Nigeria | Jul 2021 – Aug 2022
+```
+
+### Context line job
+
+The context line should stay concrete and not over-explain:
+
+```text
+Operations data role using Excel, VBA and Power BI to reconcile field records, automate exception checks and produce operational KPI dashboards for manager review.
+```
+
+### Bullet portfolio
+
+```text
+Bullet 1 must prove: Excel reconciliation and data-quality discipline.
+```
+
+Purpose: show that you can use Excel to clean, reconcile and validate messy records before reporting.
+
+Concrete evidence assigned:
+
+```text
+Excel reconciliation workbook
+pivot tables
+lookups
+index/match checks
+field reports
+HSE logs
+equipment checks
+daily completions updates
+32% fewer incomplete/conflicting entries
+```
+
+Avoid:
+
+```text
+improved data quality
+enhanced reporting accuracy
+supported operational decisions
+```
+
+Name the workbook, checks, record types and reduction.
+
+---
+
+```text
+Bullet 2 must prove: VBA automation and faster report review.
+```
+
+Purpose: show automation and speed — useful for Sainsbury’s pace/multiple-priorities requirement, even though the domain is different.
+
+Concrete evidence assigned:
+
+```text
+VBA report-refresh macro
+VBA exception-flagging macro
+missing records
+duplicated records
+conflicting records
+45 to 25 minutes review time
+```
+
+Avoid:
+
+```text
+streamlined reporting
+improved efficiency
+automated processes
+```
+
+Name the macro and the before/after review time.
+
+---
+
+```text
+Optional Bullet 3 must prove: Power BI dashboarding.
+```
+
+Purpose: show dashboard-building capability if the final CV needs more Power BI evidence.
+
+Concrete evidence assigned:
+
+```text
+Power BI operational metrics dashboard
+9 KPIs
+job progress
+equipment readiness
+documentation gaps
+review status
+12 completions jobs
+140 rig days
+```
+
+Avoid:
+
+```text
+operational visibility
+manager-facing insight
+business reporting
+```
+
+Name the dashboard, KPIs and scope.
+
+### South Western portfolio output
+
+```text
+Bullet 1 must prove: Excel reconciliation workbook reduced incomplete/conflicting records.
+Bullet 2 must prove: VBA exception macro cut report review time.
+Optional Bullet 3 must prove: Power BI dashboard tracked 9 KPIs across 12 jobs / 140 rig days.
+```
+
+Recommended count: **2 bullets**, with a third only if the final Sainsbury CV needs extra Power BI evidence.
+
+---
+
+# Recommended supporting-experience structure for Sainsbury’s
+
+```text
+1. Smartphone Sensor Project — 2 bullets
+   Supports Python, modelling, baseline comparison, robustness testing.
+
+2. Business Analytics Project — 3 bullets
+   Supports ambiguity, baseline comparison, driver explanation, visual report, recommendations.
+
+3. South Western Technologies — 2 bullets, optional 3rd
+   Supports Excel, VBA, Power BI, reporting discipline and automation.
+```
+
+# Final portfolio summary
+
+```text
+Smartphone Bullet 1:
+Python model performance versus a single-task CNN baseline.
+
+Smartphone Bullet 2:
+Model robustness report across 1,200 trips, 60 users and 5 transport modes.
+
+Business Analytics Bullet 1:
+220-country / 12-sector baseline trend analysis.
+
+Business Analytics Bullet 2:
+6-country / 8-policy-area driver explanation using policy-response signals.
+
+Business Analytics Bullet 3:
+Visual trend report with 3 recommendations.
+
+South Western Bullet 1:
+Excel reconciliation workbook with pivot/lookups/index-match checks reduced incomplete/conflicting entries.
+
+South Western Bullet 2:
+VBA report-refresh and exception macro cut review time from 45 to 25 minutes.
+
+Optional South Western Bullet 3:
+Power BI dashboard tracked 9 operational KPIs across 12 completions jobs / 140 rig days.
+```
+
+The next step is drafting these supporting bullets, still keeping the Sainsbury CV concrete and commercial enough that the platform block remains the main pricing/promotion-adjacent proof.
+
+---
+
+You’re right to call that out. I should **not** be shortening the Business Analytics project to 2 bullets for this Sainsbury CV.
+
+For Sainsbury, the **Business Analytics project deserves 3 bullets** because it supports three important non-platform signals from the job ad:
+
+```text
+1. Structuring complex/ambiguous problems
+2. Explaining metric movement against a baseline
+3. Producing clear visual recommendations / data stories
+```
+
+Those are directly relevant because Sainsbury asks for someone who can simplify complexity, structure ambiguous problems, and craft compelling data stories that influence stakeholders.
+
+The block should stay as:
+
+```text
+Business Analytics Project — 3 bullets
+
+Bullet 1: 220-country / 12-sector baseline trend analysis.
+Bullet 2: 6-country / 8-policy-area driver explanation using policy-response signals.
+Bullet 3: visual trend report with 3 recommendations.
+```
+
+The blocks I was considering shortening were:
+
+```text
+Smartphone project — 2 bullets
+South Western — 2 bullets, optional 3rd
+```
+
+Not Business Analytics.
+
+So the corrected supporting-experience structure for Sainsbury is:
+
+```text
+Platform — 6 or 7 bullets
+Smartphone Project — 2 bullets
+Business Analytics Project — 3 bullets
+South Western — 2 or 3 bullets
+```
+
+And if space becomes tight, I would cut from **Smartphone or South Western before cutting Business Analytics**, because Business Analytics is stronger for Sainsbury’s ambiguity, baseline, driver-analysis and storytelling requirements.
+
+---
+
+You’re right. Here are **3 bullets for every secondary experience block** — no shortening, no “optional,” no abstract filler.
+
+## Data Scientist — University of Exeter
+
+```text
+Data Scientist
+University of Exeter — Exeter, UK | Jan 2024 – Aug 2024
+Python modelling project using smartphone sensor windows to classify movement patterns, compare model performance against a baseline and document failure cases across trips, users and transport modes.
+
+- Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity across 1,200 trips, 60 users and 5 transport modes.
+
+- Improved transport-mode and driver-identity classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model architecture for both classification tasks.
+
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases by trip type, user variation and sensor-signal quality.
+```
+
+## Business Analyst — University of Exeter
+
+```text
+Business Analyst
+University of Exeter — Exeter, UK | Sep 2023 – Nov 2023
+Trend-analysis project using country-sector activity data and policy-response tables to compare movements against pre-crisis baselines, isolate external drivers and produce a visual recommendation report.
+
+- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+
+- Investigated abnormal activity movements across 6 countries and 8 policy areas, linking shifts to restriction, support-measure and reopening signals.
+
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-comparison tables to show which activity patterns rebounded, remained disrupted or structurally shifted.
+```
+
+## Data Analyst — South Western Technologies & Oilfield Services Ltd
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd — Rivers, Nigeria | Jul 2021 – Aug 2022
+Operations data role using Excel, VBA and Power BI to reconcile field records, automate exception checks and produce operational KPI dashboards for manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by 32% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting field-report, HSE, equipment and daily-update records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+```
+
+These keep the secondary blocks concrete while letting the platform block carry the Sainsbury-specific commercial/customer analytics story.
+
+---
+
+Recommended headline:
+
+```text
+Pricing & Promotions Analyst | Customer Response Analytics | SQL, Python & Power BI
+```
+
+This gives the recruiter the target-role signal immediately, while “Customer Response Analytics” keeps us truthful because our strongest evidence is promotion/customer-response adjacent rather than explicit price/margin analysis.
+
+## Professional Summary
+
+```text
+Commercial Data Analyst with experience using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer-feature tables, propensity score tables, audience cut-off tests, model validation packs and KPI dashboards across a 2.35B-row customer behaviour data surface. Compared 3 audience selection strategies across 5 measures — target-customer capture, low-response inclusion, audience size, coverage and rollout risk — producing recommendation memos for offer and campaign selection.
+```
+
+Slightly tighter version:
+
+```text
+Commercial Data Analyst using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer-feature tables, propensity score tables, audience cut-off tests and KPI dashboards across a 2.35B-row customer behaviour data surface. Compared 3 audience selection strategies across 5 measures, producing recommendation memos for offer and campaign selection.
+```
+
+My recommendation: use the first version. It is more concrete and gives the hiring manager the exact artefacts: **customer-feature tables, propensity score tables, cut-off tests, validation packs, dashboards, 3-strategy comparison and recommendation memos**. It also maps directly to Sainsbury’s focus on pricing/promotion analytics, SQL, Python, ETL pipelines, statistical models, dynamic dashboards, commercial stakeholders and storytelling.
+
+---
+
+Yes — next is **Technical Skills + Education** for the Sainsbury’s Pricing & Promotions role.
+
+The skills section should support ATS and recruiter scanning for **SQL, Python, ETL pipelines, statistical models, dynamic dashboards, commercial analytics, pricing/promotions, ambiguity and stakeholder storytelling**. Sainsbury’s explicitly names SQL, Python, ETL pipelines, statistical models, dashboards, ML modelling, Snowflake, R, GitHub and Jira as relevant/advantageous signals.
+
+## Technical Skills
+
+```text
+TECHNICAL SKILLS
+
+Commercial Analytics: promotion response analysis, audience cut-off tests, customer segmentation, target-customer capture, low-response audience reduction
+
+SQL & Data Platforms: SQL, Google BigQuery, customer-feature tables, dashboard source tables, ETL transformations
+
+Python & Modelling: Python, PySpark, Pandas, NumPy, propensity scoring, lift charts, calibration checks, model validation packs
+
+BI & Dashboards: Power BI, Looker, commercial KPI dashboards, audience performance dashboards, dashboard validation checks
+
+Measurement & Recommendation Outputs: baseline comparisons, score-band analysis, 3-option strategy comparisons, 5-measure outcome tables, recommendation memos
+```
+
+I would **not** include Snowflake, R, Jira or GitHub unless you genuinely used them in the work. The job ad says they are advantageous, not required, so we should not add unsupported tools.
+
+## Education
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 – Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 – Dec 2020
+```
+
+Education works as-is. The MSc supports the numerate/analytical background requirement, and the Engineering degree reinforces quantitative problem-solving without needing extra explanation.

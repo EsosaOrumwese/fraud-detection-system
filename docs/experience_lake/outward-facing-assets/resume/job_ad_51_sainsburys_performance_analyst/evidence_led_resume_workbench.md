@@ -956,3 +956,646 @@ I built KPI reports, created performance source tables, explained metric movemen
 ```
 
 That is concrete, recruiter-readable, and aligned to the role.
+
+---
+
+Yes — **platform experience only**.
+
+Sainsbury’s wants advanced tools/reports, KPI performance analysis, secondary-space/allocation-style analysis, deal/event effectiveness, ad-hoc deep dives, automation, data visualisation, accurate/timely reporting, and concrete recommendations.
+
+## Draft platform experience — Sainsbury’s version
+
+```text
+Data Scientist
+Commercial Performance Analytics Platform - Exeter, UK | May 2025 - Present
+BigQuery and BI reporting platform using SQL KPI tables, Looker/Power BI dashboards, period-comparison reports and validation checks across a 2.35B-row data surface.
+
+- Built BigQuery SQL KPI tables over a 2.35B-row data surface, creating 6 dashboard source tables used in recurring performance reports.
+
+- Developed Looker and Power BI KPI dashboards tracking 13 performance metrics across 12 reporting periods, giving users a period-by-period view of movement, variance and trend direction.
+
+- Used BigQuery variance queries to explain a 19% KPI movement, producing a root-cause table with 4 operational, behavioural or data-quality drivers.
+
+- Compared 3 strategy options across 5 outcome measures, producing a ranked recommendation table for which option should receive priority.
+
+- Built a ranked segment table capturing 42% of target records in the top 20% performance band, giving teams a concrete priority list for allocation-style decisions.
+
+- Added 15 validation checks across dashboard source tables and BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+
+- Turned dashboard movement, segment ranking and strategy-comparison outputs into a recommendation summary covering KPI variance, priority segments and next-step actions.
+```
+
+## Tighter 6-bullet version
+
+This is probably stronger for a one-page CV:
+
+```text
+Data Scientist
+Commercial Performance Analytics Platform - Exeter, UK | May 2025 - Present
+BigQuery and BI reporting platform using SQL KPI tables, Looker/Power BI dashboards, period-comparison reports and validation checks across a 2.35B-row data surface.
+
+- Built BigQuery SQL KPI tables over a 2.35B-row data surface, creating 6 dashboard source tables used in recurring performance reports.
+
+- Developed Looker and Power BI KPI dashboards tracking 13 performance metrics across 12 reporting periods, giving users a period-by-period view of movement, variance and trend direction.
+
+- Used BigQuery variance queries to explain a 19% KPI movement, producing a root-cause table with 4 operational, behavioural or data-quality drivers.
+
+- Compared 3 strategy options across 5 outcome measures, producing a ranked recommendation table for which option should receive priority.
+
+- Built a ranked segment table capturing 42% of target records in the top 20% performance band, giving teams a concrete priority list for allocation-style decisions.
+
+- Added 15 validation checks across dashboard source tables and BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+```
+
+## Formula mapping
+
+```text
+Bullet 1 = technical/tool proof: BigQuery KPI tables + dashboard source tables
+Bullet 2 = reporting/dashboard proof: Looker/Power BI dashboards + KPIs + reporting periods
+Bullet 3 = deep-dive proof: variance query + root-cause table + drivers
+Bullet 4 = deal/intervention equivalent: strategy options + outcome measures + ranked table
+Bullet 5 = allocation-style proof: ranked segment table + top-band capture
+Bullet 6 = report robustness proof: validation checks + error reduction + refresh reliability
+```
+
+The strongest version is the 6-bullet one. It is concrete: **SQL KPI tables, dashboard source tables, dashboards, variance queries, root-cause table, ranked recommendation table, ranked segment table, validation checks, refreshes**.
+
+Yes. Still some abstractness. The draft is **much more concrete than before**, but a few phrases still sound like polished CV language instead of visible work objects.
+
+Sainsbury’s wants advanced tools/reports, secondary-space performance, deal/event performance, ad-hoc deep dives, data visualisation, automation, accurate/timely reports and tangible recommendations, so our bullets need to keep naming **tables, dashboards, variance queries, ranked lists, recommendation tables, validation checks and refresh rates**. The methodology also says the strongest bullets attach metrics to concrete assets/deliverables, not vague claims.
+
+## Abstractness scan
+
+### Context line
+
+Current:
+
+```text
+BigQuery and BI reporting platform using SQL KPI tables, Looker/Power BI dashboards, period-comparison reports and validation checks across a 2.35B-row data surface.
+```
+
+This is mostly concrete. Only weak phrase is:
+
+```text
+BI reporting platform
+```
+
+Better:
+
+```text
+BigQuery, Looker and Power BI reporting workstream using SQL KPI tables, dashboard source tables, period-comparison reports and validation checks across a 2.35B-row data surface.
+```
+
+“Workstream” is still a label, but the rest is concrete: **SQL KPI tables, dashboard source tables, reports, checks**.
+
+---
+
+### Bullet 1
+
+Current:
+
+```text
+Built BigQuery SQL KPI tables over a 2.35B-row data surface, creating 6 dashboard source tables used in recurring performance reports.
+```
+
+Problem:
+
+```text
+recurring performance reports
+```
+
+Better:
+
+```text
+Built BigQuery SQL KPI tables over a 2.35B-row data surface, creating 6 dashboard source tables used in weekly Looker/Power BI KPI reports.
+```
+
+This is more concrete because the reader sees the reporting cadence and tools.
+
+---
+
+### Bullet 2
+
+Current:
+
+```text
+Developed Looker and Power BI KPI dashboards tracking 13 performance metrics across 12 reporting periods, giving users a period-by-period view of movement, variance and trend direction.
+```
+
+Problem:
+
+```text
+giving users a period-by-period view
+```
+
+It is not terrible, but “users” is vague.
+
+Better:
+
+```text
+Developed Looker and Power BI KPI dashboards tracking 13 performance metrics across 12 reporting periods, with period-by-period variance tables and trend charts.
+```
+
+This replaces “users” with **variance tables** and **trend charts**.
+
+---
+
+### Bullet 3
+
+Current:
+
+```text
+Used BigQuery variance queries to explain a 19% KPI movement, producing a root-cause table with 4 operational, behavioural or data-quality drivers.
+```
+
+Verdict: **strong**. Keep.
+
+It has tool, method, metric, artefact, and drivers.
+
+---
+
+### Bullet 4
+
+Current:
+
+```text
+Compared 3 strategy options across 5 outcome measures, producing a ranked recommendation table for which option should receive priority.
+```
+
+Problem:
+
+```text
+strategy options
+which option should receive priority
+```
+
+Still a little generic. Better:
+
+```text
+Compared 3 strategy options across 5 outcome measures, producing a ranked option table with the strongest-performing choice and trade-offs.
+```
+
+If we can name the strategy type later, even better:
+
+```text
+Compared 3 targeting / allocation / intervention options...
+```
+
+For now, “ranked option table” is the concrete object.
+
+---
+
+### Bullet 5
+
+Current:
+
+```text
+Built a ranked segment table capturing 42% of target records in the top 20% performance band, giving teams a concrete priority list for allocation-style decisions.
+```
+
+Problem:
+
+```text
+giving teams
+allocation-style decisions
+```
+
+Better:
+
+```text
+Built a ranked segment table capturing 42% of target records in the top 20% performance band, creating a priority list for where to focus the next action.
+```
+
+But “next action” is also a bit vague.
+
+More concrete:
+
+```text
+Built a ranked segment table capturing 42% of target records in the top 20% performance band, creating a priority list for offer, intervention or resource-allocation tests.
+```
+
+Only use “offer/intervention/resource-allocation” if defendable. Otherwise:
+
+```text
+Built a ranked segment table capturing 42% of target records in the top 20% performance band, creating a priority list for follow-up analysis and action selection.
+```
+
+---
+
+### Bullet 6
+
+Current:
+
+```text
+Added 15 validation checks across dashboard source tables and BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+```
+
+Verdict: **strong**. Keep.
+
+To make it even more concrete:
+
+```text
+Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+```
+
+That is better because it names the objects.
+
+---
+
+## Clean concrete version
+
+```text
+Data Scientist
+Commercial Performance Analytics Platform - Exeter, UK | May 2025 - Present
+BigQuery, Looker and Power BI reporting workstream using SQL KPI tables, dashboard source tables, period-comparison reports and validation checks across a 2.35B-row data surface.
+
+- Built BigQuery SQL KPI tables over a 2.35B-row data surface, creating 6 dashboard source tables used in weekly Looker/Power BI KPI reports.
+
+- Developed Looker and Power BI KPI dashboards tracking 13 performance metrics across 12 reporting periods, with period-by-period variance tables and trend charts.
+
+- Used BigQuery variance queries to explain a 19% KPI movement, producing a root-cause table with 4 operational, behavioural or data-quality drivers.
+
+- Compared 3 strategy options across 5 outcome measures, producing a ranked option table with the strongest-performing choice and trade-offs.
+
+- Built a ranked segment table capturing 42% of target records in the top 20% performance band, creating a priority list for follow-up analysis and action selection.
+
+- Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+```
+
+## Remaining weakest phrase
+
+The only line I still do not love is:
+
+```text
+follow-up analysis and action selection
+```
+
+It is safer than overclaiming, but still slightly abstract. Later, if we can name the actual action type, replace it with something sharper:
+
+```text
+promotion test
+placement test
+campaign audience
+resource-allocation review
+category performance review
+commercial deep dive
+```
+
+That would make Bullet 5 much stronger.
+
+---
+
+Yes — **other experience blocks only**.
+
+For Sainsbury’s, these blocks should support the platform story. They should not try to become fake grocery/secondary-space experience. The job is about **advanced tools and reports, commercial KPI analysis, event/deal performance, deep-dive analysis, statistical analysis, data visualisation, automation, accurate reporting and recommendations**.
+
+# Supporting Experience Bullet Portfolio — Sainsbury’s
+
+## Recommended supporting-block order
+
+For this role, I would strongly consider this order:
+
+```text
+1. South Western Technologies — Data Analyst
+2. Business Analytics Project — University of Exeter
+3. Behavioural Modelling Project — University of Exeter
+```
+
+Reason: Sainsbury’s is closer to **performance reporting, Excel/Power BI tools, automation, KPI dashboards and commercial analysis** than deep learning. South Western and Business Analytics support that better than the sensor-modelling project.
+
+---
+
+# 1. South Western Technologies — Data Analyst
+
+This block should prove **Excel reporting, Power BI KPI dashboards, VBA automation, report accuracy and operational performance tracking**.
+
+Current evidence includes an Excel reconciliation workbook, pivot tables, lookups, index/match checks, a 32% reduction in incomplete/conflicting records, a VBA report-refresh/exception macro cutting review time from 45 to 25 minutes, and a Power BI dashboard tracking 9 KPIs across 12 jobs / 140 rig days.
+
+## Portfolio: 3 bullets
+
+| Bullet slot | Must prove                            | Concrete evidence to use                                                                         | Sainsbury’s signal                       |
+| ----------- | ------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| 1           | Excel performance/reporting accuracy  | Excel reconciliation workbook, pivot tables, lookups, index/match, 32% fewer conflicting records | Accurate and timely reporting            |
+| 2           | Automation of recurring report checks | VBA report-refresh and exception macro, 45 to 25 minutes                                         | Automation and process improvement       |
+| 3           | Operational KPI dashboarding          | Power BI dashboard, 9 KPIs, 12 completions jobs, 140 rig days                                    | Performance tools and data visualisation |
+
+## Portfolio output
+
+```text
+Bullet 1 must prove: Excel workbook + reconciliation checks reduced incomplete/conflicting report records.
+Bullet 2 must prove: VBA macro automated report refresh / exception checks and cut review time.
+Bullet 3 must prove: Power BI KPI dashboard tracked operational performance over jobs and rig days.
+```
+
+Concrete objects to preserve:
+
+```text
+Excel reconciliation workbook
+pivot tables
+lookups
+index/match checks
+VBA report-refresh macro
+exception-flagging macro
+Power BI operational KPI dashboard
+9 KPIs
+12 jobs / 140 rig days
+```
+
+Avoid:
+
+```text
+operational insight
+stakeholder visibility
+business support
+process improvement
+```
+
+unless attached to the workbook, macro, dashboard, or KPI counts.
+
+---
+
+# 2. Business Analytics Project — University of Exeter
+
+This block should prove **baseline comparison, event/performance-style trend analysis, external-driver explanation and recommendation writing**.
+
+Current evidence includes country-sector trend analysis across 220 countries and 12 sectors, abnormal movement analysis across 6 countries and 8 policy areas, and a visual trend report with 3 recommendations.
+
+## Portfolio: 3 bullets
+
+| Bullet slot | Must prove                          | Concrete evidence to use                             | Sainsbury’s signal                               |
+| ----------- | ----------------------------------- | ---------------------------------------------------- | ------------------------------------------------ |
+| 1           | Baseline-based performance analysis | 220 countries, 12 sectors, pre-crisis baseline       | Statistical analysis / performance movement      |
+| 2           | Deep-dive driver explanation        | 6 countries, 8 policy areas, policy-response signals | Ad-hoc and deep-dive analysis                    |
+| 3           | Recommendation output               | Visual trend report, 3 recommendations               | Tangible recommendations for non-technical users |
+
+## Portfolio output
+
+```text
+Bullet 1 must prove: country-sector performance table compared activity against a pre-crisis baseline.
+Bullet 2 must prove: abnormal movement analysis linked KPI changes to 8 policy-response areas.
+Bullet 3 must prove: visual trend report produced 3 recommendations from the analysis.
+```
+
+Concrete objects to preserve:
+
+```text
+country-sector trend table
+220 countries
+12 sectors
+pre-crisis baseline
+6-country / 8-policy-area comparison
+visual trend report
+3 recommendations
+```
+
+Avoid:
+
+```text
+decision-ready insight
+strategic support
+complex analysis
+stakeholder understanding
+```
+
+unless tied to the **visual trend report** or **3 recommendations**.
+
+---
+
+# 3. Behavioural Modelling Project — University of Exeter
+
+This block is the lightest. It should prove **statistical judgement, baseline evaluation and model reliability**, not deep-learning identity.
+
+Current evidence includes smartphone sensor windows, transport-mode and driver-identity classification, a 7 percentage-point accuracy improvement versus a single-task CNN baseline, and robustness evaluation across 1,200 trips, 60 users and 5 transport modes.
+
+## Portfolio: 3 bullets
+
+| Bullet slot | Must prove                        | Concrete evidence to use                                   | Sainsbury’s signal                     |
+| ----------- | --------------------------------- | ---------------------------------------------------------- | -------------------------------------- |
+| 1           | Statistical / analytical method   | Smartphone accelerometer, gyroscope, trip-signal windows   | Statistical analysis                   |
+| 2           | Baseline comparison               | 7 percentage-point improvement vs single-task CNN baseline | Measurement against baseline           |
+| 3           | Reliability / limitations testing | 1,200 trips, 60 users, 5 transport modes, failure cases    | Robustness and accurate interpretation |
+
+## Portfolio output
+
+```text
+Bullet 1 must prove: sensor-window model classified transport mode and driver identity.
+Bullet 2 must prove: model performance improved by 7 percentage points versus a named baseline.
+Bullet 3 must prove: robustness test covered 1,200 trips, 60 users and 5 transport modes.
+```
+
+Concrete objects to preserve:
+
+```text
+smartphone accelerometer windows
+gyroscope signals
+trip-signal data
+single-task CNN baseline
+7 percentage-point accuracy gain
+1,200 trips
+60 users
+5 transport modes
+failure cases
+```
+
+Avoid leading with:
+
+```text
+deep learning
+risk indicators
+analytical judgement
+model reliability
+```
+
+unless the bullet names the **sensor data**, **baseline**, **accuracy gain**, or **robustness test**.
+
+---
+
+# Final supporting-block portfolio
+
+```text
+South Western Technologies:
+1. Excel reconciliation workbook reduced conflicting records.
+2. VBA macro cut report review time.
+3. Power BI KPI dashboard tracked operational performance.
+
+Business Analytics Project:
+1. Country-sector table compared performance against baseline.
+2. 6-country / 8-policy-area deep dive explained abnormal movements.
+3. Visual trend report produced 3 recommendations.
+
+Behavioural Modelling Project:
+1. Sensor-window model classified transport mode and driver identity.
+2. Accuracy improved by 7pp versus CNN baseline.
+3. Robustness test covered 1,200 trips, 60 users and 5 transport modes.
+```
+
+This keeps the supporting blocks concrete and Sainsbury’s-relevant without pretending they are grocery retail experience.
+
+---
+
+Yes — drafting **supporting experience blocks only**, using the formulas from the methodology and keeping everything concrete: workbook, macro, dashboard, trend table, baseline, report, recommendation, model, test set.
+
+Sainsbury’s wants advanced tools/reports, KPI analysis, ad-hoc deep dives, data visualisation, automation, accurate/timely reporting, and recommendations.
+
+## South Western Technologies — Data Analyst
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations reporting role using Excel, VBA and Power BI to reconcile field reports, HSE logs, equipment checks and daily completions records for manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks, reducing incomplete or conflicting field-report entries by 32% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational KPI dashboard tracking 9 metrics across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+```
+
+Formula use:
+
+```text
+Bullet 1 = validation / report accuracy proof
+Bullet 2 = automation / time-saving proof
+Bullet 3 = dashboard / KPI reporting proof
+```
+
+## University of Exeter — Business Analytics Project
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Business analytics project using country-sector activity tables and policy-response data to compare performance movements against pre-crisis baselines.
+
+- Built a country-sector performance table across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+
+- Merged activity data with 8 policy-response areas across 6 countries, explaining abnormal movement patterns through restrictions, support measures and reopening signals.
+
+- Produced a visual trend report with 3 recommendations, using country-sector comparisons and policy-driver charts to show which markets and sectors needed closer review.
+```
+
+Formula use:
+
+```text
+Bullet 1 = baseline comparison proof
+Bullet 2 = deep-dive / driver analysis proof
+Bullet 3 = recommendation report proof
+```
+
+## University of Exeter — Behavioural Modelling Project
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Behavioural modelling project using smartphone accelerometer, gyroscope and trip-signal data to classify transport mode, identify drivers and test model failure cases.
+
+- Trained deep learning models on smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
+
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared model workflow for movement-pattern and identity-recognition tasks.
+
+- Tested model robustness across 1,200 trips, 60 users and 5 transport modes, documenting failure cases where sensor patterns were misclassified.
+```
+
+Formula use:
+
+```text
+Bullet 1 = technical method proof
+Bullet 2 = baseline improvement proof
+Bullet 3 = robustness / failure-case proof
+```
+
+The strongest supporting block for Sainsbury’s is **South Western** because it gives Excel, VBA, Power BI, KPI dashboards, automation, and report accuracy. The Business Analytics block is next because it gives baseline comparison, movement explanation, visual reporting, and recommendations. The Behavioural Modelling block should stay light because it proves statistical judgement, but it is less central to a commercial Performance Analyst role.
+
+---
+
+For this Sainsbury’s role, the top section should **not** sound like Nando’s analytics engineering or Frasers payments/fraud. The job is centred on **commercial performance**, **advanced tools and reports**, **secondary-space/allocation-style analysis**, **deal/event performance**, **deep dives**, **data visualisation**, **automation**, and **recommendations**.
+
+## Recommended headline
+
+```text
+Performance Analyst | Commercial KPI Dashboards, Variance Tables & Recommendation Packs | SQL, Excel & Power BI
+```
+
+This is stronger than:
+
+```text
+Performance Analyst | Commercial Insights & Data-Driven Decision Making
+```
+
+because it names the actual work objects: **dashboards, variance tables, recommendation packs**.
+
+## Recommended professional summary
+
+```text
+Performance Analyst with experience building BigQuery SQL KPI tables, Looker/Power BI dashboards, Excel reporting workbooks and VBA refresh macros across large operational and behavioural datasets. Produced period-comparison reports, variance queries, ranked segment tables and recommendation summaries to explain KPI movements, compare strategy options and improve recurring performance reporting.
+```
+
+## Slightly tighter version
+
+```text
+Performance Analyst with experience building SQL KPI tables, Looker/Power BI dashboards, Excel reporting workbooks and VBA refresh macros across large operational and behavioural datasets. Produced variance queries, ranked segment tables and recommendation summaries to explain KPI movements, compare strategy options and improve recurring performance reports.
+```
+
+I prefer the **first version** because **BigQuery** is a strong concrete tool from your evidence and supports the “rich and varied data” part of the role.
+
+## Full header section
+
+```text
+Esosa Orumwese
+Performance Analyst | Commercial KPI Dashboards, Variance Tables & Recommendation Packs | SQL, Excel & Power BI
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Performance Analyst with experience building BigQuery SQL KPI tables, Looker/Power BI dashboards, Excel reporting workbooks and VBA refresh macros across large operational and behavioural datasets. Produced period-comparison reports, variance queries, ranked segment tables and recommendation summaries to explain KPI movements, compare strategy options and improve recurring performance reporting.
+```
+
+Concrete artefacts in the summary:
+
+```text
+BigQuery SQL KPI tables
+Looker/Power BI dashboards
+Excel reporting workbooks
+VBA refresh macros
+period-comparison reports
+variance queries
+ranked segment tables
+recommendation summaries
+```
+
+That is the right Sainsbury’s signal.
+
+---
+
+Yes — for Sainsbury’s, the skills section should support **commercial performance analytics**, not Nando’s-style analytics engineering or Frasers-style payments/fraud. The job asks for advanced tools/reports, KPI understanding, secondary-space/allocation decisions, deal/event performance, deep dives, statistical analysis, data visualisation, automation, and accurate/timely reporting.
+
+## Technical Skills — Sainsbury’s version
+
+```text
+TECHNICAL SKILLS
+
+Commercial Performance Analytics: KPI dashboards, variance tables, period-comparison reports, ranked option tables, recommendation packs
+
+SQL & Data Analysis: SQL, Google BigQuery, SQL KPI tables, dashboard source tables, variance queries, root-cause tables
+
+BI & Data Visualisation: Power BI, Google Looker, KPI dashboards, trend charts, performance reports
+
+Excel & Automation: Excel, pivot tables, lookups, index/match, VBA report-refresh macros, exception-flagging macros
+
+Statistical & Reporting Methods: baseline comparison, pre/post analysis, metric movement analysis, data validation checks, report QA
+```
+
+This keeps the skills concrete. It gives the ATS the right terms without turning the section into a mini evidence ledger.
+
+## Education
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+```
+
+I would **not** add extra education context here. Your projects already appear in the experience section, and repeating them under Education would waste space.
