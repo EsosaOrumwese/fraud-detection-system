@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Performance Analyst with experience building BigQuery SQL KPI tables, Looker/Power BI dashboards, Excel reporting workbooks and VBA refresh macros across a 2.35B-row BigQuery dataset and operational reporting records. Produced period-comparison reports, BigQuery variance queries, ranked segment tables and option-recommendation tables to explain KPI movements, compare strategy options and improve recurring performance reports.
+Performance Analyst with experience building BigQuery SQL KPI tables, Looker/Power BI dashboards, Excel reporting workbooks and VBA refresh macros across large operational and behavioural datasets. Produced period-comparison reports, BigQuery variance queries, ranked segment tables and option-recommendation tables to explain KPI movements, compare strategy options and improve recurring performance reports.
 
 TECHNICAL SKILLS
 

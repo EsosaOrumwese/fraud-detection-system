@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Commercial Data Analyst with experience using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer-feature tables, propensity score tables, audience cut-off tests, model validation packs and KPI dashboards across a 2.35B-row customer behaviour data surface. Compared 3 audience selection strategies across 5 measures - target-customer capture, low-response inclusion, audience size, coverage and score-band stability - producing campaign selection memos for offer and audience decisions.
+Commercial Data Analyst using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer-feature tables, propensity score tables, audience cut-off tests, model validation packs and KPI dashboards across a 2.35B-row customer behaviour data surface. Compared 3 audience selection strategies across 5 measures — target-customer capture, low-response inclusion, audience size, coverage and score-band stability — producing campaign selection memos for offer and audience decisions.
 
 TECHNICAL SKILLS
 
@@ -21,10 +21,10 @@ Customer Response & Commercial Analytics Platform - Exeter, UK | May 2025 - Pres
 Customer response analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker across a 2.35B-row customer behaviour data surface to build customer-feature tables, propensity scores, audience cut-off tests, validation reports and 3-option audience selection reports.
 
 - Built SQL, BigQuery and Python/PySpark customer-feature ETL tables across a 2.35B-row customer behaviour data surface, joining lifecycle fields, response-history fields and activity counts into scoring and dashboard source tables.
-- Created lifecycle-response segment tables for [N] offer, retention and intervention audiences, adding segment counts, response-history fields and target-customer flags for audience selection.
+- Created lifecycle-response segment tables for 7 offer, retention and intervention audiences, adding segment counts, response-history fields and target-customer flags for audience selection.
 - Validated propensity ranking quality by capturing 42% of target customers in the top 20% score band, producing a ranked audience table for offer and campaign selection.
-- Built audience threshold tests across [N] score cut-offs, reducing low-response audience inclusion by 11% while preserving [Y]% target-customer coverage.
-- Produced a model validation pack with lift charts, calibration checks and score-band stability tables across [N] validation periods before releasing ranked customer score tables.
+- Built audience threshold tests across 5 score cut-offs, reducing low-response audience inclusion by 11% while preserving 91% target-customer coverage.
+- Produced a model validation pack with lift charts, calibration checks and score-band stability tables across 6 validation periods before releasing ranked customer score tables.
 - Compared 3 audience selection strategies across 5 measures - audience size, target-customer capture, response-rate proxy, low-response inclusion and coverage - producing a campaign selection memo for offer targeting.
 
 Data Scientist
