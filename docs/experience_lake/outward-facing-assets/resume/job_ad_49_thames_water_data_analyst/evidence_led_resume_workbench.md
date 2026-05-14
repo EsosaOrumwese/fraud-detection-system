@@ -1696,3 +1696,143 @@ South Western — 3 bullets
 ```
 
 But if space is tight, I’d protect South Western and Business Analytics before giving Smartphone a third bullet.
+
+---
+
+The logic is:
+
+```text
+Header/headline = positioning label
+Professional summary = whole-CV fit argument
+Experience context lines = what each experience was
+Bullets = proof
+```
+
+That is the methodology’s layering rule. The headline should quickly tell the recruiter what category to place you in; the summary should explain why your whole CV fits this specific job; the bullets then prove the claim. 
+
+In the Frasers example, the job was about **eCommerce payments, fraud performance, chargebacks, dashboards, Excel, SQL/BigQuery, Power BI/Looker, root-cause analysis and Digital Risk/Finance/eCommerce support**. So the header became:
+
+```text
+Payments Data Analyst | eCommerce Payments, Fraud & Chargebacks | SQL, BigQuery, Excel & Power BI
+```
+
+And the summary became a compact fit argument around payments, fraud, chargebacks, checkout risk, SQL, BigQuery, Excel, Power BI, Looker, dashboards, validation checks and stakeholder summaries.  
+
+For Thames, the centre of gravity is different. The job is about **operational analytics, Water Networks Operations insight, large internal/external datasets, database interrogation, data transformation, Power BI/Tableau reporting, data quality, secure/GDPR-aware data use and stakeholder decision support**. 
+
+So the header should not say:
+
+```text
+Payments Data Analyst | eCommerce Payments, Fraud & Chargebacks | SQL, BigQuery, Excel & Power BI
+```
+
+It should move toward:
+
+```text
+Data Analyst | Operational Analytics & Reporting | SQL, Power BI, Python & Data Quality
+```
+
+or:
+
+```text
+Data Analyst | Operational Insight & Data Quality | SQL, Power BI & Python
+```
+
+The summary should then answer:
+
+```text
+Why is Esosa believable for this Thames operational data analyst role?
+```
+
+That means it should combine:
+
+```text
+1. Business relevance:
+   operational analytics, reporting, stakeholder decision support
+
+2. Technical relevance:
+   SQL/database interrogation, Power BI, Excel/VBA, Python, large datasets, data transformation
+
+3. Working-style relevance:
+   data quality, clear reporting, business-facing insight, communicating limitations
+```
+
+It should **not** become a list of every bullet. It should preview the strongest proof themes without stealing the bullets’ job.
+
+So the Frasers-to-Thames translation is:
+
+```text
+Frasers summary logic:
+“I can analyse payments/fraud/chargebacks with SQL, BigQuery, Excel, Power BI and Looker for Digital Risk, Finance and eCommerce.”
+
+Thames summary logic:
+“I can interrogate and transform operational datasets, build reliable Power BI/SQL reporting, improve data quality and translate metric movements into stakeholder-ready operational insight.”
+```
+
+That is the reasoning before we draft the actual header and summary.
+
+---
+
+Recommended Thames-shaped header and summary:
+
+```text
+Esosa Orumwese
+Data Analyst | Operational Analytics & Reporting | SQL, Power BI, Python & Data Quality
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+```
+
+```text
+PROFESSIONAL SUMMARY
+
+Data Analyst with experience interrogating, transforming and validating large operational and behavioural datasets using SQL, Power BI, Excel/VBA, Python and Google BigQuery. Built operational dashboards, reconciliation workflows, data-quality checks and metric-movement analyses across a 2.35B-row data surface and field-operations datasets, translating complex records into clear stakeholder reporting and decision-ready operational insight.
+```
+
+Why this works: Thames is asking for operational analytics, large datasets, database interrogation/transformation, Power BI/Tableau reporting, data quality, secure data use, and stakeholder-facing insight — not ML-first, fraud-first, or payments-first positioning. 
+
+Slightly tighter version:
+
+```text
+Data Analyst with experience using SQL, Power BI, Excel/VBA, Python and Google BigQuery to transform large operational datasets into validated dashboards, data-quality checks and stakeholder-ready insight. Built reporting workflows across a 2.35B-row data surface and field-operations records, supporting metric-movement analysis, operational visibility and clearer decision-making.
+```
+
+My recommendation: use the first summary. It has a stronger fit argument while still staying concise.
+
+---
+
+Yes — next is **Technical Skills + Education**.
+
+The Frasers example shows the rule: skills should support ATS/recruiter matching, but should **not become another evidence ledger**. The detailed artefacts belong in the experience bullets; the skills section should stay compact and job-shaped. 
+
+For Thames, the job is centred on SQL/database interrogation, Power BI/Tableau reporting, large operational datasets, Python/R as an advantage, Microsoft Office, data quality, secure/GDPR-aware use and stakeholder-facing operational insight. 
+
+## Technical Skills
+
+```text
+TECHNICAL SKILLS
+
+SQL & Databases: SQL, Google BigQuery, database interrogation, data transformation, reporting tables
+
+BI & Reporting: Power BI, Looker, operational dashboards, KPI reporting, dashboard validation
+
+Excel & Automation: Excel, pivot tables, lookups, index/match, VBA report-refresh macros, exception checks
+
+Data Quality & Operations Insight: data-quality checks, reconciliation, metric variance analysis, operational reporting, data limitation summaries
+
+Python & Analysis: Python, Pandas, NumPy, data cleaning, repeatable analysis workflows
+```
+
+I would **not** include payments, fraud, chargebacks, checkout analytics, churn, propensity, or deep learning in the Thames skills section. Those either misalign the role or over-position you away from operational analytics.
+
+## Education
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 – Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 – Dec 2020
+```
+
+This education section works as-is. Thames says a degree or equivalent experience in an analytical subject such as Science, Maths or Geography is advantageous, and your MSc Data Science plus Engineering background supports that without needing extra explanation. 

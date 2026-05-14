@@ -1327,3 +1327,192 @@ Here are the **draft bullets for the supporting experience blocks only**. The ai
 ```
 
 These are already fairly close to CV-ready. The main Nando’s adjustment is that each block supports a distinct proof function: **modelling judgement**, **business movement analysis**, and **data-quality/automation/BI reporting**.
+
+---
+
+The logic is:
+
+## 1. Header/headline = positioning label
+
+The headline is a **sorting signal**, not a sentence. It tells the recruiter what box to put you in within 3 seconds. The methodology says the headline should be job-shaped but not exaggerated, using:
+
+```text
+Target Role | Domain / Problem Area | 2–4 Key Capabilities
+```
+
+For Frasers, that became:
+
+```text
+Payments Data Analyst | eCommerce Payments, Fraud & Chargebacks | SQL, BigQuery, Excel & Power BI
+```
+
+because the job was centred on payments, fraud, chargebacks, Excel, SQL, BigQuery and BI reporting. 
+
+For Nando’s, the centre is different. It is **SQL modelling, Looker BI, data quality, Git, documentation, pipeline support and self-serve insight**. 
+
+So the Nando’s headline should probably be:
+
+```text
+Data Analyst | SQL Data Modelling, Looker BI & Data Quality | BigQuery, Git & Self-Serve Insight
+```
+
+or tighter:
+
+```text
+Data Analyst | SQL Modelling, Looker BI & Data Quality | BigQuery & Git
+```
+
+## 2. Professional summary = whole-CV fit argument
+
+The summary answers:
+
+```text
+Why is this person a believable candidate for this specific role?
+```
+
+The methodology says the summary should balance the job’s **business relevance, technical relevance, and working style**, not just list tools or personality traits. 
+
+For Nando’s, the summary must therefore show:
+
+```text
+Business relevance:
+reliable data, self-serve insight, business-question translation
+
+Technical relevance:
+SQL modelling, BigQuery, Looker, data quality, documentation, Git
+
+Working style:
+pipeline-aware, collaborative, clear with technical and non-technical stakeholders
+```
+
+Nando’s explicitly asks for complex SQL, Dataform/similar modelling, Looker, Git, data quality, documentation, pipeline support, and business-request translation. 
+
+So the summary should not say:
+
+```text
+Data Analyst skilled in SQL, Python, Power BI and machine learning.
+```
+
+Too generic.
+
+And it should not say:
+
+```text
+Payments-focused Data Analyst...
+```
+
+That was correct for Frasers, but wrong for Nando’s.
+
+## 3. The Frasers lesson applied here
+
+The Frasers example worked because the whole top section matched the job’s centre of gravity: payments, fraud, chargebacks, SQL, BigQuery, Excel and Power BI. The headline, summary, skills and platform context all told the same story. 
+
+For Nando’s, we do the same thing, but swap the centre:
+
+```text
+Frasers centre:
+payments + fraud + chargebacks + dashboards
+
+Nando’s centre:
+SQL modelling + Looker BI + data quality + documentation + Git + self-serve insight
+```
+
+## 4. Practical Nando’s direction
+
+Header/headline should sell the category:
+
+```text
+Data Analyst | SQL Data Modelling, Looker BI & Data Quality | BigQuery, Git & Self-Serve Insight
+```
+
+Professional summary should sell the fit:
+
+```text
+Data Analyst with experience building reusable SQL/BigQuery reporting models, Looker BI outputs and data-quality checks across large-scale cloud datasets. Strong fit for analytics roles requiring self-serve insight delivery, documented KPI logic, Git-based workflow, pipeline-aware validation and clear translation of business questions into reliable reporting outputs.
+```
+
+That is the logic before we polish wording. The header says **where to place you**; the summary says **why you fit this specific Nando’s role**.
+
+---
+
+For Nando’s, the headline and summary should position you around **SQL data modelling, Looker BI, data quality, Git, documentation, pipeline-aware validation, and self-serve insight**. That matches the job’s centre of gravity: complex SQL/Dataform-style modelling, Looker dashboards, pipeline support, governance, documentation, automation, Git/code review, and business-problem translation. 
+
+## Recommended headline
+
+```text
+Data Analyst | SQL Data Modelling, Looker BI & Data Quality | BigQuery, Git & Self-Serve Insight
+```
+
+This is stronger than:
+
+```text
+Data Analyst | SQL | Python | Power BI | Machine Learning
+```
+
+because it is not just a tool list. It tells the recruiter: **this person fits a modern analytics / BI / data modelling role**.
+
+## Recommended professional summary
+
+```text
+Data Analyst with experience building reusable BigQuery SQL models, Looker reporting outputs and data-quality checks across large-scale cloud datasets. Strong fit for analytics roles requiring self-serve insight delivery, pipeline-aware validation, documented KPI logic, Git-based workflow and clear translation of business questions into reliable reporting outputs.
+```
+
+## Slightly tighter version
+
+```text
+Data Analyst with experience building reusable BigQuery SQL models, Looker reports and data-quality checks across large-scale cloud datasets. Strong fit for roles requiring self-serve BI, pipeline-aware validation, documented KPI logic, Git-based workflow and clear business-question translation.
+```
+
+My recommendation is the **first version**. It is still concise, but it carries more of the Nando’s hiring signal.
+
+The logic follows the framework: **headline sells the category; professional summary sells the fit; bullets prove the claims**. 
+
+---
+
+Yes — next is **Technical Skills** and **Education**.
+
+For Nando’s, the skills section should be compact and shaped around the job’s real signals: complex SQL/cloud modelling, Looker/self-serve BI, data quality, documentation, Git/code review, automation, and business-facing analysis. The ad specifically centres on SQL/Dataform-style modelling, Looker BI, data-quality testing, documentation, Git, pipeline support and business-problem translation. 
+
+## Technical Skills — Nando’s version
+
+```text
+TECHNICAL SKILLS
+
+SQL & Cloud Data Modelling: SQL, Google BigQuery, reusable SQL models, transformation tables, dashboard source tables
+
+BI & Self-Serve Reporting: Google Looker, Power BI, KPI dashboards, self-serve reports, dashboard validation
+
+Data Quality & Governance: data-quality checks, SQL validation queries, KPI definitions, data limitations, model documentation
+
+Workflow & Automation: Git, branching, pull requests, code review, VBA macros, reusable SQL/Python workflows
+
+Analysis & Communication: Python, Pandas, NumPy, root-cause analysis, metric movement analysis, stakeholder summaries
+```
+
+This keeps the skills section as a **fast ATS/recruiter matching section**, not another evidence ledger.
+
+## Education
+
+For education, I would keep it simple. The projects already prove the relevant MSc work, so we do not need to overload this section.
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+```
+
+That matches the current education evidence from your resume. 
+
+## Optional education context
+
+Only add this if the CV has space:
+
+```text
+Relevant project work: SQL/BI reporting, business trend analysis, behavioural modelling, data-quality validation and stakeholder-facing insight summaries.
+```
+
+But my recommendation is **not** to add it. The relevant projects are already in the experience section, and repeating them under Education would waste space.
