@@ -817,3 +817,513 @@ Before the bullet portfolio, the evidence that would most improve the Nando’s 
 ```
 
 Even without those, we have enough A/B evidence to build a strong Nando’s-shaped CV, but those answers determine how aggressively we can claim **analytics engineering**, **production-standard documentation**, and **modern data workflow**.
+
+---
+
+Yes — now we design the **Nando’s bullet portfolio**.
+
+This is **not bullet drafting yet**. This step decides what each bullet must prove before we write the final wording.
+
+Nando’s is looking for a Data Analyst who can operate across complex SQL modelling, Dataform or similar transformation-layer work, pipeline support, Looker self-serve BI, data-quality testing, documentation, Git/code review, automation, business-problem translation, and stakeholder communication.
+
+# Nando’s Bullet Portfolio
+
+## Target experience block
+
+For Nando’s, the main project should **not** be positioned as:
+
+```text
+Payments, Fraud & Chargeback Analytics Platform
+```
+
+That was right for Frasers, but wrong here.
+
+A stronger Nando’s-facing title is:
+
+```text
+Data Scientist
+SQL Data Modelling & Self-Serve BI Platform — Exeter, UK | May 2025 – Present
+```
+
+Alternative:
+
+```text
+Data Scientist
+Cloud BI & Data Modelling Platform — Exeter, UK | May 2025 – Present
+```
+
+My preference is:
+
+```text
+SQL Data Modelling & Self-Serve BI Platform
+```
+
+It is more direct and maps cleanly to Nando’s strongest requirements: SQL modelling, transformation-layer thinking, Looker BI, data quality, and self-serve insight.
+
+## Portfolio goal
+
+This experience block must prove:
+
+> You can use SQL, BigQuery, Looker, dashboard validation, data-quality checks, documentation, and business-facing analysis to build reliable, reusable, self-serve data products in a maturing cloud data environment.
+
+That is the centre of gravity. Not fraud. Not payments. Not ML.
+
+---
+
+# Recommended portfolio: 7 working slots
+
+I would design **7 working slots first**, then later compress to 6 if the CV needs space.
+
+## Bullet 1 — SQL modelling / reusable reporting layer
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove complex SQL modelling and transformation-layer ownership. |
+| Evidence assigned | BigQuery / SQL reporting models; reusable dashboard source tables; SQL views or transformation tables. |
+| Nando’s screen covered | Complex SQL, cloud data modelling, Dataform/dbt-style transformation thinking. |
+| Concrete artefacts to name later | BigQuery SQL reporting model; dashboard source table; reusable SQL view; transformation table. |
+| Metric meaning | Scale of data modelled and number of reusable outputs created. |
+| Placeholder values | `2.35B-row data surface`; `[N] SQL models`; `[N] dashboard source tables`; `[N] recurring outputs`. |
+| Why this must appear | This is the strongest ATS and technical recruiter match. Nando’s explicitly asks for complex SQL and cloud data modelling. |
+| Avoid | Do not phrase this as “built payment queries” or “fraud queries.” The job is broader than that. |
+
+**Portfolio role:** this is the **SQL modelling bullet**.
+
+---
+
+## Bullet 2 — Looker self-serve BI delivery
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove Looker BI and self-serve reporting capability. |
+| Evidence assigned | Looker reports; Looker KPI reports; self-serve dashboards; dashboard source tables. |
+| Nando’s screen covered | Looker, cloud-based dashboards, reliable self-serve insight, business performance reporting. |
+| Concrete artefacts to name later | Looker KPI report; Looker self-serve dashboard; Looker reporting layer. |
+| Metric meaning | KPIs tracked, stakeholder groups served, reporting periods covered, refresh reliability. |
+| Placeholder values | `[N] KPIs`; `[M] stakeholder groups`; `[N] reporting periods`; `[Y]% successful refreshes`. |
+| Why this must appear | Nando’s specifically asks for Looker or similar BI dashboards that serve reliable self-serve data to the business. |
+| Avoid | Do not make Power BI the lead BI proof if Looker evidence is available. Power BI should support lower down. |
+
+**Portfolio role:** this is the **Looker / self-serve insight bullet**.
+
+---
+
+## Bullet 3 — Data-quality checks, testing, and reporting reliability
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove data-quality discipline, testing mindset, and proactive issue detection. |
+| Evidence assigned | 15 dashboard validation checks; reporting error reduction; successful refresh reliability; SQL validation queries. |
+| Nando’s screen covered | Data quality, tests, proactive issue identification, communicating limitations, governance. |
+| Concrete artefacts to name later | Dashboard validation checklist; SQL validation queries; report QA checks; data-quality checks. |
+| Metric meaning | Reduction in reporting errors and improved refresh reliability. |
+| Placeholder values | `15 validation checks`; `[X]% reporting error reduction`; `[Y]% successful refreshes`; `[N] issues caught before release`. |
+| Why this must appear | This is one of the best Nando’s matches because the job is about trusted data, not just dashboards. Your current resume already has validation checks, 38% error reduction, and 98% refreshes. |
+| Avoid | Do not write “strong attention to detail.” Prove it through validation checks and reliability metrics. |
+
+**Portfolio role:** this is the **data quality / reliability bullet**.
+
+---
+
+## Bullet 4 — Pipeline-aware validation / source-to-report reconciliation
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove you understand how reporting outputs fit into broader data pipelines. |
+| Evidence assigned | Source-to-dashboard reconciliation checks; freshness checks; pipeline validation queries; source-to-report validation. |
+| Nando’s screen covered | Pipeline design/build/testing support, data engineering collaboration, transformation models across pipelines. |
+| Concrete artefacts to name later | Source-to-report reconciliation query; pipeline validation check; freshness check; transformed table validation. |
+| Metric meaning | Number of checks, data issues caught, mismatches reduced, refresh success. |
+| Placeholder values | `[N] source-to-report checks`; `[X]% fewer mismatched records`; `[N] pipeline issues identified`; `[Y]% refresh success`. |
+| Why this must appear | Nando’s explicitly wants support for data engineers in pipeline design, build, and testing. |
+| Avoid | Do not overclaim direct pipeline engineering if the evidence was dashboard/output validation. Use “validated downstream reporting outputs against source tables” if that is the truthful version. |
+
+**Portfolio role:** this is the **pipeline-awareness bullet**.
+
+---
+
+## Bullet 5 — Documentation, definitions, lineage, and limitations
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove production-standard documentation and governance awareness. |
+| Evidence assigned | KPI definitions; dashboard documentation; metric logic notes; lineage notes; data limitation notes. |
+| Nando’s screen covered | Documentation, model definitions, lineage, data governance, communicating limitations. |
+| Concrete artefacts to name later | KPI definition document; dashboard documentation; metric definition sheet; data limitation note; lineage note. |
+| Metric meaning | Number of KPIs/reports documented or reduction in repeated clarification. |
+| Placeholder values | `[N] KPI definitions`; `[N] dashboard notes`; `[N] documented data limitations`; `[X]% fewer repeated clarification requests`. |
+| Why this must appear | Nando’s puts unusual emphasis on documenting data models, definitions, and lineage to a production standard. |
+| Avoid | Do not invent documentation evidence. If not confirmed, this bullet becomes a softer “defined KPI logic and communicated data limitations” bullet, or we merge it into the validation bullet. |
+
+**Portfolio role:** this is the **documentation / governance bullet**.
+
+This is the most important evidence gap to confirm before drafting.
+
+---
+
+## Bullet 6 — Business-question scoping / metric movement root-cause analysis
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove product-minded analytical scoping and business-problem translation. |
+| Evidence assigned | Metric movement root-cause report; BigQuery movement queries; stakeholder investigation memo. |
+| Nando’s screen covered | Translate business questions into scoped analysis; understand the “why” before the “what”; communicate findings clearly. |
+| Concrete artefacts to name later | Metric movement root-cause report; BigQuery movement analysis; stakeholder decision summary. |
+| Metric meaning | Size of movement explained and number of drivers identified. |
+| Placeholder values | `[X]% unexpected movement explained`; `[N] drivers identified`; `[N] recommendations`; `[M] stakeholder groups`. |
+| Why this must appear | This prevents the CV from becoming too technical. Nando’s wants someone who understands the business objective behind each analysis. |
+| Avoid | Do not keep Frasers wording like “decline-rate root-cause report” unless we decide the domain helps. For Nando’s, use broader “metric movement” or “operational performance” language. |
+
+**Portfolio role:** this is the **business translation / root-cause bullet**.
+
+---
+
+## Bullet 7 — Automation, Git, peer review, and workflow improvement
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove modern analytics working practice and proactive process improvement. |
+| Evidence assigned | VBA report-refresh macro; automated exception checks; Git-tracked SQL/Python changes if confirmed; peer review if confirmed. |
+| Nando’s screen covered | Automation, Git, branching, pull requests, code review, peer review, improving ways of working. |
+| Concrete artefacts to name later | Automated report-refresh workflow; exception-flagging macro; Git-tracked SQL model changes; pull request review. |
+| Metric meaning | Review time reduction, manual checks automated, reviewed changes, reusable scripts. |
+| Placeholder values | `[X] to [Y] minutes`; `[N] recurring checks automated`; `[N] reviewed SQL changes`; `[N] pull requests`. |
+| Why this should appear | Nando’s explicitly values automation, Git, pull requests, code review, and proactive process improvement. |
+| Avoid | Do not lead with AI-assisted coding unless there is very clean evidence. Git and automation are safer and more valuable. |
+
+**Portfolio role:** this is the **workflow improvement / modern practice bullet**.
+
+---
+
+# Recommended order
+
+I would order the Nando’s main platform bullets like this:
+
+```text
+1. SQL modelling / reusable BigQuery reporting layer
+2. Looker self-serve BI delivery
+3. Data-quality checks, testing and reporting reliability
+4. Pipeline-aware validation / source-to-report reconciliation
+5. Documentation, KPI definitions, lineage and limitations
+6. Business-question scoping / metric movement root-cause analysis
+7. Automation, Git, peer review or workflow improvement
+```
+
+This order gives the recruiter the strongest first scan:
+
+```text
+SQL
+BigQuery
+data modelling
+Looker
+self-serve dashboards
+data quality
+testing
+pipeline validation
+documentation
+business translation
+automation
+Git / code review
+```
+
+That is exactly the Nando’s signal.
+
+---
+
+# If we need a 6-bullet version
+
+If space is tight, combine **Bullet 4** and **Bullet 5**:
+
+```text
+Bullet 4 must prove: pipeline-aware validation, KPI definitions and documented data limitations.
+```
+
+Then the compressed portfolio becomes:
+
+```text
+1. SQL modelling / reusable BigQuery reporting layer
+2. Looker self-serve BI delivery
+3. Data-quality checks, testing and reporting reliability
+4. Pipeline-aware validation, KPI definitions and documentation
+5. Business-question scoping / metric movement root-cause analysis
+6. Automation, Git, peer review or workflow improvement
+```
+
+This 6-bullet version is probably the one we will draft eventually.
+
+---
+
+# Evidence deliberately not given a main Nando’s bullet
+
+| Evidence | Reason |
+| --- | --- |
+| Chargeback trend tracker | Too Frasers-specific unless reframed as recurring KPI monitoring or Excel/report validation. |
+| Payment acceptance / decline-rate dashboard | Too payments-specific unless reframed as metric movement analysis. |
+| Fraud and chargeback dashboard | Too Frasers-shaped; keep the BI/validation mechanics, remove the domain dominance. |
+| Churn / propensity / targeting | Tesco-shaped, not Nando’s-shaped. |
+| Deep learning transport classification | Too far from Nando’s core SQL/Looker/data-quality story. Use only as supporting analytical judgement. |
+| Oilfield completions detail | The domain is not relevant; the useful evidence is Excel reconciliation, operational KPI reporting, and automation. |
+| PySpark-heavy ML language | Pulls the CV toward ML platform roles, not this analytics-engineering Data Analyst role. |
+
+---
+
+# Final Step 4 output
+
+For Nando’s, the bullet portfolio is:
+
+```text
+Bullet 1 must prove: complex SQL modelling and reusable BigQuery reporting tables.
+Bullet 2 must prove: Looker BI and self-serve dashboard delivery.
+Bullet 3 must prove: data-quality checks, testing and reporting reliability.
+Bullet 4 must prove: pipeline-aware validation and source-to-report reconciliation.
+Bullet 5 must prove: documentation of KPI definitions, model logic, lineage and limitations.
+Bullet 6 must prove: business-question scoping and root-cause analysis of metric movements.
+Bullet 7 must prove: automation, Git/code review, peer review or workflow improvement.
+```
+
+The main caution before drafting: **Git, documentation, and direct pipeline support are the evidence-sensitive slots**. If we cannot defend them, we should still cover the requirement, but through safer wording: validation checks, documented KPI logic, reusable SQL models, and automated reporting workflows.
+
+---
+
+Agreed. We stay on the **platform experience only**.
+
+For Nando’s, the platform block should no longer read as payments/fraud-first. The job’s centre is **SQL modelling, transformation-layer thinking, Looker/self-serve BI, data quality, documentation, pipeline support, automation, and business-problem translation**. The ad explicitly describes a role broader than conventional reporting, with complex SQL, Looker, data-quality standards, documentation, automation, Git/code review, and cloud data maturity as core signals.
+
+## Draft platform experience — Nando’s version
+
+```text
+Data Scientist
+SQL Data Modelling & Self-Serve BI Platform — Exeter, UK | May 2025 – Present
+Cloud analytics and BI platform using SQL, Google BigQuery, Looker, Power BI and data-quality checks across a 2.35B-row transaction and behaviour data surface to create reusable reporting models, validated dashboards and business-facing metric summaries.
+```
+
+```text
+- Built reusable BigQuery SQL models over a 2.35B-row transaction and behaviour data surface, creating [N] dashboard source tables for recurring KPI reporting and self-serve analysis.
+
+- Developed Looker reporting outputs from modelled BigQuery tables, tracking [N] KPIs across [M] reporting periods and giving stakeholders a reliable view of performance movements.
+
+- Added 15 dashboard validation checks across Looker reports and source tables, reducing reporting errors by [X]% and improving successful refreshes to [Y]% before stakeholder release.
+
+- Reconciled source tables against dashboard outputs using SQL validation queries, identifying [N] freshness, join, duplicate or aggregation issues before they affected recurring reports.
+
+- Documented [N] KPI definitions, model assumptions and data limitations, improving consistency of metric interpretation across technical and non-technical stakeholders.
+
+- Translated an ambiguous metric movement into a scoped BigQuery root-cause analysis, explaining a [X]% unexpected change and identifying [N] operational, customer or data-quality drivers.
+
+- Automated [N] recurring reporting or validation steps using reusable SQL/Python workflows, reducing manual review time by [X]% while improving repeatability of dashboard updates.
+```
+
+## Formula mapping
+
+| Bullet | Formula used | Why it fits Nando’s |
+| --- | --- | --- |
+| 1 | **Technical delivery proof** | Proves SQL modelling, BigQuery, transformation-layer thinking, reusable reporting tables. |
+| 2 | **BI / self-serve delivery proof** | Proves Looker reporting and reliable self-serve insight. |
+| 3 | **Validation / monitoring proof** | Proves data-quality checks, dashboard testing, report reliability. |
+| 4 | **Pipeline-aware validation proof** | Proves source-to-report reconciliation and downstream pipeline awareness. |
+| 5 | **Governance / documentation proof** | Proves KPI definitions, assumptions, limitations, documentation discipline. |
+| 6 | **Business-problem translation proof** | Proves ambiguous request → scoped analysis → explained movement. |
+| 7 | **Automation / workflow improvement proof** | Proves proactive process improvement and repeatable analytics workflow. |
+
+## Tighter 6-bullet version
+
+This is probably closer to the final CV version:
+
+```text
+Data Scientist
+SQL Data Modelling & Self-Serve BI Platform — Exeter, UK | May 2025 – Present
+Cloud analytics and BI platform using SQL, Google BigQuery, Looker, Power BI and data-quality checks across a 2.35B-row transaction and behaviour data surface to create reusable reporting models, validated dashboards and business-facing metric summaries.
+
+- Built reusable BigQuery SQL models over a 2.35B-row transaction and behaviour data surface, creating [N] dashboard source tables for recurring KPI reporting and self-serve analysis.
+
+- Developed Looker reporting outputs from modelled BigQuery tables, tracking [N] KPIs across [M] reporting periods and giving stakeholders a reliable view of performance movements.
+
+- Added 15 dashboard validation checks across Looker reports and source tables, reducing reporting errors by [X]% and improving successful refreshes to [Y]% before stakeholder release.
+
+- Reconciled source tables against dashboard outputs using SQL validation queries, identifying [N] freshness, join, duplicate or aggregation issues before they affected recurring reports.
+
+- Documented [N] KPI definitions, model assumptions and data limitations, improving consistency of metric interpretation across technical and non-technical stakeholders.
+
+- Translated an ambiguous metric movement into a scoped BigQuery root-cause analysis, explaining a [X]% unexpected change and identifying [N] operational, customer or data-quality drivers.
+```
+
+## Evidence-sensitive points
+
+The strongest version depends on whether we can defend these:
+
+```text
+[N] dashboard source tables
+[N] KPI definitions
+model assumptions / data limitations
+source-to-report reconciliation
+SQL validation queries
+automated reporting or validation steps
+Git / pull request / code review evidence
+```
+
+Yes — we should add it in. For Nando’s, this is not a minor nice-to-have because the ad explicitly names **Git, branching, pull requests and code review** as part of the required workflow.
+
+Here is the updated **platform experience block only**.
+
+```text
+Data Scientist
+SQL Data Modelling & Self-Serve BI Platform — Exeter, UK | May 2025 – Present
+Cloud analytics and BI platform using SQL, Google BigQuery, Looker, Power BI, Git and data-quality checks across a 2.35B-row transaction and behaviour data surface to create reusable reporting models, validated dashboards and business-facing metric summaries.
+
+- Built reusable BigQuery SQL models over a 2.35B-row transaction and behaviour data surface, creating [N] dashboard source tables for recurring KPI reporting and self-serve analysis.
+
+- Developed Looker reporting outputs from modelled BigQuery tables, tracking [N] KPIs across [M] reporting periods and giving stakeholders a reliable view of performance movements.
+
+- Added 15 dashboard validation checks across Looker reports and source tables, reducing reporting errors by [X]% and improving successful refreshes to [Y]% before stakeholder release.
+
+- Reconciled source tables against dashboard outputs using SQL validation queries, identifying [N] freshness, join, duplicate or aggregation issues before they affected recurring reports.
+
+- Managed SQL model changes through Git branches and reviewed pull requests, improving traceability of reporting logic, KPI updates and dashboard source-table changes.
+
+- Documented [N] KPI definitions, model assumptions and data limitations, improving consistency of metric interpretation across technical and non-technical stakeholders.
+
+- Translated an ambiguous metric movement into a scoped BigQuery root-cause analysis, explaining a [X]% unexpected change and identifying [N] operational, customer or data-quality drivers.
+```
+
+The Git bullet now performs the **modern analytics practice / peer review / traceability** function. It is stronger than the earlier automation bullet for this specific job because Nando’s directly screens for Git, branching, pull requests and code review.
+
+If we later need a 6-bullet version, I would merge the documentation and Git bullets rather than remove Git:
+
+```text
+- Managed SQL model changes through Git branches and reviewed pull requests, documenting [N] KPI definitions, model assumptions and data limitations to improve traceability of reporting logic and dashboard source-table changes.
+```
+
+---
+
+You’re right — after the platform block, the next step is **bullet portfolio design for the other experience blocks**, not refining/finalising the platform bullets yet.
+
+For Nando’s, the supporting experiences should **not try to compete with the platform block**. Their job is to reinforce the role’s secondary signals: statistical judgement, business-question translation, non-technical communication, Excel/Power BI reporting, data-quality discipline, automation, and operational KPI reporting. Nando’s wants SQL/data modelling, Looker/self-serve BI, pipeline support, data quality, documentation, automation, Git, stakeholder communication and statistical judgement. 
+
+# Supporting Experience Bullet Portfolio — Nando’s
+
+## 1. University of Exeter — Behavioural Modelling Project
+
+Current evidence: smartphone sensor project with deep learning, transport-mode / driver-identity classification, 7 percentage-point accuracy improvement, model robustness across 1,200 trips, 60 users and 5 transport modes. 
+
+For Nando’s, this block should **not** be positioned as deep-learning-heavy. It should support **statistical judgement, model evaluation, robustness testing, and communicating limitations**.
+
+### Recommended portfolio: 3 bullets
+
+| Bullet slot | What it must prove                                                      | Evidence to use                                                                    | Why it supports Nando’s                                                                        |
+| ----------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 1           | Applied analytical/statistical methods to a real classification problem | Smartphone sensor windows; transport mode; driver identity; deep learning workflow | Shows analytical judgement without distracting from SQL/BI focus.                              |
+| 2           | Evaluated performance against a baseline                                | 7 percentage-point accuracy improvement versus single-task CNN baseline            | Shows measurement discipline and baseline thinking.                                            |
+| 3           | Tested robustness and communicated limitations                          | 1,200 trips, 60 users, 5 transport modes, failure cases, risk indicators           | Supports Nando’s need for data limitations, stakeholder communication and analytical maturity. |
+
+### Portfolio output
+
+```text
+Bullet 1 must prove: applied modelling/statistical judgement to behavioural data.
+Bullet 2 must prove: measured improvement against a defined baseline.
+Bullet 3 must prove: robustness testing, failure-case analysis and communication of limitations.
+```
+
+## 2. University of Exeter — Business Analytics Project
+
+Current evidence: country-sector trend analysis across 220 countries and 12 sectors, abnormal movement investigation across 6 countries and 8 policy areas, and a visual trend report with 3 recommendations for non-technical stakeholders. 
+
+For Nando’s, this is probably the strongest supporting academic block because it maps to **business-question translation, metric movement explanation, cross-domain analysis, and storytelling**.
+
+### Recommended portfolio: 3 bullets
+
+| Bullet slot | What it must prove                     | Evidence to use                                          | Why it supports Nando’s                                                      |
+| ----------- | -------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 1           | Baseline-based business trend analysis | 220 countries, 12 sectors, pre-crisis baselines          | Shows structured analysis across complex business data.                      |
+| 2           | Root-cause / driver explanation        | 6 countries, 8 policy areas, abnormal activity movements | Supports Nando’s “understand the why before the what” requirement.           |
+| 3           | Non-technical insight communication    | Visual trend report, 3 recommendations                   | Directly supports stakeholder storytelling and decision-ready communication. |
+
+### Portfolio output
+
+```text
+Bullet 1 must prove: structured trend analysis against a baseline.
+Bullet 2 must prove: investigation of abnormal metric movements and external drivers.
+Bullet 3 must prove: visual reporting and non-technical recommendation writing.
+```
+
+## 3. South Western Technologies — Data Analyst
+
+Current evidence: Excel reconciliation workbook using pivot tables, lookups and index/match checks; 32% reduction in incomplete/conflicting entries; VBA report-refresh and exception macro reducing review time from 45 to 25 minutes; Power BI dashboard tracking 9 KPIs across 12 completions jobs / 140 rig days. 
+
+For Nando’s, this block should support **data quality, Excel, automation, operational metrics, Power BI, reporting reliability and process improvement**. We should not overfocus on oilfield/completions domain detail.
+
+### Recommended portfolio: 3 bullets
+
+| Bullet slot | What it must prove                         | Evidence to use                                                                              | Why it supports Nando’s                                                   |
+| ----------- | ------------------------------------------ | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1           | Data-quality and reconciliation discipline | Excel workbook, pivot tables, lookups, index/match, 32% fewer incomplete/conflicting entries | Strong support for data-quality techniques and proactive issue detection. |
+| 2           | Automation of manual reporting work        | VBA report-refresh / exception-flagging macro, review time from 45 to 25 minutes             | Directly supports workflow automation and improving manual data tasks.    |
+| 3           | Operational KPI dashboarding               | Power BI dashboard, 9 KPIs, 12 jobs / 140 rig days                                           | Supports BI/reporting, operational insight, and performance monitoring.   |
+
+### Portfolio output
+
+```text
+Bullet 1 must prove: Excel-based reconciliation and data-quality improvement.
+Bullet 2 must prove: automation of recurring reporting or validation tasks.
+Bullet 3 must prove: Power BI operational KPI reporting for manager review.
+```
+
+# Overall supporting-experience structure
+
+The final supporting blocks should perform these jobs:
+
+```text
+Behavioural Modelling Project:
+- statistical judgement
+- baseline evaluation
+- robustness / limitations
+
+Business Analytics Project:
+- trend analysis
+- metric movement explanation
+- non-technical recommendations
+
+South Western Technologies:
+- Excel reconciliation
+- VBA automation
+- Power BI operational KPI reporting
+```
+
+So the platform block carries the **direct Nando’s match**: SQL modelling, BigQuery, Looker, validation, Git, documentation, self-serve BI.
+
+The other blocks support the claim that you are not just a platform/project person — you can also handle **messy data, analytical judgement, operational reporting, automation, and stakeholder communication**.
+
+---
+
+Here are the **draft bullets for the supporting experience blocks only**. The aim is to support Nando’s signals around statistical judgement, business-question translation, data quality, automation, Power BI, Excel, and stakeholder communication — without letting these blocks compete with the platform block. Nando’s explicitly values statistical judgement, data quality, automation, BI, and clear technical/non-technical communication. 
+
+## University of Exeter — Behavioural Modelling Project
+
+```text
+- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity, applying statistical judgement to behavioural-pattern analysis.
+
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared workflow for movement-pattern and identity-recognition tasks.
+
+- Evaluated model robustness across 1,200 trips, 60 users and 5 transport modes, identifying failure cases and translating model limitations into risk-indicator summaries.
+```
+
+## University of Exeter — Business Analytics Project
+
+```text
+- Analysed country-sector activity across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+
+- Investigated abnormal activity movements across 6 countries and 8 policy areas, linking metric changes to external policy-response signals and explaining key movement drivers.
+
+- Produced a visual trend report with 3 recommendations, translating complex country-sector analysis into a clear decision summary for non-technical stakeholders.
+```
+
+## South Western Technologies & Oilfield Services Ltd — Data Analyst
+
+```text
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks, reducing incomplete or conflicting operational records by 32% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+```
+
+These are already fairly close to CV-ready. The main Nando’s adjustment is that each block supports a distinct proof function: **modelling judgement**, **business movement analysis**, and **data-quality/automation/BI reporting**.
