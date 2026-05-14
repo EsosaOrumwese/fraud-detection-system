@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Analyst with experience building reusable BigQuery SQL models, Looker reporting outputs and data-quality checks across large-scale cloud datasets. Uses Git-based workflows, documented KPI logic and pipeline-aware validation to turn business questions into reliable self-serve reporting outputs.
+Data Analyst with experience building BigQuery SQL models, Looker KPI reports, validation checks and Git-reviewed model changes across large-scale cloud datasets. Documented KPI formulas, source tables and data limitations so technical and non-technical dashboard users could interpret metrics consistently.
 
 TECHNICAL SKILLS
 
@@ -18,27 +18,27 @@ RELEVANT EXPERIENCE
 
 Data Scientist
 SQL Data Modelling & Self-Serve BI Platform - Exeter, UK | May 2025 - Present
-Cloud analytics and BI platform using SQL, BigQuery, Looker, Git and data-quality checks across a 2.35B-row data surface to build reusable reporting models, validated dashboards and business-facing metric summaries.
+BigQuery and Looker reporting platform using SQL models, dashboard source tables, Git-reviewed changes and validation checks across a 2.35B-row data surface.
 
-- Built 8 reusable BigQuery SQL models over a 2.35B-row data surface, creating 6 dashboard source tables for recurring KPI reporting and self-serve analysis.
-- Developed Looker reporting outputs from modelled BigQuery tables, tracking 13 KPIs across 12 reporting periods for self-serve performance monitoring across 3 stakeholder groups.
-- Added 15 dashboard validation checks across Looker reports and source tables, reducing reporting errors by 38% and improving successful refreshes to 98% before stakeholder release.
-- Reconciled source tables against dashboard outputs using SQL validation queries, identifying 18 freshness, join, duplicate or aggregation issues before they affected recurring reports.
-- Managed 14 SQL model changes through Git branches and pull-request reviews, improving traceability of reporting logic, KPI updates and dashboard source-table changes.
-- Documented 13 KPI definitions, model assumptions and data limitations, improving consistency of metric interpretation across technical and non-technical stakeholders.
-- Translated an unclear stakeholder question into a scoped BigQuery root-cause analysis, explaining a 19% metric movement and identifying 4 operational, behavioural or data-quality drivers.
+- Built 8 reusable BigQuery SQL models over a 2.35B-row data surface, creating 6 dashboard source tables used by Looker reports for recurring KPI tracking.
+- Developed Looker KPI reports from modelled BigQuery tables, tracking 13 metrics across 12 reporting periods for 3 user groups.
+- Added 15 validation checks across Looker reports and BigQuery source tables, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+- Reconciled BigQuery source tables against Looker dashboard totals using SQL validation queries, identifying 18 freshness, join, duplicate or aggregation issues before weekly KPI reports refreshed.
+- Managed 14 SQL model changes through Git branches and pull-request reviews, leaving reviewed change history for KPI SQL, dashboard source tables and reporting logic.
+- Documented 13 KPI definitions with formulas, source tables, filters, model assumptions and data limitations for technical and non-technical dashboard users.
+- Converted an unclear Looker KPI movement into a BigQuery root-cause analysis, explaining a 19% variance and identifying 4 operational, behavioural or data-quality drivers.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Behavioural modelling project using smartphone sensor data to evaluate movement patterns, test model reliability and communicate analytical limitations.
+Behavioural modelling project using smartphone accelerometer, gyroscope and trip-signal data to classify transport mode, identify drivers and document model failure cases.
 
-- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity, applying statistical judgement to behavioural-pattern analysis.
+- Trained deep learning models on smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
 - Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared workflow for movement-pattern and identity-recognition tasks.
-- Evaluated model robustness across 1,200 trips, 60 users and 5 transport modes, identifying failure cases and translating model limitations into risk-indicator summaries.
+- Evaluated model robustness across 1,200 trips, 60 users and 5 transport modes, documenting failure cases and risk-indicator summaries for model interpretation.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
-Business analytics project using country-sector activity and policy-response datasets to investigate metric movements, explain external drivers and produce decision-ready visual reports.
+Business analytics project using country-sector activity and policy-response datasets to investigate metric movements, explain external drivers and produce a visual trend report.
 
 - Analysed country-sector activity across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
 - Investigated abnormal activity movements across 6 countries and 8 policy areas, linking metric changes to external policy-response signals and explaining key movement drivers.
@@ -46,7 +46,7 @@ Business analytics project using country-sector activity and policy-response dat
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
-Operations data analysis role using Excel, VBA and Power BI to reconcile operational records, validate recurring reports, automate exception checks and report operational metrics for manager review.
+Operations data analysis role using Excel, VBA and Power BI to reconcile field reports, HSE logs, equipment checks and daily completions records for manager review.
 
 - Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks, reducing incomplete or conflicting operational records by 32% before supervisor review.
 - Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
