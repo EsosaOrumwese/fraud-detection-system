@@ -1,6 +1,6 @@
-# Sainsbury's Lead Analyst, N360 Supplier Analytics — Evidence-Led Resume Workbench
+# Sainsbury's Performance Analyst — Evidence-Led Resume Workbench
 
-Status: job ad source captured; methodology work not started.
+Status: job ad source captured from Notion; methodology work not started.
 
 Workflow:
 

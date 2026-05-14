@@ -1,6 +1,6 @@
-# Sainsbury's Data Engineer — Evidence-Led Resume Workbench
+# Sainsbury's Analyst, Pricing & Promotions — Evidence-Led Resume Workbench
 
-Status: job ad source captured; methodology work not started.
+Status: job ad source captured from Notion; methodology work not started.
 
 Workflow:
 
