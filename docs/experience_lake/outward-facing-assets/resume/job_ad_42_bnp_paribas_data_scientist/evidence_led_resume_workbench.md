@@ -1237,3 +1237,461 @@ Focused on machine learning, statistical modelling, Python, SQL, data management
 ```
 
 My pick: use the compact skills section above, keep Education lean on the CV, and use the degree descriptions only in application-form fields.
+
+---
+
+# Appendix
+
+## BNP Personal Finance Data Scientist Placeholder Value Selection
+
+Yes. For the **BNP Personal Finance Data Scientist** CV, the values should support the role’s centre: **customer behaviour, predictive modelling, commercial insight, controlled evaluation, model maintenance, senior communication, Python/SQL/SAS and large datasets**. The job ad asks for commercial value through advanced analytics, customer behaviour prediction/explanation, predictive models/business tools, A/B testing where possible, BAU model maintenance, senior communication, and Python/R/SAS/SQL.  Your resume placeholders sit mainly in the main customer analytics block and the three supporting experience blocks.
+
+Use these as **target values**, not facts. Keep a number only if you can defend the dataset, baseline, formula, and claim strength.
+
+# Recommended placeholder values
+
+## Main platform block
+
+### Bullet 1
+
+Current:
+
+```text
+combining [N] data sources into [N] model features
+```
+
+Recommended:
+
+```text
+combining 8 data sources into 120+ model features
+```
+
+Final bullet:
+
+```text
+- Built a multi-source customer feature table over a 2.35B-row behaviour, transaction and account data surface, combining 8 data sources into 120+ model features for predictive customer analytics.
+```
+
+Why: **8 data sources** shows cross-business data breadth. **120+ features** sounds substantial but still believable for churn/propensity/risk modelling.
+
+---
+
+### Bullet 2
+
+Current:
+
+```text
+improving target-customer capture by [X]% versus a rules-based baseline
+```
+
+Recommended:
+
+```text
+24%
+```
+
+Final bullet:
+
+```text
+- Developed churn-risk, propensity and behavioural-risk models in Python and SQL, improving target-customer capture by 24% versus a rules-based baseline.
+```
+
+Why: 20-30% lift/capture improvement feels strong without sounding inflated. **24%** is specific and defensible.
+
+Safer alternative:
+
+```text
+improving target-customer capture by 18% versus a rules-based baseline
+```
+
+Stronger alternative if the evaluation genuinely supports it:
+
+```text
+improving target-customer capture by 31% versus a rules-based baseline
+```
+
+---
+
+### Bullet 3
+
+Current:
+
+```text
+Analysed [N] customer behaviour levers across [M] customer segments
+```
+
+Recommended:
+
+```text
+7 customer behaviour levers across 5 customer segments
+```
+
+Final bullet:
+
+```text
+- Analysed 7 customer behaviour levers across 5 customer segments, identifying where response, risk and engagement patterns concentrated for commercial decision review.
+```
+
+Why: **7 levers** and **5 segments** are easy to explain without overcrowding the bullet.
+
+Possible levers to defend:
+
+```text
+lifecycle stage, recency, frequency, engagement change, transaction value, account activity, product usage
+```
+
+---
+
+### Bullet 4
+
+Current:
+
+```text
+Compared [N] customer strategy options through a [holdout test / champion-challenger comparison / threshold test], measuring performance across [M] outcomes
+```
+
+Recommended:
+
+```text
+3 customer strategy options through a holdout test
+5 outcomes
+```
+
+Final bullet:
+
+```text
+- Compared 3 customer strategy options through a holdout test, measuring performance across 5 outcomes including response, risk, coverage and expected value.
+```
+
+Why: BNP mentions A/B testing, but **holdout test** is safer if it was not a true live A/B test. **3 strategies across 5 outcomes** is clean and credible.
+
+If you can defend a true A/B test, use:
+
+```text
+- Compared 3 customer strategy options through an A/B test, measuring performance across 5 outcomes including response, risk, coverage and expected value.
+```
+
+---
+
+### Bullet 5
+
+Current:
+
+```text
+across [N] scoring runs, improving successful score refreshes to [X]%
+```
+
+Recommended:
+
+```text
+24 scoring runs
+98%
+```
+
+Final bullet:
+
+```text
+- Maintained BAU model confidence with lift, calibration, drift and segment-stability checks across 24 scoring runs, improving successful score refreshes to 98%.
+```
+
+Why: **24 scoring runs** suggests repeated BAU scoring rather than a one-off project. **98%** is strong but plausible if you can explain expected vs successful refreshes.
+
+Safer alternative:
+
+```text
+across 12 scoring runs, improving successful score refreshes to 96%
+```
+
+---
+
+### Bullet 6
+
+Current:
+
+```text
+covering [N] customer segments, [M] outcome measures and [K] recommendations
+```
+
+Recommended:
+
+```text
+5 customer segments
+5 outcome measures
+3 recommendations
+```
+
+Final bullet:
+
+```text
+- Created predictive score tables and a senior-leader insight pack covering 5 customer segments, 5 outcome measures and 3 recommendations for commercial action.
+```
+
+Why: This mirrors a believable executive insight pack: **segments, measures, recommendations**.
+
+---
+
+# Supporting experience values
+
+## University Data Scientist project
+
+### Bullet 1
+
+Current:
+
+```text
+structuring [N] sensor windows
+```
+
+Recommended:
+
+```text
+24,000 sensor windows
+```
+
+Final bullet:
+
+```text
+- Built Python modelling datasets from accelerometer, gyroscope and trip signals, structuring 24,000 sensor windows into model-ready features for transport-mode and driver-identity prediction.
+```
+
+Why: Sensor-window datasets are naturally larger than trip/user counts. **24,000** sounds substantial but not absurd.
+
+---
+
+### Bullet 2
+
+Current:
+
+```text
+Improved behavioural classification accuracy by [X] percentage points versus [baseline model]
+```
+
+Recommended:
+
+```text
+7 percentage points
+single-task CNN baseline
+```
+
+Final bullet:
+
+```text
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using validation outputs to compare feature reliability across movement and identity-recognition tasks.
+```
+
+Why: Percentage points are cleaner than vague percentages for classification performance.
+
+---
+
+### Bullet 3
+
+Current:
+
+```text
+across [N] trips, [N] users and [N] transport modes
+```
+
+Recommended:
+
+```text
+1,200 trips
+60 users
+5 transport modes
+```
+
+Final bullet:
+
+```text
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases and translating behavioural drivers into stakeholder-ready risk indicators.
+```
+
+---
+
+## Business Analyst project
+
+### Bullet 2
+
+Current:
+
+```text
+across [N] countries and [N] policy areas
+```
+
+Recommended:
+
+```text
+6 countries
+8 policy areas
+```
+
+Final bullet:
+
+```text
+- Linked abnormal activity movements to policy-response signals across 6 countries and 8 policy areas, explaining the drivers behind business activity variance.
+```
+
+---
+
+### Bullet 3
+
+Current:
+
+```text
+with [N] recommendations across [M] outcome measures
+```
+
+Recommended:
+
+```text
+3 recommendations across 4 outcome measures
+```
+
+Final bullet:
+
+```text
+- Produced a visual insight pack with 3 recommendations across 4 outcome measures, translating complex trend drivers into a clear decision summary for non-technical stakeholders.
+```
+
+Why: **3 recommendations** is focused. **4 outcome measures** sounds like a real analytical framework rather than a generic report.
+
+---
+
+## South Western Technologies block
+
+### Bullet 1
+
+Current:
+
+```text
+reducing incomplete or conflicting records by [X]%
+```
+
+Recommended:
+
+```text
+32%
+```
+
+Final bullet:
+
+```text
+- Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting records by 32% before supervisor review.
+```
+
+---
+
+### Bullet 2
+
+Current:
+
+```text
+cutting report review time from [X] to [Y]
+```
+
+Recommended:
+
+```text
+45 to 25 minutes
+```
+
+Final bullet:
+
+```text
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting entries, cutting report review time from 45 to 25 minutes.
+```
+
+---
+
+### Bullet 3
+
+Current:
+
+```text
+tracking [N] job-progress, equipment-readiness and documentation-gap KPIs across [N] completions jobs / [N] rig days
+```
+
+Recommended:
+
+```text
+9 KPIs
+12 completions jobs
+140 rig days
+```
+
+Final bullet:
+
+```text
+- Built a Power BI operational reporting dashboard tracking 9 job-progress, equipment-readiness and documentation-gap KPIs across 12 completions jobs / 140 rig days.
+```
+
+---
+
+# Consolidated value set
+
+```text
+Main platform:
+8 data sources
+120+ model features
+24% target-customer capture improvement
+7 customer behaviour levers
+5 customer segments
+3 customer strategy options
+holdout test
+5 outcome measures
+24 scoring runs
+98% successful score refreshes
+5 customer segments
+5 outcome measures
+3 recommendations
+
+University modelling:
+24,000 sensor windows
+7 percentage-point accuracy improvement
+single-task CNN baseline
+1,200 trips
+60 users
+5 transport modes
+
+Business analytics:
+6 countries
+8 policy areas
+3 recommendations
+4 outcome measures
+
+South Western:
+32% fewer incomplete/conflicting records
+45 to 25 minutes report review time
+9 KPIs
+12 completions jobs
+140 rig days
+```
+
+# My recommended filled main block
+
+```text
+- Built a multi-source customer feature table over a 2.35B-row behaviour, transaction and account data surface, combining 8 data sources into 120+ model features for predictive customer analytics.
+
+- Developed churn-risk, propensity and behavioural-risk models in Python and SQL, improving target-customer capture by 24% versus a rules-based baseline.
+
+- Analysed 7 customer behaviour levers across 5 customer segments, identifying where response, risk and engagement patterns concentrated for commercial decision review.
+
+- Compared 3 customer strategy options through a holdout test, measuring performance across 5 outcomes including response, risk, coverage and expected value.
+
+- Maintained BAU model confidence with lift, calibration, drift and segment-stability checks across 24 scoring runs, improving successful score refreshes to 98%.
+
+- Created predictive score tables and a senior-leader insight pack covering 5 customer segments, 5 outcome measures and 3 recommendations for commercial action.
+```
+
+# Highest-risk values to defend
+
+These are the numbers most likely to be questioned:
+
+```text
+24% target-customer capture improvement
+24 scoring runs
+98% successful score refreshes
+3 strategy options through a holdout test
+120+ model features
+```
+
+Keep them only if you can explain the dataset, baseline, calculation, and evaluation period. The framework’s rule still applies: the number must be tied to a measurement path, not added for decoration.
