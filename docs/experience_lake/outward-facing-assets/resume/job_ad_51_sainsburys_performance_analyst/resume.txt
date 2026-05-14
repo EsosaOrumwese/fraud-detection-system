@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Performance Analyst with experience building BigQuery SQL KPI tables, Looker/Power BI dashboards, Excel reporting workbooks and VBA refresh macros across large operational and behavioural datasets. Produced period-comparison reports, BigQuery variance queries, ranked segment tables and option-recommendation tables to explain KPI movements, compare strategy options and improve recurring performance reports.
+Performance Analyst with experience building BigQuery SQL KPI tables, Looker/Power BI dashboards, Excel reporting workbooks and VBA refresh macros across a 2.35B-row BigQuery dataset and operational reporting records. Produced period-comparison reports, BigQuery variance queries, ranked segment tables and option-recommendation tables to explain KPI movements, compare strategy options and improve recurring performance reports.
 
 TECHNICAL SKILLS
 
@@ -18,13 +18,13 @@ RELEVANT EXPERIENCE
 
 Data Scientist
 Commercial Performance Analytics Platform - Exeter, UK | May 2025 - Present
-BigQuery, Looker and Power BI reporting workstream using SQL KPI tables, dashboard source tables, period-comparison reports and validation checks across a 2.35B-row data surface.
+BigQuery, Looker and Power BI reporting platform using SQL KPI tables, dashboard source tables, period-comparison reports and validation checks across a 2.35B-row data surface.
 
 - Built BigQuery SQL KPI tables over a 2.35B-row data surface, creating 6 dashboard source tables used in weekly Looker/Power BI KPI reports.
 - Developed Looker and Power BI KPI dashboards tracking 13 performance metrics across 12 reporting periods, with period-by-period variance tables and trend charts.
 - Used BigQuery variance queries to explain a 19% KPI movement, producing a root-cause table with 4 operational, behavioural or data-quality drivers.
 - Compared 3 strategy options across 5 outcome measures, producing a ranked option table showing the top-performing option, weaker options and metric trade-offs.
-- Built a ranked segment table capturing 42% of target records in the top 20% performance band, creating a priority list for the next strategy test.
+- Built a ranked segment table capturing 42% of target records in the top 20% score band, creating a priority list for the next strategy comparison.
 - Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
 
 Data Analyst
@@ -41,7 +41,7 @@ Business analytics project using country-sector activity tables and policy-respo
 
 - Built a country-sector performance table across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
 - Merged activity data with 8 policy-response areas across 6 countries, explaining abnormal movement patterns through restrictions, support measures and reopening signals.
-- Produced a visual trend report with 3 recommendations, using country-sector comparisons and policy-driver charts to flag market/sector groups for further performance review.
+- Produced a visual trend report with 3 recommendations, using country-sector comparisons and policy-driver charts to flag market/sector groups with persistent disruption or structural-shift patterns.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
