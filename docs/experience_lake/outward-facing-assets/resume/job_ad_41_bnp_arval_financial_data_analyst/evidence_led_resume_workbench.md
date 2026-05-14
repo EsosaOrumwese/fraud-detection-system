@@ -1001,3 +1001,81 @@ Recommended Arval experience structure:
 ```
 
 This keeps the CV Arval-shaped without forcing finance language into every project.
+
+---
+
+For this Arval CV, the header and summary should sell **finance data flows + SQL/SAS + data modelling + governance + finance reporting**, not fraud, payments, or ML.
+
+Arval's ad is very specific: the role sits in the finance team, building/maintaining data flows, reviewing SaaS data processing, handling finance data requests, upholding data quality/governance, and using SQL/SAS to maintain complex financial datasets for reporting.
+
+## Recommended header
+
+```text
+Esosa Orumwese
+Financial Data Analyst | SQL, SAS & Finance Data Flows | Data Modelling & Governance
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+```
+
+This is the strongest version. It hits:
+
+```text
+Financial Data Analyst = exact target role
+SQL + SAS = direct technical match
+Finance Data Flows = core business problem
+Data Modelling & Governance = technical + quality/governance match
+```
+
+## Alternative header
+
+```text
+Financial Data Analyst | SQL & SAS Reporting Datasets | Data Flows, Quality & Governance
+```
+
+This one is slightly more reporting-focused. I still prefer the first because it is cleaner.
+
+## Professional summary
+
+Recommended version:
+
+```text
+Financial Data Analyst with experience building SQL and SAS reporting datasets, finance data flows and source-to-report validation checks across large transaction, customer and behavioural datasets. Built SQL reporting models, SAS validation outputs, Excel reconciliation workbooks and finance-ready reporting extracts across a 2.35B-row data surface, translating data quality issues, KPI definitions and variance outputs into clear notes for non-technical finance users.
+```
+
+This is strong because it names actual things:
+
+```text
+SQL reporting models
+SAS validation outputs
+Excel reconciliation workbooks
+finance-ready reporting extracts
+source-to-report validation checks
+KPI definitions
+variance outputs
+non-technical finance users
+```
+
+It follows the framework's layering: the headline positions you, the summary sells the fit, the experience context sets the scene, and the bullets prove the claims.
+
+## Slightly tighter version
+
+```text
+Financial Data Analyst with experience building SQL and SAS reporting datasets, finance data flows and source-to-report validation checks across large transaction, customer and behavioural datasets. Skilled in SQL data modelling, SAS reporting outputs, Excel reconciliation, data quality checks and explaining KPI definitions and variance outputs to non-technical finance users.
+```
+
+This is cleaner, but less distinctive than the first because it removes the 2.35B-row scale.
+
+## My pick
+
+Use this full top section:
+
+```text
+Esosa Orumwese
+Financial Data Analyst | SQL, SAS & Finance Data Flows | Data Modelling & Governance
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Financial Data Analyst with experience building SQL and SAS reporting datasets, finance data flows and source-to-report validation checks across large transaction, customer and behavioural datasets. Built SQL reporting models, SAS validation outputs, Excel reconciliation workbooks and finance-ready reporting extracts across a 2.35B-row data surface, translating data quality issues, KPI definitions and variance outputs into clear notes for non-technical finance users.
+```
+
+That gives Arval the right first impression: **finance data analyst, SQL/SAS, data flows, reporting datasets, governance, and finance-user communication**.
