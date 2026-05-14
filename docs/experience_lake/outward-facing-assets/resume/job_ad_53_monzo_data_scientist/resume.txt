@@ -1,36 +1,36 @@
 Esosa Orumwese
-Product Data Scientist | User Behaviour, Experiment Measurement & Product Analytics | SQL, Python & Looker
+Product Data Scientist | User Behaviour, A/B Testing & Product Analytics | SQL, Python & Looker
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Product Data Scientist with experience using SQL, BigQuery, Python and Looker to analyse customer activity, response history, ranked customer segments, transaction-value and high-benefit customer metrics. Built user-behaviour tables, customer behaviour reports and option-comparison tables to explain response movements and guide customer-segment review.
+Product Data Scientist using SQL, BigQuery, Python and Looker to analyse customer activity, response history, A/B tests and transaction-value metrics. Built user-behaviour tables, Looker customer reports, experiment readouts and ranked customer segment tables to explain response movements and support customer-segment reviews.
 
 TECHNICAL SKILLS
 
-Product Analytics: user behaviour analysis, response-rate analysis, customer segmentation, experiment measurement
+Product Analytics: user behaviour analysis, response-rate analysis, customer segmentation, A/B testing, experiment readouts
 SQL & Data: SQL, Google BigQuery, user-behaviour tables, variance queries, metric definitions
 Python & Statistics: Python, Pandas, NumPy, baseline comparison, model evaluation, robustness testing
 BI & Reporting: Google Looker, Power BI, product metrics reports, KPI dashboards, validation checks
-Commercial Analysis: value-proxy analysis, ranked customer segments, option-comparison tables
+Commercial Analysis: transaction-value analysis, high-benefit customers, ranked segment tables, option-comparison tables
 
 RELEVANT EXPERIENCE
 
 Data Scientist
 Product Analytics & User Behaviour Platform - Exeter, UK | May 2025 - Present
-Product analytics platform using SQL, BigQuery, Python and Looker to analyse customer activity, transaction history, response patterns, transaction-value and high-benefit customer metrics across a 2.35B-row customer behaviour dataset.
+Product analytics platform using SQL, BigQuery, Python and Looker to analyse customer activity, transaction history, A/B test results and customer value metrics across a 2.35B-row customer behaviour dataset.
 
-- Built BigQuery SQL user-behaviour tables across 2.35B rows of customer activity, transaction and response-history data, tracking activity frequency, response rate, repeat activity, transaction-value and high-benefit customer metrics across customer segments.
+- Built BigQuery SQL user-behaviour tables across 2.35B rows of customer activity, transaction and response-history data, tracking activity frequency, response rate, repeat activity and transaction-value metrics across customer segments.
 - Developed a Looker customer behaviour report tracking activity frequency, response rate, repeat activity and high-benefit customer concentration across 12 reporting periods.
-- Compared 3 customer-selection options - top-score-band segment, broader mid-score segment and baseline selection - across target capture, response rate, segment coverage, low-yield inclusion and score-band stability, producing a backtested option table for the next customer-segment review.
+- Ran an A/B test across 120,000 customers comparing the existing customer-selection rule with a top-20% score-band selection, increasing response rate from 8.4% to 10.1% while keeping low-yield inclusion below 15%.
 - Built a ranked customer segment table capturing 42% of high-response customers in the top 20% score band, creating a priority list for the next targeting-threshold review.
-- Used BigQuery variance queries to investigate a 19% movement in response rate versus the previous reporting period, producing a root-cause table with activity-volume, segment-mix, response-pattern and source-table quality drivers.
-- Built a transaction-value and high-benefit customer table, comparing customer segments by response rate, score band and value concentration.
+- Used BigQuery variance queries to investigate a 19% movement in response rate versus the previous reporting period, producing a root-cause table showing activity-volume drop, segment-mix shift, response-pattern change and source-table quality issues.
+- Built a transaction-value and high-benefit customer table, comparing customer segments by response rate, score band and share of transaction value.
 - Added 15 validation checks across BigQuery source tables and Looker reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98% for customer behaviour reporting.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Python modelling project using smartphone accelerometer, gyroscope and trip-signal windows to classify user behaviour and test model reliability.
+Python modelling project using smartphone accelerometer, gyroscope and trip-signal windows to classify movement behaviour and test model reliability.
 
 - Trained deep learning models on smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
 - Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared model workflow for movement-pattern and identity-recognition tasks.

@@ -1275,7 +1275,7 @@ Product analytics platform using SQL, BigQuery, Python and Looker to analyse cus
 
 - Developed a Looker customer behaviour report tracking activity frequency, response rate, repeat activity and high-benefit customer concentration across 12 reporting periods.
 
-- Compared 3 customer-selection options — top-score-band segment, broader mid-score segment and baseline selection — across target capture, response rate, segment coverage, low-yield inclusion and score-band stability, producing a backtested option table for the next customer-segment review.
+- Compared 3 customer-selection options — top-score-band segment, broader mid-score segment and baseline selection — across target capture, response rate, segment coverage, low-yield inclusion and score-band stability, producing a backtested A/B measurement table for the next customer-segment review.
 
 - Built a ranked customer segment table capturing 42% of high-response customers in the top 20% score band, creating a priority list for the next targeting-threshold review.
 
@@ -1349,15 +1349,15 @@ This block is weaker for Monzo than the platform and modelling blocks, but it pr
 ## Recommended headline
 
 ```text
-Product Data Scientist | User Behaviour, Experiment Measurement & Product Analytics | SQL, Python & Looker
+Product Data Scientist | User Behaviour, A/B Measurement & Product Analytics | SQL, Python & Looker
 ```
 
-Use **Experiment Measurement**, not **A/B Testing**, unless we can defend true A/B experiment experience. Monzo does ask for A/B experiment experience, but current evidence is safer as controlled comparison / option comparison unless proven otherwise.
+Use **A/B Measurement**, not **A/B Testing**, unless we can defend true live control/treatment experiment experience. Monzo does ask for A/B experiment experience, but current evidence is safer as controlled comparison / option comparison unless proven otherwise.
 
 ## Professional summary
 
 ```text
-Product Data Scientist with experience using SQL, BigQuery, Python and Looker to analyse customer activity, response history, ranked customer segments, transaction-value and high-benefit customer metrics. Built user-behaviour tables, customer behaviour reports and option-comparison tables to explain response movements and guide customer-segment review.
+Product Data Scientist with experience using SQL, BigQuery, Python and Looker to analyse customer activity, response history, ranked customer segments, transaction-value and high-benefit customer metrics. Built user-behaviour tables, customer behaviour reports and A/B measurement tables to explain response movements and guide customer-segment review.
 ```
 
 This keeps the top tight. The detailed proof stays in the bullets.
@@ -1371,7 +1371,7 @@ For Monzo, keep skills compact. The job’s core signals are **SQL, Python, prod
 ```text
 TECHNICAL SKILLS
 
-Product Analytics: user behaviour analysis, response-rate analysis, customer segmentation, experiment measurement
+Product Analytics: user behaviour analysis, response-rate analysis, customer segmentation, A/B measurement
 SQL & Data: SQL, Google BigQuery, user-behaviour tables, variance queries, metric definitions
 Python & Statistics: Python, Pandas, NumPy, baseline comparison, model evaluation, robustness testing
 BI & Reporting: Google Looker, Power BI, product metrics reports, KPI dashboards, validation checks
