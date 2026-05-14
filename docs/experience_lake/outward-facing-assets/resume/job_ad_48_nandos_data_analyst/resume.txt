@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Analyst with experience building reusable BigQuery SQL models, Looker reporting outputs and data-quality checks across large-scale cloud datasets. Strong fit for analytics roles requiring self-serve insight delivery, pipeline-aware validation, documented KPI logic, Git-based workflow and clear translation of business questions into reliable reporting outputs.
+Data Analyst with experience building reusable BigQuery SQL models, Looker reporting outputs and data-quality checks across large-scale cloud datasets. Uses Git-based workflows, documented KPI logic and pipeline-aware validation to turn business questions into reliable self-serve reporting outputs.
 
 TECHNICAL SKILLS
 
@@ -18,15 +18,15 @@ RELEVANT EXPERIENCE
 
 Data Scientist
 SQL Data Modelling & Self-Serve BI Platform - Exeter, UK | May 2025 - Present
-Cloud analytics and BI platform using SQL, Google BigQuery, Looker, Power BI, Git and data-quality checks across a 2.35B-row transaction and behaviour data surface to create reusable reporting models, validated dashboards and business-facing metric summaries.
+Cloud analytics and BI platform using SQL, BigQuery, Looker, Git and data-quality checks across a 2.35B-row data surface to build reusable reporting models, validated dashboards and business-facing metric summaries.
 
 - Built reusable BigQuery SQL models over a 2.35B-row transaction and behaviour data surface, creating [N] dashboard source tables for recurring KPI reporting and self-serve analysis.
-- Developed Looker reporting outputs from modelled BigQuery tables, tracking [N] KPIs across [M] reporting periods and giving stakeholders a reliable view of performance movements.
+- Developed Looker reporting outputs from modelled BigQuery tables, tracking [N] KPIs across [M] reporting periods for self-serve performance monitoring across [team / stakeholder group].
 - Added 15 dashboard validation checks across Looker reports and source tables, reducing reporting errors by [X]% and improving successful refreshes to [Y]% before stakeholder release.
 - Reconciled source tables against dashboard outputs using SQL validation queries, identifying [N] freshness, join, duplicate or aggregation issues before they affected recurring reports.
 - Managed SQL model changes through Git branches and reviewed pull requests, improving traceability of reporting logic, KPI updates and dashboard source-table changes.
 - Documented [N] KPI definitions, model assumptions and data limitations, improving consistency of metric interpretation across technical and non-technical stakeholders.
-- Translated an ambiguous metric movement into a scoped BigQuery root-cause analysis, explaining a [X]% unexpected change and identifying [N] operational, customer or data-quality drivers.
+- Translated an unclear stakeholder question into a scoped BigQuery root-cause analysis, explaining a [X]% metric movement and identifying [N] operational, customer or data-quality drivers.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024

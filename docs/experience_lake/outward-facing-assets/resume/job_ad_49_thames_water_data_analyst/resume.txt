@@ -4,28 +4,28 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Analyst with experience interrogating, transforming and validating large operational and behavioural datasets using SQL, Power BI, Excel/VBA, Python and Google BigQuery. Built operational dashboards, reconciliation workflows, data-quality checks and metric-movement analyses across a 2.35B-row data surface and field-operations datasets, translating complex records into clear stakeholder reporting and decision-ready operational insight.
+Data Analyst with experience interrogating, transforming and validating large operational and behavioural datasets using SQL, Power BI, Excel/VBA, Python and Google BigQuery. Built operational dashboards, reconciliation workflows, data-quality checks and metric-movement analyses across a 2.35B-row data surface and field-operations datasets, translating complex records into secure, stakeholder-ready reporting and operational insight.
 
 TECHNICAL SKILLS
 
 SQL & Databases: SQL, Google BigQuery, database interrogation, data transformation, reporting tables
 BI & Reporting: Power BI, Looker, operational dashboards, KPI reporting, dashboard validation
 Excel & Automation: Excel, pivot tables, lookups, index/match, VBA report-refresh macros, exception checks
-Data Quality & Operations Insight: data-quality checks, reconciliation, metric variance analysis, operational reporting, data limitation summaries
+Data Quality & Governance: data-quality checks, reconciliation, dashboard validation, secure data handling, data limitation summaries
 Python & Analysis: Python, Pandas, NumPy, data cleaning, repeatable analysis workflows
 
 RELEVANT EXPERIENCE
 
-Data Scientist
+Data Analyst
 Operational Insight & Data Quality Analytics Platform - Exeter, UK | May 2025 - Present
 Large-scale analytics platform using SQL, Google BigQuery, Power BI, Looker and Python across a 2.35B-row event and behaviour data surface to transform complex records into validated reporting, metric-movement analysis and stakeholder decision summaries.
 
 - Built SQL and BigQuery transformation queries across a 2.35B-row event and behaviour data surface, converting raw activity records into reusable reporting tables for operational analysis.
-- Designed operational metric reports tracking [N] KPIs across [M] reporting periods, giving stakeholders a clearer view of activity patterns, exceptions and performance movements.
+- Designed operational metric reports tracking [N] KPIs across [M] reporting periods, highlighting activity variance, exception volumes and reporting trends for stakeholder review.
 - Created Power BI dashboards from transformed SQL/BigQuery outputs, monitoring [N] operational metrics and reducing reliance on manual spreadsheet-based reporting.
-- Maintained Looker and Power BI reporting outputs with [N] validation checks, reducing reporting errors by [X]% and improving successful refreshes to [Y]%.
+- Maintained Power BI and Looker reporting outputs with [N] validation checks, reducing reporting errors by [X]% and improving successful refreshes to [Y]%.
 - Produced metric-movement analysis from BigQuery variance queries, explaining a [X]% unexpected change in [operational metric] and identifying [N] data, process or behaviour drivers.
-- Translated dashboard findings and data-quality limitations into [N] stakeholder decision summaries, helping business users interpret trends, caveats and recommended next actions.
+- Translated dashboard findings, variance drivers and data-quality limitations into [N] stakeholder summaries, clarifying trend movements, caveats and recommended follow-up actions.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
