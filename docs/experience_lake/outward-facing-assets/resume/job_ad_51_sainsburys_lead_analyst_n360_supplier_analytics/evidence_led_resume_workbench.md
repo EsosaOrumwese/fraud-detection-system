@@ -1,6 +1,6 @@
-# Sainsbury's Job Ad 1 — Evidence-Led Resume Workbench
+# Sainsbury's Lead Analyst, N360 Supplier Analytics — Evidence-Led Resume Workbench
 
-Status: waiting for job ad source.
+Status: job ad source captured; methodology work not started.
 
 Workflow:
 
@@ -16,3 +16,5 @@ Workflow:
 9. Target value appendix
 10. Coupled resume
 ```
+
+Source file: `job_ad_source.md`
