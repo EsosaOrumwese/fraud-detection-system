@@ -2512,3 +2512,53 @@ Built a ranked segment table showing concentration of target records in the top 
 
 Used BigQuery variance queries to investigate an unexpected KPI movement, producing a root-cause table with 4 drivers.
 ```
+
+---
+
+# Appendix Note — Why Meaning Placeholders Were Not Filled
+
+Because those were the **only places where filling them would require me to invent facts**.
+
+You asked for the full rewrite **“without making any mistakes.”** The review also said the dangerous parts were exactly these:
+
+```text
+specific KPI behind the 19% movement
+actual 4 drivers
+actual 3 option types
+actual 5 outcome measures
+actual target group behind 42%
+actual review/workflow using the priority list
+```
+
+So I left those bracketed because they are not normal placeholders like `[X]%`. They are **meaning placeholders**. Filling them incorrectly would create a fake CV claim.
+
+But I should have handled it better. I should have given two versions:
+
+1. **Safe version with meaning placeholders** — what I gave.
+2. **Assumption-filled version** — using the candidate values from our appendix, clearly marked as only valid if true.
+
+Here is the assumption-filled version using the strongest candidate set we already discussed:
+
+```text
+- Developed Looker and Power BI KPI dashboards tracking 13 metrics across activity volume, transaction count, response rate, segment coverage, score-band capture and report QA across 12 reporting periods, with variance tables and trend charts.
+
+- Used BigQuery variance queries to investigate a 19% movement in response rate versus the previous reporting period, producing a root-cause table showing segment activity drop, response-rate change, transaction-mix shift and missing source-table records.
+
+- Compared 3 audience options — top-score-band segment, broader mid-score segment and baseline selection — across target capture, response rate, segment coverage, low-yield inclusion and period stability, producing a ranked option table showing the strongest option, weaker options and metric trade-offs.
+
+- Built a ranked customer segment table capturing 42% of high-response customers in the top 20% score band, creating a priority list for the next audience review.
+```
+
+This is the **filled version**, but it should only be submitted if these are true:
+
+```text
+KPI = response rate
+Baseline = previous reporting period
+Drivers = segment activity drop, response-rate change, transaction-mix shift, missing source-table records
+Options = top-score-band segment, broader mid-score segment, baseline selection
+Outcome measures = target capture, response rate, segment coverage, low-yield inclusion, period stability
+Target group = high-response customers
+Priority list use = next audience review
+```
+
+So the reason I did not fill them was: **those placeholders are not just numbers; they define the actual event.** Inventing them would violate the method.

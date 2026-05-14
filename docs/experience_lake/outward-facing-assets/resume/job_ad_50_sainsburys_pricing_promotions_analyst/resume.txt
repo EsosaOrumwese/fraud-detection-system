@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Commercial Data Analyst using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer activity tables, propensity score tables, audience cut-off tests, model validation packs and KPI dashboards across 2.35B rows of customer activity, lifecycle and response-history data. Compared 3 promotion audience options across audience size, promotion-responder capture, expected response-rate, low-response customer removal and coverage, producing a recommendation memo on which score cut-off to use for offer targeting.
+Commercial Data Analyst using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer activity tables, propensity score tables, audience cut-off tests, model validation packs and KPI dashboards across 2.35B rows of customer activity, lifecycle and response-history data. Compared 3 promotion audience options across audience size, offer-response customer capture, expected response-rate, historically low-response customer removal and coverage, producing a recommendation memo on which score cut-off to use for offer targeting.
 
 TECHNICAL SKILLS
 
@@ -21,12 +21,12 @@ Customer Response & Promotion Analytics Platform - Exeter, UK | May 2025 - Prese
 Customer response analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to test promotion audience cut-offs across 2.35B rows of customer activity, lifecycle and response-history data.
 
 - Built SQL, BigQuery and Python/PySpark ETL tables across 2.35B rows of customer activity, lifecycle and response-history data, joining customer status, past response behaviour and activity counts into scoring and dashboard source tables.
-- Created segment tables for 7 offer, retention and intervention audiences, adding customer counts, response-history fields and promotion-responder flags for offer targeting.
-- Validated propensity ranking quality by capturing 42% of promotion responders in the top 20% score band, producing a ranked customer table for promotion audience selection.
-- Tested 5 score cut-offs for offer targeting, reducing historically low-response customers in the selected audience by 11% while preserving 91% promotion-responder coverage.
+- Created segment tables for 7 offer, retention and intervention audiences, adding customer counts, response-history fields and offer-response customer flags for offer targeting.
+- Validated propensity ranking quality by capturing 42% of customers matching the offer-response definition in the top 20% score band, producing a ranked customer table for promotion audience selection.
+- Tested 5 score cut-offs for offer targeting, reducing historically low-response customers in the selected audience by 11% while preserving 91% coverage of customers matching the offer-response definition.
 - Produced a model validation pack with lift charts, calibration checks and score-band stability tables across 6 validation periods before releasing ranked customer score tables.
-- Compared 3 promotion audience options across audience size, promotion-responder capture, expected response-rate, low-response customer removal and coverage, producing a recommendation memo on which cut-off to use for offer targeting.
-- Built Power BI / Looker dashboard views showing audience size, score-band distribution, promotion-responder coverage and low-response customer mix across cut-off options.
+- Compared 3 promotion audience options across audience size, offer-response customer capture, expected response-rate, historically low-response customer removal and coverage, producing a recommendation memo on which cut-off to use for offer targeting.
+- Built Power BI / Looker dashboard views showing audience size, score-band distribution, offer-response customer coverage and historically low-response customer mix across cut-off options.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024

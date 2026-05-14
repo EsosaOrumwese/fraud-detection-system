@@ -2638,3 +2638,216 @@ My recommended final target set is:
 ```
 
 That set is strong without pretending you did explicit price-change or margin analysis.
+
+---
+
+Yes — here is the **Grounding Abstracts Appendix** for the Sainsbury CV.
+
+Purpose: remove wording that sounds like our internal framework and replace it with words a Sainsbury hiring manager can picture immediately. The job asks for end-to-end price/promotion analytics, SQL/Python, ETL pipelines, statistical models, dashboards, commercial stakeholder work and storytelling that influences decisions. The methodology also says the CV should stop claiming qualities and prove them through concrete action, scope and measurable result.
+
+# Appendix — Grounding Abstract / Internal Phrases
+
+## 1. Data / platform wording
+
+| Current phrase                  | Risk                                                  | Grounded replacement                                                  |
+| ------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------- |
+| customer behaviour data surface | Sounds internal / platform-theory-ish                 | 2.35B rows of customer activity, lifecycle and response-history data  |
+| customer data surface           | Vague object                                          | customer activity, lifecycle, response-history and scoring tables     |
+| commercial analytics platform   | Broad, slightly unverifiable                          | customer response and promotion analytics platform                    |
+| commercial analytics project    | Safer if not deployed, but can downframe the platform | customer response analytics platform / promotion analytics workstream |
+| customer-feature tables         | Good, but can be clearer                              | customer activity and response-history feature tables                 |
+| dashboard source tables         | Good                                                  | scoring and dashboard source tables                                   |
+
+Recommended final wording:
+
+```text
+Customer response analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to test promotion audience cut-offs across 2.35B rows of customer activity, lifecycle and response-history data.
+```
+
+Use **platform** if we are preserving the deployed-platform truth. Use **workstream** if this was a subset of the larger platform. Avoid “project” if it downframes the work.
+
+---
+
+## 2. Audience / customer labels
+
+| Current phrase           | Risk                             | Grounded replacement                                                                                                           |
+| ------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| target customers         | Undefined                        | promotion responders / campaign-eligible customers / high-benefit customers / customers matching the offer-response definition |
+| target-customer capture  | Needs definition                 | promotion responder capture / high-benefit customer capture / campaign-eligible customer capture                               |
+| target-customer flags    | Internal label                   | responder flags / campaign-eligible flags / high-benefit customer flags                                                        |
+| target-customer coverage | Undefined until label is defined | responder coverage / campaign-eligible customer coverage / high-benefit customer coverage                                      |
+| audience selection       | Okay, but generic                | offer targeting / promotion audience selection                                                                                 |
+| ranked audience table    | Slightly abstract                | ranked customer table                                                                                                          |
+| segment tables           | Good                             | segment tables with customer counts, response-history fields and responder flags                                               |
+
+Decision needed:
+
+```text
+Define “target customers” before final CV.
+```
+
+Best options, depending on truth:
+
+```text
+promotion responders
+campaign-eligible customers
+high-benefit customers
+likely responders
+customers matching the offer-response definition
+```
+
+Strongest Sainsbury version, if true:
+
+```text
+Validated propensity ranking quality by capturing 42% of promotion responders in the top 20% score band, producing a ranked customer table for promotion audience selection.
+```
+
+Safer version:
+
+```text
+Validated propensity ranking quality by capturing 42% of customers matching the offer-response definition in the top 20% score band, producing a ranked customer table for promotion audience selection.
+```
+
+---
+
+## 3. Low-response / waste wording
+
+| Current phrase                   | Risk                               | Grounded replacement                                                                 |
+| -------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------ |
+| low-response inclusion           | Internal metric wording            | historically low-response customers included in the selected audience                |
+| low-yield audience               | Vague unless defined               | low-response / low-benefit / low-conversion customers                                |
+| low-response audience reduction  | Slightly abstract                  | removed historically low-response customers from the selected audience               |
+| reduced wasted targeting         | Too assumed / business-claim-heavy | reduced historically low-response customers in the selected audience by 11%          |
+| improved marketing effectiveness | Too broad                          | tested 5 score cut-offs and selected the threshold with lower low-response inclusion |
+
+Recommended final wording:
+
+```text
+Tested 5 score cut-offs for offer targeting, reducing historically low-response customers in the selected audience by 11% while preserving 91% responder coverage.
+```
+
+Or safer if “responder” is not final:
+
+```text
+Tested 5 score cut-offs for offer targeting, reducing historically low-response customers in the selected audience by 11% while preserving 91% target-customer coverage.
+```
+
+---
+
+## 4. Recommendation / decision wording
+
+| Current phrase                 | Risk                              | Grounded replacement                                                       |
+| ------------------------------ | --------------------------------- | -------------------------------------------------------------------------- |
+| campaign selection memo        | Good artefact, but can be sharper | recommendation memo on which score cut-off to use                          |
+| commercial recommendation memo | Slightly broad                    | offer-targeting recommendation memo                                        |
+| rollout selection              | Vague                             | score cut-off selection / offer-targeting threshold selection              |
+| audience selection strategies  | Acceptable but abstract           | promotion audience options / score cut-off options                         |
+| commercial strategy comparison | Too broad                         | 3-option audience cut-off comparison                                       |
+| influenced decisions           | Abstract                          | produced a recommendation memo on which cut-off to use for offer targeting |
+
+Recommended final wording:
+
+```text
+Compared 3 promotion audience options across audience size, responder capture, expected response-rate, low-response customer removal and coverage, producing a recommendation memo on which cut-off to use for offer targeting.
+```
+
+---
+
+## 5. Dashboard wording
+
+| Current phrase              | Risk                                | Grounded replacement                                                                                             |
+| --------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| commercial KPI dashboards   | Broad                               | customer response dashboards / audience performance dashboards                                                   |
+| dashboard views             | Good, but specify contents          | dashboard views showing audience size, score-band distribution, responder coverage and low-response customer mix |
+| dynamic dashboards          | Job-ad language, but abstract alone | Power BI / Looker dashboard views by score cut-off option                                                        |
+| KPI dashboards              | Okay, but add KPIs                  | dashboards tracking audience size, score-band distribution, response-history mix and coverage                    |
+| dashboard validation checks | Good                                | validation checks for missing values, duplicate customers, stale refreshes or mismatched totals, if true         |
+
+Recommended added bullet:
+
+```text
+Built Power BI / Looker dashboard views showing audience size, score-band distribution, target-customer coverage and low-response customer mix across cut-off options.
+```
+
+If “target customer” gets replaced:
+
+```text
+Built Power BI / Looker dashboard views showing audience size, score-band distribution, responder coverage and low-response customer mix across cut-off options.
+```
+
+This matters because Sainsbury explicitly asks for dynamic dashboards, not just SQL/Python analysis.
+
+---
+
+## 6. Model / validation wording
+
+| Current phrase        | Risk                     | Grounded replacement                                                                       |
+| --------------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
+| model validation pack | Good                     | model validation pack with lift charts, calibration checks and score-band stability tables |
+| statistical model     | Good but broad           | propensity score table / lift chart / calibration table                                    |
+| score-band stability  | Good                     | score-band stability table across 6 validation periods                                     |
+| response-rate proxy   | Technical but acceptable | expected response-rate indicator from historical response behaviour                        |
+| validation periods    | Good if defensible       | 6 monthly validation periods / 6 historical windows / 6 scoring runs                       |
+
+Recommended wording:
+
+```text
+Produced a model validation pack with lift charts, calibration checks and score-band stability tables across 6 validation periods before releasing ranked customer score tables.
+```
+
+This is already concrete. Keep it.
+
+---
+
+# Final grounded Sainsbury platform block
+
+```text
+Data Analyst
+Customer Response & Promotion Analytics Platform - Exeter, UK | May 2025 - Present
+Customer response analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to test promotion audience cut-offs across 2.35B rows of customer activity, lifecycle and response-history data.
+
+- Built SQL, BigQuery and Python/PySpark ETL tables across 2.35B rows of customer activity, lifecycle and response-history data, joining customer status, past response behaviour and activity counts into scoring and dashboard source tables.
+
+- Created segment tables for 7 offer, retention and intervention audiences, adding customer counts, response-history fields and target-customer flags for offer targeting.
+
+- Validated propensity ranking quality by capturing 42% of target customers in the top 20% score band, producing a ranked customer table for promotion audience selection.
+
+- Tested 5 score cut-offs for offer targeting, reducing historically low-response customers in the selected audience by 11% while preserving 91% target-customer coverage.
+
+- Produced a model validation pack with lift charts, calibration checks and score-band stability tables across 6 validation periods before releasing ranked customer score tables.
+
+- Compared 3 promotion audience options across audience size, target-customer capture, expected response-rate, low-response customer removal and coverage, producing a recommendation memo on which cut-off to use for offer targeting.
+
+- Built Power BI / Looker dashboard views showing audience size, score-band distribution, target-customer coverage and low-response customer mix across cut-off options.
+```
+
+# Final grounding decisions still needed
+
+Before final submission, lock these:
+
+```text
+1. What exactly is “target customer”?
+   promotion responder / likely responder / campaign-eligible customer / high-benefit customer
+
+2. What exactly is “low-response customer”?
+   historical non-responder / low predicted response / low-benefit segment / low-conversion group
+
+3. What were the 5 score cut-offs?
+   example: top 5%, 10%, 20%, 30%, 40%
+
+4. What were the 6 validation periods?
+   monthly windows / scoring runs / historical response windows
+
+5. Was the dashboard real enough to claim?
+   Power BI, Looker, or both; dashboard views or full dashboard; refresh cadence if available
+```
+
+# Grounding rule for final audit
+
+Use this test on every line:
+
+```text
+Can the hiring manager picture the table, dashboard, chart, memo, cut-off, customer group, metric or report?
+```
+
+If not, replace the phrase with the actual object. Ben’s strongest bullets work because the reader sees conveyors, glue failures, shutdowns and custom rollers; Mark’s work because the reader sees teasers, due diligence reports, buyer lists and an M&A database. For this CV, the equivalent must be **ETL tables, score bands, ranked customer tables, cut-off tests, validation packs, dashboards and recommendation memos**.
