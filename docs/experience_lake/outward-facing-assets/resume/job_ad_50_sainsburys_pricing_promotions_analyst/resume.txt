@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Commercial Data Analyst using SQL, BigQuery and Python/PySpark to analyse promotion response, customer audiences and commercial trade-offs across large customer activity datasets. Built ETL tables, validation packs, Power BI/Looker dashboard views and recommendation memos comparing promotion options by responder capture, expected response rate, low-response removal and coverage. Used score-band and cut-off analysis to turn unclear promotion-performance questions into structured recommendations for commercial review.
+Commercial Data Analyst using SQL, BigQuery and Python/PySpark to analyse promotion response, customer audiences and commercial trade-offs across large activity datasets. Built ETL tables, Power BI/Looker dashboard views and recommendation memos comparing promotion options by expected response rate, responder coverage and low-response removal.
 
 TECHNICAL SKILLS
 

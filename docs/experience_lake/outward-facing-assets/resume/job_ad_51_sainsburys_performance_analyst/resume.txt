@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Performance Analyst with experience using BigQuery SQL, Power BI, Looker, Excel/VBA and Python to build KPI tables, dashboards, variance reports and reporting QA checks. Turned metric movements into root-cause summaries, option rankings and recurring report improvements for commercial and operational review.
+Performance Analyst using BigQuery SQL, Power BI, Looker, Excel/VBA and Python to build KPI tables, dashboards and reporting QA checks. Investigated KPI movement, variance drivers and performance options to produce root-cause summaries and ranked recommendations for commercial and operational review.
 
 TECHNICAL SKILLS
 
