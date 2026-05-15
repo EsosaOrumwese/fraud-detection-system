@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Product Data Scientist using SQL, BigQuery, Python and Looker to analyse customer behaviour, A/B experiment results and transaction-value metrics. Built user-behaviour tables, Looker reports and experiment readouts across a 2.35B-row customer dataset. Used response-rate variance, score-band and transaction-value analysis to explain metric movement and support customer-selection reviews, including a 120,000-customer test that increased response rate from 8.4% to 10.1%.
+Product Data Scientist using SQL, BigQuery, Python and Looker to analyse customer behaviour, A/B experiment results and transaction-value metrics. Built user-behaviour tables, Looker reports and experiment readouts across a 2.35B-row customer dataset. Used response-rate variance, score-band and transaction-value analysis to explain metric movement and support customer-selection reviews.
 
 TECHNICAL SKILLS
 
@@ -18,10 +18,10 @@ Commercial Analysis: transaction-value analysis, high-benefit customer analysis,
 RELEVANT EXPERIENCE
 
 Data Scientist
-Product Analytics & Customer Behaviour Platform - Exeter, UK | May 2025 - Present
-Built a SQL, BigQuery, Python and Looker analytics platform for analysing customer activity, response history, A/B test results and transaction-value metrics across a 2.35B-row customer behaviour dataset. Produced user-behaviour tables, Looker reports, experiment readouts, variance analysis and customer-selection review tables.
+Product Analytics & Customer Behaviour Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Built a SQL, BigQuery, Python and Looker analytics platform for analysing customer activity, response history, A/B test results and transaction-value metrics across a 2.35B-row customer behaviour dataset. Used the platform to prepare user-behaviour tables, recurring Looker reports, experiment readouts, metric-movement investigations and customer-selection review tables.
 
-- Built BigQuery user-behaviour tables across 2.35B customer activity, transaction and response-history records, joining the data needed to compare activity frequency, repeat usage, response rate and transaction value before customer-selection reviews.
+- Built BigQuery user-behaviour tables across 2.35B customer activity, transaction and response-history records, joining the data needed to compare activity frequency, repeat usage, response rate and transaction value before engagement and customer-selection reviews.
 - Developed a recurring Looker customer-behaviour report showing response-rate movement, repeat usage and high-benefit customer concentration across score bands, reducing the need for repeated BigQuery extracts during segment reviews.
 - Ran a 120,000-customer A/B test before changing customer-selection logic; the top-score-band treatment increased response rate from 8.4% to 10.1% while keeping low-yield inclusion below 15%.
 - Created a targeting-threshold review table showing where high-response customers concentrated by score band, narrowing the next selection-change discussion to score cutoffs rather than broad customer segments.
