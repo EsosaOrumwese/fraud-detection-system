@@ -8,11 +8,11 @@ Fraud Detection Analyst using SQL, BigQuery and Looker to analyse account, usage
 
 TECHNICAL SKILLS
 
-Data Platforms: SQL, Google BigQuery, SQL views, BigQuery fraud tables
-BI & Reporting: Google Looker, fraud dashboards, account-behaviour reports
-Fraud Analytics: fraud trend analysis, detection rules, anomaly thresholds, risk indicators
-Investigation Analysis: high-risk account profiles, suspicious behaviour timelines, case evidence packs
-Python & Validation: Python, Pandas, NumPy, PySpark, lift analysis, calibration checks
+SQL & Data: SQL, Google BigQuery, SQL views, BigQuery risk tables
+Looker & Reporting: Google Looker, fraud-risk dashboards, account-behaviour reports
+Fraud Detection: fraud trend analysis, detection-rule recommendations, rule-trigger baselines, fraud-risk indicators
+Investigation Evidence: SQL case-detail queries, high-risk account profiles, suspicious-behaviour timelines, case evidence packs
+Python: Python, Pandas, NumPy, baseline comparison, model-output review
 
 RELEVANT EXPERIENCE
 
@@ -20,36 +20,35 @@ Data Scientist
 Fraud & Behavioural Risk Analytics Platform — Exeter, UK | May 2025 – Present
 Built a SQL, BigQuery, Looker and Python analytics platform for reviewing suspicious account, usage and transaction behaviour across a 2.35B-row activity surface. Produced fraud-risk indicators, Looker dashboards, detection-rule recommendations, case evidence packs and rule rationale memos for fraud, data science and engineering review.
 
-- Built SQL and BigQuery fraud trend queries over a 2.35B-row behaviour surface, producing 12 fraud-risk indicators for suspicious account, usage and transaction patterns.
-- Created Looker fraud and account-behaviour dashboards tracking 10 risk metrics, giving fraud/risk stakeholders a recurring view of abnormal platform activity.
-- Formulated 6 fraud detection rules from behavioural analysis, improving known-risk case capture by 27% versus the existing rule-trigger baseline.
-- Produced 38 fraud case evidence packs using SQL case-detail queries, high-risk account profiles and suspicious behaviour timelines.
-- Maintained 9 BigQuery fraud tables, SQL views and Looker source tables for fraud dashboards, improving refresh time by 34% and supporting data science and engineering review.
-- Wrote fraud-rule rationale memos summarising 6 rule recommendations, validation results and investigation findings for fraud, data science, engineering and wider stakeholder review.
+- Analysed suspicious account, usage and transaction behaviour in BigQuery across a 2.35B-row activity surface, turning recurring fraud-pattern checks into reviewable risk indicators for fraud trend analysis.
+- Built Looker fraud-risk dashboards from BigQuery risk tables, giving reviewers a recurring view of abnormal account, usage and transaction patterns without relying only on one-off SQL extracts.
+- Converted high-signal behaviour patterns into six detection-rule recommendations, validating them against the existing rule-trigger baseline and improving known-risk case capture by 27%.
+- Produced 38 fraud case evidence packs using SQL case-detail queries, high-risk account profiles and suspicious-behaviour timelines for suspected misuse review.
+- Improved the BigQuery and Looker reporting layer behind fraud-risk reviews, cutting dashboard refresh time by 34% and preparing rule rationale memos for fraud, data science and engineering review.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Behavioural modelling project using smartphone sensor signals to classify movement and identity patterns, evaluate model robustness and translate behavioural outputs into risk indicators.
+Python modelling project using smartphone sensor signals to classify movement and identity patterns, compare model performance against a baseline, and document reliability limits across trips, users and transport modes.
 
-- Trained deep learning models on smartphone sensor windows to classify transport mode and driver identity from accelerometer, gyroscope and trip signals.
+- Trained deep-learning models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity from behavioural sensor data.
 - Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared modelling workflow for movement-pattern and identity recognition tasks.
-- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, identifying failure cases and translating sensor behaviour into stakeholder-facing risk indicators.
+- Tested model reliability across 1,200 trips, 60 users and 5 transport modes, documenting misclassification patterns linked to trip type, user variation and sensor-signal quality.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
-Trend-analysis project using country-sector activity and policy-response datasets to detect abnormal recovery patterns, explain drivers and produce decision-ready recommendations.
+Trend-analysis project using country-sector activity and policy-response datasets to compare movements against pre-crisis baselines, separate abnormal patterns, and explain likely drivers.
 
 - Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
-- Linked abnormal activity movements to policy-response signals across 6 countries and 8 policy areas, explaining the external drivers behind recovery pattern changes.
-- Produced a visual trend report with 3 recommendations, turning complex pattern analysis into a clear decision summary for non-technical stakeholders.
+- Linked abnormal activity movements to 8 policy-response areas across 6 countries, showing where restrictions, support measures and reopening signals aligned with recovery-pattern changes.
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-driver tables to summarise which sectors rebounded, remained disrupted or structurally shifted.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
-Operations data analysis role using Excel, VBA and Power BI to reconcile completions records, flag reporting exceptions and prepare manager-facing operational visibility reports.
+Operations data role using Excel, VBA and Power BI to reconcile field records, flag reporting exceptions, and prepare manager-facing operational reports.
 
 - Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting handover entries by 32% before supervisor review.
-- Created a VBA exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
-- Built a Power BI operational visibility dashboard tracking 9 job-progress, equipment-readiness and documentation-gap KPIs across 12 completions jobs / 140 rig days.
+- Created a VBA exception-flagging macro for missing, duplicated and conflicting operational records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational dashboard across 12 completions jobs and 140 rig days, tracking job progress, equipment readiness, documentation gaps and review status before manager review.
 
 EDUCATION
 
