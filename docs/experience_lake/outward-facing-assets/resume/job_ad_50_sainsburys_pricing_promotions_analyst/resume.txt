@@ -1,56 +1,56 @@
 Esosa Orumwese
-Commercial Data Analyst | Promotion Response Analytics | SQL, Python, BigQuery & Power BI
+Commercial Data Analyst | Promotion Performance & Audience Analytics | SQL, Python & BI Reporting
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Commercial Data Analyst with experience using SQL, BigQuery and Python/PySpark to analyse customer response, promotion audiences and score cut-offs. Built validation packs, dashboards and recommendation memos that helped compare offer-targeting trade-offs.
+Commercial Data Analyst using SQL, BigQuery and Python/PySpark to analyse promotion response, customer audiences and offer-targeting trade-offs across large customer activity datasets. Built ETL tables, validation packs, Power BI/Looker dashboard views and recommendation memos comparing promotion audience options by responder capture, expected response rate, low-response removal and coverage. Used score-band and cut-off analysis to turn unclear promotion-performance questions into structured recommendations for commercial review.
 
 TECHNICAL SKILLS
 
-SQL & Data: SQL, BigQuery, ETL tables, customer activity tables, dashboard source tables
-Python & Modelling: Python, PySpark, Pandas, NumPy, propensity scoring, score-band validation
-Commercial Analytics: promotion response analysis, customer segmentation, offer targeting, cut-off testing, coverage trade-offs
-BI & Reporting: Power BI, Looker, customer response dashboards, audience performance dashboards, KPI checks
-Decision Outputs: baseline comparisons, lift charts, validation packs, recommendation memos
+SQL & Data: SQL, Google BigQuery, Python/PySpark ETL tables, customer activity tables, response-history tables, dashboard source tables
+Python & Statistical Analysis: Python, PySpark, Pandas, NumPy, propensity scoring, score-band validation, lift charts, calibration checks
+Promotion Performance Analytics: promotion response analysis, audience option comparison, cut-off testing, responder capture, expected response rate, low-response removal, coverage trade-offs
+BI & Dashboarding: Power BI, Looker, promotion-response dashboards, audience performance dashboards, KPI checks, dashboard commentary
+Recommendation & Storytelling: baseline comparisons, validation packs, recommendation memos, metric movement explanation, commercial review summaries
 
 RELEVANT EXPERIENCE
 
 Data Analyst
-Customer Response & Promotion Analytics Platform - Exeter, UK | May 2025 - Present
-Customer response analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to test promotion audience cut-offs across 2.35B rows of customer activity, lifecycle and response-history data.
+Promotion Response & Commercial Trade-off Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Built a SQL, BigQuery, Python/PySpark, Power BI and Looker analytics platform for testing promotion audience cut-offs across a 2.35B-row customer activity, lifecycle and response-history dataset. Produced ETL tables, score-band validation, dashboard views and recommendation memos comparing responder capture, expected response rate, low-response removal and coverage trade-offs.
 
-- Built SQL, BigQuery and Python/PySpark ETL tables across 2.35B rows of customer activity, lifecycle and response-history data, joining customer status, past response behaviour and activity counts into scoring and dashboard source tables.
-- Created segment tables for 7 offer, retention and intervention audiences, adding customer counts, response-history fields and offer-response customer flags for offer targeting.
-- Validated propensity ranking quality by capturing 42% of customers matching the offer-response definition in the top 20% score band, producing a ranked customer table for promotion audience selection.
-- Tested 5 score cut-offs for offer targeting, reducing historically low-response customers by 11% while preserving 91% coverage of target responders.
-- Produced a model validation pack with lift charts, calibration checks and score-band stability tables across 6 validation periods before releasing ranked customer score tables.
-- Compared 3 promotion audience options across audience size, responder capture, expected response rate, low-response removal and coverage, producing a recommendation memo on the strongest cut-off for offer targeting.
-- Built Power BI / Looker dashboard views showing audience size, score-band distribution, offer-response customer coverage and historically low-response customer mix across cut-off options.
+- Built SQL, BigQuery and Python/PySpark ETL tables across 2.35B customer activity, lifecycle and response-history records, joining customer status, past response behaviour and activity counts into promotion audience and dashboard source tables.
+- Created promotion audience tables separating offer, retention and intervention groups before cut-off testing, so response-rate and coverage comparisons were not blended across different campaign objectives.
+- Validated propensity score-band quality by checking where offer-response customers concentrated in the ranking, using the top score band to test whether the model created a useful promotion audience rather than just a larger customer list.
+- Tested five promotion audience cut-offs, reducing historically low-response customers by 11% while preserving 91% coverage of target responders.
+- Produced a validation pack with lift charts, calibration checks and score-band stability tables before using ranked customer scores in dashboard views and cut-off recommendations.
+- Compared three promotion audience options across audience size, responder capture, expected response rate, low-response removal and coverage, writing a recommendation memo on the strongest cut-off for commercial review.
+- Built Power BI and Looker dashboard views showing audience size, score-band distribution, offer-response coverage and low-response mix, giving reviewers a clearer way to compare promotion options before choosing a cut-off.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Python modelling project using smartphone sensor windows to classify movement patterns, compare model performance against a baseline and document failure cases across trips, users and transport modes.
+Python modelling project using smartphone sensor windows to classify movement patterns, compare model performance against a baseline and document where model predictions failed across trips, users and transport modes.
 
 - Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity across 1,200 trips, 60 users and 5 transport modes.
 - Improved transport-mode and driver-identity classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model architecture for both classification tasks.
-- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases by trip type, user variation and sensor-signal quality.
+- Produced a model robustness report showing where predictions failed by trip type, user variation and sensor-signal quality, rather than treating headline accuracy as the only performance measure.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
 Trend-analysis project using country-sector activity data and policy-response tables to compare movements against pre-crisis baselines, isolate external drivers and produce a visual recommendation report.
 
-- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+- Built a country-sector baseline comparison across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis activity levels.
 - Investigated abnormal activity movements across 6 countries and 8 policy areas, linking shifts to restriction, support-measure and reopening signals.
-- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
+- Produced a visual recommendation report using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Operations data role using Excel, VBA and Power BI to reconcile field records, automate exception checks and produce operational KPI dashboards for manager review.
 
-- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by 32% before supervisor review.
-- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting field-report, HSE, equipment and daily-update records, cutting report review time from 45 to 25 minutes.
-- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+- Built an Excel reconciliation workbook comparing field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by 32% before supervisor review.
+- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting operational records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational KPI dashboard across 12 completions jobs and 140 rig days, tracking job progress, equipment readiness, documentation gaps and review status before manager review.
 
 EDUCATION
 
