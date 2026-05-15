@@ -1,10 +1,10 @@
 Esosa Orumwese
-Product Data Scientist | User Behaviour, A/B Testing & Product Analytics | SQL, Python & Looker
+Product Data Scientist | User Behaviour, A/B Experiments & Customer Value | SQL, Python & Looker
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Product Data Scientist using SQL, BigQuery, Python and Looker to analyse customer activity, response history, A/B tests and transaction-value metrics. Built user-behaviour tables, Looker customer reports, experiment readouts and ranked customer segment tables to explain response movements and support customer-segment reviews.
+Product Data Scientist using SQL, BigQuery, Python and Looker to analyse customer behaviour, A/B experiment results and transaction-value metrics. Built user-behaviour tables, Looker reports and experiment readouts across a 2.35B-row customer dataset. Used response-rate variance, score-band and transaction-value analysis to explain metric movement and support customer-selection reviews, including a 120,000-customer test that increased response rate from 8.4% to 10.1%.
 
 TECHNICAL SKILLS
 
@@ -17,40 +17,40 @@ Commercial Analysis: transaction-value analysis, high-benefit customers, ranked 
 RELEVANT EXPERIENCE
 
 Data Scientist
-Product Analytics & User Behaviour Platform - Exeter, UK | May 2025 - Present
-Product analytics platform using SQL, BigQuery, Python and Looker to analyse customer activity, transaction history, A/B test results and customer value metrics across a 2.35B-row customer behaviour dataset.
+Product Analytics & Customer Behaviour Platform - Exeter, UK | May 2025 - Present
+Built a SQL, BigQuery, Python and Looker analytics platform for analysing customer activity, response history, A/B test results and transaction-value metrics across a 2.35B-row customer behaviour dataset. Produced user-behaviour tables, Looker reports, experiment readouts, variance analysis and customer-selection review tables.
 
-- Built BigQuery SQL user-behaviour tables across 2.35B rows of customer activity, transaction and response-history data, tracking activity frequency, response rate, repeat activity and transaction-value metrics across customer segments.
-- Developed a Looker customer behaviour report tracking activity frequency, response rate, repeat activity and high-benefit customer concentration across 12 reporting periods.
-- Ran an A/B test across 120,000 customers comparing the existing customer-selection rule with a top-20% score-band selection, increasing response rate from 8.4% to 10.1% while keeping low-yield inclusion below 15%.
-- Built a ranked customer segment table capturing 42% of high-response customers in the top 20% score band, creating a priority list for the next targeting-threshold review.
-- Used BigQuery variance queries to investigate a 19% movement in response rate versus the previous reporting period, producing a root-cause table showing activity-volume drop, segment-mix shift, response-pattern change and source-table quality issues.
-- Built a transaction-value and high-benefit customer table, comparing customer segments by response rate, score band and share of transaction value.
-- Added 15 validation checks across BigQuery source tables and Looker reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98% for customer behaviour reporting.
+- Built BigQuery user-behaviour tables across 2.35B customer activity, transaction and response-history records, joining the data needed to compare activity frequency, repeat usage, response rate and transaction value before customer-selection reviews.
+- Developed a recurring Looker customer-behaviour report showing response-rate movement, repeat usage and high-benefit customer concentration across score bands, reducing the need for repeated BigQuery extracts during segment reviews.
+- Ran a 120,000-customer A/B test before changing customer-selection logic; the top-score-band treatment increased response rate from 8.4% to 10.1% while keeping low-yield inclusion below 15%.
+- Created a targeting-threshold review table showing where high-response customers concentrated by score band, narrowing the next selection-change discussion to score cutoffs rather than broad customer segments.
+- Investigated a 19% period-on-period response-rate movement in BigQuery, separating activity-volume drop, segment-mix shift, response-pattern change and source-table quality issues before the metric was used in the next review.
+- Built a transaction-value comparison showing which high-response segments also carried stronger transaction value, so the proposed selection change was not based on response rate alone.
+- Added validation checks across BigQuery source tables and Looker report inputs, reducing behaviour-reporting errors by 38% before recurring customer-selection reviews.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Python modelling project using smartphone accelerometer, gyroscope and trip-signal windows to classify movement behaviour and test model reliability.
+Python modelling project using smartphone accelerometer, gyroscope and trip-signal windows to classify movement behaviour, compare model performance against a baseline and test reliability across users, trips and transport modes.
 
-- Trained deep learning models on smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
-- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared model workflow for movement-pattern and identity-recognition tasks.
-- Tested model robustness across 1,200 trips, 60 users and 5 transport modes, documenting failure cases where sensor patterns were misclassified.
+- Trained deep-learning models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity from behavioural movement data.
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared workflow for movement-pattern and identity-recognition tasks.
+- Tested model reliability across 1,200 trips, 60 users and 5 transport modes, documenting where sensor patterns were misclassified by trip type, user variation and signal quality.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
-Business analytics project using country-sector activity tables and policy-response data to compare performance movements against pre-crisis baselines.
+Business analytics project using country-sector activity tables and policy-response data to compare performance movements against pre-crisis baselines and explain abnormal movement patterns.
 
-- Built a country-sector performance table across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
-- Merged activity data with 8 policy-response areas across 6 countries, explaining abnormal movement patterns through restrictions, support measures and reopening signals.
+- Built a country-sector performance table across 220 countries and 12 sectors, comparing activity movements against pre-crisis baselines to separate rebound, persistent disruption and structural-shift patterns.
+- Joined activity data with 8 policy-response areas across 6 countries, explaining which restrictions, support measures and reopening signals aligned with abnormal performance movements.
 - Produced a visual trend report with 3 recommendations, using country-sector comparisons and policy-driver charts to flag market/sector groups with persistent disruption or structural-shift patterns.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
-Operations reporting role using Excel, VBA and Power BI to reconcile field reports, HSE logs, equipment checks and daily completions records for manager review.
+Operations reporting role using Excel, VBA and Power BI to reconcile field reports, HSE logs, equipment checks and daily completions records before manager review.
 
-- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks, reducing incomplete or conflicting field-report entries by 32% before supervisor review.
+- Built an Excel reconciliation workbook comparing field reports, HSE logs, equipment checks and daily completions records, reducing incomplete or conflicting entries by 32% before supervisor review.
 - Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
-- Built a Power BI operational KPI dashboard tracking 9 metrics across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+- Built a Power BI operational KPI dashboard across 12 completions jobs and 140 rig days, tracking job progress, equipment readiness, documentation gaps and review status before manager review.
 
 EDUCATION
 
