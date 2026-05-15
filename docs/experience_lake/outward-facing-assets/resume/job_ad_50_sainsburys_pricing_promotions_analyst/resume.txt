@@ -1,32 +1,32 @@
 Esosa Orumwese
-Commercial Data Analyst | Promotion Performance & Audience Analytics | SQL, Python & BI Reporting
+Commercial Data Analyst | Promotion Performance, Customer Response & Commercial Trade-offs | SQL, Python & BI Reporting
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Commercial Data Analyst using SQL, BigQuery and Python/PySpark to analyse promotion response, customer audiences and offer-targeting trade-offs across large customer activity datasets. Built ETL tables, validation packs, Power BI/Looker dashboard views and recommendation memos comparing promotion audience options by responder capture, expected response rate, low-response removal and coverage. Used score-band and cut-off analysis to turn unclear promotion-performance questions into structured recommendations for commercial review.
+Commercial Data Analyst using SQL, BigQuery and Python/PySpark to analyse promotion response, customer audiences and commercial trade-offs across large customer activity datasets. Built ETL tables, validation packs, Power BI/Looker dashboard views and recommendation memos comparing promotion options by responder capture, expected response rate, low-response removal and coverage. Used score-band and cut-off analysis to turn unclear promotion-performance questions into structured recommendations for commercial review.
 
 TECHNICAL SKILLS
 
 SQL & Data: SQL, Google BigQuery, Python/PySpark ETL tables, customer activity tables, response-history tables, dashboard source tables
 Python & Statistical Analysis: Python, PySpark, Pandas, NumPy, propensity scoring, score-band validation, lift charts, calibration checks
-Promotion Performance Analytics: promotion response analysis, audience option comparison, cut-off testing, responder capture, expected response rate, low-response removal, coverage trade-offs
+Promotion & Commercial Analysis: promotion response analysis, audience option comparison, cut-off testing, expected response rate, responder coverage, low-response removal, commercial trade-offs
 BI & Dashboarding: Power BI, Looker, promotion-response dashboards, audience performance dashboards, KPI checks, dashboard commentary
 Recommendation & Storytelling: baseline comparisons, validation packs, recommendation memos, metric movement explanation, commercial review summaries
 
 RELEVANT EXPERIENCE
 
 Data Analyst
-Promotion Response & Commercial Trade-off Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-Built a SQL, BigQuery, Python/PySpark, Power BI and Looker analytics platform for testing promotion audience cut-offs across a 2.35B-row customer activity, lifecycle and response-history dataset. Produced ETL tables, score-band validation, dashboard views and recommendation memos comparing responder capture, expected response rate, low-response removal and coverage trade-offs.
+Promotion Response & Commercial Trade-off Analytics Platform (Independent Production Build) — Exeter, UK | May 2025 – Present
+Built a SQL, BigQuery, Python/PySpark, Power BI and Looker analytics platform for analysing promotion response and audience cut-off trade-offs across a 2.35B-row customer activity, lifecycle and response-history dataset. Produced ETL tables, score-band validation, dashboard views and recommendation memos comparing responder capture, expected response rate, low-response removal and coverage trade-offs.
 
 - Built SQL, BigQuery and Python/PySpark ETL tables across 2.35B customer activity, lifecycle and response-history records, joining customer status, past response behaviour and activity counts into promotion audience and dashboard source tables.
-- Created promotion audience tables separating offer, retention and intervention groups before cut-off testing, so response-rate and coverage comparisons were not blended across different campaign objectives.
-- Validated propensity score-band quality by checking where offer-response customers concentrated in the ranking, using the top score band to test whether the model created a useful promotion audience rather than just a larger customer list.
+- Created promotion audience tables separating campaign objectives before cut-off testing, so response-rate and coverage comparisons were not blended across different audience types.
+- Validated propensity score-band quality by checking where offer-response customers concentrated in the ranking, testing whether the model created a higher-quality promotion audience rather than simply expanding audience size.
 - Tested five promotion audience cut-offs, reducing historically low-response customers by 11% while preserving 91% coverage of target responders.
 - Produced a validation pack with lift charts, calibration checks and score-band stability tables before using ranked customer scores in dashboard views and cut-off recommendations.
 - Compared three promotion audience options across audience size, responder capture, expected response rate, low-response removal and coverage, writing a recommendation memo on the strongest cut-off for commercial review.
-- Built Power BI and Looker dashboard views showing audience size, score-band distribution, offer-response coverage and low-response mix, giving reviewers a clearer way to compare promotion options before choosing a cut-off.
+- Built Power BI and Looker dashboard views showing audience size, score-band distribution, offer-response coverage and low-response mix, giving reviewers a clearer way to compare promotion trade-offs before choosing a cut-off.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
