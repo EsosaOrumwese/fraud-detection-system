@@ -8,48 +8,48 @@ Performance Analyst using BigQuery SQL, Power BI, Looker, Excel/VBA and Python t
 
 TECHNICAL SKILLS
 
-SQL & Data: SQL, BigQuery, KPI tables, dashboard source tables, variance queries, reporting QA
-BI & Reporting: Power BI, Looker, KPI dashboards, trend charts, performance reports
-Excel & Automation: Excel, pivot tables, lookups, index/match, VBA refresh macros
-Commercial Analysis: variance analysis, baseline comparison, pre/post analysis, root-cause analysis, option ranking
-Data Quality: validation checks, reconciliation, dashboard refresh checks, report QA, data limitation notes
+SQL & KPI Data: SQL, Google BigQuery, KPI tables, dashboard source tables, variance queries, period-comparison tables
+Performance Reporting & Visualisation: Power BI, Looker, KPI dashboards, trend charts, performance reports, dashboard commentary
+Performance Analysis & Deep Dives: KPI movement analysis, variance analysis, baseline comparison, pre/post analysis, root-cause analysis, option ranking
+Excel & Automation: Excel, pivot tables, lookups, index/match, VBA refresh macros, exception-flagging checks
+Reporting QA & Robustness: validation checks, reconciliation, dashboard refresh checks, report QA, data limitation notes
 
 RELEVANT EXPERIENCE
 
-Data Scientist
-Commercial KPI Reporting & Variance Analysis Platform - Exeter, UK | May 2025 - Present
-BigQuery, Looker and Power BI reporting platform using SQL KPI tables, dashboard source tables, period-comparison reports and validation checks across 2.35B rows of customer activity, transaction and response-history data.
+Data Analyst
+Commercial Performance Reporting & Variance Analysis Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Built a BigQuery, Looker and Power BI reporting platform for turning customer activity, transaction and response-history data into KPI source tables, period-comparison reports, variance analysis and reporting QA checks across a 2.35B-row data surface.
 
-- Built BigQuery SQL KPI tables across 2.35B rows of customer activity, transaction and response-history data, creating 6 dashboard source tables for weekly Looker/Power BI commercial performance reports.
-- Developed Looker and Power BI dashboards tracking 13 KPIs across customer response, transaction movement, activity variance, exception volume and report QA across 12 reporting periods.
-- Used BigQuery variance queries to investigate a 19% movement in response or activity performance versus the prior reporting period, producing a root-cause table across 4 customer, transaction, process and data-quality drivers.
-- Compared 3 commercial performance options across audience size, response capture, expected value, low-response removal and coverage, producing a ranked recommendation table with trade-offs for review.
-- Built a ranked customer/segment table capturing 42% of target responders in the top 20% score band, creating a priority list for performance review and commercial action.
-- Added 15 validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+- Built BigQuery KPI tables across 2.35B customer activity, transaction and response-history records, turning raw performance data into dashboard source tables for weekly Looker and Power BI reporting.
+- Developed Looker and Power BI performance dashboards showing customer response, transaction movement, activity variance, exception volume and report QA, giving reviewers a recurring view of where KPI performance changed.
+- Investigated a 19% period-on-period movement in response/activity performance, separating the variance into customer, transaction, process and data-quality drivers before the next commercial performance review.
+- Compared three performance options across audience size, response capture, expected value, low-response removal and coverage, producing a ranked recommendation table that showed the trade-off behind each option.
+- Reframed the ranked customer/segment table as a performance-prioritisation view, showing where target responders concentrated by score band so reviewers could focus follow-up analysis on higher-yield segments.
+- Added validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
-Operations reporting role using Excel, VBA and Power BI to reconcile field reports, HSE logs, equipment checks and daily completions records for manager review.
+Operations reporting role using Excel, VBA and Power BI to reconcile field records, automate exception checks and prepare manager-facing KPI dashboards for daily completions review.
 
-- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks, reducing incomplete or conflicting field-report entries by 32% before supervisor review.
-- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
-- Built a Power BI operational KPI dashboard tracking 9 metrics across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+- Built an Excel reconciliation workbook comparing field reports, HSE logs, equipment checks and daily completions records, reducing incomplete or conflicting entries by 32% before supervisor review.
+- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting operational records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational KPI dashboard across 12 completions jobs and 140 rig days, tracking job progress, equipment readiness, documentation gaps and review status before manager review.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
-Business analytics project using country-sector activity tables and policy-response data to compare performance movements against pre-crisis baselines.
+Business analytics project using country-sector activity and policy-response data to compare performance movements against pre-crisis baselines, isolate movement drivers and produce a visual recommendation report.
 
 - Built a country-sector performance table across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
-- Merged activity data with 8 policy-response areas across 6 countries, explaining abnormal movement patterns through restrictions, support measures and reopening signals.
-- Produced a visual trend report with 3 recommendations, using country-sector comparisons and policy-driver charts to flag market/sector groups with persistent disruption or structural-shift patterns.
+- Joined activity data with 8 policy-response areas across 6 countries, showing where restrictions, support measures and reopening signals aligned with abnormal performance movements.
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-driver tables to flag sectors that rebounded, remained disrupted or structurally shifted.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Behavioural modelling project using smartphone accelerometer, gyroscope and trip-signal data to classify transport mode, identify drivers and test model failure cases.
+Behavioural modelling project using smartphone accelerometer, gyroscope and trip-signal data to classify transport mode, identify drivers and test model failure cases across users, trips and transport modes.
 
-- Trained deep learning models on smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
+- Trained deep-learning models on smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
 - Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared model workflow for movement-pattern and identity-recognition tasks.
-- Tested model robustness across 1,200 trips, 60 users and 5 transport modes, documenting failure cases where sensor patterns were misclassified.
+- Tested model robustness across 1,200 trips, 60 users and 5 transport modes, documenting where sensor patterns were misclassified by trip type, user variation and signal quality.
 
 EDUCATION
 
