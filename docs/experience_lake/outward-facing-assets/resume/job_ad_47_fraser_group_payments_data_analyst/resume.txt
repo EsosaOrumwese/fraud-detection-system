@@ -8,7 +8,7 @@ Payments Data Analyst using SQL, BigQuery, Excel, Power BI and Looker to monitor
 
 TECHNICAL SKILLS
 
-Payments & Fraud Reporting: payment performance queries, chargeback trend queries, acceptance-rate tracking, decline-rate analysis, fraud trends
+Payments & Fraud Reporting: payment performance queries, chargeback trend queries, acceptance-rate tracking, decline-rate analysis, fraud and checkout-failure trends
 SQL & Data: SQL, Google BigQuery, transaction datasets, variance queries, data-quality checks
 Excel & Reconciliation: Excel, pivot tables, lookups, index/match, chargeback trackers, reconciliation checks
 BI & Dashboards: Power BI, Google Looker, payment dashboards, fraud/chargeback reports, dashboard validation
@@ -22,18 +22,18 @@ Built a SQL, BigQuery, Excel, Power BI and Looker analytics platform for monitor
 
 - Built BigQuery and SQL payment-performance queries across a 2.35B-row transaction and behaviour data surface, tracking acceptance rates, decline rates and checkout-failure patterns for recurring payments reporting.
 - Built a BigQuery chargeback trend query and Excel chargeback tracker, analysing 1,800 chargebacks to separate fraud, refund and payment-dispute movements across reporting periods.
-- Created Power BI and Looker payment/fraud dashboards tracking acceptance, declines, chargebacks, fraud rate and operational metrics for recurring risk and payments review.
+- Created Power BI and Looker payment/fraud dashboards tracking acceptance rates, declines, chargebacks, fraud rate and operational metrics for recurring Digital Risk and payments review.
 - Investigated a 19% unexpected increase in failed payments using BigQuery movement queries, separating provider, customer, checkout-flow and data-quality drivers before the next performance review.
-- Produced chargeback cost and checkout-performance summaries quantifying £64k cost exposure, 22% chargeback variance and an 8% payment-acceptance opportunity for finance/risk review.
+- Produced chargeback cost and checkout-performance summaries quantifying £64k cost exposure and an 8% payment-acceptance opportunity for finance and risk review.
 - Added dashboard validation checks across Looker, Power BI and BigQuery report inputs, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
 
-Data Analyst
-South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
-Operations data role using Excel, VBA and Power BI to reconcile operational records, automate exception checks and report recurring metrics for manager review.
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Behavioural modelling project using smartphone sensor data to classify movement patterns, compare model performance against a baseline and document reliability limits across trips, users and transport modes.
 
-- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by 32% before supervisor review.
-- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
-- Built a Power BI operational metrics dashboard across 12 completions jobs and 140 rig days, tracking job progress, equipment readiness, documentation gaps and review status.
+- Trained deep-learning models on smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared modelling workflow for movement-pattern and identity-recognition tasks.
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting where sensor patterns were misclassified by trip type, user variation and signal quality.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
@@ -43,13 +43,13 @@ Trend-analysis project using country-sector activity and policy-response dataset
 - Investigated abnormal activity movements across 6 countries and 8 policy areas, linking changes to external policy-response signals and explaining the drivers behind metric shifts.
 - Produced a visual trend report with 3 recommendations, using country-sector charts and policy-response tables to summarise which sectors rebounded, remained disrupted or structurally shifted.
 
-Data Scientist
-University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Behavioural modelling project using smartphone sensor data to classify movement patterns, compare model performance against a baseline and document reliability limits across trips, users and transport modes.
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data role using Excel, VBA and Power BI to reconcile operational records, automate exception checks and report recurring metrics for manager review.
 
-- Trained deep-learning models on smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
-- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared modelling workflow for movement-pattern and identity-recognition tasks.
-- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting where sensor patterns were misclassified by trip type, user variation and signal quality.
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting entries by 32% before supervisor review.
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational metrics dashboard across 12 completions jobs and 140 rig days, tracking job progress, equipment readiness, documentation gaps and review status.
 
 EDUCATION
 
