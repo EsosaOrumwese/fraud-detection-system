@@ -17,15 +17,15 @@ Analysis & Automation: Python, Pandas, NumPy, root-cause analysis, metric moveme
 RELEVANT EXPERIENCE
 
 Data Analyst
-Cloud Data Modelling & Self-Serve BI Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Cloud Data Modelling & Self-Serve BI Platform (Independent Production Build) — Exeter, UK | May 2025 – Present
 Built a cloud analytics platform for turning raw activity data into tested, documented KPI source tables and Looker self-serve reports across a 2.35B-row data surface. Used Dataform, BigQuery, Git and SQL validation checks to keep metric definitions, dashboard inputs and reporting logic reviewable before recurring KPI reporting.
 
 - Built Dataform and BigQuery SQL models over a 2.35B-row data surface, turning raw activity records into reusable KPI source tables for Looker reporting rather than relying on repeated one-off SQL extracts.
 - Modelled KPI tables around recurring reporting questions, including metric definitions, filters and aggregation logic, so dashboard users could compare performance from governed source tables instead of separate ad hoc calculations.
 - Added SQL validation checks across Dataform/BigQuery model outputs and Looker report inputs, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
 - Reconciled BigQuery source tables against Looker dashboard totals before weekly KPI refreshes, catching freshness, join, duplicate and aggregation issues before incorrect metrics reached users.
-- Managed SQL model changes through Git branches and pull-request reviews, keeping KPI SQL, dashboard source tables and reporting logic traceable across reviewed changes.
-- Documented KPI formulas, source tables, filters, model assumptions and data limitations so technical and non-technical dashboard users could interpret recurring reports consistently.
+- Managed SQL model changes through Git branches and a pull-request workflow, keeping KPI SQL, dashboard source tables and reporting logic traceable across changes.
+- Documented KPI formulas, source tables, filters, source-to-dashboard lineage, model assumptions and data limitations so technical and non-technical dashboard users could interpret recurring reports consistently.
 - Turned an unclear KPI movement question into scoped BigQuery root-cause analysis, explaining a 19% variance across operational, behavioural and data-quality drivers.
 
 Data Scientist
