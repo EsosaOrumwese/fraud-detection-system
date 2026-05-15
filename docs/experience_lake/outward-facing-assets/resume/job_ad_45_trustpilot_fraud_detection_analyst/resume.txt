@@ -1,10 +1,10 @@
 Esosa Orumwese
-Fraud Detection Analyst | SQL, BigQuery & Looker | Behavioural Pattern Detection | Detection Rules
+Fraud Detection Analyst | SQL, BigQuery & Looker | Fraud Trends, Detection Rules & Case Evidence
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Fraud-focused Data Analyst with experience using SQL, Google BigQuery and Google Looker to detect suspicious behaviour across large activity datasets. Built fraud trend queries, Looker account-behaviour dashboards, risk indicators and investigation case packs across a 2.35B-row activity surface, translating fraud analysis into clear reports for fraud, data science and engineering stakeholders.
+Fraud Detection Analyst using SQL, BigQuery and Looker to analyse account, usage and transaction behaviour for fraud-risk review. Built BigQuery fraud-trend queries, Looker risk dashboards, detection-rule recommendations and case evidence packs across a 2.35B-row activity surface. Prepared rule rationale memos linking behavioural evidence, validation results and investigation findings for fraud, data science and engineering review.
 
 TECHNICAL SKILLS
 
@@ -17,13 +17,13 @@ Python & Validation: Python, Pandas, NumPy, PySpark, lift analysis, calibration 
 RELEVANT EXPERIENCE
 
 Data Scientist
-Behavioural Risk Analytics Platform — Exeter, UK | May 2025 – Present
-SQL, BigQuery, Looker and Python platform for analysing account, usage and transaction behaviour, producing fraud-risk indicators, detection-rule recommendations, dashboards and case review packs across a 2.35B-row activity surface.
+Fraud & Behavioural Risk Analytics Platform — Exeter, UK | May 2025 – Present
+Built a SQL, BigQuery, Looker and Python analytics platform for reviewing suspicious account, usage and transaction behaviour across a 2.35B-row activity surface. Produced fraud-risk indicators, Looker dashboards, detection-rule recommendations, case evidence packs and rule rationale memos for fraud, data science and engineering review.
 
 - Built SQL and BigQuery fraud trend queries over a 2.35B-row behaviour surface, producing 12 fraud-risk indicators for suspicious account, usage and transaction patterns.
 - Created Looker fraud and account-behaviour dashboards tracking 10 risk metrics, giving fraud/risk stakeholders a recurring view of abnormal platform activity.
 - Formulated 6 fraud detection rules from behavioural analysis, improving known-risk case capture by 27% versus the existing rule-trigger baseline.
-- Produced 38 fraud case review packs using SQL case-detail queries, high-risk account profiles and suspicious behaviour timelines.
+- Produced 38 fraud case evidence packs using SQL case-detail queries, high-risk account profiles and suspicious behaviour timelines.
 - Maintained 9 BigQuery fraud tables, SQL views and Looker source tables for fraud dashboards, improving refresh time by 34% and supporting data science and engineering review.
 - Wrote fraud-rule rationale memos summarising 6 rule recommendations, validation results and investigation findings for fraud, data science, engineering and wider stakeholder review.
 
