@@ -10,7 +10,7 @@ TECHNICAL SKILLS
 
 SQL & KPI Data: SQL, Google BigQuery, KPI tables, dashboard source tables, variance queries, period-comparison tables
 Performance Reporting & Visualisation: Power BI, Looker, KPI dashboards, trend charts, performance reports, dashboard commentary
-Performance Analysis & Deep Dives: KPI movement analysis, variance analysis, baseline comparison, pre/post analysis, root-cause analysis, option ranking
+Performance Analysis & Deep Dives: KPI movement analysis, variance analysis, baseline comparison, pre/post analysis, opportunity ranking, root-cause analysis
 Excel & Automation: Excel, pivot tables, lookups, index/match, VBA refresh macros, exception-flagging checks
 Reporting QA & Robustness: validation checks, reconciliation, dashboard refresh checks, report QA, data limitation notes
 
@@ -21,10 +21,10 @@ Commercial Performance Reporting & Variance Analysis Platform (Independent Produ
 Built a BigQuery, Looker and Power BI reporting platform for turning customer activity, transaction and response-history data into KPI source tables, period-comparison reports, variance analysis and reporting QA checks across a 2.35B-row data surface.
 
 - Built BigQuery KPI tables across 2.35B customer activity, transaction and response-history records, turning raw performance data into dashboard source tables for weekly Looker and Power BI reporting.
-- Developed Looker and Power BI performance dashboards showing customer response, transaction movement, activity variance, exception volume and report QA, giving reviewers a recurring view of where KPI performance changed.
-- Investigated a 19% period-on-period movement in response/activity performance, separating the variance into customer, transaction, process and data-quality drivers before the next commercial performance review.
-- Compared three performance options across audience size, response capture, expected value, low-response removal and coverage, producing a ranked recommendation table that showed the trade-off behind each option.
-- Reframed the ranked customer/segment table as a performance-prioritisation view, showing where target responders concentrated by score band so reviewers could focus follow-up analysis on higher-yield segments.
+- Developed Looker and Power BI performance dashboards showing transaction movement, activity variance, exception volume and report QA, giving reviewers a recurring view of where KPI performance changed.
+- Investigated a 19% period-on-period KPI movement in BigQuery, separating the variance into customer, transaction, process and data-quality drivers before the next commercial performance review.
+- Compared three performance options across expected value, response capture, low-response removal and coverage, producing a ranked recommendation table that showed the commercial trade-off behind each option.
+- Built a performance-prioritisation view ranking segments by expected value, response concentration and coverage, helping reviewers focus follow-up analysis on the strongest opportunity areas.
 - Added validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
 
 Data Analyst
