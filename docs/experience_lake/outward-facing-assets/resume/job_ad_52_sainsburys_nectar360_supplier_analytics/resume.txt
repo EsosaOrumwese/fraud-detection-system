@@ -1,48 +1,48 @@
 Esosa Orumwese
-Commercial Data Analyst | Customer Segmentation & Supplier Analytics | SQL, BigQuery & Power BI
+Commercial Data Analyst | Customer Segmentation & Recommendation Reporting | SQL, BigQuery & Power BI
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Commercial Data Analyst using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to build customer activity tables, segment tables, score-band reports and dashboard views across 2.35B rows of customer activity, lifecycle and response-history data. Produced model validation packs and recommendation memos from customer segment and score-band analysis.
+Commercial Data Analyst using SQL, BigQuery, Python/PySpark, Power BI and Looker to analyse customer activity, lifecycle and response-history data across a 2.35B-row dataset. Built customer segment tables, score-band reports and BI dashboard views to compare segment size, response-history mix, high-response customer coverage and expected response rate. Produced model validation packs and recommendation memos comparing customer-selection options for commercial review.
 
 TECHNICAL SKILLS
 
-SQL & Data Platforms: SQL, Google BigQuery, ETL tables, customer activity tables, dashboard source tables
+SQL & Data Platforms: SQL, Google BigQuery, Python/PySpark, customer activity tables, dashboard source tables
 Customer Analytics: customer segmentation, lifecycle-response analysis, score-band analysis, response-history analysis
-Python & Modelling: Python, PySpark, Pandas, NumPy, propensity scoring, lift charts, calibration checks
+Model Output Review: propensity score interpretation, lift charts, calibration checks, score-band stability tables
 BI & Reporting: Power BI, Looker, customer segment dashboards, score-band views, visual recommendation reports
-Stakeholder Outputs: recommendation memos, dashboard commentary, model-output summaries, non-technical reports
+Commercial Outputs: recommendation memos, segment option comparisons, dashboard commentary, non-technical reports
 
 RELEVANT EXPERIENCE
 
 Data Analyst
-Customer Behaviour & Segmentation Analytics Platform - Exeter, UK | May 2025 - Present
-Customer segmentation analytics platform using SQL, Google BigQuery, Python/PySpark, Power BI and Looker to turn 2.35B rows of customer activity, lifecycle and response-history data into segment tables, score-band reports, validation packs and recommendation memos.
+Customer Segmentation & Commercial Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Built a SQL, BigQuery, Python/PySpark, Power BI and Looker analytics platform for turning customer activity, lifecycle and response-history data into segment tables, score-band reports, validation packs, BI dashboard views and recommendation memos across a 2.35B-row dataset.
 
-- Built SQL, BigQuery and Python/PySpark ETL tables across 2.35B rows of customer activity, lifecycle and response-history data, using joins, aggregations and score-band ranking logic to create customer segment and dashboard source tables.
-- Built lifecycle-response tables using customer status, activity level and response-history windows, separating customer groups before segmentation and score-band reporting.
-- Created customer segment tables for 7 groups, adding customer counts, response-history fields, score-band labels and high-response customer flags for customer segment reports.
-- Interpreted propensity score outputs by capturing 42% of historically high-response customers in the top 20% score band, producing a ranked customer table for segment and model-output review.
-- Produced a model validation pack with lift charts, calibration checks and score-band stability tables across 6 validation periods before releasing ranked customer score tables.
-- Built Power BI / Looker dashboard views showing segment size, score-band distribution, response-history mix and historically high-response customer coverage across 7 customer segments.
-- Turned SQL tables, segment outputs and score-band dashboard views into a recommendation memo comparing 3 customer segment options across 5 measures: segment size, score-band capture, expected response-rate, low-response mix and coverage.
+- Built BigQuery and Python/PySpark customer-analysis tables across 2.35B activity, lifecycle and response-history records, using joins, aggregations and score-band ranking logic to create reusable segment and dashboard source tables.
+- Built lifecycle-response tables separating customers by status, activity level and response-history window before segmentation, so score-band reports did not mix customers with different behaviour histories.
+- Created 7 customer segment tables with customer counts, response-history fields, score-band labels and high-response flags, giving reviewers a consistent way to compare segment size, response quality and targeting priority.
+- Analysed score-band outputs showing that the top 20% score band captured 42% of historically high-response customers, producing a ranked customer table for segment and model-output review.
+- Produced a model validation pack across 6 validation periods, using lift charts, calibration checks and score-band stability tables before releasing ranked customer score tables.
+- Built Power BI and Looker dashboard views showing segment size, score-band distribution, response-history mix and high-response customer coverage across 7 customer segments.
+- Wrote a recommendation memo comparing 3 customer-selection options across segment size, score-band capture, expected response rate, low-response mix and coverage, using SQL outputs and dashboard views to support the final recommendation.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Python modelling project using smartphone sensor windows to classify movement patterns, compare model performance against a baseline and document failure cases across trips, users and transport modes.
+Python modelling project using smartphone sensor windows to classify movement behaviour, compare model performance against a baseline and document reliability limits across trips, users and transport modes.
 
 - Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity across 1,200 trips, 60 users and 5 transport modes.
 - Improved transport-mode and driver-identity classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model architecture for both classification tasks.
-- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases by trip type, user variation and sensor-signal quality.
+- Produced a model robustness report showing where predictions failed by trip type, user variation and sensor-signal quality, rather than reporting accuracy as a single headline metric.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
 Trend-analysis project using country-sector activity data and policy-response tables to compare movements against pre-crisis baselines, isolate external drivers and produce a visual recommendation report.
 
-- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+- Built a country-sector trend table across 220 countries and 12 sectors, comparing activity movements against pre-crisis baselines to separate rebound, persistent disruption and structural-shift patterns.
 - Investigated abnormal activity movements across 6 countries and 8 policy areas, linking shifts to restriction, support-measure and reopening signals.
-- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
+- Produced a visual recommendation report using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022

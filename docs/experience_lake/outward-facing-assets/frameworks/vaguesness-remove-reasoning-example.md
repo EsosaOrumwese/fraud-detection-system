@@ -9,6 +9,12 @@ The core principle is:
 
 A recruiter is not reading the CV like a portfolio reviewer. They are scanning for evidence that the candidate can do this specific job, with low hiring risk, quickly enough that they can justify moving the candidate forward.
 
+Standing resume convention:
+
+```text
+For platform/project experience blocks, add "(Independent Production Build)" to the platform title line unless the experience is an external employer role or the user explicitly asks otherwise.
+```
+
 ---
 
 # Methodology
