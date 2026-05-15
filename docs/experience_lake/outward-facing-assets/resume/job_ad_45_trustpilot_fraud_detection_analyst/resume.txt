@@ -1,30 +1,30 @@
 Esosa Orumwese
-Fraud Detection Analyst | SQL, BigQuery & Looker | Fraud Trends, Detection Rules & Case Evidence
+Fraud Detection Analyst | SQL, BigQuery & Looker | Fraud Trends, Rule Recommendations & Case Evidence
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Fraud Detection Analyst using SQL, BigQuery and Looker to analyse account, usage and transaction behaviour for fraud-risk review. Built BigQuery fraud-trend queries, Looker risk dashboards, detection-rule recommendations and case evidence packs across a 2.35B-row activity surface. Prepared rule rationale memos linking behavioural evidence, validation results and investigation findings for fraud, data science and engineering review.
+Fraud Detection Analyst using SQL, BigQuery and Looker to analyse account, usage and transaction behaviour for fraud-risk review. Built BigQuery fraud-trend queries, Looker risk dashboards and case evidence packs across a 2.35B-row activity surface. Prepared detection-rule recommendations and rule-rationale memos linking behavioural evidence, validation results and investigation findings for fraud, data science and engineering review.
 
 TECHNICAL SKILLS
 
-SQL & Data: SQL, Google BigQuery, SQL views, BigQuery risk tables
+SQL & Data: SQL, Google BigQuery, SQL views, BigQuery fraud-risk tables
 Looker & Reporting: Google Looker, fraud-risk dashboards, account-behaviour reports
 Fraud Detection: fraud trend analysis, detection-rule recommendations, rule-trigger baselines, fraud-risk indicators
 Investigation Evidence: SQL case-detail queries, high-risk account profiles, suspicious-behaviour timelines, case evidence packs
-Python: Python, Pandas, NumPy, baseline comparison, model-output review
+Python: Python, Pandas, NumPy, baseline comparison, validation checks
 
 RELEVANT EXPERIENCE
 
 Data Scientist
-Fraud & Behavioural Risk Analytics Platform — Exeter, UK | May 2025 – Present
-Built a SQL, BigQuery, Looker and Python analytics platform for reviewing suspicious account, usage and transaction behaviour across a 2.35B-row activity surface. Produced fraud-risk indicators, Looker dashboards, detection-rule recommendations, case evidence packs and rule rationale memos for fraud, data science and engineering review.
+Fraud & Behavioural Risk Analytics Platform (Independent Production Build) — Exeter, UK | May 2025 – Present
+Built an independent SQL, BigQuery, Looker and Python fraud-risk analytics platform for reviewing account, usage and transaction behaviour across a 2.35B-row activity surface. The platform produced recurring fraud-trend checks, Looker monitoring views, detection-rule recommendations, case evidence packs and rule-rationale memos for fraud, data science and engineering review.
 
 - Analysed suspicious account, usage and transaction behaviour in BigQuery across a 2.35B-row activity surface, turning recurring fraud-pattern checks into reviewable risk indicators for fraud trend analysis.
-- Built Looker fraud-risk dashboards from BigQuery risk tables, giving reviewers a recurring view of abnormal account, usage and transaction patterns without relying only on one-off SQL extracts.
-- Converted high-signal behaviour patterns into six detection-rule recommendations, validating them against the existing rule-trigger baseline and improving known-risk case capture by 27%.
+- Built Looker fraud-risk dashboards from BigQuery fraud-risk tables, giving reviewers a recurring view of abnormal account, usage and transaction patterns without relying only on one-off SQL extracts.
+- Converted high-signal behaviour patterns into detection-rule recommendations, validating them against the existing rule-trigger baseline and improving known-risk case capture by 27%.
 - Produced 38 fraud case evidence packs using SQL case-detail queries, high-risk account profiles and suspicious-behaviour timelines for suspected misuse review.
-- Improved the BigQuery and Looker reporting layer behind fraud-risk reviews, cutting dashboard refresh time by 34% and preparing rule rationale memos for fraud, data science and engineering review.
+- Improved the BigQuery and Looker reporting layer behind fraud-risk reviews, cutting dashboard refresh time by 34% and preparing rule-rationale memos for fraud, data science and engineering review.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
@@ -40,14 +40,14 @@ Trend-analysis project using country-sector activity and policy-response dataset
 
 - Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
 - Linked abnormal activity movements to 8 policy-response areas across 6 countries, showing where restrictions, support measures and reopening signals aligned with recovery-pattern changes.
-- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-driver tables to summarise which sectors rebounded, remained disrupted or structurally shifted.
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-driver tables to show which sectors rebounded, remained disrupted or structurally shifted.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Operations data role using Excel, VBA and Power BI to reconcile field records, flag reporting exceptions, and prepare manager-facing operational reports.
 
 - Built an Excel reconciliation workbook for field reports, HSE logs, equipment checks and daily completions updates, reducing incomplete or conflicting handover entries by 32% before supervisor review.
-- Created a VBA exception-flagging macro for missing, duplicated and conflicting operational records, cutting report review time from 45 to 25 minutes.
+- Created a VBA exception-flagging macro for missing, duplicated and conflicting field-report records, cutting supervisor review time from 45 to 25 minutes.
 - Built a Power BI operational dashboard across 12 completions jobs and 140 rig days, tracking job progress, equipment readiness, documentation gaps and review status before manager review.
 
 EDUCATION

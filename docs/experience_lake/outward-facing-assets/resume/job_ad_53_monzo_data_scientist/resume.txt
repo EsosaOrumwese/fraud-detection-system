@@ -8,11 +8,12 @@ Product Data Scientist using SQL, BigQuery, Python and Looker to analyse custome
 
 TECHNICAL SKILLS
 
-Product Analytics: user behaviour analysis, response-rate analysis, customer segmentation, A/B testing, experiment readouts
-SQL & Data: SQL, Google BigQuery, user-behaviour tables, variance queries, metric definitions
-Python & Statistics: Python, Pandas, NumPy, baseline comparison, model evaluation, robustness testing
-BI & Reporting: Google Looker, Power BI, product metrics reports, KPI dashboards, validation checks
-Commercial Analysis: transaction-value analysis, high-benefit customers, ranked segment tables, option-comparison tables
+Product Analytics: user behaviour analysis, response-rate analysis, customer segmentation, experiment readouts, metric movement analysis
+Experimentation: A/B testing, control/treatment comparison, guardrail metrics, baseline comparison
+SQL & Data: SQL, Google BigQuery, user-behaviour tables, variance queries, metric definitions, validation checks
+Python & Statistics: Python, Pandas, NumPy, model evaluation, robustness testing
+BI & Reporting: Google Looker, Power BI, customer behaviour reports, product metrics dashboards
+Commercial Analysis: transaction-value analysis, high-benefit customer analysis, score-band analysis, customer-selection reviews
 
 RELEVANT EXPERIENCE
 
