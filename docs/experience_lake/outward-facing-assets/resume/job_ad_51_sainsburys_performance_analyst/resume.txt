@@ -27,13 +27,13 @@ Built a BigQuery, Looker and Power BI reporting platform for turning customer ac
 - Built a performance-prioritisation view ranking segments by expected value, response concentration and coverage, helping reviewers focus follow-up analysis on the strongest opportunity areas.
 - Added validation checks across BigQuery dashboard source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
 
-Data Analyst
-South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
-Operations reporting role using Excel, VBA and Power BI to reconcile field records, automate exception checks and prepare manager-facing KPI dashboards for daily completions review.
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Behavioural modelling project using smartphone accelerometer, gyroscope and trip-signal data to classify transport mode, identify drivers and test model failure cases across users, trips and transport modes.
 
-- Built an Excel reconciliation workbook comparing field reports, HSE logs, equipment checks and daily completions records, reducing incomplete or conflicting entries by 32% before supervisor review.
-- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting operational records, cutting report review time from 45 to 25 minutes.
-- Built a Power BI operational KPI dashboard across 12 completions jobs and 140 rig days, tracking job progress, equipment readiness, documentation gaps and review status before manager review.
+- Trained deep-learning models on smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared model workflow for movement-pattern and identity-recognition tasks.
+- Tested model robustness across 1,200 trips, 60 users and 5 transport modes, documenting where sensor patterns were misclassified by trip type, user variation and signal quality.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
@@ -43,13 +43,13 @@ Business analytics project using country-sector activity and policy-response dat
 - Joined activity data with 8 policy-response areas across 6 countries, showing where restrictions, support measures and reopening signals aligned with abnormal performance movements.
 - Produced a visual trend report with 3 recommendations, using country-sector charts and policy-driver tables to flag sectors that rebounded, remained disrupted or structurally shifted.
 
-Data Scientist
-University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Behavioural modelling project using smartphone accelerometer, gyroscope and trip-signal data to classify transport mode, identify drivers and test model failure cases across users, trips and transport modes.
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations reporting role using Excel, VBA and Power BI to reconcile field records, automate exception checks and prepare manager-facing KPI dashboards for daily completions review.
 
-- Trained deep-learning models on smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
-- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared model workflow for movement-pattern and identity-recognition tasks.
-- Tested model robustness across 1,200 trips, 60 users and 5 transport modes, documenting where sensor patterns were misclassified by trip type, user variation and signal quality.
+- Built an Excel reconciliation workbook comparing field reports, HSE logs, equipment checks and daily completions records, reducing incomplete or conflicting entries by 32% before supervisor review.
+- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting operational records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational KPI dashboard across 12 completions jobs and 140 rig days, tracking job progress, equipment readiness, documentation gaps and review status before manager review.
 
 EDUCATION
 
