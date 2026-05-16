@@ -990,3 +990,207 @@ SQL analysis + customer metrics + simple scoring/segmentation + comparison table
 ```
 
 That is exactly the right level for this role.
+
+# Domino's Relevant Experience Draft And Review
+
+This is the first drafted Relevant Experience section. It is Domino's-appropriate in direction: practical, grounded, not fraud-heavy, not MLOps-heavy, and not pretending to be pizza/app-order data. It still needed tightening before final resume assembly.
+
+## Drafted Relevant Experience Section
+
+```text
+RELEVANT EXPERIENCE
+
+Data Scientist
+Customer Behaviour Analytics & Reporting Platform (Independent Build) - Exeter, UK | May 2025 - Present
+Customer analytics build using SQL, BigQuery, Python, Looker and Power BI to analyse customer activity, transaction behaviour and response-history data across 2.35B rows.
+
+- Built BigQuery SQL analysis tables across 2.35B rows of customer activity, transaction behaviour and response-history data, tracking activity frequency, response rate, repeat activity and segment coverage.
+
+- Developed Looker/Power BI reporting outputs tracking 13 customer and report-quality metrics across 12 reporting periods, with variance tables for response and repeat-activity movement.
+
+- Built a ranked customer segment table capturing 42% of high-response customers in the top 20% score band, creating a priority list for the next segment review.
+
+- Compared 3 customer-selection options - top-score segment, broader mid-score segment and baseline selection - across target capture, response rate, segment coverage, low-yield inclusion and period stability.
+
+- Used BigQuery variance queries to investigate a 19% response-rate movement versus the previous reporting period, producing a root-cause table with activity-volume, segment-mix, response-pattern and source-table drivers.
+
+- Added 15 validation checks across BigQuery source tables and Looker/Power BI reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+```
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Python modelling project using smartphone accelerometer, gyroscope and trip-signal data to classify movement behaviour and test model reliability.
+
+- Built a Python modelling dataset from smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
+
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared model workflow for movement-pattern and identity-recognition tasks.
+
+- Tested model robustness across 1,200 trips, 60 users and 5 transport modes, documenting misclassified sensor patterns and failure cases.
+```
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Business analytics project using country-sector activity tables and policy-response data to compare performance movements against pre-crisis baselines.
+
+- Built a country-sector comparison table across 220 countries and 12 sectors, grouping activity into rebound, persistent disruption and structural-shift categories against pre-crisis baselines.
+
+- Merged activity data with 8 policy-response areas across 6 countries, using restriction, support-measure and reopening signals to explain abnormal movement patterns.
+
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-driver notes to flag market/sector groups with persistent disruption or structural-shift patterns.
+```
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data role using Excel, VBA and Power BI to clean, reconcile and report field records before manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks, reducing incomplete or conflicting field-report entries by 32% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational dashboard tracking 9 metrics across job progress, equipment readiness, documentation gaps and review status for 12 completions jobs / 140 rig days.
+```
+
+## Formula Check
+
+```text
+Platform bullet 1 = SQL/data analysis proof
+Platform bullet 2 = reporting/Power BI-Looker proof
+Platform bullet 3 = customer segmentation/scoring proof
+Platform bullet 4 = experimentation-support/comparison proof
+Platform bullet 5 = root-cause analysis proof
+Platform bullet 6 = data cleaning/validation proof
+
+Exeter modelling = Python + baseline model evaluation + robustness
+Business analytics = baseline analysis + driver explanation + recommendation report
+South Western = data cleaning + automation + Power BI reporting
+```
+
+## Review Verdict
+
+The draft is directionally right, but not final-shortlist quality yet.
+
+It correctly avoids LexisNexis-style fraud/MLOps language and gives Domino's-relevant evidence around:
+
+```text
+SQL / BigQuery analysis
+customer activity and transaction behaviour
+ranked customer segments
+comparison tables
+Power BI / Looker reporting
+validation checks
+Python modelling in the Exeter block
+Power BI / Excel / VBA in South Western
+```
+
+The issues to fix:
+
+```text
+1. The first block still sounds too platform-heavy.
+2. The first block does not show enough Python/modelling.
+3. Power BI should come before Looker.
+4. Response-rate / high-response wording is useful, but should remain customer analytics and not drift into campaign-only targeting.
+```
+
+## Stronger Revised First Block
+
+Use this version as the first-block direction for final drafting:
+
+```text
+Data Scientist
+Customer Analytics, Modelling & Reporting Build (Independent Build) - Exeter, UK | May 2025 - Present
+SQL/Python customer analytics build using BigQuery, Power BI and Looker to clean, model and report customer activity, transaction behaviour and response-history data across 2.35B rows.
+
+- Built BigQuery SQL analysis tables across 2.35B rows of customer activity, transaction behaviour and response-history data, tracking activity frequency, response rate, repeat activity and segment coverage.
+
+- Built a Python customer scoring workflow that ranked customer segments by response rate, repeat activity and transaction behaviour, capturing 42% of high-response customers in the top 20% score band.
+
+- Compared 3 customer-selection options - top-score segment, broader mid-score segment and baseline selection - across target capture, response rate, segment coverage, low-yield inclusion and period stability.
+
+- Developed Power BI / Looker reporting outputs tracking 13 customer and report-quality metrics across 12 reporting periods, with variance tables for response and repeat-activity movement.
+
+- Used BigQuery variance queries to investigate a 19% response-rate movement versus the previous reporting period, producing a root-cause table with activity-volume, segment-mix, response-pattern and source-table drivers.
+
+- Added 15 validation checks across BigQuery source tables and Power BI / Looker reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+```
+
+This revised block is stronger because it shows:
+
+```text
+SQL analysis
+Python scoring/model workflow
+customer behaviour
+comparison / experimentation support
+Power BI reporting
+root-cause analysis
+data validation
+practical reporting quality
+```
+
+Final judgement: the previous draft was around 80-85% there. The revised first block moves closer to 90%+ because the story becomes:
+
+```text
+I can clean and analyse customer data, build a foundational scoring/model output, compare options, build Power BI reports, investigate metric movement and explain the result clearly.
+```
+
+That is the Domino's hiring problem.
+
+# Domino's Header And Summary Direction
+
+## Headline
+
+Use:
+
+```text
+Data Scientist | Customer Analytics, Foundational Modelling & Reporting | SQL, Python & Power BI
+```
+
+This avoids "Junior" while still matching Domino's: SQL, Python, Power BI, foundational modelling, reporting, and customer/commercial data work.
+
+## Professional Summary Options
+
+Fuller option:
+
+```text
+Data Scientist with experience using SQL, Python and Power BI to clean, analyse and model customer activity, transaction behaviour and response-history data. Built BigQuery analysis tables, Python scoring workflows, comparison tables and reporting outputs to explain customer movements and support practical segment reviews.
+```
+
+Tighter preferred option:
+
+```text
+Data Scientist with experience using SQL, Python and Power BI to analyse customer activity, transaction behaviour and response-history data. Built analysis tables, Python scoring workflows and reporting outputs to compare customer segments and explain response movements.
+```
+
+Use the tighter option. It is cleaner and does not try to cram the whole CV into the summary.
+
+# Domino's Technical Skills And Education
+
+## Technical Skills
+
+```text
+TECHNICAL SKILLS
+
+Data Science: foundational modelling, customer segmentation, scoring workflows, model evaluation
+
+SQL & Python: SQL, Google BigQuery, Python, Pandas, NumPy, analysis tables, variance queries
+
+BI & Reporting: Power BI, Looker, KPI dashboards, reporting outputs, trend charts
+
+Data Cleaning: validation checks, missing-value checks, duplicate checks, source-table checks
+
+Experimentation Support: option-comparison tables, baseline comparison, pre/post analysis, response-rate analysis
+```
+
+## Education
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+```
