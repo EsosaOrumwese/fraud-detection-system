@@ -147,3 +147,266 @@ direct website or public digital performance reporting
 ```
 
 If those are absent, do not fake them. But do not settle for a generic "Power BI and customer behaviour" CV either. The strongest transferable evidence needs to look **digital-performance native** through event data, journey stages, engagement metrics, tracking QA, dashboard views, and optimisation summaries.
+
+# Lloyds Website Data Analyst - Proof Buckets
+
+Proof buckets are not bullets yet. They answer:
+
+```text
+What must this CV prove for this specific Lloyds public website analytics role?
+```
+
+This role is about **website performance reporting, customer journey analysis, digital/content/campaign performance, tracking validation, dashboards, recurring reports, report automation, and stakeholder communication across digital, content, marketing, product and technology teams**.
+
+## 1. Website / Digital Performance Reporting
+
+| What the CV must prove | Concrete artefacts to look for later |
+| --- | --- |
+| You can build and maintain reports that show how a public website or digital experience is performing. | Power BI website performance dashboard, digital KPI report, traffic/engagement report, recurring performance pack, dashboard source table |
+
+This is the central bucket. The CV must not just say:
+
+```text
+built dashboards
+```
+
+It needs to show something closer to:
+
+```text
+Power BI dashboard tracking traffic, engagement, journey movement, content performance and reporting quality.
+```
+
+## 2. Customer Journey And Behaviour Analysis
+
+| What the CV must prove | Concrete artefacts to look for later |
+| --- | --- |
+| You can analyse how users/customers move through digital journeys, where behaviour changes, and where improvement opportunities exist. | journey-step table, customer activity table, path/funnel report, lifecycle/activity-stage table, drop-off or task-completion analysis |
+
+The ad repeatedly refers to **customer behaviour, digital journeys, website performance metrics, traffic, engagement and optimisation**.
+
+If true website journey data is absent, use the closest defensible evidence:
+
+```text
+customer activity / event data
+lifecycle-response tables
+activity-stage analysis
+metric movement reports
+```
+
+Do not pretend it was a Lloyds-style website funnel unless the data supports that.
+
+## 3. Content And Campaign Performance Analysis
+
+| What the CV must prove | Concrete artefacts to look for later |
+| --- | --- |
+| You can analyse whether digital content or campaigns are working and identify what needs improvement. | campaign performance report, content performance dashboard, landing-page report, engagement trend table, response/interaction summary |
+
+This is important because Lloyds explicitly mentions **campaign and content performance analysis**.
+
+Possible grounded evidence later might be:
+
+```text
+customer response dashboard
+content/offer response table
+campaign selection memo
+engagement trend report
+```
+
+Campaign response evidence is useful, but it must be reframed as **digital/content performance** only if defensible.
+
+## 4. Tracking Validation, QA And Data Accuracy
+
+| What the CV must prove | Concrete artefacts to look for later |
+| --- | --- |
+| You can check whether reporting data is accurate, consistent and trustworthy before stakeholders use it. | tracking validation checklist, dashboard QA table, missing-event check, duplicate-record check, stale-refresh log, mismatched-total validation report |
+
+This is a major proof bucket because the role asks for **tracking validation and quality assurance** to ensure data accuracy and consistency.
+
+Existing validation/checking evidence may be very valuable here, especially:
+
+```text
+validation checks
+missing fields
+duplicate records
+stale refreshes
+mismatched totals
+Excel/VBA exception checks
+reporting-error reduction
+```
+
+## 5. Power BI, Excel And Recurring Reporting Ownership
+
+| What the CV must prove | Concrete artefacts to look for later |
+| --- | --- |
+| You can build, maintain and refresh regular dashboards/reports using Power BI and Excel. | Power BI dashboard, Excel reporting workbook, recurring KPI pack, dashboard refresh process, report automation macro |
+
+The job explicitly asks for Power BI, Excel, dashboards and regular performance reports.
+
+This bucket should produce concrete wording later like:
+
+```text
+Power BI dashboard views tracking [N] digital/customer metrics across [N] reporting periods.
+```
+
+Not:
+
+```text
+strong BI reporting skills
+```
+
+## 6. Adobe Analytics / Google Analytics Or Equivalent Digital Analytics Evidence
+
+| What the CV must prove | Concrete artefacts to look for later |
+| --- | --- |
+| Ideally, you can work with web analytics platforms. If not, you can still prove transferable event/customer behaviour analytics. | Adobe/GA report if real, website event table, traffic/engagement dataset, customer activity table, dashboard source table |
+
+This is the biggest likely evidence risk. Lloyds names **Adobe Analytics or Google Analytics**.
+
+If direct Adobe/GA evidence exists, it should appear. If not, do not fake it. The safe transferable route is:
+
+```text
+event/activity data
+customer behaviour tables
+Power BI/Looker dashboards
+tracking/data-quality validation
+journey metric movement
+```
+
+Be honest that this is not direct Adobe/GA experience.
+
+## 7. Optimisation Opportunities And Recommendation Outputs
+
+| What the CV must prove | Concrete artefacts to look for later |
+| --- | --- |
+| You can turn trends or performance gaps into concrete recommendations for improvement. | optimisation note, dashboard commentary, performance recommendation memo, content/campaign recommendation report, follow-up action log |
+
+The job is not just reporting. It is reporting that helps teams make more informed, data-led decisions and identify areas for optimisation.
+
+Later bullets should avoid:
+
+```text
+delivered insight
+supported optimisation
+```
+
+Better:
+
+```text
+identified [N] journey/content/campaign variance drivers and produced [N] follow-up actions for stakeholder review.
+```
+
+## 8. Stakeholder Support Across Digital, Content, Marketing, Product And Technology
+
+| What the CV must prove | Concrete artefacts to look for later |
+| --- | --- |
+| You can answer business questions and explain findings clearly to technical and non-technical teams. | stakeholder summary, dashboard commentary note, performance report, optimisation memo, technical/non-technical presentation |
+
+This is a core working-style bucket because Lloyds names digital, content, marketing, product and technology teams.
+
+Ground this with outputs, not soft communication claims:
+
+```text
+6 stakeholder summaries
+dashboard commentary notes
+recommendation memos
+visual reports
+```
+
+## 9. Report Automation And Process Improvement
+
+| What the CV must prove | Concrete artefacts to look for later |
+| --- | --- |
+| You can reduce manual reporting effort and improve recurring reporting processes. | automated dashboard source table, VBA refresh macro, SQL scheduled report table, Python report script, validation automation |
+
+The role asks for help automating recurring reports and improving reporting processes.
+
+Existing evidence may fit well here:
+
+```text
+VBA report-refresh macro
+validation checks
+dashboard source tables
+reporting-error reduction
+successful refreshes
+```
+
+## 10. Attention To Detail And Structured Problem Solving
+
+| What the CV must prove | Concrete artefacts to look for later |
+| --- | --- |
+| You can spot inconsistent data, investigate metric changes and explain what caused them. | variance report, tracking QA log, error-reduction table, metric movement report, root-cause summary |
+
+This bucket is important because the ad asks for attention to detail, structured problem solving and spotting trends.
+
+The concrete evidence later should be:
+
+```text
+38% reporting-error reduction
+15 validation checks
+19% metric movement explained
+4 variance drivers
+32% fewer conflicting records
+```
+
+Not:
+
+```text
+strong attention to detail
+```
+
+## Priority Order
+
+For Lloyds, rank the proof buckets like this:
+
+```text
+1. Website / digital performance reporting
+2. Customer journey and behaviour analysis
+3. Tracking validation, QA and data accuracy
+4. Power BI, Excel and recurring reporting ownership
+5. Content and campaign performance analysis
+6. Optimisation opportunities and recommendation outputs
+7. Stakeholder support across digital/content/marketing/product/technology
+8. Report automation and process improvement
+9. Adobe Analytics / Google Analytics or equivalent digital analytics evidence
+10. Attention to detail and structured problem solving
+```
+
+Adobe/GA is not ranked higher because direct evidence is not yet confirmed. If it exists, it jumps near the top. If it does not, it becomes a known gap to work around honestly.
+
+## Positioning Direction
+
+The eventual CV will likely move toward one of these:
+
+```text
+Website Data Analyst | Digital Performance Reporting | Power BI, Excel & Tracking QA
+```
+
+or, if direct Adobe/GA / website analytics evidence is weak:
+
+```text
+Digital Data Analyst | Customer Journey & Performance Reporting | Power BI, Excel & Data Quality
+```
+
+The stronger ATS version is **Website Data Analyst**. The safer evidence-led version is **Digital Data Analyst**. Decide only after evidence scoring.
+
+## What Should Not Lead This CV
+
+Do not lead with:
+
+```text
+supplier analytics
+pricing/promotions
+water demand
+fraud/payments
+deep learning
+generic operational reporting
+customer segmentation as the main story
+```
+
+Some of those experiences may support the CV, but the centre of gravity must become:
+
+```text
+digital performance reporting + customer journey analysis + tracking QA + Power BI/Excel + optimisation recommendations
+```
+
+The next step is the **evidence ledger + grounding dictionary**, where the strongest real evidence is identified and internal platform wording is translated into Lloyds website-performance language without overclaiming Adobe/GA or website experience.
