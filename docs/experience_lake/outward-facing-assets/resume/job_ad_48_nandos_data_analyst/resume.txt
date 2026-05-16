@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Analyst using Dataform, BigQuery, Looker and Git to build transformation-layer SQL models, dashboard source tables and self-serve KPI reports across large cloud datasets. Added SQL validation checks and documented KPI formulas, source tables, model assumptions and data limitations so technical and non-technical users could interpret recurring reports consistently. Turned unclear KPI movement questions into BigQuery root-cause analysis, including a 19% variance explained across operational, behavioural and data-quality drivers.
+Data Analyst using Dataform, BigQuery, Looker and Git to build tested KPI source tables and self-serve reports from large cloud datasets. Documented KPI definitions and data limitations, added SQL validation checks and investigated KPI variance across operational, behavioural and data-quality drivers.
 
 TECHNICAL SKILLS
 
@@ -18,7 +18,7 @@ RELEVANT EXPERIENCE
 
 Data Analyst
 Cloud Data Modelling & Self-Serve BI Platform (Independent Production Build) — Exeter, UK | May 2025 – Present
-Built a cloud analytics platform for turning raw activity data into tested, documented KPI source tables and Looker self-serve reports across a 2.35B-row data surface. Used Dataform, BigQuery, Git and SQL validation checks to keep metric definitions, dashboard inputs and reporting logic reviewable before recurring KPI reporting.
+Built a Dataform, BigQuery and Looker analytics platform that turned raw activity data into tested KPI source tables, self-serve reports and Git-traceable SQL model changes across a 2.35B-row data surface.
 
 - Built Dataform and BigQuery SQL models over a 2.35B-row data surface, turning raw activity records into reusable KPI source tables for Looker reporting rather than relying on repeated one-off SQL extracts.
 - Modelled KPI tables around recurring reporting questions, including metric definitions, filters and aggregation logic, so dashboard users could compare performance from governed source tables instead of separate ad hoc calculations.
