@@ -17,39 +17,39 @@ Python & Excel: Python, Pandas, NumPy, Excel, pivot tables, lookups, index/match
 RELEVANT EXPERIENCE
 
 Data Analyst
-Operational Demand Reporting & Data Quality Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-Large-data operational analytics platform using SQL, Google BigQuery, Power BI, Looker and Python to monitor demand trends, build reporting tables, validate data quality and produce stakeholder summaries across a 2.35B-row event and activity data surface.
+Operational Demand Reporting & Planning Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Built a SQL/BigQuery, Python, Power BI and Looker analytics platform for monitoring operational demand movement, building planning-period reporting tables, validating source data and producing planning review summaries across a 2.35B-row event and activity data surface.
 
-- Built SQL and BigQuery reporting tables across a 2.35B-row event and activity data surface, converting raw records into reusable dashboard source tables for demand trend monitoring.
-- Built Python time-period forecasts from historical activity patterns, comparing expected and actual volumes to flag demand, exception and reporting-risk movements.
-- Produced 12-period metric-movement reports comparing activity volumes, exception counts and reporting trends against prior-period baselines for planning and operational review.
-- Built Power BI and Looker reporting views tracking 14 recurring metrics across activity volume, exception movement, reporting status and data-quality flags.
-- Maintained reporting outputs with 15 validation checks for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder review.
-- Translated dashboard findings, variance drivers and data-quality limitations into 6 stakeholder summaries, clarifying trend movements, caveats and recommended follow-up actions.
+- Built SQL and BigQuery reporting tables across a 2.35B-row event and activity data surface, turning raw activity records into reusable source tables for demand trend monitoring and planning-period reports.
+- Built Python forecasts from historical activity patterns, comparing expected and actual volumes so planning reviewers could see where demand movements, exceptions or data-quality issues needed follow-up.
+- Produced period-comparison reports showing activity volumes, exception movement and trend changes against prior-period baselines for planning and operational review.
+- Built Power BI and Looker reporting views showing activity volume, exception movement, reporting status and data-quality flags for recurring operational demand review.
+- Maintained reporting outputs with validation checks for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder review.
+- Translated demand movement, variance drivers and data-quality limitations into stakeholder summaries, clarifying caveats and recommended follow-up actions for planning and performance review.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
 Python modelling project using smartphone sensor windows to compare model performance against a baseline, test reliability across user groups and document failure cases.
 
-- Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity across 1,200 trips, 60 users and 5 transport modes.
-- Improved transport-mode and driver-identity classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model architecture for both classification tasks.
-- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases by trip type, user variation and sensor-signal quality.
+- Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
+- Improved classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model architecture for both classification tasks.
+- Produced a model robustness report documenting failure cases by trip type, user variation and sensor-signal quality.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
 Trend-analysis project using country-sector activity data and policy-response tables to compare movement against pre-crisis baselines, isolate external drivers and produce a visual recommendation report.
 
-- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
-- Investigated abnormal activity movements across 6 countries and 8 policy areas, linking shifts to restriction, support-measure and reopening signals.
-- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
+- Built a country-sector trend analysis separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+- Investigated abnormal activity movements by linking changes to restriction, support-measure and reopening signals.
+- Produced a visual trend report using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Operations data role in a safety-sensitive oilfield services environment, using Excel, VBA and Power BI to reconcile field records, automate exception checks and produce traceable operational KPI reports for manager review.
 
 - Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily operational updates, reducing incomplete or conflicting entries by 32% before supervisor review.
-- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting field-report, HSE, equipment and daily-update records, cutting report review time from 45 to 25 minutes.
-- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting operational records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational dashboard tracking job progress, equipment readiness, documentation gaps and review status before manager review.
 
 EDUCATION
 
