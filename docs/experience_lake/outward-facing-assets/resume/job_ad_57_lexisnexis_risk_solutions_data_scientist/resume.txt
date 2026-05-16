@@ -17,7 +17,7 @@ Risk Communication: fraud-risk model readouts, risk-driver reports, threshold re
 RELEVANT EXPERIENCE
 
 Data Scientist
-Fraud Risk Decisioning & Model Monitoring Platform - Exeter, UK | May 2025 - Present
+Fraud Risk Decisioning & Model Monitoring Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
 AWS-hosted fraud-risk decisioning platform using SQL, Python, behavioural feature pipelines, ML risk scores and rule-based thresholds across 2.35B rows of account activity, transaction behaviour and customer interaction data.
 
 - Built fraud-risk feature tables across 2.35B rows of account activity, transaction behaviour and customer interaction data, engineering transaction-velocity, account-activity, value-movement and abnormal-behaviour features.
@@ -25,9 +25,9 @@ AWS-hosted fraud-risk decisioning platform using SQL, Python, behavioural featur
 - Validated model ranking quality against a rule-only baseline, capturing 42% of known-risk cases in the top 20% risk score band.
 - Compared top-10%, top-20% and top-30% risk-score thresholds across known-risk capture, low-risk review inclusion and review volume, reducing low-risk review inclusion by 11% at fixed known-risk coverage.
 - Deployed an AWS-hosted scoring workflow that generated fraud-risk scores and routed high-risk records into a case-review queue with score, rule trigger, feature reason and case status fields.
-- Standardised training, scoring and evaluation workflows with versioned configs, validation gates, feature-freshness checks and score-stability monitoring across scoring runs.
+- Built reusable training, scoring and evaluation workflows with versioned configs, validation gates, feature-freshness checks and score-stability reports across scoring runs.
 - Built a risk-adjusted value table joining transaction value and cost-exposure fields to fraud-risk scores, quantifying £64k in risk exposure across high-risk records.
-- Prepared a fraud-risk model readout covering score-band capture, threshold trade-offs, risk drivers, monitoring checks and model limitations.
+- Prepared a fraud-risk model readout report covering score-band capture, threshold trade-offs, risk drivers, monitoring checks and model limitations.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
