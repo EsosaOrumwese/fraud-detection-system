@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Commercial Data Analyst using SQL, BigQuery, Python/PySpark, Power BI and Looker to analyse customer activity, lifecycle and response-history data across a 2.35B-row dataset. Built customer segment tables, score-band reports and BI dashboard views to compare segment size, response-history mix, high-response customer coverage and expected response rate. Produced model validation packs and recommendation memos comparing segment-prioritisation options for commercial review.
+Commercial Data Analyst using SQL, BigQuery, Python/PySpark, Power BI and Looker to analyse customer activity, lifecycle and response-history data. Built segment tables, score-band reports and BI views to compare segment size, response mix, customer coverage and commercial recommendation options.
 
 TECHNICAL SKILLS
 
@@ -18,7 +18,7 @@ RELEVANT EXPERIENCE
 
 Data Analyst
 Customer Segmentation & Commercial Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-Built a SQL, BigQuery, Python/PySpark, Power BI and Looker analytics platform for turning customer activity, lifecycle and response-history data into segment tables, score-band reports, validation packs, BI dashboard views and recommendation memos across a 2.35B-row dataset.
+Built a SQL, BigQuery, Python/PySpark, Power BI and Looker platform for turning customer activity and response-history data into segment tables, score-band reports, BI views and recommendation memos.
 
 - Built BigQuery and Python/PySpark customer-analysis tables across 2.35B activity, lifecycle and response-history records, using joins, aggregations and score-band ranking logic to create reusable segment and dashboard source tables.
 - Built lifecycle-response tables separating customers by status, activity level and response-history window before segmentation, so score-band reports did not mix customers with different behaviour histories.
