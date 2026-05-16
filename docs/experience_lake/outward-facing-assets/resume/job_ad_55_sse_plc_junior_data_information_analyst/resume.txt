@@ -10,7 +10,7 @@ TECHNICAL SKILLS
 
 Data Quality & Metadata: data-quality checks, KPI definitions, metadata notes, validation logs, data limitation notes
 Responsible Data Use: shared-output checklists, excluded-record rules, source caveats, refresh-status guidance, reuse limits
-User Guidance & Communication: Power BI, Looker, dashboard notes, user-facing metric notes, handover notes, reuse guidance
+User Guidance & Communication: user-facing metric notes, handover notes, non-technical summaries, reuse guidance
 Data Tools: Excel, SQL, Google BigQuery, VBA, Power BI, Looker
 Operational Records: field reports, HSE logs, equipment records, daily activity records, reconciliation workbooks
 
@@ -25,7 +25,7 @@ Built a BigQuery, Looker and Power BI data-quality workstream covering KPI defin
 - Built validation checks across BigQuery source tables and Looker/Power BI reports, covering row counts, missing values, duplicate records, join keys, date filters and dashboard totals before shared outputs were reused.
 - Created SQL validation queries that flagged stale refresh dates, duplicate rows, broken join keys and mismatched aggregations before users relied on incorrect report outputs.
 - Maintained a reporting QA log for refresh failures, source-table issues and repeated validation errors, reducing repeated reporting issues by 38% and helping update the checks behind shared reports.
-- Produced plain-English responsible-use and handover notes explaining KPI definitions, source caveats, excluded records, refresh status and data limitations so non-technical users understood how shared outputs could and could not be used.
+- Produced responsible-use and handover notes explaining KPI definitions and reuse limits so non-technical users understood when shared outputs were reliable, incomplete or unsuitable for reuse.
 - Logged recurring user questions on KPI meaning, filters and source caveats, then updated metric notes, validation checks and user-facing guidance beside Looker/Power BI reports so shared outputs were easier to understand and reuse.
 
 Data Scientist
