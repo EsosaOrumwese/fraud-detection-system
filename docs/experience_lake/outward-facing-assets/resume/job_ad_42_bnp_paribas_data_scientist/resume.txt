@@ -8,11 +8,11 @@ Data Scientist using Python, SQL and SAS to build customer feature tables, predi
 
 TECHNICAL SKILLS
 
-Programming & Data: Python, SQL, SAS, PROC SQL, PySpark, Pandas, NumPy
-Predictive Modelling: churn-risk modelling, propensity modelling, behavioural-risk scoring, customer segmentation, feature engineering
-Experimentation & Validation: A/B testing concepts, holdout tests, champion-challenger evaluation, lift analysis, calibration checks, drift monitoring, segment stability
-Commercial Analytics: customer behaviour analysis, customer lever analysis, predictive score tables, customer insight dashboards, senior-leader insight packs
-AI & Workflow: Generative AI-assisted analytics prototyping, model documentation, code review, workflow validation
+Programming & Data: Python, SQL, SAS/PROC SQL, PySpark, Pandas/NumPy
+Predictive Analytics: propensity modelling, customer scoring, feature engineering, customer segmentation
+Model Testing & Validation: holdout testing, lift/calibration checks, drift monitoring, segment stability
+Customer & Commercial Analysis: customer behaviour analysis, response/risk/engagement patterns, strategy-option comparison
+AI-Assisted Workflow: Codex-assisted SQL/Python development, testing/debugging and analytics documentation
 
 RELEVANT EXPERIENCE
 
