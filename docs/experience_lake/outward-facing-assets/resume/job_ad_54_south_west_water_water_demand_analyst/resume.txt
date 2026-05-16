@@ -18,14 +18,14 @@ RELEVANT EXPERIENCE
 
 Data Analyst
 Operational Demand Reporting & Planning Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-Built a SQL/BigQuery, Python, Power BI and Looker analytics platform for monitoring operational demand movement, building planning-period reporting tables, validating source data and producing planning review summaries across a 2.35B-row event and activity data surface.
+Built a SQL/BigQuery, Python, Power BI and Looker platform for monitoring usage and demand trends, validating source data and producing planning-period expected-vs-actual summaries across a 2.35B-row activity data surface.
 
-- Built SQL and BigQuery reporting tables across a 2.35B-row event and activity data surface, turning raw activity records into reusable source tables for demand trend monitoring and planning-period reports.
-- Built Python forecasts from historical activity patterns, comparing expected and actual volumes so planning reviewers could see where demand movements, exceptions or data-quality issues needed follow-up.
-- Produced period-comparison reports showing activity volumes, exception movement and trend changes against prior-period baselines for planning and operational review.
-- Built Power BI and Looker reporting views showing activity volume, exception movement, reporting status and data-quality flags for recurring operational demand review.
+- Built SQL and BigQuery reporting tables across a 2.35B-row usage, activity and operational-event data surface, turning raw records into reusable source tables for demand trend monitoring and planning-period reports.
+- Built Python forecasts from historical usage and activity patterns, comparing expected and actual volumes so planning reviewers could see where demand movements, exceptions or data-quality issues needed follow-up.
+- Produced period-comparison reports showing usage volumes, exception movement and trend changes against prior-period baselines for planning and operational review.
+- Built Power BI and Looker reporting views showing usage volume, exception movement, reporting status and data-quality flags for recurring demand and operational review.
 - Maintained reporting outputs with validation checks for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder review.
-- Translated demand movement, variance drivers and data-quality limitations into stakeholder summaries, clarifying caveats and recommended follow-up actions for planning and performance review.
+- Translated demand movement, variance drivers and data-quality limitations into stakeholder summaries, clarifying risks, caveats and recommended follow-up actions for planning and performance review.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
@@ -37,7 +37,7 @@ Python modelling project using smartphone sensor windows to compare model perfor
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
-Trend-analysis project using country-sector activity data and policy-response tables to compare movement against pre-crisis baselines, isolate external drivers and produce a visual recommendation report.
+Trend-analysis project using country-sector activity data and policy-response tables to compare movement against baselines, explain external drivers and produce a visual report with recommendations.
 
 - Built a country-sector trend analysis separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
 - Investigated abnormal activity movements by linking changes to restriction, support-measure and reopening signals.
