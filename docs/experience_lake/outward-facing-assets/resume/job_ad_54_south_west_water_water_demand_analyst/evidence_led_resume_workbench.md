@@ -620,3 +620,416 @@ The strongest ledger themes are:
 ```
 
 The next step should be **grounding dictionary**, because internal phrases like "operational metric movement" need translating into South West Water-native language without overclaiming water-demand, leakage or forecasting evidence.
+
+# South West Water Evidence Scoring
+
+This is still not bullet portfolio design. The purpose is to decide which evidence should lead the CV, which evidence should support, and which evidence must be softened or avoided. South West Water is hiring for a Water Demand Analyst who can support demand strategy, analyse and forecast demand over in-year / AMP / long-term horizons, contribute to regulatory reporting and strategy reviews, maintain data systems, use Power BI, prepare reports/presentations, and work between demand and operational teams.
+
+## Scoring Key
+
+| Tier | Meaning for South West Water |
+| --- | --- |
+| **A** | Strong direct fit for demand/operational analytics, regulated environment, reporting, Power BI, data systems, operational liaison, technical documentation. |
+| **B** | Useful adjacent evidence; strengthens the CV but should not lead alone. |
+| **C** | Transferable only; use lower down or compress. |
+| **D** | Avoid or do not claim unless new evidence proves it. |
+
+## Tier A - Direct / Strongest South West Water Evidence
+
+These should drive the CV.
+
+| Evidence item | Score | Why it is A |
+| --- | ---: | --- |
+| **South Western Technologies - Data Analyst experience** | A | Best fit for the "water industry or similar regulated environment" requirement. It proves operational data, field records, HSE documentation, manager-facing reporting and traceability in a regulated/operational setting. |
+| **Excel reconciliation workbook** | A | Strong proof of data quality and traceable reporting. It names the workbook, checks, record types and result: field reports, HSE logs, equipment checks, daily updates, and 32% fewer incomplete/conflicting entries. |
+| **VBA report-refresh and exception-flagging macro** | A | Strong continuous-improvement evidence. It proves automation, exception detection and review-time reduction from 45 to 25 minutes. |
+| **Power BI operational metrics dashboard** | A | Directly supports the desirable Power BI requirement and the need to communicate demand/operational trends through visual reporting. |
+| **Operational reports for manager/supervisor review** | A | Strong fit for reports, presentations, technical documentation and operational stakeholder communication. |
+| **Data quality / validation / reconciliation evidence** | A | Strong fit because demand and regulatory reporting need trusted, traceable data. The CV should show validated reporting tables, reconciliation checks and exception flags. |
+| **Operational stakeholder liaison evidence** | A | The role acts as a link between the demand team and operational teams. South Western proves operations-facing reporting and handover-style communication. |
+| **SQL / BigQuery extraction and reporting tables from platform** | A/B | A for data systems, extraction, databases and large-dataset handling. B if the wording stays customer/commercial. It must be reframed as "large activity/operational data tables," not customer segmentation. |
+| **Metric movement / variance analysis from platform** | A/B | A if framed as trend monitoring and variance drivers. B if it remains tied to customer/commercial metrics. Useful for water usage/demand trend analysis, but do not call it water demand unless true. |
+| **Technical report / visual report with recommendations** | A/B | A for report/presentation/recommendation ability. B if the source is academic rather than operational. |
+
+**Verdict:** The CV should be led by **operational analytics, Power BI, Excel/VBA reconciliation, validated reporting, metric movement analysis, operational stakeholder reporting and regulated-environment evidence**.
+
+## Tier B - Useful Adjacent Evidence
+
+These are relevant, but should support the A-tier evidence.
+
+| Evidence item | Score | Why it is B |
+| --- | ---: | --- |
+| **Business Analytics trend report across 220 countries / 12 sectors** | B | Strong for trend analysis, baseline comparison and visual recommendations, but not water demand or operational infrastructure data. |
+| **6-country / 8-policy-area driver analysis** | B | Useful for explaining why metrics moved. Supports demand trend interpretation and policy/regulatory-style thinking, but remains academic/business evidence. |
+| **Visual trend report with 3 recommendations** | B | Strong for reports, presentations and recommendations. Useful for the "communicate findings, risks and recommendations" requirement. |
+| **2.35B-row large-data platform** | B | Strong scale and database-handling proof, but the domain is not water usage. Use it for large datasets, SQL extraction, dashboard source tables and trend/variance analysis. |
+| **BigQuery variance queries / metric movement analysis** | B/A | A if framed around operational trend monitoring. B if it stays generic or customer-behaviour-heavy. |
+| **Dashboard validation checks / report reliability metrics** | B/A | A if used to support regulatory-style reporting reliability. B if the evidence is from a commercial/customer platform. |
+| **Python/Pandas analysis from platform** | B | Useful for data analysis and modelling-team collaboration, but the role is not Python-heavy. |
+| **Smartphone modelling project** | B/C | B only for model evaluation, baseline comparison and documenting limitations. C for domain relevance. |
+| **Model robustness report** | B/C | Useful if we need evidence of analytical rigour and communication of limitations, but it should not lead. |
+
+**Verdict:** B-tier evidence gives analytical depth, but the final CV must not drift into academic trend analysis or ML/data-science positioning.
+
+## Tier C - Transferable Support Only
+
+These can appear lower down or be compressed.
+
+| Evidence item | Score | Why it is C |
+| --- | ---: | --- |
+| **Customer segmentation / propensity scoring platform wording** | C | Strong in other roles, but wrong centre of gravity here. Only the underlying SQL, dashboards, validation and trend-analysis mechanics are useful. |
+| **Promotion / commercial analytics / supplier analytics language** | C/D | Mostly irrelevant to water demand. Remove from top positioning. |
+| **Smartphone sensor classification bullets** | C | Concrete and credible, but far from demand strategy, regulatory reporting and operations. |
+| **Deep learning / CNN baseline** | C | Shows modelling capability, but this role is not an ML role. Keep only if space allows. |
+| **Looker dashboards** | C/B | BI evidence, but Power BI is more relevant because the ad names Power BI as desirable. |
+| **Customer response / high-response customer language** | C/D | Wrong domain. Should not appear in a South West Water CV. |
+| **Oilfield-specific HSE detail** | C/B | B when framed as regulated/operational reporting. C if it becomes too oilfield-specific and distracts from demand analytics. |
+
+## Tier D - Avoid Unless New Evidence Proves It
+
+These should not be claimed without real evidence.
+
+| Evidence item | Score | Why it is D |
+| --- | ---: | --- |
+| **Direct water usage analysis** | D until confirmed | The job is about water usage/demand. Do not claim water usage data unless you actually analysed it. |
+| **Formal water demand forecasting** | D until confirmed | The ad asks for in-year, AMP and 50-year demand forecasting. Do not claim formal forecasting unless true. |
+| **Leakage reduction analysis** | D until confirmed | Environment Act/leakage is central, but claiming leakage analysis without leakage data would be risky. |
+| **Household / non-household demand analysis** | D until confirmed | The ad names both. Only use if you have this split. |
+| **Environment Act regulatory reporting** | D until confirmed | Do not claim direct Environment Act or water regulatory reporting unless real. |
+| **Annual water demand strategy review support** | D until confirmed | Strong role fit, but unsafe without evidence. |
+| **Water efficiency programme support** | D until confirmed | Do not claim unless real. |
+| **50-year planning forecast** | D until confirmed | Highly specific. Do not infer from general trend analysis. |
+| **SES / South West Water / Pennon regional demand analysis** | D | Do not mimic the employer's internal regions. |
+| **Customer/commercial/supplier analytics as main story** | D for this CV | Wrong centre of gravity. |
+
+## South West Water Priority Evidence Pool
+
+The strongest evidence pool for the future CV is:
+
+```text
+1. South Western operational data analyst experience
+2. Excel reconciliation workbook
+3. VBA report-refresh and exception-flagging macro
+4. Power BI operational metrics dashboard
+5. Field reports, HSE logs, equipment checks and daily-update records
+6. 32% fewer incomplete/conflicting entries
+7. Review time cut from 45 to 25 minutes
+8. 9 KPI Power BI dashboard across 12 completions jobs / 140 rig days
+9. SQL / BigQuery reporting tables from the platform
+10. Metric movement / variance analysis from the platform
+11. Business Analytics trend report across 220 countries / 12 sectors
+12. Visual report with 3 recommendations
+13. Data quality / validation / reporting reliability evidence
+```
+
+## Positioning Implication
+
+The CV should **not** be positioned as:
+
+```text
+Commercial Data Analyst
+Customer Segmentation Analyst
+Promotion Analytics Analyst
+ML / Data Scientist
+```
+
+The stronger direction is:
+
+```text
+Data Analyst | Demand Reporting & Operational Analytics | Power BI, SQL & Data Quality
+```
+
+If defensible forecasting evidence appears later, use:
+
+```text
+Data Analyst | Water Demand & Operational Analytics | Power BI, SQL & Forecasting
+```
+
+Until then, **"Demand Reporting & Operational Analytics"** is safer than overclaiming formal forecasting.
+
+## Final Scoring Verdict
+
+Build this CV around:
+
+```text
+operational data analysis
+Power BI dashboards
+Excel/VBA reconciliation and exception checks
+validated reporting
+technical reports and recommendations
+large-data SQL / BigQuery extraction
+metric movement and trend analysis
+regulated operational environment evidence
+operations-facing stakeholder communication
+```
+
+Avoid leading with:
+
+```text
+water demand forecasting unless proven
+leakage reduction unless proven
+household/non-household demand unless proven
+customer segmentation
+commercial analytics
+promotion/supplier analytics
+deep learning
+generic "insight"
+```
+
+The next step should be **grounding dictionary**, because evidence needs translating into water-demand / regulated-operations language without making claims that cannot be defended.
+
+# Grounding Dictionary - South West Water Water Demand Analyst
+
+Its job is to stop old role language from leaking into this CV and to translate real evidence into **water-demand / regulated-operations / reporting** language without overclaiming direct water-sector evidence.
+
+## 1. Platform / Analytics Wording
+
+| Internal / risky phrase | Why risky | Grounded South West Water wording |
+| --- | --- | --- |
+| Customer behaviour analytics platform | Sounds commercial/customer-marketing, not water demand | Large-data operational analytics platform |
+| Customer response platform | Wrong centre of gravity | Operational metric monitoring platform |
+| Customer segmentation analytics | Wrong for this role | Operational trend and variance analysis |
+| Commercial analytics | Wrong employer problem | Demand reporting / operational analytics |
+| Data surface | Abstract/internal | 2.35B rows of event, activity and reporting data |
+| Customer activity data | Could sound retail/commercial | event and activity records |
+| Propensity scores | ML/customer targeting language | metric scores / ranked operational records, only if needed |
+| Audience cut-off tests | Promotion language | threshold tests / exception cut-off tests |
+| Campaign selection memo | Wrong domain | trend summary / variance memo / recommendation note |
+| Supplier-style recommendation | Wrong job | operational recommendation note / strategy review summary |
+
+Recommended direction:
+
+```text
+Large-data operational analytics platform using SQL, Google BigQuery, Power BI and Python to build reporting tables, validation checks, metric movement reports and stakeholder summaries across 2.35B rows of event and activity data.
+```
+
+## 2. Demand / Water Usage Wording
+
+| Internal / risky phrase | Why risky | Grounded South West Water wording |
+| --- | --- | --- |
+| Water demand analysis | Unsafe unless actual water usage data exists | demand-style operational trend analysis |
+| Water usage trend report | Unsafe unless actual water usage data exists | usage-like activity trend report / operational activity trend report |
+| Leakage analysis | Unsafe unless leakage data exists | exception trend analysis / operational variance analysis |
+| Household / non-household demand | Unsafe unless that split exists | customer or operational group split only if real |
+| Water efficiency recommendation | Unsafe unless true | efficiency / process-improvement recommendation |
+| Demand reduction opportunity | Could overclaim | operational variance / exception reduction opportunity |
+| Demand forecast | Unsafe unless formal forecasting exists | trend projection / planning-support analysis |
+| 50-year planning forecast | Very unsafe unless true | long-horizon trend comparison / scenario-style analysis, only if defensible |
+| AMP planning | Water-sector specific; do not claim without context | planning-period analysis / baseline-to-future comparison |
+
+Safe wording:
+
+```text
+metric movement analysis
+trend projection
+planning-support table
+baseline comparison
+operational variance report
+exception-volume trend report
+```
+
+Avoid:
+
+```text
+forecasted water demand
+analysed leakage reduction
+supported Environment Act reporting
+```
+
+unless real.
+
+## 3. Regulatory / Compliance Wording
+
+| Internal / risky phrase | Why risky | Grounded South West Water wording |
+| --- | --- | --- |
+| Regulatory reporting | Could imply formal water-sector submission | regulatory-style reporting / controlled reporting |
+| Environment Act reporting | Unsafe unless true | reporting aligned to documented definitions / technical review pack |
+| Compliance report | Could overclaim ownership | validated report pack / traceable reporting workbook |
+| Audit-ready | Strong claim | traceable calculations / reconciled records / documented checks |
+| Strategy review | Could imply formal annual strategy work | strategy-style review summary / management review pack |
+| Technical documentation | Good if true | technical handover note / dashboard commentary / report definitions |
+
+Best safe phrase:
+
+```text
+validated report packs with traceable checks, source records and documented assumptions
+```
+
+## 4. South Western Operational Evidence Wording
+
+| Existing phrase | Keep / adjust | Best grounded wording |
+| --- | --- | --- |
+| Field reports | Keep | field reports |
+| HSE logs | Keep, but do not overfocus | HSE logs / safety documentation records |
+| Equipment checks | Keep | equipment check records |
+| Daily completions updates | Keep | daily operational updates |
+| Supervisor review | Keep | supervisor review / manager review |
+| Handover | Useful | operational handover pack / manager review pack |
+| Safer field execution | Too broad unless tied to records | cleaner operational records before supervisor review |
+| HSE compliance | Potential overclaim | HSE documentation checks |
+| Rig days | Keep if true | 140 rig days |
+
+Strong phrasing:
+
+```text
+reconciled field reports, HSE logs, equipment checks and daily operational updates before supervisor review
+```
+
+Avoid:
+
+```text
+ensured compliance
+improved safety
+supported safer execution
+```
+
+unless defensible.
+
+## 5. Dashboard / Reporting Wording
+
+| Abstract phrase | Problem | Grounded replacement |
+| --- | --- | --- |
+| improved visibility | Abstract | Power BI dashboard tracking 9 KPIs across 12 completions jobs / 140 rig days |
+| stakeholder reporting | Vague | manager-facing operational report / dashboard commentary note |
+| operational insight | Broad | trend table showing variance by period / KPI / job |
+| decision support | Vague | recommendation note identifying [N] variance drivers |
+| reporting reliability | Good, but needs object | 15 validation checks / 32% fewer conflicting entries / 98% refresh success |
+| dashboard metrics | Okay but specify | job progress, equipment readiness, documentation gaps, review status |
+| recurring reports | Specify cadence if true | daily report pack / weekly dashboard refresh / monthly review table |
+
+Best wording:
+
+```text
+Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+```
+
+## 6. Forecasting / Planning Wording
+
+| Risky phrase | Why risky | Safer replacement |
+| --- | --- | --- |
+| forecasted demand | Requires formal forecasting evidence | built trend projection tables |
+| demand forecast model | Requires real demand forecast model | baseline-to-future trend comparison |
+| long-term planning forecast | Very specific | long-horizon trend analysis |
+| in-year / AMP / 50-year planning | Job-specific; unsafe unless true | short- and long-horizon trend comparison |
+| scenario modelling | Use only if scenarios existed | compared [N] scenarios / options |
+| planning assumptions | Good if real | planning-support assumptions table |
+
+Safe bullet language if needed:
+
+```text
+Built trend projection tables comparing [N] periods against a baseline, giving managers a documented view of movement, variance drivers and planning assumptions.
+```
+
+## 7. Reports / Presentations / Recommendations Wording
+
+| Abstract phrase | Problem | Grounded replacement |
+| --- | --- | --- |
+| presented insights | Vague | produced a visual trend report with 3 recommendations |
+| communicated findings | Vague | wrote dashboard commentary notes explaining [N] variance drivers |
+| actionable recommendations | Abstract | recommendation note listing [N] follow-up actions |
+| risks and recommendations | Good but specify | variance-risk summary with [N] drivers and [N] follow-up actions |
+| technical report | Good if true | technical report / review pack / dashboard commentary note |
+| strategy recommendation | Broad | management review note comparing [N] options / measures |
+
+Strong wording:
+
+```text
+Produced a visual trend report with 3 recommendations, using charts and comparison tables to show which metrics rebounded, remained disrupted or structurally shifted.
+```
+
+For water role, if adapted carefully:
+
+```text
+Produced a trend review report with 3 recommendations, using charts and comparison tables to separate baseline movement, persistent variance and structural shifts.
+```
+
+## 8. Data Quality Wording
+
+| Abstract phrase | Problem | Grounded replacement |
+| --- | --- | --- |
+| maintained data quality | Vague | reconciled [N] record types and reduced incomplete/conflicting entries by 32% |
+| ensured accuracy | Too broad | compared field reports, HSE logs, equipment checks and daily updates |
+| validated reports | Needs object | used [N] validation checks before manager review |
+| improved data reliability | Needs metric | reduced incomplete/conflicting entries by 32% |
+| controlled definitions | Good if true | KPI definition table / report definition note |
+| data limitations | Good if true | dashboard commentary note documenting missing fields / stale records / caveats |
+
+Best wording:
+
+```text
+Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily operational updates, reducing incomplete or conflicting entries by 32% before supervisor review.
+```
+
+## 9. Continuous Improvement Wording
+
+| Abstract phrase | Problem | Grounded replacement |
+| --- | --- | --- |
+| continuous improvement | Soft claim | created VBA report-refresh and exception-flagging macro |
+| improved process | Vague | cut report review time from 45 to 25 minutes |
+| automated reporting | Good but specify | VBA macro to identify missing, duplicated and conflicting records |
+| enhanced dashboard | Vague | added KPI/dashboard view for job progress, equipment readiness, documentation gaps and review status |
+| innovation activities | Job-ad mimicry | built / automated / integrated / validated specific artefact |
+
+Strong wording:
+
+```text
+Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+```
+
+## Key Locked Translations For This CV
+
+Use these consistently:
+
+```text
+commercial/customer platform
+-> large-data operational analytics platform
+
+customer behaviour data surface
+-> 2.35B rows of event and activity data
+
+customer segmentation / audience selection
+-> operational grouping / threshold testing / metric movement analysis
+
+target customers / high-response customers
+-> do not use for this CV
+
+campaign memo / offer targeting memo
+-> variance summary / recommendation note / management review pack
+
+water demand forecasting
+-> trend projection / planning-support analysis unless actual demand forecasting exists
+
+leakage / household demand / Environment Act
+-> do not claim unless actual evidence exists
+
+regulatory reporting
+-> regulatory-style / technical review / validated reporting pack unless actual regulatory submission exists
+```
+
+## Final Grounding Rule For South West Water
+
+Every line should sound like it belongs to:
+
+```text
+demand reporting
+operational analytics
+regulated reporting
+Power BI dashboards
+trend and variance monitoring
+data quality
+technical documentation
+operational stakeholder communication
+```
+
+Not:
+
+```text
+customer segmentation
+promotion response
+supplier analytics
+pricing
+fraud/payments
+ML-first platform work
+```
+
+That is the line to hold before drafting bullets.
