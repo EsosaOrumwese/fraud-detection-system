@@ -981,3 +981,63 @@ This keeps the timeline correct while still making the SSE story clear:
 ```text
 I make data cleaner, clearer, documented, checked, and easier for people to trust and use responsibly.
 ```
+
+# Platform Experience Draft - SSE
+
+Drafting the platform experience only, shaped for SSE.
+
+The direction is data quality and metadata, but the wording must stay concrete. For SSE, the platform block must feel like **definitions, source tables, checks, issue logs, limitation notes, refresh records** rather than broad "trusted reporting" language. SSE is screening for data quality, metadata, responsible data use, governance, controls, and plain-English clarity.
+
+## What Was Abstract
+
+```text
+Data Quality & Metadata Reporting Platform
+report users
+reporting errors
+weekly KPI reports refreshed
+successful dashboard refreshes
+weekly report use
+interpret the data correctly
+```
+
+Those are not terrible, but they are not concrete enough.
+
+## More Concrete Platform Block
+
+```text
+Data Scientist
+KPI Definitions & Reporting QA Platform - Exeter, UK | May 2025 - Present
+BigQuery, Looker and Power BI reporting QA work covering KPI definition sheets, source-table validation queries, dashboard refresh checks and data limitation notes across a 2.35B-row dataset.
+
+- Documented 13 KPI definitions with metric formulas, BigQuery source tables, aggregation grain, report filters and known data limitations.
+
+- Added 15 validation checks across BigQuery source tables and Looker/Power BI reports, covering row counts, missing values, duplicate records, join keys, date filters and dashboard totals.
+
+- Used SQL validation queries to flag 18 source-table issues, including stale refresh dates, duplicate rows, broken join keys and mismatched dashboard aggregations.
+
+- Logged dashboard QA failures before report refreshes, reducing repeated issues such as missing fields, mismatched totals, stale tables and incorrect filters by 38%.
+
+- Checked BigQuery table freshness, dashboard totals and refresh logs before scheduled Looker/Power BI updates, lifting validated dashboard refreshes to 98%.
+
+- Managed 14 SQL and reporting-logic changes through Git branches and pull-request reviews, leaving reviewed change history for KPI formulas, report filters and dashboard source tables.
+
+- Wrote dashboard notes explaining metric formulas, source-table caveats, excluded records and refresh checks beside the relevant Looker/Power BI reports.
+```
+
+This version is better because the reader can picture the work:
+
+```text
+KPI definition sheets
+BigQuery source tables
+source-table validation queries
+dashboard refresh checks
+data limitation notes
+SQL validation queries
+source-table issues
+refresh logs
+Git branches
+pull-request reviews
+dashboard notes
+```
+
+The final bullet is especially important: it replaces vague "plain-English communication" with the actual artefact - **dashboard notes** - and the actual contents: **metric formulas, source-table caveats, excluded records, refresh checks**.

@@ -1033,3 +1033,452 @@ ML-first platform work
 ```
 
 That is the line to hold before drafting bullets.
+
+# South West Water Bullet Portfolio Design
+
+This is not bullet drafting yet. This step decides what each experience block must prove before writing the bullets. The role is buying evidence around water demand strategy, usage/demand trend analysis, forecasting/planning support, regulatory reporting, data systems, Power BI, reports/presentations, operational liaison and similar regulated environments.
+
+## Recommended Experience Strategy
+
+Because reverse chronological order is preferred, the CV should stay:
+
+```text
+1. Platform experience - latest, May 2025-Present
+2. Smartphone project - Jan 2024-Aug 2024
+3. Business Analytics project - Sep 2023-Nov 2023
+4. South Western Technologies - Jul 2021-Aug 2022
+```
+
+But the **relevance weight** is different:
+
+```text
+South Western = strongest regulated / operational reporting evidence
+Platform = strongest SQL / large-data / metric movement evidence
+Business Analytics = strongest trend / baseline / recommendation evidence
+Smartphone = supporting modelling / Python evidence only
+```
+
+So the bullet portfolio must keep the platform relevant without making the CV look like a customer/commercial analytics CV.
+
+## 1. Platform Experience - Operational Analytics / Large-Data Reporting
+
+### Target Block Title
+
+Use:
+
+```text
+Data Analyst
+Large-Data Operational Analytics Platform - Exeter, UK | May 2025-Present
+```
+
+or:
+
+```text
+Data Analyst
+Operational Trend & Reporting Analytics Platform - Exeter, UK | May 2025-Present
+```
+
+Recommendation:
+
+```text
+Operational Trend & Reporting Analytics Platform
+```
+
+It avoids customer/commercial language and maps better to South West Water.
+
+### Portfolio Goal
+
+This block must prove:
+
+```text
+I can extract and transform large datasets, build reporting tables, track metric movement, validate outputs, and produce trend / variance summaries for stakeholders.
+```
+
+### Bullet Portfolio
+
+```text
+Bullet 1 must prove:
+SQL / BigQuery extraction and reporting-table creation across a large activity dataset.
+```
+
+Concrete evidence:
+
+```text
+2.35B rows of event and activity data
+SQL / BigQuery / Python/PySpark ETL tables
+dashboard source tables
+reporting tables
+```
+
+```text
+Bullet 2 must prove:
+Metric movement / trend analysis across reporting periods.
+```
+
+Concrete evidence:
+
+```text
+variance queries
+activity movement tables
+exception-volume reports
+period comparison
+baseline / rolling average
+```
+
+```text
+Bullet 3 must prove:
+Power BI / Looker reporting output for recurring operational metrics.
+```
+
+Concrete evidence:
+
+```text
+Power BI / Looker dashboard views
+operational metrics
+reporting periods
+dashboard source tables
+```
+
+```text
+Bullet 4 must prove:
+Report validation / data-quality checks before stakeholder use.
+```
+
+Concrete evidence:
+
+```text
+validation checks
+reporting errors
+refresh reliability
+missing / duplicated / stale records
+```
+
+```text
+Bullet 5 must prove:
+Variance / trend summary with drivers and recommendations.
+```
+
+Concrete evidence:
+
+```text
+metric movement report
+variance drivers
+recommendation note
+stakeholder summary
+```
+
+### Platform Portfolio Output
+
+```text
+Bullet 1: SQL/BigQuery reporting tables across 2.35B rows.
+Bullet 2: trend / variance analysis across reporting periods.
+Bullet 3: Power BI / Looker reporting views for recurring metrics.
+Bullet 4: validation checks and report reliability.
+Bullet 5: variance summary with drivers and follow-up actions.
+```
+
+Recommended count: **5 bullets**.
+
+## 2. Smartphone Modelling Project - Python / Modelling Support
+
+This block should stay smaller in meaning, but can still use 3 bullets if the CV needs full experience consistency.
+
+### Portfolio Goal
+
+This block must prove:
+
+```text
+I can use Python, compare model outputs against a baseline, and document failure cases / limitations.
+```
+
+### Bullet Portfolio
+
+```text
+Bullet 1 must prove:
+Python modelling on complex time-series / sensor windows.
+```
+
+Concrete evidence:
+
+```text
+accelerometer
+gyroscope
+trip-signal windows
+1,200 trips
+60 users
+5 transport modes
+```
+
+```text
+Bullet 2 must prove:
+Model performance comparison against a defined baseline.
+```
+
+Concrete evidence:
+
+```text
+7 percentage-point improvement
+single-task CNN baseline
+shared model architecture
+```
+
+```text
+Bullet 3 must prove:
+Robustness / failure-case documentation.
+```
+
+Concrete evidence:
+
+```text
+model robustness report
+failure cases
+trip type
+user variation
+sensor-signal quality
+```
+
+### Smartphone Portfolio Output
+
+```text
+Bullet 1: Python model trained on sensor windows.
+Bullet 2: 7pp improvement versus CNN baseline.
+Bullet 3: robustness report and failure-case categories.
+```
+
+Recommended count: **3 bullets**, but this block should not dominate.
+
+## 3. Business Analytics Project - Trend Analysis / Baseline / Recommendations
+
+This block is useful for South West Water because the role involves trend analysis, planning horizons, reports, presentations, risks and recommendations.
+
+### Portfolio Goal
+
+This block must prove:
+
+```text
+I can compare time-based movement against baselines, explain external drivers, and produce a visual recommendation report.
+```
+
+### Bullet Portfolio
+
+```text
+Bullet 1 must prove:
+Large trend analysis against a baseline.
+```
+
+Concrete evidence:
+
+```text
+220 countries
+12 sectors
+pre-crisis baseline
+rebound / disruption / structural-shift categories
+```
+
+```text
+Bullet 2 must prove:
+Driver explanation behind abnormal metric movement.
+```
+
+Concrete evidence:
+
+```text
+6 countries
+8 policy areas
+restriction signals
+support measures
+reopening signals
+```
+
+```text
+Bullet 3 must prove:
+Visual report with recommendations.
+```
+
+Concrete evidence:
+
+```text
+visual trend report
+3 recommendations
+charts
+comparison tables
+```
+
+### Business Analytics Portfolio Output
+
+```text
+Bullet 1: 220-country / 12-sector baseline trend analysis.
+Bullet 2: 6-country / 8-policy-area driver explanation.
+Bullet 3: visual trend report with 3 recommendations.
+```
+
+Recommended count: **3 bullets**.
+
+## 4. South Western Technologies - Regulated Operational Reporting
+
+This is the strongest South West Water-supporting block. It proves similar regulated/operational environment, operational records, data quality, Excel/VBA, Power BI, manager-facing reporting and process improvement.
+
+### Portfolio Goal
+
+This block must prove:
+
+```text
+I have worked with operational records in a regulated/safety-conscious environment, reconciled messy data, automated checks, and produced Power BI reports for managers.
+```
+
+### Bullet Portfolio
+
+```text
+Bullet 1 must prove:
+Excel reconciliation and data-quality improvement across operational record types.
+```
+
+Concrete evidence:
+
+```text
+Excel reconciliation workbook
+pivot tables
+lookups
+index/match checks
+field reports
+HSE logs
+equipment checks
+daily operational updates
+32% fewer incomplete/conflicting entries
+```
+
+```text
+Bullet 2 must prove:
+VBA automation and faster report review.
+```
+
+Concrete evidence:
+
+```text
+VBA report-refresh macro
+exception-flagging macro
+missing records
+duplicated records
+conflicting records
+45 to 25 minutes review time
+```
+
+```text
+Bullet 3 must prove:
+Power BI operational dashboarding for manager review.
+```
+
+Concrete evidence:
+
+```text
+Power BI operational metrics dashboard
+9 KPIs
+job progress
+equipment readiness
+documentation gaps
+review status
+12 completions jobs
+140 rig days
+```
+
+### South Western Portfolio Output
+
+```text
+Bullet 1: Excel reconciliation workbook reduced incomplete/conflicting records by 32%.
+Bullet 2: VBA exception macro cut review time from 45 to 25 minutes.
+Bullet 3: Power BI dashboard tracked 9 KPIs across 12 jobs / 140 rig days.
+```
+
+Recommended count: **3 bullets**.
+
+## Final Portfolio Summary
+
+```text
+Platform Bullet 1:
+SQL/BigQuery reporting tables across 2.35B rows of event and activity data.
+
+Platform Bullet 2:
+Trend / variance analysis across reporting periods.
+
+Platform Bullet 3:
+Power BI / Looker reporting views for recurring operational metrics.
+
+Platform Bullet 4:
+Validation checks and report reliability.
+
+Platform Bullet 5:
+Variance summary with drivers and follow-up actions.
+
+Smartphone Bullet 1:
+Python model trained on sensor windows.
+
+Smartphone Bullet 2:
+7pp improvement versus CNN baseline.
+
+Smartphone Bullet 3:
+Robustness report and failure-case categories.
+
+Business Analytics Bullet 1:
+220-country / 12-sector baseline trend analysis.
+
+Business Analytics Bullet 2:
+6-country / 8-policy-area driver explanation.
+
+Business Analytics Bullet 3:
+Visual trend report with 3 recommendations.
+
+South Western Bullet 1:
+Excel reconciliation workbook reduced incomplete/conflicting records.
+
+South Western Bullet 2:
+VBA exception macro cut review time.
+
+South Western Bullet 3:
+Power BI operational dashboard tracked 9 KPIs across 12 jobs / 140 rig days.
+```
+
+The key rule for drafting: **do not use water-demand words unless the evidence supports them**. Use **operational trend**, **usage-like activity**, **variance**, **reporting table**, **planning-support summary**, and **regulated operational reporting**. Do not say **water demand forecast**, **leakage analysis**, **Environment Act reporting**, or **household/non-household demand** unless those evidence points are confirmed.
+
+# Platform Experience Draft - South West Water
+
+Drafting the platform experience first for the South West Water role.
+
+This block is shaped around the role's demand for data extraction, complex dataset interpretation, data systems/databases, Power BI, reports, presentations, stakeholder recommendations, and operational decision support without overclaiming direct water-demand, leakage, or Environment Act reporting evidence.
+
+## Placeholder Version
+
+```text
+Data Analyst
+Operational Trend & Reporting Analytics Platform - Exeter, UK | May 2025-Present
+Large-data operational analytics platform using SQL, Google BigQuery, Power BI, Looker and Python to build reporting tables, validation checks, metric-movement reports and stakeholder summaries across 2.35B rows of event and activity data.
+
+- Built SQL and BigQuery reporting tables across 2.35B rows of event and activity data, converting raw records into reusable dashboard source tables for recurring operational analysis.
+
+- Produced metric-movement reports across [N] reporting periods, comparing activity volumes, exception counts and reporting trends against [baseline / rolling average / prior period].
+
+- Built Power BI / Looker reporting views tracking [N] recurring operational metrics, including activity volume, exception movement, reporting status and data-quality flags.
+
+- Maintained reporting outputs with [N] validation checks for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by [X]% before stakeholder review.
+
+- Produced variance summaries from BigQuery movement queries, identifying [N] data, process and activity drivers behind [X]% movement in [operational metric] and documenting follow-up actions for review.
+```
+
+## Safer Version If Percentage Values Are Not Defensible Yet
+
+```text
+Data Analyst
+Operational Trend & Reporting Analytics Platform - Exeter, UK | May 2025-Present
+Large-data operational analytics platform using SQL, Google BigQuery, Power BI, Looker and Python to build reporting tables, validation checks, metric-movement reports and stakeholder summaries across 2.35B rows of event and activity data.
+
+- Built SQL and BigQuery reporting tables across 2.35B rows of event and activity data, converting raw records into reusable dashboard source tables for recurring operational analysis.
+
+- Produced metric-movement reports across recurring reporting periods, comparing activity volumes, exception counts and reporting trends against prior-period baselines.
+
+- Built Power BI / Looker reporting views tracking recurring operational metrics, including activity volume, exception movement, reporting status and data-quality flags.
+
+- Maintained reporting outputs with validation checks for missing fields, duplicate records, stale refreshes and mismatched totals before stakeholder review.
+
+- Produced variance summaries from BigQuery movement queries, identifying data, process and activity drivers behind recurring operational metric changes.
+```
+
+Recommendation: use the first version while working with placeholders, then only keep `[X]%`, `[N]`, and `[operational metric]` once the appendix defines them.
