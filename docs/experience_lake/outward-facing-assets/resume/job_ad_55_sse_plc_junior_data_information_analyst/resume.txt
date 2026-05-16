@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data & Information Analyst using Excel, SQL/BigQuery, Power BI and Looker to improve data quality, metadata clarity and responsible-use documentation across shared reporting datasets. Created validation checks, KPI definitions, shared-output checklists, data limitation notes and user-facing guidance so non-technical users could understand source caveats, excluded records, refresh status and reuse limits before relying on shared data.
+Data & Information Analyst using Excel, SQL/BigQuery, Power BI and Looker to improve data quality, metadata clarity and responsible reuse of shared reporting datasets. Created KPI definitions, validation checks and plain-English guidance so non-technical users could understand source caveats, excluded records and data limitations before relying on shared outputs.
 
 TECHNICAL SKILLS
 

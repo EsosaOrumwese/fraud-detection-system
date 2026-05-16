@@ -1,10 +1,10 @@
 Esosa Orumwese
-Data Analyst | Demand Monitoring, Forecasting & Reporting | SQL, Power BI & Data Quality
+Data Analyst | Demand Forecasting, Planning Reports & Data Quality | SQL, Power BI & Python
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Analyst using SQL, Power BI, Python and Excel/VBA to monitor operational demand patterns, build reporting datasets, validate data quality and forecast metric movements across operational time periods. Produced trend reports, variance summaries, stakeholder notes and recommendation outputs to support planning, performance review and operational decision-making.
+Data Analyst using SQL/BigQuery, Power BI, Python and Excel/VBA to monitor demand movements, build planning-period reporting datasets and validate recurring operational reports. Produced expected-vs-actual forecasts, variance summaries and data-quality caveats for planning and performance review.
 
 TECHNICAL SKILLS
 
