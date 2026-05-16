@@ -1,30 +1,30 @@
 Esosa Orumwese
-Data Analyst | Demand Reporting & Operational Analytics | Power BI, SQL & Data Quality
+Data Analyst | Demand Monitoring, Forecasting & Reporting | SQL, Power BI & Data Quality
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Analyst with experience building Power BI dashboards, SQL/BigQuery reporting tables, Excel/VBA reconciliation checks and variance summaries across large operational datasets. Produced validated reports, trend summaries and operational review outputs for managers working with field, equipment, HSE and activity records.
+Data Analyst with experience using SQL, Power BI, Python and Excel/VBA to monitor demand patterns, build reporting datasets, validate data quality and forecast metric movements across operational time periods. Produced trend reports, variance summaries, stakeholder notes and recommendation outputs to support planning, performance review and operational decision-making.
 
 TECHNICAL SKILLS
 
-Data & Reporting: SQL, Google BigQuery, reporting tables, dashboard source tables, data extraction
-BI & Visualisation: Power BI, Looker, operational dashboards, KPI reporting, variance summaries
-Excel & Automation: Excel, pivot tables, lookups, index/match, VBA exception checks
-Data Quality: reconciliation, validation checks, duplicate/missing-record checks, traceable reporting
-Python & Analysis: Python, Pandas, NumPy, trend analysis, baseline comparison
+Demand & Trend Analysis: demand monitoring, usage/activity trends, baseline comparison, variance analysis, planning-period summaries
+Data & Reporting: SQL, BigQuery, reporting tables, dashboard source tables, data extraction, database maintenance
+BI & Visualisation: Power BI, Looker, KPI dashboards, trend reports, stakeholder presentations
+Data Quality: reconciliation, validation checks, missing/duplicate checks, traceable reporting, data limitation notes
+Python & Excel: Python, Pandas, NumPy, Excel, pivot tables, lookups, index/match, VBA exception checks
 
 RELEVANT EXPERIENCE
 
 Data Analyst
-Operational Trend & Reporting Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-Large-data operational analytics platform using SQL, Google BigQuery, Power BI, Looker and Python to build reporting tables, validation checks, metric-movement reports and stakeholder summaries across 2.35B rows of event and activity data.
+Operational Demand Reporting & Data Quality Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Large-data operational analytics platform using SQL, BigQuery, Power BI, Looker and Python to monitor demand trends, build reporting tables, validate data quality and produce stakeholder summaries across a 2.35B-row event and activity data surface.
 
-- Built SQL and BigQuery reporting tables across 2.35B rows of event and activity data, converting raw records into reusable dashboard source tables for recurring operational analysis.
-- Produced 12-period metric-movement reports comparing activity volumes, exception counts and reporting trends against prior-period baselines.
-- Built Power BI and Looker reporting views tracking 14 recurring operational metrics, including activity volume, exception movement, reporting status and data-quality flags.
+- Built SQL and BigQuery reporting tables across a 2.35B-row event and activity data surface, converting raw records into reusable dashboard source tables for demand trend monitoring.
+- Built Python time-period forecasts from historical activity patterns, comparing expected and actual volumes to flag demand, exception and reporting-risk movements.
+- Produced 12-period metric-movement reports comparing activity volumes, exception counts and reporting trends against prior-period baselines for planning and operational review.
+- Built Power BI and Looker reporting views tracking 14 recurring metrics across activity volume, exception movement, reporting status and data-quality flags.
 - Maintained reporting outputs with 15 validation checks for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder review.
-- Produced variance summaries from BigQuery movement queries, explaining a 19% unexpected increase in exception volume and identifying 4 data, process and activity drivers for reporting review.
 - Translated dashboard findings, variance drivers and data-quality limitations into 6 stakeholder summaries, clarifying trend movements, caveats and recommended follow-up actions.
 
 Data Scientist
@@ -45,7 +45,7 @@ Trend-analysis project using country-sector activity data and policy-response ta
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
-Operations data role in an oilfield services environment, using Excel, VBA and Power BI to reconcile field records, automate exception checks and produce operational KPI reports for manager review.
+Operations data role in a safety-sensitive oilfield services environment, using Excel, VBA and Power BI to reconcile field records, automate exception checks and produce traceable operational KPI reports for manager review.
 
 - Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily operational updates, reducing incomplete or conflicting entries by 32% before supervisor review.
 - Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting field-report, HSE, equipment and daily-update records, cutting report review time from 45 to 25 minutes.
