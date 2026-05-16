@@ -1,0 +1,62 @@
+Esosa Orumwese
+Data Scientist | Fraud Risk Modelling, Decisioning & Monitoring | Python, SQL, AWS & MLOps
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Data Scientist with experience building AWS-hosted fraud-risk scoring workflows using SQL, Python, behavioural feature tables, ML risk scores and rule-based thresholds. Developed model validation reports, threshold trade-off tables and monitoring checks to measure known-risk capture, low-risk review inclusion and score stability.
+
+TECHNICAL SKILLS
+
+Fraud & Risk Modelling: fraud-risk scoring, rule-based thresholds, risk-score bands, known-risk case capture, false-positive proxies
+Python, SQL & Data: Python, SQL, BigQuery, PySpark, Pandas, feature tables, transaction-behaviour data, account-activity data
+Model Evaluation & Governance: model validation reports, rule-only baselines, threshold trade-off tables, lift/capture analysis, model limitations
+MLOps & Monitoring: AWS, versioned configs, scoring workflows, validation gates, feature-freshness checks, score-stability monitoring
+Risk Communication: fraud-risk model readouts, risk-driver reports, threshold recommendations, Power BI / Looker dashboards
+
+RELEVANT EXPERIENCE
+
+Data Scientist
+Fraud Risk Decisioning & Model Monitoring Platform - Exeter, UK | May 2025 - Present
+AWS-hosted fraud-risk decisioning platform using SQL, Python, behavioural feature pipelines, ML risk scores and rule-based thresholds across 2.35B rows of account activity, transaction behaviour and customer interaction data.
+
+- Built fraud-risk feature tables across 2.35B rows of account activity, transaction behaviour and customer interaction data, engineering transaction-velocity, account-activity, value-movement and abnormal-behaviour features.
+- Developed a hybrid fraud-risk scoring workflow combining ML risk scores with rule-based thresholds, producing scored customer, account and transaction records for case prioritisation.
+- Validated model ranking quality against a rule-only baseline, capturing 42% of known-risk cases in the top 20% risk score band.
+- Compared top-10%, top-20% and top-30% risk-score thresholds across known-risk capture, low-risk review inclusion and review volume, reducing low-risk review inclusion by 11% at fixed known-risk coverage.
+- Deployed an AWS-hosted scoring workflow that generated fraud-risk scores and routed high-risk records into a case-review queue with score, rule trigger, feature reason and case status fields.
+- Standardised training, scoring and evaluation workflows with versioned configs, validation gates, feature-freshness checks and score-stability monitoring across scoring runs.
+- Built a risk-adjusted value table joining transaction value and cost-exposure fields to fraud-risk scores, quantifying £64k in risk exposure across high-risk records.
+- Prepared a fraud-risk model readout covering score-band capture, threshold trade-offs, risk drivers, monitoring checks and model limitations.
+
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Python behavioural modelling project using smartphone accelerometer, gyroscope and trip-signal windows to classify movement behaviour and test model reliability.
+
+- Built a Python modelling dataset from smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model workflow for movement-pattern and identity-recognition tasks.
+- Tested model robustness across 1,200 trips, 60 users and 5 transport modes, documenting misclassified sensor patterns and failure cases.
+
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Business analytics project using country-sector activity tables and policy-response data to explain movement patterns in a visual report.
+
+- Built a country-sector comparison table across 220 countries and 12 sectors, grouping activity into rebound, persistent disruption and structural-shift categories against pre-crisis baselines.
+- Merged activity data with 8 policy-response areas across 6 countries, using restriction, support-measure and reopening signals to explain abnormal movement patterns.
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-driver notes to flag market/sector groups with persistent disruption or structural-shift patterns.
+
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data role using Excel, VBA and Power BI to check field reports, HSE logs, equipment records and daily completions updates before manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks, reducing incomplete or conflicting field-report entries by 32% before supervisor review.
+- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational dashboard tracking 9 record-quality and job-status metrics across job progress, equipment readiness, documentation gaps and review status for 12 completions jobs / 140 rig days.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020

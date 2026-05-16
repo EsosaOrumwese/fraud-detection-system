@@ -1,0 +1,61 @@
+Esosa Orumwese
+Website Data Analyst | Digital Performance Reporting | Power BI, Excel & Tracking QA
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Data Analyst using SQL, Google BigQuery, Power BI, Looker and Excel/VBA to build recurring digital performance dashboards, tracking QA checks and performance summaries from large customer event and activity datasets. Produced dashboard commentary and optimisation notes explaining journey/activity movement, validation caveats and follow-up actions for technical and non-technical stakeholders.
+
+TECHNICAL SKILLS
+
+Website & Digital Reporting: digital performance reporting, customer journey metrics, activity-stage analysis, dashboard commentary
+BI & Dashboards: Power BI, Looker, recurring KPI dashboards, performance summary views
+Excel & Tracking QA: Excel, pivot tables, lookups, index/match, tracking QA checks, validation checks
+Data & Automation: SQL, Google BigQuery, dashboard source tables, reusable reporting tables, report-refresh workflows
+Analysis: Python, Pandas, NumPy, metric movement analysis, baseline comparison, variance drivers
+
+RELEVANT EXPERIENCE
+
+Data Analyst
+Digital Performance Reporting & Tracking Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Digital performance reporting platform using SQL, Google BigQuery, Power BI, Looker and Python to turn 2.35B rows of customer event and activity data into recurring dashboard source tables, journey / activity-stage reports, tracking QA checks and performance summary notes.
+
+- Built SQL and BigQuery reporting source tables across 2.35B rows of customer event and activity data, using joins and aggregations to feed recurring Power BI and Looker performance dashboards.
+- Built journey / activity-stage tables from customer status, event counts and response-history windows, separating customer groups by activity level before performance reporting.
+- Produced 12-period digital performance reports comparing event volume, response-history mix and reporting-status changes against prior-period baselines, explaining a 19% movement through 4 data, process and activity drivers.
+- Built Power BI and Looker dashboard views tracking 14 recurring customer activity and reporting-quality metrics, including activity volume, activity-stage mix, reporting status and data-quality flags.
+- Maintained a dashboard QA checklist with 15 checks for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder release.
+- Created reusable BigQuery dashboard source tables and validation outputs for recurring Power BI / Looker reports, replacing manual query exports with a repeatable reporting refresh path.
+- Produced 6 performance summary notes explaining metric movement, validation caveats and driver categories, with follow-up actions for technical and non-technical stakeholder review.
+
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Python modelling project using smartphone sensor windows to compare model performance against a baseline, test reliability across user groups and document failure cases.
+
+- Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity across 1,200 trips, 60 users and 5 transport modes.
+- Improved transport-mode and driver-identity classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model architecture for both classification tasks.
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases by trip type, user variation and sensor-signal quality.
+
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Trend-analysis project using country-sector activity data and policy-response tables to compare movement against pre-crisis baselines, isolate external drivers and produce a visual recommendation report.
+
+- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+- Investigated abnormal activity movements across 6 countries and 8 policy areas, linking shifts to restriction, support-measure and reopening signals.
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
+
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations reporting role using Excel, VBA and Power BI to reconcile field records, automate report checks and produce KPI dashboards for manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily operational updates, reducing incomplete or conflicting entries by 32% before supervisor review.
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting field-report, HSE, equipment and daily-update records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
