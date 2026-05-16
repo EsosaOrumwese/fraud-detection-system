@@ -1,40 +1,39 @@
 Esosa Orumwese
-Data & Information Analyst | Data Quality, Metadata & Responsible Data Use
+Data & Information Analyst | Data Governance, Metadata & Trusted Data Use
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data & Information Analyst with experience improving data quality, KPI definitions and report QA across operational and analytical datasets. Used Excel, SQL/BigQuery, Power BI and Looker to reconcile field records, document metric definitions and flag missing, duplicate or stale records before manager or dashboard review.
+Data & Information Analyst with experience improving data quality, metadata clarity and responsible-use documentation across operational and analytical datasets. Used Excel, SQL/BigQuery, Power BI and Looker to create validation checks, KPI definitions, data limitation notes and plain-English guidance for shared reporting outputs.
 
 TECHNICAL SKILLS
 
-Data Quality & Governance: data-quality checks, KPI definitions, metadata notes, data limitations, report QA
-Reporting & Documentation: Power BI, Looker, dashboard notes, visual reports, plain-English summaries
+Data Governance & Quality: data-quality checks, KPI definitions, metadata notes, validation logs, data limitation notes
+Responsible Data Use: data-use documentation, excluded-record notes, controlled report review
+Reporting & Communication: Power BI, Looker, dashboard notes, plain-English summaries, user guidance
 Data Tools: Excel, SQL, Google BigQuery, VBA, Power BI, Looker
-Data Checks: source-table checks, validation logs, duplicate checks, stale-record checks, controlled report review
 Operational Records: field reports, HSE logs, equipment records, daily activity records, reconciliation workbooks
 
 RELEVANT EXPERIENCE
 
 Data Analyst
-Data Quality & Reporting QA Project (Independent Build) - Exeter, UK | May 2025 - Present
-BigQuery, Looker and Power BI reporting QA work covering KPI definition sheets, source-table validation queries, dashboard refresh checks and data limitation notes across a 2.35B-row dataset.
+Data Governance & Reporting QA Workstream (Independent Production Build) - Exeter, UK | May 2025 - Present
+BigQuery, Looker and Power BI governance workstream covering KPI definitions, metadata notes, source-table validation queries, dashboard refresh checks, responsible-use notes and data limitation guidance across a 2.35B-row dataset.
 
-- Documented 13 KPI definitions with metric formulas, BigQuery source tables, aggregation grain, report filters and known data limitations.
-- Added 15 validation checks across BigQuery source tables and Looker/Power BI reports, covering row counts, missing values, duplicate records, join keys, date filters and dashboard totals.
-- Used SQL validation queries to flag 18 source-table issues, including stale refresh dates, duplicate rows, broken join keys and mismatched dashboard aggregations.
-- Logged dashboard QA failures and refresh checks across BigQuery source tables and Looker/Power BI reports, reducing repeated issues by 38% and lifting validated dashboard refreshes to 98%.
-- Checked report extracts for missing definitions, excluded records and data limitations before manager or dashboard review.
-- Logged recurring report questions and updated KPI notes, report filters and validation checks to reduce repeated clarification on dashboard metrics.
-- Wrote dashboard notes explaining metric formulas, source-table caveats, excluded records and refresh checks beside the relevant Looker/Power BI reports.
+- Documented 13 KPI definitions with metric formulas, BigQuery source tables, aggregation grain, report filters, excluded records and known data limitations.
+- Built 15 validation checks across BigQuery source tables and Looker/Power BI reports, covering row counts, missing values, duplicate records, join keys, date filters and dashboard totals.
+- Created SQL validation queries that flagged 18 source-table issues, including stale refresh dates, duplicate rows, broken join keys and mismatched dashboard aggregations.
+- Maintained a reporting QA log for dashboard failures, refresh checks and source-table issues, reducing repeated issues by 38% and lifting validated dashboard refreshes to 98%.
+- Produced responsible-use notes for shared reports, explaining source-table caveats, excluded records, refresh checks and data limitations before manager or dashboard review.
+- Logged recurring user questions on dashboard metrics and updated KPI notes, report filters and validation checks to make shared outputs easier to understand and reuse.
+- Wrote plain-English dashboard guidance explaining metric formulas, source caveats and refresh status beside the relevant Looker/Power BI reports.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Python modelling project using smartphone accelerometer, gyroscope and trip-signal records to classify movement patterns and document model failure cases.
+Python modelling project using smartphone sensor records to test model outputs, document failure cases and explain limitations for non-technical review.
 
-- Built a Python modelling dataset from smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
-- Improved classification accuracy by 7 percentage points versus a single-task CNN baseline, recording model performance across 5 transport modes.
-- Tested model outputs across 1,200 trips, 60 users and 5 transport modes, documenting misclassified sensor patterns and failure cases for model interpretation.
+- Tested model outputs across 1,200 trips, 60 users and 5 transport modes, documenting misclassified sensor patterns, failure cases and interpretation limits.
+- Produced plain-English notes explaining model performance, data limitations and failure cases so non-technical readers could understand when outputs should or should not be trusted.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
