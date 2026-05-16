@@ -932,3 +932,449 @@ Did the data include actual website/digital events such as page views, clicks, s
 ```
 
 That answer determines whether the CV can move from "digital performance reporting" to true "website performance reporting."
+
+# Lloyds Website Data Analyst - Bullet Portfolio Design
+
+This is not drafting yet. This stage decides what each bullet must prove before wording it. Lloyds wants website/digital performance reporting, customer journeys, traffic/engagement/content/campaign performance, tracking validation, Power BI/Excel recurring reports, report automation, and clear findings for digital, content, marketing, product and technology teams.
+
+## Portfolio Posture
+
+Assumption for now:
+
+```text
+No confirmed Adobe Analytics / Google Analytics.
+No confirmed public-website pageview / click / session fields.
+```
+
+So the competitive route is:
+
+```text
+digital performance reporting + customer event/activity data + Power BI/Looker dashboards + tracking QA + recurring reports + optimisation summaries
+```
+
+Not:
+
+```text
+Adobe Analytics website funnel specialist
+```
+
+unless direct web analytics evidence is later confirmed.
+
+## 1. Main Platform Block Portfolio
+
+### Target Block Title
+
+```text
+Data Analyst
+Digital Performance Reporting & Tracking Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+```
+
+This is stronger than "Customer Behaviour Platform" because it points directly at Lloyds' buying problem: **performance reporting + tracking accuracy + digital activity analysis**.
+
+### Portfolio Goal
+
+The platform block must prove:
+
+```text
+I can build recurring digital performance reports from event/activity data, maintain Power BI/Looker dashboards, validate tracking/reporting quality, explain metric movement, and produce optimisation notes for stakeholders.
+```
+
+### Bullet 1 - SQL / BigQuery Reporting Source Tables
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove data extraction and reusable reporting-table creation. |
+| Evidence assigned | 2.35B rows of customer event/activity data; SQL/BigQuery source tables. |
+| Lloyds screen covered | Website/digital reporting, datasets, recurring dashboards, data handling. |
+| Concrete artefacts | SQL reporting table, BigQuery dashboard source table, event/activity table. |
+| Metric meaning | Data scale and reusable reporting outputs. |
+| Values | 2.35B rows, `[N] source tables` if needed. |
+| Avoid | "customer behaviour insight," "data surface," "general analytics." |
+
+Bullet job: prove the data foundation for recurring digital performance reporting.
+
+### Bullet 2 - Customer Journey / Activity-Stage Analysis
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove customer journey / digital behaviour analysis without claiming website funnel data unless true. |
+| Evidence assigned | Activity-stage tables, lifecycle/response-history fields, event/activity counts. |
+| Lloyds screen covered | Customer behaviour, digital journeys, areas for optimisation. |
+| Concrete artefacts | Activity-stage table, journey-movement report, lifecycle-response table. |
+| Metric meaning | Movement across stages/groups/windows. |
+| Values | `[N] stages`, `[N] periods`, or use no number if stages are not locked. |
+| Avoid | "journey drop-off," "task completion," "website funnel" unless true. |
+
+Bullet job: prove you can analyse how customer activity changes across stages or behaviour groups.
+
+### Bullet 3 - Digital Performance / Metric Movement Reports
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove trend spotting and performance analysis. |
+| Evidence assigned | 12-period reports; 19% unexpected movement; 4 drivers. |
+| Lloyds screen covered | Spotting trends, website performance analysis, optimisation opportunities. |
+| Concrete artefacts | 12-period performance report, activity movement table, variance summary. |
+| Metric meaning | Movement against prior-period baseline. |
+| Values | 12 periods, 19% movement, 4 drivers. |
+| Avoid | "metric insight," "performance improvement" without the report/driver. |
+
+Bullet job: prove you can identify and explain performance movement.
+
+### Bullet 4 - Power BI / Looker Dashboards
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove dashboard ownership and recurring reporting. |
+| Evidence assigned | Power BI/Looker views; 14 recurring metrics; 12 reporting periods. |
+| Lloyds screen covered | Power BI dashboards, regular reports, website/digital performance reporting. |
+| Concrete artefacts | Power BI digital performance dashboard, Looker reporting view, KPI dashboard. |
+| Metric meaning | Metrics tracked and reporting period coverage. |
+| Values | 14 metrics, 12 periods. |
+| Avoid | "built dashboards" alone. Name dashboard contents. |
+
+Bullet job: prove dashboard/reporting capability with concrete metric contents.
+
+### Bullet 5 - Tracking QA / Dashboard Validation
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove tracking validation, QA, data accuracy and attention to detail. |
+| Evidence assigned | 15 validation checks; missing fields; duplicate records; stale refreshes; mismatched totals; 38% error reduction. |
+| Lloyds screen covered | Tracking validation, quality assurance, data accuracy and consistency. |
+| Concrete artefacts | Tracking QA checklist, dashboard validation table, report validation checks. |
+| Metric meaning | Reporting error reduction after validation checks. |
+| Values | 15 checks, 38% reduction. |
+| Avoid | "ensured data quality." Too vague. |
+
+Bullet job: prove the exact QA work Lloyds is asking for.
+
+### Bullet 6 - Report Automation / Recurring Reporting Process
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove process improvement and recurring report automation. |
+| Evidence assigned | Reusable dashboard source tables, reporting refresh process, validation process. |
+| Lloyds screen covered | Help automate recurring reports and improve reporting processes. |
+| Concrete artefacts | SQL dashboard source table, recurring report table, refresh/validation process. |
+| Metric meaning | Reduced manual reporting, improved reliability, recurring refresh coverage. |
+| Values | `[N] recurring reports`, `[Y]% refresh success` if defensible. |
+| Avoid | "improved reporting process" without object and result. |
+
+Bullet job: prove you can improve recurring reporting, not just build one-off dashboards.
+
+### Bullet 7 - Stakeholder Performance Summaries / Optimisation Notes
+
+| Field | Decision |
+| --- | --- |
+| Primary proof function | Prove clear findings and recommendations for non-technical teams. |
+| Evidence assigned | 6 stakeholder summaries; dashboard findings; variance drivers; data-quality limitations; follow-up actions. |
+| Lloyds screen covered | Present findings clearly, answer business questions, support optimisation. |
+| Concrete artefacts | Dashboard commentary notes, performance summary notes, optimisation recommendation memo. |
+| Metric meaning | Number of notes / drivers / follow-up actions. |
+| Values | 6 summaries, 4 drivers, `[N] follow-up actions` if available. |
+| Avoid | "delivered insight," "supported decision-making." |
+
+Bullet job: prove you can turn dashboard findings into stakeholder-readable recommendations.
+
+## Recommended Platform Order
+
+```text
+1. SQL / BigQuery reporting source tables
+2. Customer journey / activity-stage analysis
+3. 12-period digital performance / metric-movement reports
+4. Power BI / Looker dashboards
+5. Tracking QA / dashboard validation checks
+6. Report automation / recurring reporting process
+7. Stakeholder performance summaries / optimisation notes
+```
+
+This order gives the hiring manager the right scan:
+
+```text
+data source tables -> journey/performance analysis -> dashboards -> tracking QA -> automation -> stakeholder recommendations
+```
+
+That is the Lloyds workflow.
+
+## If A 6-Bullet Version Is Needed
+
+Combine bullets 1 and 6:
+
+```text
+SQL / BigQuery reporting source tables + recurring reporting process
+```
+
+Then use:
+
+```text
+1. SQL/BigQuery reporting tables for recurring digital performance reporting
+2. Customer journey / activity-stage analysis
+3. 12-period metric movement reports
+4. Power BI / Looker dashboards
+5. Tracking QA / validation checks
+6. Stakeholder performance summaries / optimisation notes
+```
+
+For shortlist competitiveness, prefer **7 bullets** in the main platform block if space allows, because Lloyds has several specific proof requirements.
+
+## 2. Secondary Experience Portfolio
+
+### Smartphone Project - Supporting Only
+
+This block should prove Python/model evaluation, but not lead.
+
+```text
+Bullet 1 must prove: Python model trained on sensor windows.
+Bullet 2 must prove: baseline comparison and 7pp improvement.
+Bullet 3 must prove: robustness report and failure-case documentation.
+```
+
+Use 2-3 bullets depending on space. It supports analytical discipline, but it is not website analytics.
+
+### Business Analytics Project - Visual Reporting And Recommendations
+
+This block is useful because Lloyds wants clear findings for non-technical audiences.
+
+```text
+Bullet 1 must prove: 220-country / 12-sector baseline trend analysis.
+Bullet 2 must prove: abnormal movement and driver explanation.
+Bullet 3 must prove: visual report with 3 recommendations.
+```
+
+Keep 3 bullets. It supports trend analysis and clear presentation.
+
+### South Western - Excel / Power BI / Automation Support
+
+This block supports Excel, Power BI, reporting accuracy and automation.
+
+```text
+Bullet 1 must prove: Excel reconciliation workbook reduced incomplete/conflicting entries.
+Bullet 2 must prove: VBA report-refresh and exception macro cut review time.
+Bullet 3 must prove: Power BI dashboard tracked 9 KPIs across 12 jobs / 140 rig days.
+```
+
+Keep 3 bullets if space allows. This is good evidence for Excel, QA and report automation.
+
+## Evidence Not Assigned To Lead Bullets
+
+Do not lead with:
+
+```text
+Adobe Analytics
+Google Analytics / GA4
+public website traffic
+page views
+clicks
+forms
+content performance
+journey drop-off
+task completion
+```
+
+unless confirmed.
+
+Do not lead with:
+
+```text
+customer segmentation
+supplier analytics
+pricing/promotions
+water demand
+fraud/payments
+deep learning
+```
+
+because they pull the CV away from Lloyds' website-performance role.
+
+## Final Platform Bullet Portfolio
+
+```text
+Bullet 1 must prove:
+SQL / BigQuery source-table creation for recurring digital performance reports.
+
+Bullet 2 must prove:
+Customer journey / activity-stage analysis from event and activity data.
+
+Bullet 3 must prove:
+12-period performance movement analysis with baseline comparison and drivers.
+
+Bullet 4 must prove:
+Power BI / Looker dashboards tracking digital/customer activity metrics.
+
+Bullet 5 must prove:
+Tracking QA / dashboard validation with named checks and reporting-error reduction.
+
+Bullet 6 must prove:
+Recurring report automation or reusable report source-table improvement.
+
+Bullet 7 must prove:
+Dashboard commentary / performance summaries with optimisation follow-up actions.
+```
+
+# Lloyds Platform Experience Draft
+
+This is the first working draft for the platform experience block. It follows the bullet portfolio design and keeps the block focused on Lloyds' buying criteria: website/digital performance reporting, customer journey/activity-stage analysis, tracking QA, recurring Power BI/Excel reporting, report automation, and clear findings for digital/content/marketing/product stakeholders.
+
+## Draft Review Position
+
+The planned proof jobs were:
+
+```text
+1. SQL / BigQuery source-table creation for recurring digital performance reports.
+2. Customer journey / activity-stage analysis from event and activity data.
+3. 12-period performance movement analysis with baseline comparison and drivers.
+4. Power BI / Looker dashboards tracking digital/customer activity metrics.
+5. Tracking QA / dashboard validation with named checks and reporting-error reduction.
+6. Recurring report automation or reusable report source-table improvement.
+7. Dashboard commentary / performance summaries with optimisation follow-up actions.
+```
+
+The draft is aligned, but the strongest version should avoid drifting into customer scoring / segmentation language. For Lloyds, score bands should not dominate the block. The block should convey:
+
+```text
+digital performance reporting + journey/activity-stage monitoring + tracking QA + recurring report automation + optimisation summaries
+```
+
+Not:
+
+```text
+customer scoring + score-band reporting + segmentation
+```
+
+## Working Platform Block
+
+```text
+Data Analyst
+Digital Performance Reporting & Tracking Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Digital performance reporting platform using SQL, Google BigQuery, Power BI, Looker and Python to turn 2.35B rows of customer event and activity data into recurring dashboard source tables, activity-stage reports, tracking QA checks and performance summary notes.
+
+- Built SQL and BigQuery reporting source tables across 2.35B rows of customer event and activity data, using joins and aggregations to feed recurring Power BI and Looker performance dashboards.
+
+- Built activity-stage tables from customer status, event counts and response-history windows, separating customer groups by activity level before journey and performance reporting.
+
+- Produced 12-period digital activity movement reports comparing event volume, response-history mix and reporting-status changes against prior-period baselines, explaining a 19% unexpected movement through 4 data, process and activity drivers.
+
+- Built Power BI and Looker dashboard views tracking 14 recurring customer activity and reporting-quality metrics, including activity volume, activity-stage mix, reporting status and data-quality flags.
+
+- Maintained a dashboard QA checklist with 15 checks for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder release.
+
+- Created reusable BigQuery dashboard source tables and validation outputs for recurring Power BI / Looker reports, replacing manual query exports with a repeatable reporting refresh path.
+
+- Produced 6 performance summary notes explaining metric movement, validation caveats and driver categories, with follow-up actions for technical and non-technical stakeholder review.
+```
+
+## Why This Version Is Preferred
+
+It removes the drift terms:
+
+```text
+score-band ranking logic
+score-band distribution
+```
+
+And replaces them with Lloyds-relevant terms:
+
+```text
+activity-stage reports
+journey and performance reporting
+activity-stage mix
+tracking QA
+reporting-quality metrics
+performance summary notes
+repeatable reporting refresh path
+```
+
+This version better matches the planned message:
+
+```text
+I can build and maintain digital performance reporting, validate tracking/reporting accuracy, explain movement in customer activity metrics, automate recurring dashboards, and communicate findings clearly.
+```
+
+# Lloyds Supporting Experience Drafts
+
+These blocks support Lloyds' needs around **Power BI/Excel reporting, tracking/data-quality checks, recurring reports, clear findings for non-technical audiences, trend analysis, and report automation** without pretending they were website analytics roles. The shortlist case should still be carried by the main platform block.
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Python modelling project using smartphone sensor windows to compare model performance against a baseline, test reliability across user groups and document failure cases.
+
+- Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity across 1,200 trips, 60 users and 5 transport modes.
+
+- Improved transport-mode and driver-identity classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model architecture for both classification tasks.
+
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases by trip type, user variation and sensor-signal quality.
+```
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Trend-analysis project using country-sector activity data and policy-response tables to compare movement against pre-crisis baselines, isolate external drivers and produce a visual recommendation report.
+
+- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+
+- Investigated abnormal activity movements across 6 countries and 8 policy areas, linking shifts to restriction, support-measure and reopening signals.
+
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
+```
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations reporting role using Excel, VBA and Power BI to reconcile field records, automate report checks and produce KPI dashboards for manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily operational updates, reducing incomplete or conflicting entries by 32% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting field-report, HSE, equipment and daily-update records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+```
+
+# Lloyds Header And Summary
+
+## Recommended Headline
+
+```text
+Esosa Orumwese
+Website Data Analyst | Digital Performance Reporting | Power BI, Excel & Tracking QA
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+```
+
+This is stronger than "Digital Data Analyst" because it matches the job title, but it does **not** falsely claim Adobe Analytics or Google Analytics.
+
+## Professional Summary
+
+```text
+Data Analyst using SQL, Google BigQuery, Power BI, Looker and Excel/VBA to build recurring dashboard source tables, tracking QA checks and performance summaries from large customer event and activity datasets. Produced dashboard commentary and optimisation notes explaining metric movement, validation caveats and follow-up actions for technical and non-technical stakeholders.
+```
+
+This summary stays short and does not cram the full CV into the top section. It matches Lloyds' need for website/digital performance reporting, dashboards, tracking validation, recurring reports, optimisation activity and clear communication across digital, content, marketing, product and technology teams.
+
+# Lloyds Skills And Education
+
+For Lloyds, the skills section should stay short and scan-friendly. It should signal **Power BI, Excel, tracking QA, reporting automation, digital performance reporting and customer journey/activity analysis**, without pretending there is Adobe Analytics or Google Analytics evidence unless confirmed. Lloyds explicitly asks for website/digital reporting, Power BI, Excel, tracking validation, report automation and clear stakeholder communication.
+
+```text
+TECHNICAL SKILLS
+
+Digital Reporting: digital performance reporting, customer activity metrics, journey/activity-stage analysis, dashboard commentary
+
+BI & Dashboards: Power BI, Looker, recurring KPI dashboards, performance summary views
+
+Excel & Reporting QA: Excel, pivot tables, lookups, index/match, tracking QA checks, validation checks
+
+Data & Automation: SQL, Google BigQuery, dashboard source tables, reusable reporting tables, report-refresh workflows
+
+Analysis: Python, Pandas, NumPy, metric movement analysis, baseline comparison, variance drivers
+```
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+```

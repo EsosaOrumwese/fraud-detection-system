@@ -1546,3 +1546,480 @@ confirmed fraud prevention
 This is an unusually strong fit **if** the platform is led as a fraud-risk decisioning and monitoring system.
 
 The platform evidence is A-tier for this role. The supporting experiences should be secondary. The next step is **bullet portfolio design**, and the platform block should carry most of the resume's shortlist argument.
+
+# LexisNexis Bullet Portfolio Design
+
+This is not bullet drafting yet. This step decides what each experience block and each bullet must prove before final wording.
+
+LexisNexis is looking for a fraud/risk Data Scientist who can build ML or rule-based models, define fraudster-behaviour features with SQL/Python, build internal model-training/analytics workflows, communicate to external/executive audiences, understand cybercrime patterns, and show production deployment, MLOps and monitoring evidence.
+
+## Target Resume Story
+
+The CV should say:
+
+```text
+I built a production-shaped fraud-risk decisioning platform: behavioural features, ML/rule scoring, validation, threshold trade-offs, AWS deployment, monitoring, case prioritisation and risk-story communication.
+```
+
+Not:
+
+```text
+I built a machine learning platform.
+```
+
+And not:
+
+```text
+I built dashboards.
+```
+
+## Main Platform Title
+
+Recommended:
+
+```text
+Data Scientist
+Fraud Risk Decisioning & Model Monitoring Platform - Exeter, UK | May 2025 - Present
+```
+
+This title is strong because it directly carries the role's centre: fraud risk, decisioning, models and monitoring.
+
+## Platform Bullet Portfolio
+
+### Bullet 1 - Fraud-Risk Feature Engineering
+
+| Field | Decision |
+| --- | --- |
+| Must prove | You can define SQL/Python features that capture fraud/risk behaviour. |
+| Concrete evidence | 2.35B rows of account activity, transaction behaviour and customer interaction data. |
+| Artefacts | Fraud-risk feature table, account/activity feature table, transaction-behaviour feature table. |
+| Feature groups | Transaction-velocity, account-activity, value-movement and abnormal-behaviour features. |
+| Why it matters | LexisNexis explicitly wants features that capture evolving fraudster behaviours. |
+| Avoid | "Built features for fraud insights." Too vague. Name the feature groups. |
+
+Portfolio role: this is the **fraudster-behaviour feature bullet**.
+
+### Bullet 2 - Hybrid ML + Rule-Based Scoring
+
+| Field | Decision |
+| --- | --- |
+| Must prove | You can work with both ML scores and rule/threshold logic. |
+| Concrete evidence | Hybrid fraud-risk scoring workflow combining ML risk scores with rule-based thresholds. |
+| Artefacts | Risk-score table, rule-threshold table, model/rule comparison. |
+| Baseline | Rule-only baseline. |
+| Why it matters | The job asks for machine learning or rule-based models, not just generic modelling. |
+| Avoid | "Applied machine learning to fraud." Too generic. |
+
+Portfolio role: this is the **ML + rule decisioning bullet**.
+
+### Bullet 3 - Model Validation And Known-Risk Capture
+
+| Field | Decision |
+| --- | --- |
+| Must prove | You can evaluate whether the risk score actually finds risky cases. |
+| Concrete evidence | 42% of known-risk cases captured in the top 20% risk score band. |
+| Artefacts | Model validation report, score-band capture table, lift/backtest summary. |
+| Target definition | Known-risk cases = historical rule-triggered, chargeback-linked or manually reviewed suspicious records. |
+| Baseline | Rule-only baseline. |
+| Why it matters | LexisNexis needs models that survive governance and real risk evaluation. |
+| Avoid | "Improved fraud detection." Too abstract. |
+
+Portfolio role: this is the **model validation / governance bullet**.
+
+### Bullet 4 - Threshold Trade-Off And Customer-Friction Proxy
+
+| Field | Decision |
+| --- | --- |
+| Must prove | You can balance fraud capture against customer friction / false positives. |
+| Concrete evidence | Top-10%, top-20%, top-30% risk-score threshold comparison; 11% reduction in low-risk review inclusion at fixed known-risk coverage. |
+| Artefacts | Threshold trade-off table, false-positive proxy table, review-volume table. |
+| Friction proxy | Low-risk review inclusion. |
+| Why it matters | The ad explicitly links the work to lower customer friction, reduced fraud losses and customer profitability. |
+| Avoid | "Reduced customer friction" unless live friction was measured. Use the proxy. |
+
+Portfolio role: this is the **fraud-capture vs friction trade-off bullet**.
+
+### Bullet 5 - AWS Deployment And Case-Review Queue
+
+| Field | Decision |
+| --- | --- |
+| Must prove | You can move from model output to production-shaped fraud decisioning. |
+| Concrete evidence | AWS-hosted fraud-risk scoring workflow; case-review queue. |
+| Artefacts | AWS scoring workflow, decision output, case-review queue. |
+| Case fields | Risk score, rule trigger, feature reason, case status. |
+| Why it matters | The job asks for model deployment and real-world fraud platform work. |
+| Avoid | "Production-ready platform" alone. Name the deployed workflow and operational output. |
+
+Portfolio role: this is the **production decisioning bullet**.
+
+### Bullet 6 - MLOps, Monitoring And Standardised Workflows
+
+| Field | Decision |
+| --- | --- |
+| Must prove | You can build repeatable model workflows and monitor model inputs/outputs. |
+| Concrete evidence | Versioned training, scoring and evaluation workflows; feature freshness, score stability and data-quality monitoring. |
+| Artefacts | Versioned configs, validation gates, repeatable scoring runs, monitoring checks. |
+| Monitoring objects | Feature freshness, score stability, data quality. |
+| Why it matters | LexisNexis explicitly asks for MLOps principles, scalable workflows and ML monitoring systems. |
+| Avoid | Calling report QA "model monitoring" unless it checks model inputs/outputs. |
+
+Portfolio role: this is the **MLOps / monitoring bullet**.
+
+### Bullet 7 - Risk-Adjusted Value / Profitability Proxy
+
+| Field | Decision |
+| --- | --- |
+| Must prove | You can connect fraud-risk decisions to value, cost exposure or profitability proxies. |
+| Concrete evidence | Risk-adjusted value table joining transaction value and cost-exposure fields to fraud-risk scores. |
+| Artefacts | Value-risk table, transaction-value summary, cost-exposure table. |
+| Possible value | £64k risk exposure, if defensible. |
+| Why it matters | The ad ties the work to fraud losses and customer profitability. |
+| Avoid | "Saved £64k" or "increased profitability" unless measured. |
+
+Portfolio role: this is the **commercial risk / value trade-off bullet**.
+
+### Bullet 8 - Fraud-Risk Model Readout / Communication
+
+| Field | Decision |
+| --- | --- |
+| Must prove | You can craft the risk story for decision-makers, not just build the model. |
+| Concrete evidence | Fraud-risk model readout covering score-band capture, threshold trade-offs, risk drivers, monitoring checks and model limitations. |
+| Artefacts | Model readout, risk-driver report, threshold recommendation table. |
+| Audience | Keep truthful: stakeholder, portfolio, risk-review, executive-style only if defensible. |
+| Why it matters | The ad asks for polished presentations for external and executive audiences. |
+| Avoid | "External customer presentation" unless true. |
+
+Portfolio role: this is the **risk-story / presentation bullet**.
+
+## Recommended Platform Order
+
+For the platform block, use this order:
+
+```text
+1. Fraud-risk feature engineering at scale.
+2. Hybrid ML + rule-based scoring workflow.
+3. Model validation: known-risk capture vs rule-only baseline.
+4. Threshold trade-off: fraud capture vs low-risk review inclusion.
+5. AWS deployment + case-review queue.
+6. MLOps workflows + monitoring checks.
+7. Risk-adjusted value table.
+8. Fraud-risk model readout.
+```
+
+That is a lot for one block. For the final CV, the likely target is **7 bullets**, not 8.
+
+## Best 7-Bullet Platform Portfolio
+
+Combine Bullet 7 and Bullet 8 if space is tight:
+
+```text
+Risk-adjusted value table + model readout
+```
+
+Final 7-bullet platform portfolio:
+
+```text
+1. Built fraud-risk features from account, transaction and behaviour data.
+2. Built hybrid ML + rule-threshold fraud-risk scoring workflow.
+3. Validated known-risk capture in top score band versus rule-only baseline.
+4. Compared thresholds to reduce low-risk review inclusion at fixed risk coverage.
+5. Deployed AWS scoring workflow with case-review queue.
+6. Standardised training/scoring/evaluation workflows with monitoring checks.
+7. Produced risk-adjusted value table and fraud-risk readout for model/risk review.
+```
+
+This is the shortlist-level first block.
+
+## Supporting Experience Portfolio
+
+Because the platform is so directly matched, the supporting blocks should be shorter and should not compete with it.
+
+### University Of Exeter - Behavioural Modelling Project
+
+This block should prove **Python modelling, baseline evaluation and robustness testing**, not fraud domain.
+
+| Bullet slot | Must prove | Evidence |
+| --- | --- | --- |
+| 1 | Python model development | Smartphone accelerometer, gyroscope and trip-signal windows. |
+| 2 | Baseline evaluation | 7 percentage-point improvement vs single-task CNN baseline. |
+| 3 | Robustness / failure cases | 1,200 trips, 60 users, 5 transport modes, misclassified patterns. |
+
+Portfolio output:
+
+```text
+Bullet 1 must prove: Python behavioural model built from named sensor signals.
+Bullet 2 must prove: model improvement against a named baseline.
+Bullet 3 must prove: robustness testing and documented failure cases.
+```
+
+Keep this because LexisNexis wants Python and model evaluation, but do not let it outrank the fraud-risk platform.
+
+### University Of Exeter - Business Analytics Project
+
+This block should prove **data storytelling and recommendations**, because LexisNexis values polished presentations and clear data stories.
+
+| Bullet slot | Must prove | Evidence |
+| --- | --- | --- |
+| 1 | Structured trend analysis | 220 countries, 12 sectors, pre-crisis baseline. |
+| 2 | Driver analysis | 6 countries, 8 policy-response areas. |
+| 3 | Recommendation output | Visual trend report with 3 recommendations. |
+
+Portfolio output:
+
+```text
+Bullet 1 must prove: built a structured comparison table.
+Bullet 2 must prove: explained movement through named drivers.
+Bullet 3 must prove: produced a recommendation report.
+```
+
+This supports communication, but it is not fraud/risk evidence.
+
+### South Western Technologies - Data Analyst
+
+This block should be compressed. It proves **data-quality discipline and operational controls**, but it is not central to LexisNexis.
+
+| Bullet slot | Must prove | Evidence |
+| --- | --- | --- |
+| 1 | Operational record quality | Excel reconciliation workbook, field reports, HSE logs, equipment checks, 32% fewer conflicting records. |
+| 2 | Automation / review speed | VBA exception macro, review time 45 to 25 minutes. |
+| 3 | Operational dashboard | Power BI dashboard, 9 metrics, 12 jobs / 140 rig days. |
+
+Portfolio output:
+
+```text
+Bullet 1 must prove: reconciled operational records and reduced conflicting entries.
+Bullet 2 must prove: automated exception checks.
+Bullet 3 must prove: built operational KPI dashboard.
+```
+
+If the CV gets too long, this can be reduced to **two bullets**.
+
+## Final Bullet Portfolio By Experience Block
+
+```text
+Data Scientist - Fraud Risk Decisioning & Model Monitoring Platform
+1. Fraud-risk feature engineering.
+2. Hybrid ML + rule-threshold scoring.
+3. Known-risk capture validation.
+4. Threshold/friction trade-off.
+5. AWS deployment + case-review queue.
+6. MLOps + monitoring.
+7. Risk-adjusted value + model readout.
+
+Data Scientist - University of Exeter
+1. Python behavioural model.
+2. Baseline improvement.
+3. Robustness/failure cases.
+
+Business Analyst - University of Exeter
+1. Country-sector comparison table.
+2. Driver analysis.
+3. Visual report with recommendations.
+
+Data Analyst - South Western Technologies
+1. Excel reconciliation / record quality.
+2. VBA exception automation.
+3. Power BI operational dashboard.
+```
+
+This keeps the resume anchored to LexisNexis' buying criteria while preserving reverse chronology and avoiding generic ML drift.
+
+# LexisNexis Experience Draft
+
+This draft uses the locked LexisNexis grounding: **fraud-risk features, hybrid ML/rule scoring, known-risk capture, rule-only baseline, threshold trade-offs, AWS deployment, MLOps, monitoring, case-review queue, risk-adjusted value and model readout**. It is anchored to the ad's requirements around ML/rule-based models, SQL/Python fraudster-behaviour features, model training workflows, presentations, cybercrime knowledge, production deployment, MLOps and monitoring.
+
+## Draft Quality Notes
+
+The platform block is strong because it uses concrete objects:
+
+```text
+fraud-risk feature tables
+ML risk scores
+rule-based thresholds
+known-risk cases
+rule-only baseline
+risk score bands
+threshold comparison
+AWS scoring workflow
+case-review queue
+versioned configs
+validation gates
+monitoring checks
+risk-adjusted value table
+fraud-risk model readout
+```
+
+Defensibility reminders before final CV lock:
+
+```text
+Known-risk cases = historical rule-triggered, chargeback-linked or manually reviewed suspicious records used for offline validation.
+
+Low-risk review inclusion = records without known-risk signal that still entered review at a threshold.
+
+Low-risk review inclusion formula = low-risk records reviewed / total reviewed records, compared at fixed known-risk capture.
+
+Do not claim confirmed fraud loss reduction, actual customer friction reduction, external customer presentation or formal banking model approval unless directly evidenced.
+```
+
+## Main Experience Block - Revised Draft
+
+```text
+Data Scientist
+Fraud Risk Decisioning & Model Monitoring Platform - Exeter, UK | May 2025 - Present
+AWS-hosted fraud-risk decisioning platform using SQL, Python, behavioural feature pipelines, ML risk scores and rule-based thresholds across 2.35B rows of account activity, transaction behaviour and customer interaction data.
+
+- Built fraud-risk feature tables across 2.35B rows of account activity, transaction behaviour and customer interaction data, engineering transaction-velocity, account-activity, value-movement and abnormal-behaviour features.
+
+- Developed a hybrid fraud-risk scoring workflow combining ML risk scores with rule-based thresholds, producing scored customer, account and transaction records for case prioritisation.
+
+- Validated model ranking quality against a rule-only baseline, capturing 42% of known-risk cases in the top 20% risk score band.
+
+- Compared top-10%, top-20% and top-30% risk-score thresholds across known-risk capture, low-risk review inclusion and review volume, reducing low-risk review inclusion by 11% at fixed known-risk coverage.
+
+- Deployed an AWS-hosted scoring workflow that generated fraud-risk scores and routed high-risk records into a case-review queue with score, rule trigger, feature reason and case status fields.
+
+- Standardised training, scoring and evaluation workflows with versioned configs, validation gates, feature-freshness checks and score-stability monitoring across scoring runs.
+
+- Built a risk-adjusted value table joining transaction value and cost-exposure fields to fraud-risk scores, quantifying £64k in risk exposure across high-risk records.
+
+- Prepared a fraud-risk model readout covering score-band capture, threshold trade-offs, risk drivers, monitoring checks and model limitations.
+```
+
+This version is preferred over the compressed 7-bullet version because LexisNexis explicitly values communication and polished model/risk presentations; the model readout deserves its own bullet if space allows.
+
+## Supporting Experience Drafts
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Python behavioural modelling project using smartphone accelerometer, gyroscope and trip-signal windows to classify movement behaviour and test model reliability.
+
+- Built a Python modelling dataset from smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
+
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model workflow for movement-pattern and identity-recognition tasks.
+
+- Tested model robustness across 1,200 trips, 60 users and 5 transport modes, documenting misclassified sensor patterns and failure cases.
+```
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Business analytics project using country-sector activity tables and policy-response data to explain movement patterns in a visual report.
+
+- Built a country-sector comparison table across 220 countries and 12 sectors, grouping activity into rebound, persistent disruption and structural-shift categories against pre-crisis baselines.
+
+- Merged activity data with 8 policy-response areas across 6 countries, using restriction, support-measure and reopening signals to explain abnormal movement patterns.
+
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-driver notes to flag market/sector groups with persistent disruption or structural-shift patterns.
+```
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data role using Excel, VBA and Power BI to check field reports, HSE logs, equipment records and daily completions updates before manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks, reducing incomplete or conflicting field-report entries by 32% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational dashboard tracking 9 record-quality and job-status metrics across job progress, equipment readiness, documentation gaps and review status for 12 completions jobs / 140 rig days.
+```
+
+## Formula Check
+
+```text
+Bullet 1 = feature engineering at scale
+Bullet 2 = ML + rule-based decisioning
+Bullet 3 = model validation against baseline
+Bullet 4 = threshold / friction trade-off
+Bullet 5 = production deployment + operational case queue
+Bullet 6 = MLOps + monitoring
+Bullet 7 = commercial risk / value exposure
+Bullet 8 = model readout / risk communication
+```
+
+The main platform block is concrete enough to compete: **feature tables, risk scores, rule thresholds, known-risk cases, score bands, threshold table, AWS scoring workflow, case-review queue, versioned configs, monitoring checks, risk exposure table, model readout**.
+
+# LexisNexis Header And Summary
+
+For this LexisNexis role, the header and summary should be **fraud-risk DS first**, not generic Data Scientist. The ad is looking for ML/rule-based fraud models, SQL/Python feature work, production deployment, MLOps, monitoring, and risk communication.
+
+## Recommended Headline
+
+```text
+Data Scientist | Fraud Risk Modelling, Decisioning & Monitoring | Python, SQL, AWS & MLOps
+```
+
+This is the preferred version. It keeps the official job title first, then immediately signals the buying criteria: **fraud risk, decisioning, monitoring, Python/SQL, AWS/MLOps**.
+
+Sharper alternative:
+
+```text
+Fraud Risk Data Scientist | ML & Rule-Based Fraud Detection | Python, SQL, AWS & MLOps
+```
+
+Use the first one because it is strong but still clean.
+
+## Professional Summary
+
+```text
+Data Scientist with experience building AWS-hosted fraud-risk scoring workflows using SQL, Python, behavioural feature tables, ML risk scores and rule-based thresholds. Developed model validation reports, threshold trade-off tables and monitoring checks to measure known-risk capture, low-risk review inclusion and score stability.
+```
+
+# LexisNexis Skills And Education
+
+For LexisNexis, the skills section should stay **compact and fraud/risk-model focused**. The ad asks for Python, SQL, ML or rule-based models, fraudster-behaviour features, production deployment, MLOps, ML monitoring and polished communication.
+
+```text
+TECHNICAL SKILLS
+
+Fraud & Risk Modelling: fraud-risk scoring, rule-based thresholds, risk-score bands, known-risk case capture, false-positive proxies
+
+Python, SQL & Data: Python, SQL, BigQuery, PySpark, Pandas, feature tables, transaction-behaviour data, account-activity data
+
+Model Evaluation & Governance: model validation reports, rule-only baselines, threshold trade-off tables, lift/capture analysis, model limitations
+
+MLOps & Monitoring: AWS, versioned configs, scoring workflows, validation gates, feature-freshness checks, score-stability monitoring
+
+Risk Communication: fraud-risk model readouts, risk-driver reports, threshold recommendations, Power BI / Looker dashboards
+```
+
+Education stays simple:
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+```
+
+Do not add project context under Education. The fraud/risk platform block already carries the shortlist argument.
+
+This is short enough. It tells the hiring manager:
+
+```text
+fraud-risk scoring
+SQL/Python
+ML + rules
+AWS
+validation
+threshold trade-offs
+monitoring
+known-risk capture
+friction proxy
+```
+
+## Full Top Section
+
+```text
+Esosa Orumwese
+Data Scientist | Fraud Risk Modelling, Decisioning & Monitoring | Python, SQL, AWS & MLOps
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Data Scientist with experience building AWS-hosted fraud-risk scoring workflows using SQL, Python, behavioural feature tables, ML risk scores and rule-based thresholds. Developed model validation reports, threshold trade-off tables and monitoring checks to measure known-risk capture, low-risk review inclusion and score stability.
+```
