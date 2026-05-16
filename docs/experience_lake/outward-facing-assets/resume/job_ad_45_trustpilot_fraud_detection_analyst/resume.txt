@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Fraud Detection Analyst using SQL, BigQuery and Looker to analyse account, usage and transaction behaviour for fraud-risk review. Built BigQuery fraud-trend queries, Looker risk dashboards and case evidence packs across a 2.35B-row activity surface. Prepared detection-rule recommendations and rule-rationale memos linking behavioural evidence, validation results and investigation findings for fraud, data science and engineering review.
+Fraud Detection Analyst using SQL, BigQuery and Looker to analyse account, usage and transaction behaviour across a 2.35B-row activity surface. Built fraud-trend queries, risk dashboards, rule recommendations and case evidence packs for fraud-risk review.
 
 TECHNICAL SKILLS
 
@@ -18,7 +18,7 @@ RELEVANT EXPERIENCE
 
 Data Scientist
 Fraud & Behavioural Risk Analytics Platform (Independent Production Build) — Exeter, UK | May 2025 – Present
-Built an independent SQL, BigQuery, Looker and Python fraud-risk analytics platform for reviewing account, usage and transaction behaviour across a 2.35B-row activity surface. The platform produced recurring fraud-trend checks, Looker monitoring views, detection-rule recommendations, case evidence packs and rule-rationale memos for fraud, data science and engineering review.
+Built a SQL, BigQuery, Looker and Python fraud-risk analytics platform for recurring trend checks, dashboard views, rule recommendations and case evidence across a 2.35B-row activity surface.
 
 - Analysed suspicious account, usage and transaction behaviour in BigQuery across a 2.35B-row activity surface, turning recurring fraud-pattern checks into reviewable risk indicators for fraud trend analysis.
 - Built Looker fraud-risk dashboards from BigQuery fraud-risk tables, giving reviewers a recurring view of abnormal account, usage and transaction patterns without relying only on one-off SQL extracts.
