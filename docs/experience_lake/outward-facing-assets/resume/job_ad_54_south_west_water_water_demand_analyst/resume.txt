@@ -4,12 +4,12 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Analyst with experience using SQL, Power BI, Python and Excel/VBA to monitor demand patterns, build reporting datasets, validate data quality and forecast metric movements across operational time periods. Produced trend reports, variance summaries, stakeholder notes and recommendation outputs to support planning, performance review and operational decision-making.
+Data Analyst using SQL, Power BI, Python and Excel/VBA to monitor operational demand patterns, build reporting datasets, validate data quality and forecast metric movements across operational time periods. Produced trend reports, variance summaries, stakeholder notes and recommendation outputs to support planning, performance review and operational decision-making.
 
 TECHNICAL SKILLS
 
 Demand & Trend Analysis: demand monitoring, usage/activity trends, baseline comparison, variance analysis, planning-period summaries
-Data & Reporting: SQL, BigQuery, reporting tables, dashboard source tables, data extraction, database maintenance
+Data & Reporting: SQL, Google BigQuery, reporting tables, dashboard source tables, data extraction, database maintenance
 BI & Visualisation: Power BI, Looker, KPI dashboards, trend reports, stakeholder presentations
 Data Quality: reconciliation, validation checks, missing/duplicate checks, traceable reporting, data limitation notes
 Python & Excel: Python, Pandas, NumPy, Excel, pivot tables, lookups, index/match, VBA exception checks
@@ -18,7 +18,7 @@ RELEVANT EXPERIENCE
 
 Data Analyst
 Operational Demand Reporting & Data Quality Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-Large-data operational analytics platform using SQL, BigQuery, Power BI, Looker and Python to monitor demand trends, build reporting tables, validate data quality and produce stakeholder summaries across a 2.35B-row event and activity data surface.
+Large-data operational analytics platform using SQL, Google BigQuery, Power BI, Looker and Python to monitor demand trends, build reporting tables, validate data quality and produce stakeholder summaries across a 2.35B-row event and activity data surface.
 
 - Built SQL and BigQuery reporting tables across a 2.35B-row event and activity data surface, converting raw records into reusable dashboard source tables for demand trend monitoring.
 - Built Python time-period forecasts from historical activity patterns, comparing expected and actual volumes to flag demand, exception and reporting-risk movements.
