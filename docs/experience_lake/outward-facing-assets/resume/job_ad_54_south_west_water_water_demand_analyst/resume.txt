@@ -9,7 +9,7 @@ Data Analyst using SQL/BigQuery, Power BI, Python and Excel/VBA to monitor deman
 TECHNICAL SKILLS
 
 Demand & Trend Analysis: demand monitoring, usage/activity trends, baseline comparison, variance analysis, planning-period summaries
-Data & Reporting: SQL, Google BigQuery, reporting tables, dashboard source tables, data extraction, database maintenance
+Data & Reporting: SQL, Google BigQuery, reporting tables, dashboard source tables, data extraction, reporting-dataset maintenance
 BI & Visualisation: Power BI, Looker, KPI dashboards, trend reports, stakeholder presentations
 Data Quality: reconciliation, validation checks, missing/duplicate checks, traceable reporting, data limitation notes
 Python & Excel: Python, Pandas, NumPy, Excel, pivot tables, lookups, index/match, VBA exception checks
@@ -18,7 +18,7 @@ RELEVANT EXPERIENCE
 
 Data Analyst
 Operational Demand Reporting & Planning Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-Built a SQL/BigQuery, Python, Power BI and Looker platform for monitoring usage and demand trends, validating source data and producing planning-period expected-vs-actual summaries across a 2.35B-row activity data surface.
+Built a SQL/BigQuery, Python, Power BI and Looker platform for monitoring usage and demand trends, validating source data and producing planning-period expected-vs-actual summaries across a 2.35B-row usage, activity and operational-event data surface.
 
 - Built SQL and BigQuery reporting tables across a 2.35B-row usage, activity and operational-event data surface, turning raw records into reusable source tables for demand trend monitoring and planning-period reports.
 - Built Python forecasts from historical usage and activity patterns, comparing expected and actual volumes so planning reviewers could see where demand movements, exceptions or data-quality issues needed follow-up.
