@@ -1,10 +1,10 @@
 Esosa Orumwese
-Data Scientist | Customer Behaviour & Commercial Analytics | Predictive Modelling, Python, SQL & SAS
+Data Scientist | Predictive Modelling & Customer Behaviour | Python, SQL, SAS & Commercial Analytics
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Scientist with experience building customer-behaviour analytics workflows across large transaction, account and behavioural datasets. Developed Python, SQL and SAS predictive models, customer feature tables, validation checks and controlled strategy comparisons across a 2.35B-row data surface, translating behavioural levers into commercial recommendations for senior stakeholders.
+Data Scientist using Python, SQL and SAS to build customer feature tables, predictive models and validation outputs across large transaction, account and behavioural datasets. Analysed customer response, risk and engagement patterns to compare strategy options, maintain model confidence and produce commercial recommendations for stakeholder review.
 
 TECHNICAL SKILLS
 
@@ -17,31 +17,31 @@ AI & Workflow: Generative AI-assisted analytics prototyping, model documentation
 RELEVANT EXPERIENCE
 
 Data Scientist
-Customer Behaviour & Commercial Analytics Platform - Exeter, UK | May 2025 - Present
-Customer analytics platform using Python, SQL, SAS and statistical modelling across a 2.35B-row customer behaviour, transaction and account data surface to predict customer outcomes, explain behavioural levers and support commercial decision-making.
+Customer Behaviour & Predictive Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Built a Python, SQL and SAS customer analytics platform across a 2.35B-row behaviour, transaction and account data surface to create feature tables, predictive score outputs, validation checks, holdout comparisons and commercial recommendation packs.
 
-- Built a multi-source customer feature table over a 2.35B-row behaviour, transaction and account data surface, combining 8 data sources into 120+ model features for predictive customer analytics.
-- Developed churn-risk, propensity and behavioural-risk models in Python and SQL, improving priority-customer capture by 24% versus a rules-based baseline.
-- Analysed 7 customer behaviour levers across 5 customer segments, identifying where response, risk and engagement patterns concentrated for commercial decision review.
-- Compared 3 customer strategy options through a holdout test, measuring performance across 5 outcomes including response, risk, coverage and expected value.
-- Maintained BAU model confidence with lift, calibration, drift and segment-stability checks across 24 scoring runs, improving successful score refreshes to 98%.
-- Created predictive score tables and a senior-leader insight pack covering 5 customer segments, 5 outcome measures and 3 recommendations for commercial action.
+- Built a multi-source customer feature table across a 2.35B-row behaviour, transaction and account data surface, turning raw customer activity into 120+ model features for predictive customer-outcome analysis.
+- Developed churn, propensity and behavioural-risk score outputs in Python and SQL, improving priority-customer capture by 24% versus a rules-based baseline.
+- Analysed response, risk and engagement patterns across customer segments, showing where high-priority customers concentrated before strategy-option comparison.
+- Compared three customer strategy options through a holdout test, measuring response, risk, coverage and expected value before recommending which option to take forward.
+- Maintained BAU model confidence with lift, calibration, drift and segment-stability checks across recurring scoring runs, improving successful score refreshes to 98%.
+- Created predictive score tables and a senior-leader recommendation pack summarising customer segments, outcome measures and three commercial recommendations.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Behavioural modelling project using smartphone sensor data to build predictive models, test feature reliability and translate movement patterns into risk-decision indicators.
+Behavioural modelling project using smartphone sensor data to build predictive features, compare model performance against a baseline and document reliability limits across trips, users and transport modes.
 
 - Built Python modelling datasets from accelerometer, gyroscope and trip signals, structuring 24,000 sensor windows into model-ready features for transport-mode and driver-identity prediction.
 - Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using validation outputs to compare feature reliability across movement and identity-recognition tasks.
-- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases and translating behavioural drivers into stakeholder-ready risk indicators.
+- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases, behavioural driver patterns and model-output limitations for non-technical review.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
-Business analytics project using country-sector activity and policy-response datasets to explain abnormal business movements, compare drivers and produce decision-ready recommendations.
+Business analytics project using country-sector activity and policy-response datasets to explain abnormal business movements, compare drivers and produce a visual recommendation pack.
 
 - Built a country-sector reporting dataset across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
 - Linked abnormal activity movements to policy-response signals across 6 countries and 8 policy areas, explaining the drivers behind business activity variance.
-- Produced a visual insight pack with 3 recommendations across 4 outcome measures, translating complex trend drivers into a clear decision summary for non-technical stakeholders.
+- Produced a visual recommendation pack with 3 recommendations, using country-sector charts and policy-response tables to summarise movement drivers for non-technical stakeholders.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
