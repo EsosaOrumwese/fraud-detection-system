@@ -826,3 +826,723 @@ executive-style portfolio presentation
 ```
 
 The next step is **evidence scoring**. Be strict: platform fraud-risk/MLOps evidence should lead; generic dashboards, academic modelling and operational Excel evidence should only support if they sharpen the LexisNexis story.
+
+# Locked Grounding Direction - LexisNexis
+
+This is the working grounding dictionary to use going forward. It is the strongest competitive framing based on the platform evidence already being used, while staying inside what LexisNexis is hiring for: fraud/risk ML, rule-based models, SQL/Python features, real-time fraud decisioning, production deployment, MLOps, model monitoring, fraudster behaviour, and executive/customer-facing risk communication.
+
+## 1. Platform Identity
+
+Use:
+
+```text
+Fraud Risk Decisioning & Model Monitoring Platform
+```
+
+Not:
+
+```text
+Customer Behaviour ML Platform
+Behavioural Risk Analytics Platform
+Fraud Analytics Dashboard
+```
+
+Reason: LexisNexis is buying **fraud-risk model decisioning + monitoring**, not just analytics.
+
+## 2. Data Surface
+
+Use:
+
+```text
+2.35B rows of account activity, transaction behaviour and customer interaction data
+```
+
+Not:
+
+```text
+2.35B-row data surface
+```
+
+Reason: "data surface" is too internal. The hiring manager needs to picture the data.
+
+## 3. Scored Entity
+
+Use:
+
+```text
+account and transaction records
+```
+
+or:
+
+```text
+customer/account/transaction records
+```
+
+Best CV wording:
+
+```text
+scored customer, account and transaction records
+```
+
+Reason: LexisNexis works across fraud, identity, payments, financial services and e-commerce risk. This is broad enough but still concrete.
+
+## 4. Target Label
+
+Use:
+
+```text
+known-risk cases
+```
+
+Define internally as:
+
+```text
+historical rule-triggered, chargeback-linked or manually reviewed suspicious records used for offline validation
+```
+
+CV wording:
+
+```text
+known-risk cases
+```
+
+Interview defence:
+
+```text
+I used "known-risk cases" for records already flagged by historical rules, chargeback/dispute linkage or manual review signals. I treated them as offline validation labels, not perfect ground truth.
+```
+
+This is strong and defensible. It avoids overclaiming "confirmed fraud" unless confirmed fraud labels exist.
+
+## 5. Model Type
+
+Use:
+
+```text
+hybrid fraud-risk scoring workflow
+```
+
+Define as:
+
+```text
+ML risk score + rule-based thresholds / risk indicators
+```
+
+CV wording:
+
+```text
+hybrid fraud-risk scoring workflow combining ML risk scores with rule-based thresholds
+```
+
+Reason: LexisNexis explicitly wants both machine learning and rule-based models.
+
+## 6. Feature Groups
+
+Use these feature groups:
+
+```text
+transaction velocity
+account activity frequency
+transaction value movement
+failed / abnormal action patterns
+behaviour-window aggregates
+score-band history
+data freshness / source-quality flags
+```
+
+CV wording:
+
+```text
+transaction-velocity, account-activity, value-movement and abnormal-behaviour features
+```
+
+Avoid:
+
+```text
+account takeover
+mule fraud
+CNP fraud
+social engineering
+money laundering
+```
+
+unless explicit feature evidence supports those labels.
+
+## 7. Baseline
+
+Use:
+
+```text
+rule-only baseline
+```
+
+Secondary baseline if needed:
+
+```text
+unranked review queue
+```
+
+CV wording:
+
+```text
+versus a rule-only baseline
+```
+
+Reason: this directly matches LexisNexis' ML/rule model requirement.
+
+## 8. Primary Evaluation Metric
+
+Use:
+
+```text
+known-risk case capture in the top 20% risk score band
+```
+
+Recommended working value:
+
+```text
+42% of known-risk cases captured in the top 20% risk score band
+```
+
+CV wording:
+
+```text
+capturing 42% of known-risk cases in the top 20% risk score band
+```
+
+Interview defence:
+
+```text
+I sorted scored records into risk-score bands and measured how many known-risk cases appeared in the top 20%. It was a ranking-quality metric, used to test whether the score concentrated risky cases near the top of the review queue.
+```
+
+This is stronger than "42% target records" and more LexisNexis-relevant.
+
+## 9. False-Positive / Customer-Friction Proxy
+
+Use:
+
+```text
+low-risk review inclusion
+```
+
+Define as:
+
+```text
+non-risk or low-risk records pulled into the review queue by a threshold
+```
+
+CV wording:
+
+```text
+reduced low-risk review inclusion
+```
+
+Metric if the 11% logic is used:
+
+```text
+reduced low-risk review inclusion by 11% at fixed known-risk coverage
+```
+
+Interview defence:
+
+```text
+I used low-risk review inclusion as a friction proxy: records with no known-risk signal that would still enter review at a given threshold. Lower inclusion meant fewer good or low-risk users being unnecessarily pulled into review.
+```
+
+This maps to LexisNexis' "lower customer friction" language without claiming live friction reduction.
+
+## 10. Rule / Threshold Evidence
+
+Use:
+
+```text
+threshold comparison table
+```
+
+Concrete threshold set:
+
+```text
+top 10%, top 20%, top 30% risk-score thresholds
+```
+
+CV wording:
+
+```text
+compared top-10%, top-20% and top-30% risk-score thresholds across known-risk capture, low-risk review inclusion and review volume
+```
+
+This is stronger than vague "3 strategy options."
+
+## 11. Model Validation Artefact
+
+Use:
+
+```text
+model validation report
+```
+
+Contents:
+
+```text
+feature assumptions
+rule-only baseline
+score-band capture
+threshold trade-offs
+data freshness checks
+model limitations
+```
+
+CV wording:
+
+```text
+produced a model validation report covering feature assumptions, rule-only baseline, score-band capture, threshold trade-offs and model limitations
+```
+
+This directly supports banking/model-governance expectations without falsely claiming formal bank approval.
+
+## 12. Production / Deployment Evidence
+
+Use:
+
+```text
+AWS-hosted fraud-risk scoring workflow
+```
+
+Define as:
+
+```text
+live / near-real-time ingestion, feature generation, risk scoring, decision output and case queue
+```
+
+CV wording:
+
+```text
+deployed an AWS-hosted fraud-risk scoring workflow that generated risk scores and routed high-risk records into a case-review queue
+```
+
+This is strong for LexisNexis because the ad asks for production deployment and MLOps.
+
+## 13. MLOps / Standardised Workflow
+
+Use:
+
+```text
+versioned training, scoring and evaluation workflows
+```
+
+Concrete artefacts:
+
+```text
+versioned configs
+repeatable scoring runs
+CI/CD checks
+validation gates
+model monitoring checks
+```
+
+CV wording:
+
+```text
+standardised training, scoring and evaluation runs with versioned configs, validation gates and repeatable model outputs
+```
+
+This answers the "scalable and standardised workflows" requirement.
+
+## 14. Monitoring
+
+Use:
+
+```text
+feature freshness, score stability and data-quality monitoring
+```
+
+Concrete checks:
+
+```text
+data freshness checks
+score distribution checks
+feature drift checks
+failed-run checks
+source-table validation checks
+```
+
+CV wording:
+
+```text
+monitored feature freshness, score stability and data-quality checks across scoring runs
+```
+
+If numbers are used:
+
+```text
+added 15 monitoring and validation checks across feature tables, scoring outputs and dashboard reports
+```
+
+Be careful: if some checks were report QA, call them "monitoring and validation checks," not pure "ML monitoring" unless they covered model inputs/outputs.
+
+## 15. Case Management / Operational Output
+
+Use:
+
+```text
+case-review queue
+```
+
+Concrete fields:
+
+```text
+risk score
+rule trigger
+feature reason
+case status
+created timestamp
+review outcome
+```
+
+CV wording:
+
+```text
+created a case-review queue with risk score, rule trigger, feature reason and case status fields
+```
+
+This gives the platform an operational fraud-detection shape, not just modelling.
+
+## 16. Value / Profitability Proxy
+
+Use:
+
+```text
+risk-adjusted value table
+```
+
+Define as:
+
+```text
+transaction value and cost-exposure fields joined to risk scores
+```
+
+CV wording:
+
+```text
+built a risk-adjusted value table joining transaction value and cost-exposure fields to fraud-risk scores
+```
+
+If using the £64k value:
+
+```text
+quantifying £64k in risk exposure
+```
+
+Do not say:
+
+```text
+saved £64k
+reduced losses by £64k
+increased profitability by £64k
+```
+
+unless actually measured.
+
+## 17. Fraud/Cybercrime Pattern Language
+
+Use:
+
+```text
+suspicious account and transaction behaviour
+```
+
+Specific pattern names that are safe if evidence supports them:
+
+```text
+transaction-velocity spikes
+unusual account-activity bursts
+abnormal value movement
+repeated failed actions
+high-risk score-band concentration
+source-table quality anomalies
+```
+
+Avoid direct named crimes unless proven:
+
+```text
+account takeover
+CNP fraud
+mule fraud
+money laundering
+social engineering
+```
+
+The job mentions these, but the CV should only claim what the data/features support.
+
+## 18. Presentation / Communication Artefact
+
+Use:
+
+```text
+fraud-risk model readout
+```
+
+Contents:
+
+```text
+score-band capture
+threshold trade-offs
+false-positive proxy
+risk drivers
+monitoring checks
+model limitations
+```
+
+CV wording:
+
+```text
+prepared a fraud-risk model readout covering score-band capture, threshold trade-offs, risk drivers, monitoring checks and model limitations
+```
+
+Do not say "external customer presentation" unless that actually happened.
+
+## Locked Working Dictionary For Later Bullets
+
+```text
+Platform title:
+Fraud Risk Decisioning & Model Monitoring Platform
+
+Dataset:
+2.35B rows of account activity, transaction behaviour and customer interaction data
+
+Model:
+hybrid fraud-risk scoring workflow combining ML risk scores with rule-based thresholds
+
+Features:
+transaction-velocity, account-activity, value-movement and abnormal-behaviour features
+
+Target:
+known-risk cases = historical rule-triggered, chargeback-linked or manually reviewed suspicious records
+
+Baseline:
+rule-only baseline
+
+Primary metric:
+42% of known-risk cases captured in the top 20% risk score band
+
+Friction proxy:
+low-risk review inclusion
+
+Thresholds:
+top-10%, top-20%, top-30% risk-score thresholds
+
+Validation artefact:
+model validation report
+
+Deployment:
+AWS-hosted fraud-risk scoring workflow
+
+MLOps:
+versioned training, scoring and evaluation workflows
+
+Monitoring:
+feature freshness, score stability and data-quality checks
+
+Operational output:
+case-review queue with score, trigger, feature reason and case status
+
+Value proxy:
+risk-adjusted value table using transaction value and cost-exposure fields
+
+Communication artefact:
+fraud-risk model readout
+```
+
+## What We Are Deliberately Not Claiming
+
+```text
+confirmed fraud loss reduction
+actual customer friction reduction
+formal banking model approval
+external customer presentation
+specific cybercrime types like ATO/CNP/mule fraud
+profitability increase
+```
+
+Unless there is direct evidence, phrase these as:
+
+```text
+known-risk capture
+false-positive proxy
+model validation report
+governance-style validation
+fraud-risk readout
+suspicious account / transaction behaviour
+risk exposure
+```
+
+This gives a competitive LexisNexis position without creating fragile claims.
+
+# LexisNexis Evidence Scoring
+
+This is not bullet portfolio design and not drafting. This step decides which evidence should carry the CV, which evidence should support, and which evidence should be removed or compressed.
+
+LexisNexis is hiring for fraud/risk data science: ML or rule-based models, SQL/Python feature engineering, fraudster-behaviour features, internal tools for model training and analytics workflows, external/executive presentations, cybercrime knowledge, production deployment, MLOps and ML monitoring systems.
+
+## Scoring Key
+
+| Tier | Meaning for LexisNexis |
+| --- | --- |
+| **A** | Direct match to fraud/risk modelling, rule logic, behavioural fraud features, model validation, deployment, MLOps, monitoring, customer-friction trade-offs, value/risk analysis, or risk communication. |
+| **B** | Useful support, but not the main hiring signal. |
+| **C** | Transferable only; keep lower down or compress. |
+| **D** | Wrong centre of gravity; remove or heavily reframe. |
+
+## Tier A - Evidence That Should Drive The CV
+
+These are the strongest evidence items for this job.
+
+| Evidence item | Score | Why it is A for LexisNexis |
+| --- | ---: | --- |
+| **Fraud Risk Decisioning & Model Monitoring Platform** | A | This is the right platform positioning. It speaks to fraud/risk, decisioning, model outputs and monitoring, which are central to the role. |
+| **2.35B rows of account activity, transaction behaviour and customer interaction data** | A | Strong scale evidence if attached to fraud-risk features, scoring, validation or monitoring. LexisNexis works with billions of transactions per month, so scale matters here. |
+| **Hybrid fraud-risk scoring workflow combining ML risk scores with rule-based thresholds** | A | Direct match to the requirement for machine learning or rule-based models. This should be one of the lead claims. |
+| **Transaction-velocity, account-activity, value-movement and abnormal-behaviour features** | A | Direct match to defining features that capture evolving fraudster behaviours. These feature groups are concrete and job-relevant. |
+| **Known-risk cases defined as historical rule-triggered, chargeback-linked or manually reviewed suspicious records** | A | Strong validation target. It avoids overclaiming "confirmed fraud" while still giving a defensible fraud/risk label. |
+| **42% of known-risk cases captured in the top 20% risk score band** | A | Excellent ranking-quality evidence. This is one of the most recruiter-believable model-validation metrics because it explains what the model concentrated and where. |
+| **Rule-only baseline** | A | Strong because LexisNexis wants both ML and rule-based models. Comparing against a rule-only baseline proves you understand the model/rule world. |
+| **Top-10%, top-20% and top-30% risk-score threshold comparison** | A | Directly supports thresholding, rule logic, fraud controls and friction trade-offs. |
+| **Low-risk review inclusion reduced by 11% at fixed known-risk coverage** | A | Strong customer-friction proxy. It maps to lower customer friction without falsely claiming live customer experience improvement. |
+| **Model validation report covering feature assumptions, baseline, score-band capture, threshold trade-offs and limitations** | A | Direct match to model evaluation and banking model governance expectations. |
+| **AWS-hosted fraud-risk scoring workflow** | A | Direct match to production deployment and real-world scoring. This must appear in the first block. |
+| **Versioned training, scoring and evaluation workflows** | A | Direct match to MLOps, scalable workflows and standardised model development. |
+| **Feature freshness, score stability and data-quality monitoring** | A | Direct match to ML monitoring systems. This should appear as model-output/input monitoring, not generic dashboard QA. |
+| **Case-review queue with risk score, rule trigger, feature reason and case status** | A | Excellent decisioning evidence. It shows the model produces an operational fraud-review output. |
+| **Risk-adjusted value table joining transaction value and cost-exposure fields to fraud-risk scores** | A | Strong commercial-risk evidence. It maps to fraud losses, profitability and value/risk trade-offs without claiming realised savings. |
+| **Fraud-risk model readout covering score-band capture, threshold trade-offs, risk drivers, monitoring checks and model limitations** | A | Strong communication evidence. It supports the external/executive presentation requirement, but keep the audience wording truthful. |
+
+Verdict: the LexisNexis CV should be led by the platform. This is one of the few roles where the independent production build is not just relevant - it is the strongest evidence source.
+
+## Tier B - Useful Support, But Not The Core Story
+
+These support the fraud/risk DS story, but should not displace the platform.
+
+| Evidence item | Score | Why it is B |
+| --- | ---: | --- |
+| **15 monitoring / validation checks** | B+/A- | A if they monitored feature freshness, score stability, source data and scoring outputs. B if they were mainly dashboard/report checks. Need wording discipline. |
+| **38% reporting issue reduction and 98% validated refreshes** | B | Useful as reliability evidence, but less important than model performance, deployment and monitoring. Use only if tied to model/scoring/reporting reliability. |
+| **Git branches and pull-request workflow** | B+ | Strong for traceability and MLOps discipline, but not enough alone. Best used inside a deployment/MLOps bullet. |
+| **Behavioural modelling project: 7pp accuracy improvement vs CNN baseline** | B | Good supporting evidence for modelling and baseline evaluation, but less relevant than fraud-risk platform evidence. |
+| **Model robustness across 1,200 trips, 60 users and 5 transport modes** | B | Useful for failure-case documentation and model evaluation discipline, but not fraud-domain evidence. |
+| **Business analytics visual trend report with 3 recommendations** | B- | Supports data storytelling and recommendations, but far from fraud modelling. Keep lower down. |
+| **South Western Excel/VBA/Power BI data-quality evidence** | B-/C+ | Shows attention to detail and operational controls, but not fraud/risk data science. Use lower down or compress. |
+
+## Tier C - Transferable Only
+
+These can stay in the CV only if space allows, and they should not dominate.
+
+| Evidence item | Score | Why it is C |
+| --- | ---: | --- |
+| **Generic Looker/Power BI dashboards** | C | Dashboards alone are not the job. They matter only when tied to monitoring, validation, model readouts or risk reporting. |
+| **General KPI definitions / metadata notes** | C | Strong for SSE/Nando's, but not central here unless tied to model governance, feature definitions or monitoring documentation. |
+| **Country-sector policy analysis** | C | Good analytical evidence, but not fraud/risk. Keep only as a small support block. |
+| **Operational record reconciliation from South Western** | C | Strong concrete evidence, but wrong centre. Helpful only as attention-to-detail support. |
+| **Deep learning transport classification as the second lead story** | C | Too far from LexisNexis if it takes too much space. Keep concise. |
+
+## Tier D - Remove Or Avoid
+
+These will weaken the application if they lead.
+
+| Evidence item / framing | Score | Why it is D |
+| --- | ---: | --- |
+| **Data & Information Analyst / SSE framing** | D | Wrong job family. LexisNexis is hiring a fraud/risk Data Scientist. |
+| **Commercial Performance Analyst / Sainsbury's framing** | D | Wrong centre. Commercial KPI reporting is not the lead story. |
+| **Product Data Scientist / Monzo framing** | D/B | Product analytics is adjacent, but the LexisNexis role is fraud/risk platform and model decisioning. |
+| **Payments Data Analyst / Frasers framing** | D/B | Payments can be relevant only through fraud/risk, chargeback/cost exposure or transaction-risk evidence. Do not lead with payments reporting. |
+| **Generic "ML platform" wording** | D | Too broad. Must become fraud-risk scoring, model validation, monitoring and decisioning. |
+| **Confirmed fraud-loss reduction** | D unless proven | Do not claim reduced losses unless directly measured. Use known-risk capture, risk exposure and false-positive proxy instead. |
+| **Actual customer-friction reduction** | D unless proven | Use low-risk review inclusion or false-positive proxy unless live customer-friction data exists. |
+| **External customer presentation** | D unless true | Use "fraud-risk model readout" or name the actual audience. Do not fake customer-facing work. |
+| **Specific cybercrime labels like ATO, mule fraud, CNP fraud, money laundering** | D unless evidenced | The ad names these, but the CV should only use them if the features/reports genuinely map to those typologies. |
+
+## LexisNexis Priority Pool
+
+The evidence that should carry the first experience block:
+
+```text
+1. AWS-hosted Fraud Risk Decisioning & Model Monitoring Platform
+2. 2.35B rows of account activity, transaction behaviour and customer interaction data
+3. transaction-velocity, account-activity, value-movement and abnormal-behaviour features
+4. hybrid ML + rule-threshold fraud-risk scoring workflow
+5. 42% known-risk case capture in the top 20% risk score band
+6. rule-only baseline
+7. top-10%, top-20%, top-30% threshold comparison
+8. 11% reduction in low-risk review inclusion at fixed known-risk coverage
+9. model validation report with feature assumptions, baseline, threshold trade-offs and limitations
+10. AWS scoring workflow with case-review queue
+11. versioned training, scoring and evaluation workflows
+12. feature freshness, score stability and data-quality monitoring
+13. risk-adjusted value table using transaction value and cost-exposure fields
+14. fraud-risk model readout with score-band capture, threshold trade-offs and model limitations
+```
+
+## What This Tells Us For Positioning
+
+The headline should **not** be generic:
+
+```text
+Data Scientist | Python, SQL & Machine Learning
+```
+
+It should move toward:
+
+```text
+Fraud Risk Data Scientist | ML & Rule-Based Fraud Detection | Python, SQL, AWS & MLOps
+```
+
+or:
+
+```text
+Data Scientist | Fraud Risk Modelling, Model Monitoring & Decisioning | Python, SQL & AWS
+```
+
+Current recommendation:
+
+```text
+Fraud Risk Data Scientist | ML & Rule-Based Fraud Detection | Python, SQL, AWS & MLOps
+```
+
+if the rule-threshold and MLOps evidence remains in the final bullets.
+
+## Main Risk Before Drafting
+
+The biggest risk is **overclaiming live enterprise impact**.
+
+LexisNexis talks about reduced fraud losses, lower customer friction and increased customer profitability. Mirror the problem, but prove it through defensible metrics:
+
+Use:
+
+```text
+known-risk case capture
+rule-only baseline
+risk score band
+low-risk review inclusion
+false-positive proxy
+risk exposure
+transaction value / cost-exposure table
+threshold trade-off table
+model validation report
+```
+
+Avoid unless measured:
+
+```text
+reduced fraud losses
+increased profitability
+lowered customer friction
+protected revenue
+confirmed fraud prevention
+```
+
+## Scoring Conclusion
+
+This is an unusually strong fit **if** the platform is led as a fraud-risk decisioning and monitoring system.
+
+The platform evidence is A-tier for this role. The supporting experiences should be secondary. The next step is **bullet portfolio design**, and the platform block should carry most of the resume's shortlist argument.
