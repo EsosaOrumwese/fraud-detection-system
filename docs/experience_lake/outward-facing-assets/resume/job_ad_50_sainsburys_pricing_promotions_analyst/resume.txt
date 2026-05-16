@@ -1,5 +1,5 @@
 Esosa Orumwese
-Commercial Data Analyst | Promotion Performance, Customer Response & Commercial Trade-offs | SQL, Python & BI Reporting
+Commercial Data Analyst | Promotion Performance, Customer Response & Trade-off Analysis | SQL, Python & BI Reporting
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
@@ -8,11 +8,11 @@ Commercial Data Analyst using SQL, BigQuery and Python/PySpark to analyse promot
 
 TECHNICAL SKILLS
 
-SQL & Data: SQL, Google BigQuery, Python/PySpark ETL tables, customer activity tables, response-history tables, dashboard source tables
-Python & Statistical Analysis: Python, PySpark, Pandas, NumPy, propensity scoring, score-band validation, lift charts, calibration checks
-Promotion & Commercial Analysis: promotion response analysis, audience option comparison, cut-off testing, expected response rate, responder coverage, low-response removal, commercial trade-offs
-BI & Dashboarding: Power BI, Looker, promotion-response dashboards, audience performance dashboards, KPI checks, dashboard commentary
-Recommendation & Storytelling: baseline comparisons, validation packs, recommendation memos, metric movement explanation, commercial review summaries
+SQL & Data: SQL, Google BigQuery, ETL tables, response-history data, dashboard source tables
+Python & Modelling: Python, PySpark, Pandas/NumPy, propensity scoring, score-band validation
+Promotion Analysis: promotion response, audience option comparison, cut-off testing, response/coverage trade-offs
+BI & Reporting: Power BI, Looker, promotion dashboards, KPI checks, dashboard commentary
+Recommendation Outputs: validation packs, recommendation memos, metric movement summaries
 
 RELEVANT EXPERIENCE
 
