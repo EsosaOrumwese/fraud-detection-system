@@ -9,15 +9,15 @@ Data & Information Analyst with experience improving data quality, KPI definitio
 TECHNICAL SKILLS
 
 Data Quality & Governance: data-quality checks, KPI definitions, metadata notes, data limitations, report QA
-Reporting & Documentation: Power BI, Looker, dashboard notes, visual reports, plain-English data summaries
+Reporting & Documentation: Power BI, Looker, dashboard notes, visual reports, plain-English summaries
 Data Tools: Excel, SQL, Google BigQuery, VBA, Power BI, Looker
-Responsible Data Use: source-table checks, restricted-field awareness, validation logs, controlled report review
-Operational Data: field reports, HSE logs, equipment records, daily activity records, reconciliation workbooks
+Data Checks: source-table checks, validation logs, duplicate checks, stale-record checks, controlled report review
+Operational Records: field reports, HSE logs, equipment records, daily activity records, reconciliation workbooks
 
 RELEVANT EXPERIENCE
 
 Data Analyst
-KPI Definitions & Reporting QA Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Data Quality & Reporting QA Project (Independent Build) - Exeter, UK | May 2025 - Present
 BigQuery, Looker and Power BI reporting QA work covering KPI definition sheets, source-table validation queries, dashboard refresh checks and data limitation notes across a 2.35B-row dataset.
 
 - Documented 13 KPI definitions with metric formulas, BigQuery source tables, aggregation grain, report filters and known data limitations.
