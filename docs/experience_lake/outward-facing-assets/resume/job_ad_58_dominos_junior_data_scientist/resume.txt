@@ -4,13 +4,13 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Scientist with experience using SQL, Python and Power BI to analyse customer activity, transaction behaviour and response-history data. Built analysis tables, Python scoring workflows and reporting outputs to compare customer segments and explain response movements.
+Data Scientist with experience using SQL, Python and Power BI to analyse customer activity, transaction behaviour and response-history data. Built BigQuery analysis tables, Python scoring workflows and Power BI reports to compare customer segments and explain response-rate movements.
 
 TECHNICAL SKILLS
 
 Data Science: foundational modelling, customer segmentation, scoring workflows, model evaluation
 SQL & Python: SQL, Google BigQuery, Python, Pandas, NumPy, analysis tables, variance queries
-BI & Reporting: Power BI, Looker, KPI dashboards, reporting outputs, trend charts
+BI & Reporting: Power BI, Looker, KPI reports, dashboards, trend charts
 Data Cleaning: validation checks, missing-value checks, duplicate checks, source-table checks
 Experimentation Support: option-comparison tables, baseline comparison, pre/post analysis, response-rate analysis
 
@@ -23,8 +23,8 @@ SQL/Python customer analytics build using BigQuery, Power BI and Looker to clean
 - Built BigQuery SQL analysis tables across 2.35B rows of customer activity, transaction behaviour and response-history data, tracking activity frequency, response rate, repeat activity and segment coverage.
 - Built a Python customer scoring workflow that ranked customer segments by response rate, repeat activity and transaction behaviour, capturing 42% of high-response customers in the top 20% score band.
 - Compared 3 customer-selection options - top-score segment, broader mid-score segment and baseline selection - across target capture, response rate, segment coverage, low-yield inclusion and period stability.
-- Developed Power BI / Looker reporting outputs tracking 13 customer and report-quality metrics across 12 reporting periods, with variance tables for response and repeat-activity movement.
-- Used BigQuery variance queries to investigate a 19% response-rate movement versus the previous reporting period, producing a root-cause table with activity-volume, segment-mix, response-pattern and source-table drivers.
+- Built Power BI / Looker KPI reports tracking 13 customer and report-quality metrics across 12 reporting periods, with variance tables for response and repeat-activity movement.
+- Used BigQuery variance queries to investigate a 19% response-rate movement versus the previous reporting period, producing a root-cause table with activity-volume, segment-mix, response-pattern and source-table quality issues.
 - Added 15 validation checks across BigQuery source tables and Power BI / Looker reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
 
 Data Scientist
