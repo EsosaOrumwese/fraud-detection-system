@@ -11,7 +11,7 @@ TECHNICAL SKILLS
 SQL & Data Modelling: SQL reporting tables, SQL views, source-to-report joins, complex reporting datasets
 SAS & Reporting: SAS, PROC SQL, SAS data steps, SAS reporting outputs, validation checks
 Finance Reporting: finance extracts, revenue/cost variance summaries, KPI definition logs, reporting field standardisation
-Data Quality & Governance: source-to-report reconciliation, validation checks, data dictionaries, reporting definitions
+Data Quality & Governance: source-to-report reconciliation, validation checks, data dictionaries, reporting definitions, data-quality controls
 Tools: Excel, pivot tables, lookups, index/match, Power BI, SharePoint Lists exports, Microsoft Forms exports
 
 RELEVANT EXPERIENCE
