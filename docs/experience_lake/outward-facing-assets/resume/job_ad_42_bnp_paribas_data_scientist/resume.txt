@@ -12,20 +12,20 @@ Programming & Data: Python, SQL, SAS/PROC SQL, PySpark, Pandas/NumPy
 Predictive Analytics: propensity modelling, customer scoring, feature engineering, customer segmentation
 Model Testing & Validation: holdout testing, lift/calibration checks, drift monitoring, segment stability
 Customer & Commercial Analysis: customer behaviour analysis, response/risk/engagement patterns, strategy-option comparison
-AI-Assisted Workflow: Codex-assisted SQL/Python development, testing/debugging and analytics documentation
+AI-Assisted Workflow: responsible Codex-assisted SQL/Python drafting, test generation, debugging checks and analytics documentation review
 
 RELEVANT EXPERIENCE
 
 Data Scientist
-Customer Behaviour & Predictive Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-Built a Python, SQL and SAS customer analytics platform across a 2.35B-row behaviour, transaction and account data surface to create feature tables, predictive score outputs, validation checks, holdout comparisons and commercial recommendation packs.
+Customer Behaviour & Predictive Analytics Platform (Independent Production Build) — Exeter, UK | May 2025 – Present
+Built a Python, SQL and SAS customer analytics platform across a 2.35B-row behaviour, transaction and account data surface to create feature tables, predictive score outputs, SAS validation extracts, holdout comparisons and commercial recommendation packs.
 
 - Built a multi-source customer feature table across a 2.35B-row behaviour, transaction and account data surface, turning raw customer activity into 120+ model features for predictive customer-outcome analysis.
-- Developed churn, propensity and behavioural-risk score outputs in Python and SQL, improving priority-customer capture by 24% versus a rules-based baseline.
+- Developed churn, propensity and behavioural-risk score outputs in Python and SQL, comparing model scores against a rules-based baseline and improving priority-customer capture by 24%.
 - Analysed response, risk and engagement patterns across customer segments, showing where high-priority customers concentrated before strategy-option comparison.
-- Compared three customer strategy options through a holdout test, measuring response, risk, coverage and expected value before recommending which option to take forward.
+- Compared three customer strategy options through a holdout test-and-learn design, measuring response, risk, coverage and expected value before recommending which option to take forward.
 - Maintained BAU model confidence with lift, calibration, drift and segment-stability checks across recurring scoring runs, improving successful score refreshes to 98%.
-- Created predictive score tables and a senior-leader recommendation pack summarising customer segments, outcome measures and three commercial recommendations.
+- Created predictive score tables and a stakeholder-facing recommendation pack summarising customer segments, outcome measures and three commercial recommendations.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
