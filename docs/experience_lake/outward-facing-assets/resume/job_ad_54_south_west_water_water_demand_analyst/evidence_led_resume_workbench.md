@@ -1546,3 +1546,27 @@ Data Analyst with experience building Power BI dashboards, SQL/BigQuery reportin
 ```
 
 This is short, job-relevant, and grounded. It reflects the role's focus on demand strategy support, demand monitoring, data systems, reports/presentations, Power BI, technical documentation and operational-team liaison without pretending there is direct water-demand, leakage or Environment Act reporting experience.
+
+# Technical Skills And Education - South West Water
+
+For this role, the skills section should act as a **quick ATS/recruiter signpost**, not a second evidence ledger. South West Water is looking for demand reporting, Power BI, complex dataset interpretation, reports/presentations, data systems, stakeholder communication and a regulated/operational environment.
+
+```text
+TECHNICAL SKILLS
+
+Data & Reporting: SQL, Google BigQuery, reporting tables, dashboard source tables, data extraction
+BI & Visualisation: Power BI, Looker, operational dashboards, KPI reporting, variance summaries
+Excel & Automation: Excel, pivot tables, lookups, index/match, VBA exception checks
+Data Quality: reconciliation, validation checks, duplicate/missing-record checks, traceable reporting
+Python & Analysis: Python, Pandas, NumPy, trend analysis, baseline comparison
+```
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+```

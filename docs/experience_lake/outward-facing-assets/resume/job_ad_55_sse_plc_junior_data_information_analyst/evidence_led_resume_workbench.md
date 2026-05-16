@@ -1105,3 +1105,35 @@ Data & Information Analyst with experience improving data quality, KPI definitio
 ```
 
 This keeps the summary tight. It gives the recruiter the role fit without cramming in every bullet. The detailed proof stays in the experience section.
+
+# Technical Skills And Education - SSE
+
+For SSE, the skills section should be **short and information-governance focused**, not a big technical inventory. The job is centred on trusted data, responsible sharing, data quality, metadata, governance, plain-English communication and practical improvements.
+
+```text
+TECHNICAL SKILLS
+
+Data Quality & Governance: data-quality checks, KPI definitions, metadata notes, data limitations, report QA
+
+Reporting & Documentation: Power BI, Looker, dashboard notes, visual reports, plain-English data summaries
+
+Data Tools: Excel, SQL, Google BigQuery, VBA, Power BI, Looker
+
+Responsible Data Use: source-table checks, restricted-field awareness, validation logs, controlled report review
+
+Operational Data: field reports, HSE logs, equipment records, daily activity records, reconciliation workbooks
+```
+
+Education should stay simple:
+
+```text
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+```
+
+Do not add extra project context under Education. The experience section already carries the relevant proof.
