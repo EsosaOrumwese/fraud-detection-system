@@ -1041,3 +1041,67 @@ dashboard notes
 ```
 
 The final bullet is especially important: it replaces vague "plain-English communication" with the actual artefact - **dashboard notes** - and the actual contents: **metric formulas, source-table caveats, excluded records, refresh checks**.
+
+# Supporting Experience Draft - SSE
+
+Drafting the other experience blocks only, after the platform block and in **reverse chronological order**.
+
+For SSE, these blocks should support the main story: data quality, clear documentation, plain-English explanation, practical improvements, and trusted operational information. SSE specifically wants data quality, metadata, governance, responsible use, stakeholder communication and plain-English explanation.
+
+```text
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Python modelling project using smartphone accelerometer, gyroscope and trip-signal records to classify movement patterns and document model failure cases.
+
+- Built a Python modelling dataset from smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
+
+- Improved classification accuracy by 7 percentage points versus a single-task CNN baseline, recording model performance across 5 transport modes.
+
+- Tested model outputs across 1,200 trips, 60 users and 5 transport modes, documenting misclassified sensor patterns and failure cases for model interpretation.
+```
+
+```text
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Business analytics project using country-sector activity tables and policy-response data to explain movement patterns in a visual report.
+
+- Built a country-sector comparison table across 220 countries and 12 sectors, grouping activity into rebound, persistent disruption and structural-shift categories against pre-crisis baselines.
+
+- Merged activity data with 8 policy-response areas across 6 countries, using restriction, support-measure and reopening signals to explain abnormal movement patterns.
+
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-driver notes to explain findings for non-technical readers.
+```
+
+```text
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations data role using Excel, VBA and Power BI to check field reports, HSE logs, equipment records and daily completions updates before manager review.
+
+- Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks, reducing incomplete or conflicting field-report entries by 32% before supervisor review.
+
+- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+
+- Built a Power BI operational dashboard tracking 9 record-quality and job-status metrics across job progress, equipment readiness, documentation gaps and review status for 12 completions jobs / 140 rig days.
+```
+
+The South Western block is the most SSE-relevant of the supporting experiences because it shows actual operational data quality work: **field reports, HSE logs, equipment records, missing/duplicate/conflicting records, review time, documentation gaps**.
+
+# Header And Professional Summary - SSE
+
+For this SSE role, the header and summary should be **short, governance/data-quality focused, and not tech-heavy**. The job is about making data easier, safer and more responsible to share and use, with emphasis on data quality, metadata, governance, data protection, plain-English communication and stakeholder engagement.
+
+## Recommended Headline
+
+```text
+Data & Information Analyst | Data Quality, Metadata & Responsible Data Use
+```
+
+This is stronger than leading with "Data Scientist" or "SQL/Power BI" because it puts the CV in the right hiring box immediately.
+
+## Recommended Professional Summary
+
+```text
+Data & Information Analyst with experience improving data quality, KPI definitions and report QA across operational and analytical datasets. Used Excel, SQL/BigQuery, Power BI and Looker to reconcile field records, document metric definitions and flag missing, duplicate or stale records before manager or dashboard review.
+```
+
+This keeps the summary tight. It gives the recruiter the role fit without cramming in every bullet. The detailed proof stays in the experience section.
