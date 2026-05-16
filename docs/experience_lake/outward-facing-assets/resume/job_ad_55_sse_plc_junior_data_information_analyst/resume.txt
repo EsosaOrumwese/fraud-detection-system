@@ -23,9 +23,9 @@ BigQuery, Looker and Power BI reporting QA work covering KPI definition sheets, 
 - Documented 13 KPI definitions with metric formulas, BigQuery source tables, aggregation grain, report filters and known data limitations.
 - Added 15 validation checks across BigQuery source tables and Looker/Power BI reports, covering row counts, missing values, duplicate records, join keys, date filters and dashboard totals.
 - Used SQL validation queries to flag 18 source-table issues, including stale refresh dates, duplicate rows, broken join keys and mismatched dashboard aggregations.
-- Logged dashboard QA failures before report refreshes, reducing repeated issues such as missing fields, mismatched totals, stale tables and incorrect filters by 38%.
-- Checked BigQuery table freshness, dashboard totals and refresh logs before scheduled Looker/Power BI updates, lifting validated dashboard refreshes to 98%.
-- Managed 14 SQL and reporting-logic changes through Git branches and a pull-request workflow, leaving change history for KPI formulas, report filters and dashboard source tables.
+- Logged dashboard QA failures and refresh checks across BigQuery source tables and Looker/Power BI reports, reducing repeated issues by 38% and lifting validated dashboard refreshes to 98%.
+- Checked report extracts for missing definitions, excluded records and data limitations before manager or dashboard review.
+- Logged recurring report questions and updated KPI notes, report filters and validation checks to reduce repeated clarification on dashboard metrics.
 - Wrote dashboard notes explaining metric formulas, source-table caveats, excluded records and refresh checks beside the relevant Looker/Power BI reports.
 
 Data Scientist
