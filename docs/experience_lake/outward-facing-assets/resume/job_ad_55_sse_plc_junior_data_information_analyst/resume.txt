@@ -10,7 +10,7 @@ TECHNICAL SKILLS
 
 Data Quality & Metadata: data-quality checks, KPI definitions, metadata notes, validation logs, data limitation notes
 Responsible Data Use: responsible-use notes, excluded-record rules, source caveats, refresh-status guidance
-User Guidance & Communication: user-facing metric notes, dashboard guidance, non-technical summaries, reuse guidance
+User Guidance & Communication: Power BI, Looker, dashboard notes, user-facing metric notes, reuse guidance
 Data Tools: Excel, SQL, Google BigQuery, VBA, Power BI, Looker
 Operational Records: field reports, HSE logs, equipment records, daily activity records, reconciliation workbooks
 
@@ -25,8 +25,7 @@ Built a BigQuery, Looker and Power BI data-quality workstream covering KPI defin
 - Created SQL validation queries that flagged stale refresh dates, duplicate rows, broken join keys and mismatched aggregations before users relied on incorrect report outputs.
 - Maintained a reporting QA log for refresh failures, source-table issues and repeated validation errors, reducing repeated reporting issues by 38%.
 - Produced responsible-use notes for shared outputs, explaining source-table caveats, excluded records, refresh status and data limitations before manager or report review.
-- Logged recurring user questions on KPI meaning, filters and source caveats, then updated metric notes and validation checks to make shared outputs easier to understand and reuse.
-- Wrote dashboard guidance explaining metric formulas, source caveats and refresh status beside the relevant Looker/Power BI reports.
+- Logged recurring user questions on KPI meaning, filters and source caveats, then updated metric notes, validation checks and user-facing guidance beside Looker/Power BI reports so shared outputs were easier to understand and reuse.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
