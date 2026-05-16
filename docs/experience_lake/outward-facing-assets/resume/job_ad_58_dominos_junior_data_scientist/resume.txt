@@ -4,12 +4,12 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Scientist with experience using SQL, Python and Power BI to analyse customer activity, transaction behaviour and response-history data. Built BigQuery analysis tables, Python scoring workflows and Power BI reports to compare customer segments and explain response-rate movements.
+Data Scientist with experience using SQL, Python and Power BI to analyse customer activity, transaction behaviour, response history and repeat-activity patterns. Built BigQuery analysis tables, Python scoring workflows and Power BI reports to compare customer segments, support test-and-learn decisions and explain response-rate movements.
 
 TECHNICAL SKILLS
 
-Data Science: foundational modelling, customer segmentation, scoring workflows, model evaluation
 SQL & Python: SQL, Google BigQuery, Python, Pandas, NumPy, analysis tables, variance queries
+Foundational Modelling: customer segmentation, scoring workflows, model evaluation, score-band analysis
 BI & Reporting: Power BI, Looker, KPI reports, dashboards, trend charts
 Data Cleaning: validation checks, missing-value checks, duplicate checks, source-table checks
 Experimentation Support: option-comparison tables, baseline comparison, pre/post analysis, response-rate analysis
@@ -17,13 +17,13 @@ Experimentation Support: option-comparison tables, baseline comparison, pre/post
 RELEVANT EXPERIENCE
 
 Data Scientist
-Customer Analytics, Modelling & Reporting Build (Independent Build) - Exeter, UK | May 2025 - Present
-SQL/Python customer analytics build using BigQuery, Power BI and Looker to clean, model and report customer activity, transaction behaviour and response-history data across 2.35B rows.
+Customer Analytics, Modelling & Reporting Build (Independent Production Build) - Exeter, UK | May 2025 - Present
+SQL/Python customer analytics build using BigQuery, Power BI and Looker to clean, model and report customer activity, transaction behaviour, response history and repeat-activity patterns across 2.35B rows.
 
 - Built BigQuery SQL analysis tables across 2.35B rows of customer activity, transaction behaviour and response-history data, tracking activity frequency, response rate, repeat activity and segment coverage.
 - Built a Python customer scoring workflow that ranked customer segments by response rate, repeat activity and transaction behaviour, capturing 42% of high-response customers in the top 20% score band.
-- Compared 3 customer-selection options - top-score segment, broader mid-score segment and baseline selection - across target capture, response rate, segment coverage, low-yield inclusion and period stability.
-- Built Power BI / Looker KPI reports tracking 13 customer and report-quality metrics across 12 reporting periods, with variance tables for response and repeat-activity movement.
+- Compared 3 customer-selection options across target capture, response rate, segment coverage, low-yield inclusion and period stability, supporting a test-and-learn recommendation for customer targeting.
+- Built Power BI KPI reports, with supporting Looker views, tracking 13 customer and report-quality metrics across 12 reporting periods.
 - Used BigQuery variance queries to investigate a 19% response-rate movement versus the previous reporting period, producing a root-cause table with activity-volume, segment-mix, response-pattern and source-table quality issues.
 - Added 15 validation checks across BigQuery source tables and Power BI / Looker reports, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
 
