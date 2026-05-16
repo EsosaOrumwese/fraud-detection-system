@@ -1,40 +1,43 @@
 Esosa Orumwese
-Website Data Analyst | Digital Performance Reporting | Power BI, Excel & Tracking QA
+Website Data Analyst | Customer Journey & Digital Performance Reporting | Power BI, Excel & Tracking QA
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Analyst using SQL, Google BigQuery, Power BI, Looker and Excel/VBA to build recurring digital performance dashboards, tracking QA checks and performance summaries from large customer event and activity datasets. Produced dashboard commentary and optimisation notes explaining journey/activity movement, validation caveats and follow-up actions for technical and non-technical stakeholders.
+Website Data Analyst with experience using SQL, Google BigQuery, Power BI, Looker and Excel/VBA to build recurring digital performance dashboards, tracking QA checks and customer journey reports from large event and activity datasets. Produced performance commentary explaining journey movement, validation caveats and optimisation actions for technical and non-technical stakeholders.
 
 TECHNICAL SKILLS
 
-Website & Digital Reporting: digital performance reporting, customer journey metrics, activity-stage analysis, dashboard commentary
-BI & Dashboards: Power BI, Looker, recurring KPI dashboards, performance summary views
-Excel & Tracking QA: Excel, pivot tables, lookups, index/match, tracking QA checks, validation checks
-Data & Automation: SQL, Google BigQuery, dashboard source tables, reusable reporting tables, report-refresh workflows
-Analysis: Python, Pandas, NumPy, metric movement analysis, baseline comparison, variance drivers
+Website & Digital Analytics: customer journey metrics, traffic/activity reporting, engagement analysis, tracking QA, Google Analytics reports & traffic analysis training
+BI & Reporting: Power BI, Looker, recurring KPI dashboards, performance reports, dashboard commentary
+Tracking QA & Data Quality: tracking validation, missing-field checks, duplicate checks, stale refresh checks, mismatched totals
+Excel & Automation: Excel, pivot tables, lookups, index/match, VBA report-refresh workflows
+SQL & Analysis: SQL, Google BigQuery, dashboard source tables, reusable reporting tables, metric movement analysis, baseline comparison
+
+CERTIFICATIONS & TRAINING
+
+Google Analytics: Reports & Traffic Analysis Specialization - Coursera, in progress
 
 RELEVANT EXPERIENCE
 
 Data Analyst
 Digital Performance Reporting & Tracking Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-Digital performance reporting platform using SQL, Google BigQuery, Power BI, Looker and Python to turn 2.35B rows of customer event and activity data into recurring dashboard source tables, journey / activity-stage reports, tracking QA checks and performance summary notes.
+Digital performance reporting platform using SQL, Google BigQuery, Power BI, Looker and Python to turn 2.35B rows of customer event and activity data into dashboard source tables, customer journey reports, tracking QA checks and performance commentary.
 
 - Built SQL and BigQuery reporting source tables across 2.35B rows of customer event and activity data, using joins and aggregations to feed recurring Power BI and Looker performance dashboards.
-- Built journey / activity-stage tables from customer status, event counts and response-history windows, separating customer groups by activity level before performance reporting.
-- Produced 12-period digital performance reports comparing event volume, response-history mix and reporting-status changes against prior-period baselines, explaining a 19% movement through 4 data, process and activity drivers.
-- Built Power BI and Looker dashboard views tracking 14 recurring customer activity and reporting-quality metrics, including activity volume, activity-stage mix, reporting status and data-quality flags.
+- Built customer journey and activity-stage tables from status, event-count and response-history data, separating customer groups by activity level before digital performance reporting.
+- Produced 12-period digital performance reports comparing event volume, journey-stage mix and reporting-status changes against prior-period baselines, explaining a 19% movement through 4 data, process and activity drivers.
+- Built Power BI and Looker dashboard views tracking 14 recurring customer journey, activity and reporting-quality metrics, including activity volume, journey-stage mix, reporting status and data-quality flags.
 - Maintained a dashboard QA checklist with 15 checks for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder release.
 - Created reusable BigQuery dashboard source tables and validation outputs for recurring Power BI / Looker reports, replacing manual query exports with a repeatable reporting refresh path.
-- Produced 6 performance summary notes explaining metric movement, validation caveats and driver categories, with follow-up actions for technical and non-technical stakeholder review.
+- Produced 6 performance summary notes answering stakeholder questions on metric movement, validation caveats and driver categories, with follow-up actions for digital performance review.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
 Python modelling project using smartphone sensor windows to compare model performance against a baseline, test reliability across user groups and document failure cases.
 
 - Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity across 1,200 trips, 60 users and 5 transport modes.
-- Improved transport-mode and driver-identity classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model architecture for both classification tasks.
-- Produced a model robustness report across 1,200 trips, 60 users and 5 transport modes, documenting failure cases by trip type, user variation and sensor-signal quality.
+- Produced a model robustness report documenting failure cases by trip type, user variation and sensor-signal quality for non-technical review.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
