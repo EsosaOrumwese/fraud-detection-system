@@ -4,13 +4,13 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data & Information Analyst using Excel, SQL/BigQuery, Power BI and Looker to improve data quality, metadata clarity and responsible-use documentation across shared reporting datasets. Created validation checks, KPI definitions, data limitation notes and user-facing guidance so non-technical users could understand source caveats, excluded records and refresh status before reusing shared data.
+Data & Information Analyst using Excel, SQL/BigQuery, Power BI and Looker to improve data quality, metadata clarity and responsible-use documentation across shared reporting datasets. Created validation checks, KPI definitions, shared-output checklists, data limitation notes and user-facing guidance so non-technical users could understand source caveats, excluded records, refresh status and reuse limits before relying on shared data.
 
 TECHNICAL SKILLS
 
 Data Quality & Metadata: data-quality checks, KPI definitions, metadata notes, validation logs, data limitation notes
-Responsible Data Use: responsible-use notes, excluded-record rules, source caveats, refresh-status guidance
-User Guidance & Communication: Power BI, Looker, dashboard notes, user-facing metric notes, reuse guidance
+Responsible Data Use: shared-output checklists, excluded-record rules, source caveats, refresh-status guidance, reuse limits
+User Guidance & Communication: Power BI, Looker, dashboard notes, user-facing metric notes, handover notes, reuse guidance
 Data Tools: Excel, SQL, Google BigQuery, VBA, Power BI, Looker
 Operational Records: field reports, HSE logs, equipment records, daily activity records, reconciliation workbooks
 
@@ -18,13 +18,14 @@ RELEVANT EXPERIENCE
 
 Data Analyst
 Data Quality, Metadata & Responsible Use Workstream (Independent Production Build) - Exeter, UK | May 2025 - Present
-Built a BigQuery, Looker and Power BI data-quality workstream covering KPI definitions, metadata notes, validation checks, refresh checks, responsible-use notes and user-facing guidance across a 2.35B-row shared reporting dataset.
+Built a BigQuery, Looker and Power BI data-quality workstream covering KPI definitions, metadata notes, validation checks, refresh checks, shared-output checklists, responsible-use notes and user-facing guidance across a 2.35B-row shared reporting dataset.
 
 - Documented KPI definitions with metric formulas, BigQuery source tables, aggregation grain, report filters, excluded-record rules and known data limitations so shared-data users could understand what each metric did and did not represent.
+- Created a shared-output checklist covering excluded records, source-table caveats, refresh status, field-level limitations and reuse notes before reporting outputs were shared or reused outside the original analysis context.
 - Built validation checks across BigQuery source tables and Looker/Power BI reports, covering row counts, missing values, duplicate records, join keys, date filters and dashboard totals before shared outputs were reused.
 - Created SQL validation queries that flagged stale refresh dates, duplicate rows, broken join keys and mismatched aggregations before users relied on incorrect report outputs.
-- Maintained a reporting QA log for refresh failures, source-table issues and repeated validation errors, reducing repeated reporting issues by 38%.
-- Produced responsible-use notes for shared outputs, explaining source-table caveats, excluded records, refresh status and data limitations before manager or report review.
+- Maintained a reporting QA log for refresh failures, source-table issues and repeated validation errors, reducing repeated reporting issues by 38% and helping update the checks behind shared reports.
+- Produced plain-English responsible-use and handover notes explaining KPI definitions, source caveats, excluded records, refresh status and data limitations so non-technical users understood how shared outputs could and could not be used.
 - Logged recurring user questions on KPI meaning, filters and source caveats, then updated metric notes, validation checks and user-facing guidance beside Looker/Power BI reports so shared outputs were easier to understand and reuse.
 
 Data Scientist
