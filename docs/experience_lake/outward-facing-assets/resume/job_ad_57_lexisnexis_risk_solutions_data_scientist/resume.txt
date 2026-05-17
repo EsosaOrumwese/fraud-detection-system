@@ -19,13 +19,13 @@ Data Scientist
 Fraud Risk Decisioning & Model Monitoring Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
 Built an AWS-hosted fraud decisioning platform using Python, SQL, behavioural feature pipelines, ML risk scores and rule-based thresholds across a 2.35B-row account, transaction and customer-interaction data surface. Produced scored records, threshold trade-off tables, case-review outputs, monitoring checks and model governance readouts for fraud-risk review.
 
-- Built fraud-risk feature tables across 2.35B rows of account, transaction and customer-interaction data, engineering velocity spikes, activity bursts, value-movement outliers and interaction-pattern shifts linked to account-takeover, mule-risk and payment-fraud review patterns.
+- Built fraud-risk feature tables across 2.35B rows of account, transaction and customer-interaction data, engineering velocity spikes, activity bursts, value-movement outliers and interaction-pattern shifts mapped to account-takeover, mule-risk and payment-fraud review patterns.
 - Developed a hybrid fraud-decisioning workflow combining ML risk scores with rule-based thresholds, producing score, rule-trigger, feature-reason and review-priority fields for customer, account and transaction records.
 - Validated model ranking quality against a rule-only baseline, showing that the top 20% risk-score band captured 42% of known-risk cases before threshold selection.
 - Compared top-10%, top-20% and top-30% thresholds across known-risk capture, low-risk review inclusion and review volume, reducing low-risk review inclusion by 11% at fixed known-risk coverage.
 - Deployed an AWS-hosted scoring workflow routing high-risk records into a case-review queue with score, rule trigger, feature reason, case status and review-priority fields.
 - Built reusable training, scoring and evaluation workflows with versioned configs, validation gates, feature-freshness checks and score-stability reports across scoring runs.
-- Prepared a fraud-risk model governance readout and presentation pack covering score-band capture, threshold trade-offs, £64k risk exposure, risk drivers, monitoring checks and model limitations for risk review.
+- Prepared a fraud-risk model governance readout and presentation pack for senior risk review, covering score-band capture, threshold trade-offs, £64k risk exposure, risk drivers, monitoring checks and model limitations.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
