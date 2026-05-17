@@ -18,7 +18,7 @@ RELEVANT EXPERIENCE
 
 Data Scientist
 Customer Analytics, Scoring & Reporting Build (Independent Production Build) - Exeter, UK | May 2025 - Present
-Built a SQL/BigQuery, Python, Power BI and Looker customer analytics build for cleaning customer activity, transaction and response-history data; producing analysis tables, scoring outputs, recurring reports, validation checks and test-and-learn summaries across a 2.35B-row dataset.
+Developed a SQL/BigQuery, Python, Power BI and Looker customer analytics build for cleaning customer activity, transaction and response-history data; producing analysis tables, scoring outputs, recurring reports, validation checks and test-and-learn summaries across a 2.35B-row dataset.
 
 - Cleaned and modelled BigQuery analysis tables across 2.35B rows of customer activity, transaction behaviour and response-history data, standardising activity frequency, response rate, repeat activity and transaction behaviour for reporting and model inputs.
 - Built a Python customer scoring workflow ranking customers and segments by response rate, repeat activity and transaction behaviour, with the top score band capturing 42% of high-response customers.
