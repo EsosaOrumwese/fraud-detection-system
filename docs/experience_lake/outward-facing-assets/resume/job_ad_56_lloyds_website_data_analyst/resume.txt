@@ -8,11 +8,11 @@ Website Data Analyst using SQL/BigQuery, Power BI, Looker and Excel/VBA to build
 
 TECHNICAL SKILLS
 
-Website & Digital Analytics: customer journey metrics, traffic/activity reporting, engagement analysis, tracking QA, Google Analytics reports & traffic analysis training
+Website & Digital Performance: customer journey metrics, traffic/activity reporting, engagement analysis, journey-stage movement
 BI & Reporting: Power BI, Looker, recurring KPI dashboards, performance reports, dashboard commentary
 Tracking QA & Data Quality: tracking validation, missing-field checks, duplicate checks, stale refresh checks, mismatched totals
 Excel & Automation: Excel, pivot tables, lookups, index/match, VBA report-refresh workflows
-SQL & Analysis: SQL, Google BigQuery, dashboard source tables, reusable reporting tables, metric movement analysis, baseline comparison
+SQL & Analysis: SQL, Google BigQuery, dashboard source tables, reusable reporting tables, metric movement analysis
 
 CERTIFICATIONS & TRAINING
 
