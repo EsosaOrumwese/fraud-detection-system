@@ -1,10 +1,10 @@
 Esosa Orumwese
-Data Scientist | Customer Analytics, Foundational Modelling & Reporting | SQL, Python & Power BI
+Junior Data Scientist | Customer Analytics, SQL/Python Modelling & Power BI Reporting
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Scientist with experience using SQL, Python and Power BI to analyse customer activity, transaction behaviour, response history and repeat-activity patterns. Built BigQuery analysis tables, Python scoring workflows and Power BI reports to compare customer segments, support test-and-learn decisions and explain response-rate movements.
+Junior Data Scientist using SQL/BigQuery, Python and Power BI to clean customer activity and transaction data, build analysis tables, create customer scoring workflows and produce recurring reports. Compared customer segments, investigated response-rate movement and supported test-and-learn recommendations with clear reporting outputs for business review.
 
 TECHNICAL SKILLS
 
