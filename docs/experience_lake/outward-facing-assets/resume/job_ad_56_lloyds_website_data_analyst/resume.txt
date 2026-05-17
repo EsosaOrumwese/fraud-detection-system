@@ -9,7 +9,7 @@ Website Data Analyst using SQL/BigQuery, Power BI, Looker and Excel/VBA to build
 TECHNICAL SKILLS
 
 Website & Digital Performance: customer journey metrics, traffic/activity reporting, engagement analysis, journey-stage movement
-BI & Reporting: Power BI, Looker, recurring KPI dashboards, performance reports, dashboard commentary
+BI & Reporting: Power BI, Looker, recurring dashboards, performance reports, dashboard commentary
 Tracking QA & Data Quality: tracking validation, missing-field checks, duplicate checks, stale refresh checks, mismatched totals
 Excel & Automation: Excel, pivot tables, lookups, index/match, VBA report-refresh workflows
 SQL & Analysis: SQL, Google BigQuery, dashboard source tables, reusable reporting tables, metric movement analysis
@@ -26,7 +26,7 @@ Built a SQL/BigQuery, Power BI, Looker and Excel/VBA reporting platform for turn
 
 - Built SQL and BigQuery reporting source tables across a 2.35B-row customer event and activity dataset, using joins and aggregations to feed recurring Power BI and Looker digital performance reports.
 - Built journey-stage reporting tables from event-count, activity-status and interaction-history fields, separating users into activity-stage groups before comparing journey movement and engagement changes.
-- Produced digital performance reports comparing event volume, journey-stage mix and engagement changes against prior-period baselines, explaining a 19% movement through tracking, process and activity drivers.
+- Produced digital performance reports comparing event volume, journey-stage mix and engagement changes against prior-period baselines, explaining a 19% movement through data-quality, process and activity drivers.
 - Built Power BI and Looker reporting views showing journey-stage movement, activity volume, engagement changes and data-quality flags for recurring digital performance review.
 - Maintained a tracking QA checklist for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder release.
 - Created reusable BigQuery dashboard source tables and validation outputs for recurring Power BI/Looker reports, replacing manual query exports with a repeatable reporting refresh path.
