@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Website Data Analyst using SQL/BigQuery, Power BI, Looker and Excel/VBA to build recurring digital performance reports, customer journey views and tracking QA checks from large event and activity datasets. Produced performance notes explaining journey-stage movement, validation caveats and optimisation follow-up actions for technical and non-technical users.
+Website Data Analyst using SQL/BigQuery, Power BI, Looker and Excel/VBA to build recurring digital performance reports, journey-stage views and tracking QA checks from large customer event datasets. Produced performance notes explaining traffic/activity movement, engagement changes, validation caveats and optimisation follow-up actions for technical and non-technical users.
 
 TECHNICAL SKILLS
 
@@ -26,11 +26,11 @@ Built a SQL/BigQuery, Power BI, Looker and Excel/VBA reporting platform for turn
 
 - Built SQL and BigQuery reporting source tables across a 2.35B-row customer event and activity dataset, using joins and aggregations to feed recurring Power BI and Looker digital performance reports.
 - Built journey-stage reporting tables from event-count, activity-status and interaction-history fields, separating users by activity stage before comparing journey movement and engagement changes.
-- Produced digital performance reports comparing event volume, journey-stage mix and engagement changes against prior-period baselines, explaining a 19% movement through data, process and activity drivers.
+- Produced digital performance reports comparing event volume, journey-stage mix and engagement changes against prior-period baselines, explaining a 19% movement through tracking, process and activity drivers.
 - Built Power BI and Looker reporting views showing journey-stage movement, activity volume, engagement changes and data-quality flags for recurring digital performance review.
 - Maintained a tracking QA checklist for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder release.
 - Created reusable BigQuery dashboard source tables and validation outputs for recurring Power BI/Looker reports, replacing manual query exports with a repeatable reporting refresh path.
-- Produced performance summary notes answering stakeholder questions on journey movement, validation caveats and driver categories, with follow-up actions for digital performance review.
+- Produced performance summary notes answering stakeholder questions on journey movement, engagement changes, validation caveats and driver categories, with follow-up actions for digital performance review.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
