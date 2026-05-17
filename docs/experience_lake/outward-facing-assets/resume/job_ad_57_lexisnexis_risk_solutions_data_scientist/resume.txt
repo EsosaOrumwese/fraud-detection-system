@@ -1,45 +1,43 @@
 Esosa Orumwese
-Data Scientist | Fraud Risk Modelling, Detection Rules & MLOps | Python, SQL & AWS
+Data Scientist | Fraud Decisioning, Risk Scoring & MLOps | Python, SQL & AWS
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Data Scientist with experience building AWS-hosted fraud-risk scoring and monitoring workflows using SQL, Python, behavioural feature tables, ML risk scores and rule-based thresholds. Developed validation reports, threshold trade-off tables and model readouts to improve known-risk capture, reduce low-risk review inclusion and explain fraud drivers to risk stakeholders.
+Data Scientist using Python, SQL and AWS to build fraud-risk feature tables, ML risk scores, rule-based thresholds and monitoring checks across large account, transaction and customer-interaction datasets. Produced validation reports, threshold trade-off tables and model governance readouts explaining known-risk capture, low-risk review inclusion, risk drivers and model limitations for risk stakeholders.
 
 TECHNICAL SKILLS
 
-Fraud & Risk Modelling: fraud-risk scoring, rule-based thresholds, risk-score bands, known-risk case capture, false-positive proxies
-Fraud Behaviour Signals: account-activity anomalies, transaction velocity, value movement, suspicious behaviour indicators
-Python, SQL & Data: Python, SQL, BigQuery, PySpark, Pandas, feature tables, transaction-behaviour data, account-activity data
-Model Evaluation & Governance: model validation reports, rule-only baselines, threshold trade-off tables, lift/capture analysis, model limitations, governance notes
-MLOps & Monitoring: AWS, versioned configs, scoring workflows, validation gates, feature-freshness checks, score-stability monitoring
-Risk Communication: fraud-risk model readouts, risk-driver reports, threshold recommendations, Power BI / Looker dashboards
+Fraud & Risk Modelling: fraud-risk scoring, rule-based thresholds, known-risk capture, case prioritisation
+Python, SQL & Data: Python, SQL, BigQuery, PySpark, Pandas, feature tables, transaction and account data
+Model Evaluation & MLOps: threshold trade-offs, lift/capture analysis, validation gates, feature-freshness checks, score-stability monitoring
+Risk Communication: fraud-risk readouts, threshold recommendations, risk-driver reports, governance notes
 
 RELEVANT EXPERIENCE
 
 Data Scientist
 Fraud Risk Decisioning & Model Monitoring Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-AWS-hosted fraud-risk decisioning platform using SQL, Python, behavioural feature pipelines, ML risk scores and rule-based thresholds across 2.35B rows of account activity, transaction behaviour and customer interaction data.
+Built an AWS-hosted fraud decisioning platform using Python, SQL, behavioural feature pipelines, ML risk scores and rule-based thresholds across a 2.35B-row account, transaction and customer-interaction data surface. Produced scored records, threshold trade-off tables, case-review outputs, monitoring checks and model governance readouts for fraud-risk review.
 
-- Built fraud-risk feature tables across 2.35B rows of account, transaction and customer interaction data, engineering transaction-velocity, account-activity, value-movement and abnormal-behaviour features.
-- Developed a hybrid fraud-risk scoring workflow combining ML risk scores with rule-based thresholds, producing scored customer, account and transaction records for case prioritisation.
-- Validated model ranking quality against a rule-only baseline, capturing 42% of known-risk cases in the top 20% risk score band.
+- Built fraud-risk feature tables across 2.35B rows of account, transaction and customer-interaction data, engineering velocity spikes, activity bursts, value-movement outliers and interaction-pattern shifts used by ML scores and rule-based thresholds.
+- Developed a hybrid fraud-decisioning workflow combining ML risk scores with rule-based thresholds, producing score, rule-trigger, feature-reason and review-priority fields for customer, account and transaction records.
+- Validated model ranking quality against a rule-only baseline, showing that the top 20% risk-score band captured 42% of known-risk cases before threshold selection.
 - Compared top-10%, top-20% and top-30% thresholds across known-risk capture, low-risk review inclusion and review volume, reducing low-risk review inclusion by 11% at fixed known-risk coverage.
 - Deployed an AWS-hosted scoring workflow routing high-risk records into a case-review queue with score, rule trigger, feature reason, case status and review-priority fields.
 - Built reusable training, scoring and evaluation workflows with versioned configs, validation gates, feature-freshness checks and score-stability reports across scoring runs.
-- Prepared an executive-ready fraud-risk model governance readout covering score-band capture, threshold trade-offs, £64k risk exposure, risk drivers, monitoring checks and model limitations.
+- Prepared a fraud-risk model governance readout for senior risk review, covering score-band capture, threshold trade-offs, £64k risk exposure, risk drivers, monitoring checks and model limitations.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Python behavioural modelling project using smartphone accelerometer, gyroscope and trip-signal windows to classify movement behaviour and test model reliability.
+Python behavioural modelling project using smartphone accelerometer, gyroscope and trip-signal windows to classify movement behaviour, compare model performance against a baseline and document model failure cases.
 
-- Built a Python modelling dataset from smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity.
-- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using a shared model workflow for movement-pattern and identity-recognition tasks.
+- Built a Python modelling dataset from smartphone accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity from behavioural sensor patterns.
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared model workflow for movement-pattern and identity-recognition tasks.
 - Tested model robustness across 1,200 trips, 60 users and 5 transport modes, documenting misclassified patterns, failure cases and model limitations.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
-Business analytics project using country-sector activity tables and policy-response data to explain movement patterns in a visual report.
+Business analytics project using country-sector activity tables and policy-response data to explain abnormal movement patterns through a visual report.
 
 - Built a country-sector comparison table across 220 countries and 12 sectors, grouping activity into rebound, persistent disruption and structural-shift categories against pre-crisis baselines.
 - Merged activity data with 8 policy-response areas across 6 countries, using restriction, support-measure and reopening signals to explain abnormal movement patterns.
