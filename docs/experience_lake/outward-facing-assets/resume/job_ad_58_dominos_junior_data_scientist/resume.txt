@@ -12,17 +12,17 @@ SQL & Python: SQL, Google BigQuery, Python, Pandas, NumPy, analysis tables
 Foundational Modelling: customer segmentation, scoring workflows, model evaluation, score-band analysis
 BI & Reporting: Power BI, Looker, KPI reports, dashboards, trend charts
 Data Cleaning & Quality: validation checks, missing-value checks, duplicate checks, source-table checks
-Experimentation Support: baseline comparison, pre/post analysis, option-comparison tables, response-rate analysis
+Experimentation Support: baseline comparison, pre/post analysis, test-and-learn summaries, response-rate analysis
 
 RELEVANT EXPERIENCE
 
 Data Scientist
 Customer Analytics, Scoring & Reporting Build (Independent Production Build) - Exeter, UK | May 2025 - Present
-Developed a SQL/BigQuery, Python, Power BI and Looker customer analytics build for cleaning customer activity, transaction and response-history data, producing analysis tables, scoring outputs, recurring reports, validation checks and test-and-learn summaries across a 2.35B-row dataset.
+Developed a SQL/BigQuery, Python, Power BI and Looker customer analytics build for cleaning customer activity, transaction and response-history data into analysis tables, scoring outputs, recurring reports, validation checks and test-and-learn summaries across a 2.35B-row dataset.
 
 - Cleaned and modelled BigQuery analysis tables across 2.35B rows of customer activity, transaction behaviour and response-history data, standardising activity frequency, response rate, repeat activity and transaction behaviour for reporting and model inputs.
 - Built a Python customer scoring workflow ranking customers and segments by response rate, repeat activity and transaction behaviour, then validated whether the highest score band concentrated the strongest customer-response patterns.
-- Compared customer segment options across target capture, response rate, coverage, low-yield inclusion and period stability, producing a test-and-learn recommendation on which customer segment option to test first.
+- Compared customer segment options across response rate, coverage, low-yield inclusion and period stability, producing a test-and-learn recommendation on which segment to test first.
 - Built Power BI KPI reports, with supporting Looker views, showing customer activity, segment movement and report-quality flags for recurring business review.
 - Investigated a 19% response-rate movement in BigQuery, separating activity-volume, segment-mix, response-pattern and source-table quality drivers before reporting the change.
 - Added validation checks across BigQuery source tables and Power BI/Looker reports, reducing reporting errors by 38% before recurring report release.
