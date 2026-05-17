@@ -8,7 +8,7 @@ Data Scientist using Python, SQL and AWS to build fraud-risk feature tables, ML 
 
 TECHNICAL SKILLS
 
-Fraud & Risk Modelling: fraud-risk scoring, rule-based thresholds, known-risk capture, case prioritisation, account-takeover, mule-risk and payment-fraud review patterns
+Fraud & Risk Modelling: fraud-risk scoring, rule-based thresholds, known-risk capture, case prioritisation, account-takeover, mule-risk and payment-fraud patterns
 Python, SQL & Data: Python, SQL, BigQuery, PySpark, Pandas, feature tables, transaction and account data
 Model Evaluation & MLOps: threshold trade-offs, lift/capture analysis, validation gates, feature-freshness checks, score-stability monitoring
 Risk Communication: fraud-risk readouts, threshold recommendations, risk-driver reports, governance notes
@@ -25,7 +25,7 @@ Built an AWS-hosted fraud decisioning platform using Python, SQL, behavioural fe
 - Compared top-10%, top-20% and top-30% thresholds across known-risk capture, low-risk review inclusion and review volume, reducing low-risk review inclusion by 11% at fixed known-risk coverage.
 - Deployed an AWS-hosted scoring workflow routing high-risk records into a case-review queue with score, rule trigger, feature reason, case status and review-priority fields.
 - Built reusable training, scoring and evaluation workflows with versioned configs, validation gates, feature-freshness checks and score-stability reports across scoring runs.
-- Prepared a fraud-risk model governance readout covering score-band capture, threshold trade-offs, £64k risk exposure, risk drivers, monitoring checks and model limitations for risk review.
+- Prepared a fraud-risk model governance readout and presentation pack covering score-band capture, threshold trade-offs, £64k risk exposure, risk drivers, monitoring checks and model limitations for risk review.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
