@@ -25,7 +25,7 @@ Digital Journey Reporting & Tracking QA Platform (Independent Production Build) 
 Built a SQL/BigQuery, Power BI, Looker and Excel/VBA reporting platform for turning large customer event and activity datasets into recurring digital performance reports, journey-stage views, tracking QA checks and optimisation follow-up notes.
 
 - Built SQL and BigQuery reporting source tables across a 2.35B-row customer event and activity dataset, using joins and aggregations to feed recurring Power BI and Looker digital performance reports.
-- Built journey-stage reporting tables from event-count, activity-status and interaction-history fields, separating users by activity stage before comparing journey movement and engagement changes.
+- Built journey-stage reporting tables from event-count, activity-status and interaction-history fields, separating users into activity-stage groups before comparing journey movement and engagement changes.
 - Produced digital performance reports comparing event volume, journey-stage mix and engagement changes against prior-period baselines, explaining a 19% movement through tracking, process and activity drivers.
 - Built Power BI and Looker reporting views showing journey-stage movement, activity volume, engagement changes and data-quality flags for recurring digital performance review.
 - Maintained a tracking QA checklist for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder release.
