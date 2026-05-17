@@ -1,10 +1,10 @@
 Esosa Orumwese
-Website Data Analyst | Customer Journey & Digital Performance Reporting | Power BI, Excel & Tracking QA
+Website Data Analyst | Customer Journey, Digital Performance & Tracking QA | Power BI & Excel
 Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Website Data Analyst with experience using SQL, Google BigQuery, Power BI, Looker and Excel/VBA to build recurring digital performance dashboards, tracking QA checks and customer journey reports from large event and activity datasets. Produced performance commentary explaining journey movement, validation caveats and optimisation actions for technical and non-technical stakeholders.
+Website Data Analyst using SQL/BigQuery, Power BI, Looker and Excel/VBA to build recurring digital performance reports, customer journey views and tracking QA checks from large event and activity datasets. Produced performance notes explaining journey-stage movement, validation caveats and optimisation follow-up actions for technical and non-technical users.
 
 TECHNICAL SKILLS
 
@@ -21,39 +21,39 @@ Google Analytics: Reports & Traffic Analysis Specialization - Coursera, in progr
 RELEVANT EXPERIENCE
 
 Data Analyst
-Digital Performance Reporting & Tracking Analytics Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-Digital performance reporting platform using SQL, Google BigQuery, Power BI, Looker and Python to turn 2.35B rows of customer event and activity data into dashboard source tables, customer journey reports, tracking QA checks and performance commentary.
+Digital Journey Reporting & Tracking QA Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Built a SQL/BigQuery, Power BI, Looker and Excel/VBA reporting platform for turning large customer event and activity datasets into recurring digital performance reports, journey-stage views, tracking QA checks and performance commentary.
 
-- Built SQL and BigQuery reporting source tables across 2.35B rows of customer event and activity data, using joins and aggregations to feed recurring Power BI and Looker performance dashboards.
-- Built customer journey and activity-stage tables from status, event-count and response-history data, separating customer groups by activity level before digital performance reporting.
-- Produced 12-period digital performance reports comparing event volume, journey-stage mix and reporting-status changes against prior-period baselines, explaining a 19% movement through 4 data, process and activity drivers.
-- Built Power BI and Looker dashboard views tracking 14 recurring customer journey, activity and reporting-quality metrics, including activity volume, journey-stage mix, reporting status and data-quality flags.
-- Maintained a dashboard QA checklist with 15 checks for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder release.
-- Created reusable BigQuery dashboard source tables and validation outputs for recurring Power BI / Looker reports, replacing manual query exports with a repeatable reporting refresh path.
-- Produced 6 performance summary notes answering stakeholder questions on metric movement, validation caveats and driver categories, with follow-up actions for digital performance review.
+- Built SQL and BigQuery reporting source tables across a 2.35B-row customer event and activity dataset, using joins and aggregations to feed recurring Power BI and Looker digital performance reports.
+- Built journey-stage reporting tables from customer status, event-count and response-history fields, separating activity groups before comparing journey movement and engagement changes.
+- Produced digital performance reports comparing event volume, journey-stage mix and reporting-status changes against prior-period baselines, explaining a 19% movement through data, process and activity drivers.
+- Built Power BI and Looker reporting views showing journey-stage movement, activity volume, reporting status and data-quality flags for recurring digital performance review.
+- Maintained a tracking QA checklist for missing fields, duplicate records, stale refreshes and mismatched totals, reducing reporting errors by 38% before stakeholder release.
+- Created reusable BigQuery dashboard source tables and validation outputs for recurring Power BI/Looker reports, replacing manual query exports with a repeatable reporting refresh path.
+- Produced performance summary notes answering stakeholder questions on journey movement, validation caveats and driver categories, with follow-up actions for digital performance review.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Python modelling project using smartphone sensor windows to compare model performance against a baseline, test reliability across user groups and document failure cases.
+Python modelling project using smartphone sensor data to compare model performance, test reliability across user groups and document where outputs failed.
 
-- Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity across 1,200 trips, 60 users and 5 transport modes.
-- Produced a model robustness report documenting failure cases by trip type, user variation and sensor-signal quality for non-technical review.
+- Trained Python models on accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity from behavioural sensor data.
+- Produced a model robustness report documenting where predictions failed by trip type, user variation and sensor-signal quality, giving non-technical readers a clearer view of when the outputs could and could not be trusted.
 
 Business Analyst
 University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
-Trend-analysis project using country-sector activity data and policy-response tables to compare movement against pre-crisis baselines, isolate external drivers and produce a visual recommendation report.
+Trend-analysis project using country-sector activity data and policy-response tables to explain abnormal movement patterns through a visual report.
 
-- Built a country-sector trend analysis across 220 countries and 12 sectors, separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
-- Investigated abnormal activity movements across 6 countries and 8 policy areas, linking shifts to restriction, support-measure and reopening signals.
-- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
+- Built a country-sector trend analysis separating rebound, persistent disruption and structural-shift patterns from pre-crisis baselines.
+- Investigated abnormal activity movements by linking changes to restriction, support-measure and reopening signals.
+- Produced a visual trend report using country-sector charts and policy-comparison tables to show which sectors rebounded, remained disrupted or structurally shifted.
 
 Data Analyst
 South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
 Operations reporting role using Excel, VBA and Power BI to reconcile field records, automate report checks and produce KPI dashboards for manager review.
 
 - Built an Excel reconciliation workbook with pivot tables, lookups and index/match checks to compare field reports, HSE logs, equipment checks and daily operational updates, reducing incomplete or conflicting entries by 32% before supervisor review.
-- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting field-report, HSE, equipment and daily-update records, cutting report review time from 45 to 25 minutes.
-- Built a Power BI operational metrics dashboard tracking 9 KPIs across job progress, equipment readiness, documentation gaps and review status across 12 completions jobs / 140 rig days.
+- Created a VBA report-refresh and exception-flagging macro to identify missing, duplicated and conflicting operational records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational dashboard tracking job progress, equipment readiness, documentation gaps and review status before manager review.
 
 EDUCATION
 
