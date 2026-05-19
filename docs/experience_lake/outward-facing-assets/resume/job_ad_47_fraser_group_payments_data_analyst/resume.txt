@@ -4,7 +4,7 @@ Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
 
 PROFESSIONAL SUMMARY
 
-Payments Data Analyst using SQL, BigQuery, Excel, Power BI and Looker to monitor payment performance, decline rates, fraud trends and chargeback movement across large transaction datasets. Built payment queries, chargeback trackers, dashboards and validation checks, turning unexpected metric movements into root-cause summaries for risk, finance and checkout-performance review.
+Payments Data Analyst using SQL, BigQuery, Excel, Power BI and Looker to monitor payment performance, decline rates, fraud trends and chargeback movement across large transaction datasets, with current high-transaction retail operations experience at Five Guys. Built payment queries, chargeback trackers, dashboards and validation checks, turning unexpected metric movements into root-cause summaries for risk, finance and checkout-performance review.
 
 TECHNICAL SKILLS
 
@@ -26,6 +26,14 @@ Built a SQL, BigQuery, Excel, Power BI and Looker analytics platform for monitor
 - Investigated a 19% unexpected increase in failed payments using BigQuery movement queries, separating provider, customer, checkout-flow and data-quality drivers before the next performance review.
 - Produced chargeback cost and checkout-performance summaries quantifying £64k cost exposure and an 8% payment-acceptance opportunity for finance and risk review.
 - Added dashboard validation checks across Looker, Power BI and BigQuery report inputs, reducing reporting errors by 38% and lifting successful dashboard refreshes to 98%.
+
+Crew Member - Certified
+Five Guys - Exeter, UK | Sep 2024 - Present
+Current customer-facing food retail role in a fast-paced, high-transaction operation. 2x Employee of the month.
+
+- Worked in a high-volume food retail environment handling customer orders, payment handoffs, order accuracy and service flow during peak trading periods.
+- Followed till, food-safety, stock, cleaning and close-down procedures in a fast-paced operation where small process errors could affect customer experience and team throughput.
+- Built practical retail operations context around queue pressure, order fulfilment, customer issues and transaction flow, supporting understanding of checkout and service-performance metrics.
 
 Data Scientist
 University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
