@@ -471,229 +471,445 @@ The skeleton should look like the candidate profile we want to produce, not like
 
 ---
 
-# Five Guys Example Scenarios
+# Five Guys Evidence Boundary
 
-Use **Esosa** as the Five Guys candidate and build concrete scenarios from the kinds of things a fully certified crew member could realistically experience.
+The earlier scenario mapping stretched the Five Guys evidence too far.
 
-These are **not claims to copy**. They are examples of the *shape* we are looking for: believable, level-appropriate, concrete, and useful for the NHS role's behavioural evidence.
+Five Guys should **not** be used to prove data quality, BI validation, provider submissions, dashboards, or analytical assurance. In this job, "data quality" has a specific meaning: checking provider data, validating reports before publication, resolving anomalies in extracts, documenting reporting protocols, and protecting patient-identifiable data.
 
-The NHS role wants accuracy, data quality, clear communication, competing-priority management, process improvement, stakeholder working and integrity/confidentiality.
+That evidence belongs to the MSc, platform, analyst work, public-data slice, or reporting projects - not Five Guys.
 
-## 1. Order Accuracy / Quality-Check Scenario
-
-**Situation**
-
-Esosa works evening shifts at Five Guys in Exeter. During Friday and Saturday delivery peaks, he notices that customer complaints are more likely to come from delivery orders than eat-in orders. The recurring problems are missing sauces, incorrect drinks, missing fries, or burgers being packed before the full order is ready.
-
-**Task**
-
-Esosa is not a manager, but as a fully certified crew member, he is expected to keep standards high and support the shift lead during busy periods. The issue is that the team is moving fast, but the final check before handover is inconsistent.
-
-**Action**
-
-Esosa starts being more deliberate when packing delivery orders. Before sealing each bag, he checks the order number, burger customisations, fries, drinks and sauces against the printed ticket. When he sees newer staff rushing to seal bags without checking the full ticket, he reminds them to check the order from top to bottom rather than relying on memory. He also tells the shift lead that errors seem to happen most when several courier orders are waiting at once.
-
-**Result**
-
-The change is small but practical: fewer orders leave unchecked, newer staff understand why the ticket check matters, and the shift lead becomes more aware of delivery handover as a risk point during peak periods.
-
-**What this proves**
-
-This is useful because it shows:
-
-- attention to detail;
-- quality checking before an output is released;
-- process discipline under pressure;
-- communication with colleagues;
-- customer/service focus.
-
-**How it might later appear in a supporting statement**
+The corrected rule is:
 
 ```text
-In my Five Guys role, I have developed a strong habit of checking outputs carefully before they reach the customer. During busy delivery periods, I noticed that errors were more likely when orders were sealed without a full ticket check, so I became more deliberate about checking order numbers, customisations, fries, drinks and sauces before handover. I also reminded newer colleagues to follow the same check rather than relying on memory. Although this is a frontline service example, it reflects the same discipline I would bring to data quality: checking the detail before publishing or sharing an output.
+Five Guys is for behavioural, operational and service evidence. It should not be forced into technical data evidence.
 ```
 
-## 2. Peak-Time Prioritisation Scenario
+That is exactly why Amelia's profile worked: each evidence source carried the right kind of claim.
 
-**Situation**
+## What Five Guys Can Validly Support For This Job
 
-Esosa is working a Saturday lunch shift. The store is busy: customers are queueing, delivery drivers are waiting, fries need topping up, the drink station needs attention, and a newer crew member keeps asking questions about order sequence.
+The person spec asks for prioritising workload, working to tight deadlines, strong interpersonal skills, working relationships, communication, initiative, flexibility, self-management and integrity. Those are the areas Five Guys can support.
 
-**Task**
+| Five Guys scenario | What it can prove | Why it is relevant |
+| --- | --- | --- |
+| Busy lunch/evening rush | Prioritisation, pressure, self-management | The role asks for managing competing demands and working under time pressure. |
+| Supporting newer crew informally | Communication, teamwork, working relationships | The role asks for strong interpersonal skills and working with staff at all levels. |
+| Customer complaint/order issue | Calm communication, judgement, service mindset | The role needs clear communication and confidence in difficult situations. |
+| Food safety/allergen/procedure | Integrity, attention to detail, following standards | Useful for NHS values/procedure mindset, but not data governance. |
+| Stock/prep/handover issue | Operational awareness, process improvement | This can support improving processes if the example is real and concrete. |
+| Shift coordination/station switching | Flexibility and responsiveness | The role asks for responding rapidly to changing priorities. |
 
-Esosa has to keep moving without losing accuracy. He cannot do everything at once, so he has to prioritise what affects service most immediately while still following food safety and cleaning standards.
+So yes: **stock/prep/handover** is a better bridge than "data quality." It still is not BI data quality, but it can show process awareness.
 
-**Action**
+## What Five Guys Should Not Be Used For
 
-Esosa focuses first on the tasks affecting customer wait time and order flow: helping complete current orders, checking delivery bags before handover, and restocking the items that are blocking service. He communicates quickly with the crew member on the nearby station, telling them which orders need finishing first. When something can wait, such as a non-urgent restock, he leaves it until the rush slows down rather than abandoning the active queue.
+We should not use Five Guys to claim:
 
-**Result**
+- data quality assurance;
+- dashboard validation;
+- complex dataset analysis;
+- Power BI, SQL or Python;
+- NHS data;
+- provider performance analysis;
+- senior stakeholder reporting;
+- formal staff supervision, unless the role genuinely involved that.
 
-The shift continues without Esosa becoming flustered. Orders keep moving, avoidable mistakes are reduced, and the newer crew member has clearer direction.
+Those need to come from the MSc, platform, previous analyst work, public-data slice, South Western if relevant, or university projects.
 
-**What this proves**
+## The Strongest Five Guys Examples For This Role
 
-This is useful because it shows:
+For this job, look for **one** Five Guys example from these three categories.
 
-- prioritisation;
-- working under time pressure;
-- judgement;
-- calm communication;
-- ability to handle interruptions.
+### 1. Peak-Time Prioritisation
 
-**How it might later appear in a supporting statement**
+Useful if there is a real situation where orders, customers, cleaning, stock, payment/order accuracy and team pressure had to be balanced during a rush.
 
-```text
-Working at Five Guys has strengthened my ability to prioritise under pressure. During peak shifts, I often have to balance customer orders, delivery handovers, restocking and colleague questions at the same time. I have learned to focus first on the tasks that affect service flow and order accuracy, while still keeping procedures in place. This has helped me stay organised in a busy environment and communicate clearly when priorities change quickly.
-```
+This would support:
 
-## 3. Stock / Preparation Issue Scenario
+- managing competing demands;
+- time pressure;
+- self-management;
+- flexibility;
+- service focus.
 
-**Situation**
+### 2. Informal Support To Newer Crew
 
-Esosa notices that during weekday lunch shifts, the team often runs low on certain high-demand items just before the rush ends. This causes delays because someone has to leave their station to restock while orders are still coming through.
+Useful if newer staff were genuinely helped with station routines, order flow, hygiene procedures, customer handling or closing/opening tasks.
 
-**Task**
-
-Esosa cannot change ordering levels himself, but he can raise the pattern with the shift lead and help the team prepare better before the rush.
-
-**Action**
-
-Over several shifts, Esosa pays attention to when the same items run low. He notices it happens most often between 12:30 and 1:30 when the store has both walk-in orders and delivery demand. He mentions this to the shift lead and suggests checking those items earlier, before the rush starts. On later shifts, he helps top up key items before the busiest period rather than waiting until they run out.
-
-**Result**
-
-The team has fewer interruptions during the rush. Restocking becomes more proactive rather than reactive, and the shift lead has a clearer sense of which items create delays.
-
-**What this proves**
-
-This is useful because it shows:
-
-- noticing patterns;
-- raising an operational issue;
-- practical process improvement;
-- service awareness;
-- initiative without overstating authority.
-
-**How it might later appear in a supporting statement**
-
-```text
-I have also learned to notice repeated operational issues and raise them early. For example, I noticed that certain items were often running low during weekday lunch peaks, which interrupted order flow because staff had to leave stations to restock. I raised the pattern with the shift lead and helped check those items earlier before the rush. This was a small improvement, but it showed me the value of using day-to-day evidence to prevent repeated service problems.
-```
-
-## 4. Supporting A Newer Crew Member Scenario
-
-**Situation**
-
-A newer crew member is struggling during a busy evening shift. They know the basic process but are getting overwhelmed by order tickets, customer questions and station pace.
-
-**Task**
-
-Esosa is not a formal trainer, but because he is fully certified and familiar with the station, he is expected to support colleagues when needed.
-
-**Action**
-
-Esosa gives short, practical guidance rather than a long explanation. He shows the colleague how to read the ticket in sequence, how to check modifications, and when to ask for help rather than guessing. He keeps his tone calm so the colleague does not feel embarrassed in front of others. When the rush slows, he explains why order accuracy matters more than rushing and having to remake items.
-
-**Result**
-
-The newer colleague becomes more settled on the station, asks clearer questions, and makes fewer avoidable mistakes during the rest of the shift.
-
-**What this proves**
-
-This is useful because it shows:
+This would support:
 
 - communication;
-- informal coaching;
 - teamwork;
+- working relationships;
 - patience;
-- adapting explanation to someone's level.
+- confidence without formal authority.
 
-**How it might later appear in a supporting statement**
+This should be phrased as **supporting newer colleagues**, not "staff supervision" unless that is officially true.
 
-```text
-As a fully certified crew member, I am sometimes asked to support newer colleagues during busy shifts. I try to explain procedures in a practical way, focusing on what they need to do next rather than overwhelming them with information. For example, when a newer colleague was struggling with order tickets during a busy evening shift, I showed them how to read the ticket in sequence, check modifications and ask for help before guessing. This helped them work more confidently and reduced avoidable mistakes.
-```
+### 3. Small Operational Process Issue
 
-## 5. Customer Complaint / Difficult Communication Scenario
+Useful if there was a repeated issue around stock, prep, handovers, delivery orders, missing items, waiting time, cleaning tasks or order flow, and it was raised or helped reduce.
 
-**Situation**
+This would support:
 
-A customer comes back to the counter frustrated because part of their order is wrong. The store is busy, and the customer is visibly annoyed because they have waited already.
-
-**Task**
-
-Esosa needs to handle the situation calmly, understand the issue, avoid arguing, and either fix it or escalate it to the shift lead.
-
-**Action**
-
-Esosa listens first, checks the receipt/order ticket, apologises for the inconvenience, and explains what he can do next. If it is something he can resolve, he helps arrange the correction quickly. If it needs manager approval, he calls the shift lead rather than making promises beyond his authority.
-
-**Result**
-
-The customer still may be frustrated, but the situation is contained. The issue is dealt with properly, and Esosa avoids making the problem worse through poor communication.
-
-**What this proves**
-
-This is useful because it shows:
-
-- calm communication;
-- dealing with difficult information;
-- knowing when to escalate;
-- customer focus;
-- self-control under pressure.
-
-**How it might later appear in a supporting statement**
-
-```text
-My frontline work has also helped me communicate calmly when something has gone wrong. When customers raise issues about an order, I focus first on understanding the problem, checking the order details, explaining what I can do, and escalating to the shift lead where needed. This has helped me develop a calm and practical communication style, especially when the message is difficult or the person is frustrated.
-```
-
-## 6. Food Safety / Allergen / Procedure Scenario
-
-**Situation**
-
-During a busy shift, the team is moving quickly and a customer asks an allergen-related question. There is pressure to keep the queue moving, but allergen information cannot be guessed or handled casually.
-
-**Task**
-
-Esosa needs to follow the correct procedure, give accurate information, and make sure the customer is not given unsafe or uncertain advice.
-
-**Action**
-
-Esosa does not rely on memory. He checks the correct allergen information or refers the customer to the manager/shift lead according to store procedure. He makes sure the customer receives a careful answer rather than a rushed one. He also keeps the team aware if extra care is needed around the order.
-
-**Result**
-
-The customer gets a safer, more accurate response, and Esosa maintains the standard even during pressure.
-
-**What this proves**
-
-This is useful because it shows:
-
-- procedure-following;
-- integrity;
-- safety awareness;
-- knowing limits of responsibility;
+- operational awareness;
+- process improvement;
+- initiative;
 - attention to detail;
-- not guessing when information matters.
+- service quality.
 
-**How it might later appear in a supporting statement**
+This is probably the most valuable Five Guys scenario if there is a real one, because the job wants someone who combines operational understanding with analytical/technical work.
+
+## Corrected Five Guys Profile Block
+
+For the candidate profile, the Five Guys block should look like this:
+
+**Fully Certified Crew Member - Five Guys, Exeter**
+
+What this gives for the CYPMHS role:
+
+- Experience working accurately in a high-volume service environment.
+- Evidence of prioritising tasks under pressure.
+- Clear communication with customers and colleagues.
+- Following food safety, hygiene and operational procedures.
+- Supporting newer colleagues informally where needed.
+- Practical awareness of how small process issues affect service delivery.
+- Customer/service mindset that transfers into public-service work.
+
+What it does **not** give:
+
+- Direct analyst experience.
+- NHS data experience.
+- Data quality assurance in the BI/reporting sense.
+- Senior stakeholder reporting.
+- Formal management.
+
+That is the boundary.
+
+## Lesson
+
+If we map anything to anything, the whole profile becomes weaker. The panel will feel the stretch.
+
+So from now on:
 
 ```text
-Working in food service has made me careful about following procedures when accuracy and safety matter. For example, if a customer asks an allergen-related question, I do not guess or rely on memory. I follow the correct process, check the relevant information or escalate to the shift lead. This has helped me build a strong respect for standards, accuracy and knowing when to seek confirmation before giving information.
+Five Guys = behaviours, service pressure, operational discipline, communication, procedure, small process awareness.
+MSc/platform/projects = technical analysis, BI, data quality, dashboards, SQL, Python, statistical evidence.
+South Western/society = communication, resilience, organisation, leadership, stakeholder-facing evidence, if the facts support it.
 ```
 
-## Which Scenarios Are Strongest For The NHS Data Role?
+That is the clean separation.
 
-For this specific Senior Data and Information Analyst role, rank them like this:
+## Relevance To The Supporting Statement
 
-1. **Order accuracy / quality-check scenario** - strongest link to data quality, validation and accuracy.
-2. **Peak-time prioritisation scenario** - strongest link to competing demands and working under pressure.
-3. **Supporting newer crew member scenario** - strongest link to communication and staff support.
-4. **Stock/preparation issue scenario** - good link to pattern-spotting and process improvement.
-5. **Food safety/allergen scenario** - good link to governance, procedure and integrity.
-6. **Customer complaint scenario** - useful communication evidence, but less unique.
+The Five Guys scenarios are relevant to the supporting statement **only as behavioural and operational evidence**, not as the core proof for the analyst requirements.
 
-For the actual candidate profile, we probably do **not** need all six. We need one or two real ones that are strongest and true.
+The core proof for this job still has to come from MSc/project/platform/data work because the role is mainly about business intelligence, dashboards, provider/pathway performance, Power BI, data quality, analysis, reporting and stakeholder insight.
+
+The job description explicitly says the post combines operational understanding with analytical and technical expertise, and involves dashboards, data insights, data quality assurance, routine/ad-hoc requests and pathway/provider performance.
+
+So the answer is:
+
+```text
+Yes, the Five Guys scenario groups are relevant, but only for selected person-spec points. We should include one strong example, not all of them.
+```
+
+## Where Five Guys Is Relevant
+
+| Scenario group | Relevant? | What it proves |
+| --- | ---: | --- |
+| Busy shift / peak-time prioritisation | **Yes, strong** | Managing competing demands, working under pressure, self-management, flexibility |
+| Supporting newer crew | **Yes, strong if true** | Interpersonal skills, working relationships, communication, informal support |
+| Stock/prep/handover issue | **Yes, strong if concrete** | Operational awareness, initiative, small process improvement |
+| Customer complaint or difficult interaction | **Yes, medium** | Calm communication, judgement, service mindset |
+| Food safety/allergen/procedure | **Yes, medium** | Integrity, following standards, attention to detail, safety mindset |
+| Order accuracy | **Yes, but limited** | Accuracy and service quality; not BI/data validation |
+
+The person specification asks for prioritising and managing workload to tight deadlines, report/presentation experience, change or process improvement, working with stakeholders, strong interpersonal skills, initiative, flexibility, self-management and integrity. Those are the lanes where Five Guys can help.
+
+## Where Five Guys Is Not Relevant
+
+Five Guys should **not** be used to prove:
+
+- Power BI;
+- SQL;
+- Python;
+- complex datasets;
+- provider submissions;
+- NHS data;
+- statistical processes;
+- BI data quality;
+- senior management reporting.
+
+Those are not credible from a crew-member role. They need to come from the MSc, platform, data projects, fraud/data work, or a small health/public-data evidence slice.
+
+## Best Use In The Final Supporting Statement
+
+Five Guys should probably appear once, in a paragraph about **pressure, communication, service discipline and operational awareness**.
+
+Something like this in purpose, not final wording:
+
+```text
+My Five Guys experience gives evidence of working accurately in a busy service environment, prioritising tasks during high-pressure shifts, communicating clearly with customers and colleagues, and following procedures where quality and safety matter.
+```
+
+Then the real technical paragraphs would come from MSc/project/platform evidence.
+
+## Best Scenario To Choose
+
+For this job, prioritise a **stock/prep/handover/process issue** over a generic customer-service example, because it gives more than "I work hard."
+
+It can show:
+
+- a repeated operational issue was noticed;
+- the effect on service was understood;
+- it was communicated to the team or shift lead;
+- the process was helped or adjusted;
+- responsibility boundaries were respected.
+
+That is relevant because the NHS role also wants someone who combines operational awareness with data/system thinking and can contribute to process/reporting improvement.
+
+So yes, the scenario groups are relevant - but we should be selective. For Five Guys, we want **one grounded example** that shows pressure, teamwork, communication or small operational improvement. We should not let it pretend to be analyst evidence.
+
+---
+
+# Five Guys STAR Recollection Examples
+
+These are **fictional STAR recollections from Esosa's perspective**. They are not meant to be copied as true. They are examples of the kind of concrete, believable Five Guys evidence we are looking for.
+
+For this NHS role, these Five Guys examples would only support the behavioural/person-spec side: prioritising workload, working under pressure, communication, initiative, flexibility, self-management, integrity, working relationships, and service awareness.
+
+The technical analyst evidence still needs to come from MSc/projects/data work, because the job's core is BI, reporting, Power BI, analysis, data quality and provider performance.
+
+## 1. Peak-Time Prioritisation Scenario
+
+### Situation
+
+I was working a Friday evening shift at Five Guys during a very busy period. We had customers ordering at the till, delivery drivers arriving for collections, several large orders on the screen, and the team was also trying to keep fries, toppings and drinks stocked. It was one of those shifts where every station needed attention at the same time.
+
+### Task
+
+My task was to keep my station moving without losing accuracy or slowing down the team. I had to serve customers, help with order flow, respond to delivery collections, and make sure I did not ignore basic standards such as checking order numbers, keeping the area clean and communicating delays properly.
+
+### Action
+
+I focused first on the tasks that affected customers and order flow most directly. When a customer was waiting at the till, I dealt with them clearly and quickly. When delivery drivers arrived, I checked whether their order was actually ready before letting them crowd the counter or interrupt the kitchen. I also kept communicating with the crew member on fries and the person assembling orders, so we knew which orders were urgent and which ones were still waiting on food.
+
+At one point, several orders were waiting for fries while new customers were still coming in. Instead of trying to do everything at once, I prioritised keeping the queue moving, confirmed the order numbers that were ready, and told the shift lead where the delay was building. I also topped up items around my station when there was a short gap, rather than waiting until we fully ran out.
+
+### Result
+
+The shift stayed pressured, but my section did not become disorganised. Orders kept moving, customers were given clearer updates, and I avoided handing over orders before they were complete. The main thing I learned was how important it is to stay calm, identify the task that affects service most immediately, and communicate early when a delay is starting to build.
+
+### What This Would Support
+
+This is useful for:
+
+- prioritising workload;
+- working under time pressure;
+- self-management;
+- flexibility;
+- communication during interruptions.
+
+This is relevant because the NHS person spec asks for prioritising and managing workload to tight deadlines, responding to changing priorities, and working effectively in a complex environment.
+
+## 2. Supporting A Newer Crew Member Scenario
+
+### Situation
+
+I was working with a newer crew member who had recently started learning one of the stations. It was not their first shift, but they were still unsure about the order flow, how to keep pace, and when to ask for help. During busy periods, they started to look overwhelmed, especially when orders built up quickly.
+
+### Task
+
+I was not their formal trainer or manager, but as a fully certified crew member I needed to help them without taking over their station or making them feel embarrassed. The goal was to keep the shift moving while helping them understand the routine better.
+
+### Action
+
+I kept my guidance practical. Instead of giving them too much information at once, I focused on the immediate next step: check the order number, confirm what is missing, complete one order before moving to the next, and call out clearly when something is needed. When I noticed they were trying to do several things at the same time, I said something like, "Focus on this order first; I'll help check the next one."
+
+I also explained why the sequence mattered. For example, if they moved too quickly without checking the full order, it could lead to missing items or remakes, which would slow the whole team down later. When there was a quieter moment, I went over the routine again and showed them how I keep track of what is ready, what is waiting, and what needs to be called out.
+
+### Result
+
+By the end of the shift, they were more settled and were asking clearer questions instead of guessing. The shift lead did not need to keep stepping in as much, and the newer crew member was able to complete tasks with more confidence. For me, it was a useful example of adapting my communication to someone's experience level and supporting a colleague without formal authority.
+
+### What This Would Support
+
+This is useful for:
+
+- interpersonal skills;
+- teamwork;
+- communication;
+- supporting colleagues;
+- developing working relationships;
+- self-awareness.
+
+This fits the person spec's focus on strong interpersonal skills, working relationships with staff at all levels, and clear written/verbal communication.
+
+## 3. Small Operational Process Issue Scenario
+
+### Situation
+
+During several evening shifts, I noticed that delivery orders were sometimes slowing down because small items were being missed or checked too late. It was not a major failure, but it created avoidable pressure. For example, an order might be ready but still need drinks, sauces or a final check before being sealed and handed over. During peak times, those small delays built up.
+
+### Task
+
+My task was not to redesign the store process, but I wanted to help reduce repeated mistakes within my own role. I needed to raise the issue in a practical way and support the team without making it sound like I was blaming anyone.
+
+### Action
+
+I started paying closer attention to where the delay usually happened. I noticed that the problem was often not the main food item; it was the final check before handover. When delivery orders were being packed at the same time as in-store orders, it was easy for small items to be left until the last moment.
+
+I raised this with the shift lead during a quieter point and suggested that we check drinks, sauces and order numbers earlier in the packing process, rather than waiting until the driver was already at the counter. On later shifts, I made a habit of calling out missing items earlier and checking the order ticket before the bag was sealed. When newer staff were nearby, I also reminded them to check the full order rather than just the main food item.
+
+### Result
+
+It did not remove every issue, but it reduced avoidable last-minute confusion on the shifts where I was working. It also helped me understand how small process gaps can affect service quality. The lesson I took from it was that improvement does not always mean a big formal change; sometimes it means noticing a repeated issue, raising it clearly, and helping the team apply a more consistent check.
+
+### What This Would Support
+
+This is useful for:
+
+- initiative;
+- operational awareness;
+- process improvement;
+- communication;
+- attention to detail;
+- working with colleagues.
+
+This is one of the better Five Guys examples because the NHS role asks for operational understanding, process improvement, and working with colleagues to meet service needs.
+
+## 4. Customer Complaint / Difficult Communication Scenario
+
+### Situation
+
+A customer came back to the counter during a busy shift because part of their order was wrong. They were frustrated because they had already waited and felt they were being ignored while staff were dealing with other orders.
+
+### Task
+
+I needed to handle the situation calmly, understand the problem, and either resolve it myself or escalate it to the shift lead. At the same time, I had to avoid making the customer feel dismissed and avoid disrupting the rest of the team.
+
+### Action
+
+I first listened to the customer and checked the receipt/order details rather than arguing or guessing what happened. I apologised for the issue, confirmed what was missing or incorrect, and explained what I could do next. Because the store was busy, I kept the explanation short and practical: I would check with the team, get the missing item corrected, and update them as soon as possible.
+
+I then spoke to the relevant crew member and the shift lead so the correction could be handled properly. I avoided blaming anyone in front of the customer. Once the issue was being fixed, I returned to the customer and gave them a clear update instead of leaving them waiting without information.
+
+### Result
+
+The customer calmed down once they knew the issue had been acknowledged and was being fixed. The order was corrected, and the shift continued without the complaint escalating further. This taught me the importance of staying calm, checking the facts first, and communicating clearly when the message is uncomfortable.
+
+### What This Would Support
+
+This is useful for:
+
+- communication under pressure;
+- customer/service focus;
+- judgement;
+- professionalism;
+- handling difficult conversations.
+
+This can support the role's requirement to communicate effectively with stakeholders and explain information clearly, although it is weaker than a data/reporting stakeholder example.
+
+## 5. Food Safety / Procedure Scenario
+
+### Situation
+
+During a busy shift, there was pressure to move quickly because orders were building up. At the same time, we still had to follow food safety, cleaning and allergen procedures properly. In a food-service role, skipping those checks can create risk, even when the store is busy.
+
+### Task
+
+My task was to keep working quickly while still following the correct procedures. I needed to make sure speed did not become an excuse for lowering standards.
+
+### Action
+
+I kept to the process even when the shift was under pressure. That meant checking the relevant information, keeping my station clean, following handwashing and hygiene expectations, and making sure I did not take shortcuts with customer orders. Where allergen or special-instruction issues came up, I treated them seriously and checked rather than assuming.
+
+If I noticed a colleague was rushing or unsure, I would remind them of the correct step or check with the shift lead. I tried to do this in a straightforward way, not as criticism, because everyone was under pressure. My focus was to keep the customer safe and protect the standard of the work.
+
+### Result
+
+The shift stayed busy, but I was able to keep my work accurate and within the required procedures. This example matters to me because it shows that I can follow standards even when there is pressure to rush. It also taught me that integrity is often shown in small decisions: doing the right check, asking when unsure, and not ignoring a procedure because the environment is busy.
+
+### What This Would Support
+
+This is useful for:
+
+- integrity;
+- following procedures;
+- attention to detail;
+- safety mindset;
+- self-management;
+- working under pressure.
+
+This is relevant to NHS values and procedure-heavy environments, but it should not be used as evidence of information governance or patient data handling.
+
+## 6. Order Accuracy / Handover Check Scenario
+
+### Situation
+
+On a busy shift, I was helping with order handovers while in-store and delivery orders were both coming through. There were several similar order numbers and a few customers waiting near the counter. In that kind of situation, it is easy for an order to be handed to the wrong person or for an incomplete order to leave the store.
+
+### Task
+
+I needed to keep orders moving quickly but make sure the right order went to the right customer or driver. The task was about balancing speed with accuracy.
+
+### Action
+
+I made sure I checked the order number before handover, matched the visible items against the ticket, and confirmed any special instructions before the bag left the counter. When a driver or customer asked for an order that was not ready, I checked the status rather than assuming. If something was missing, I called it out clearly to the team.
+
+I also tried to avoid letting pressure from waiting customers make me rush the final check. If there was uncertainty, I paused and checked with the crew member assembling the order or the shift lead. That sometimes took a few extra seconds, but it avoided bigger delays from wrong handovers or remakes.
+
+### Result
+
+The orders I handled were handed over more reliably, and I avoided creating additional problems during an already busy period. The example showed me that accuracy at the final handover point matters because mistakes can undo the work the team has already done.
+
+### What This Would Support
+
+This is useful for:
+
+- accuracy;
+- attention to detail;
+- working under pressure;
+- following process;
+- service quality.
+
+This is relevant, but it is a supporting behaviour example only. It should not be stretched into BI validation or data quality assurance.
+
+## What To Choose For Esosa's Profile
+
+For the final candidate profile, probably use **one** of these, not all.
+
+The strongest for this NHS role is:
+
+```text
+Small operational process issue
+```
+
+because it shows pressure, service awareness, communication, attention to detail and process improvement.
+
+Second strongest:
+
+```text
+Supporting a newer crew member
+```
+
+because it shows interpersonal skills, teamwork and communication.
+
+Third strongest:
+
+```text
+Peak-time prioritisation
+```
+
+because it shows self-management and competing demands.
+
+So for Esosa's profile, the Five Guys block might eventually use one concrete situation like:
+
+```text
+During busy evening shifts, I noticed repeated delivery handover delays caused by small missing items and late final checks. I raised this with the shift lead, became more deliberate about checking order tickets before handover, and helped newer colleagues understand the same routine. This did not make the role technical, but it showed operational awareness, communication, pressure-handling and practical process improvement.
+```
+
+That is the level we want: grounded, believable, and in the right lane.
 
