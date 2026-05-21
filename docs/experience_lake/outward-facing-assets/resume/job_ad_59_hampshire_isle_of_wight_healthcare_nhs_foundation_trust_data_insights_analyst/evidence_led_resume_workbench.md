@@ -1038,3 +1038,161 @@ The Five Guys interview-style Q&A evidence has been moved to:
 interview_evidence_context.md
 
 This keeps the workbench focused while preserving the detailed raw context for later supporting statements and interviews.
+
+---
+
+# Supporting Statement Evidence Selection After Interview Bank
+
+Yes — we now have enough to build a much richer supporting statement.
+
+The issue is no longer **“do we have enough material?”** The issue is now **selection and compression**. We have enough evidence to cover the job description, person specification, competencies and values. The danger now is putting too much in and turning the statement into a long interview answer.
+
+The job is asking for data insight from multiple sources, operational/service improvement reporting, clear communication with non-technical users, data quality, BI/visualisation, statistical judgement, automation, and values-led healthcare service support.
+
+From the interview evidence, we now have strong anchor stories across Eric’s experience.
+
+## What we now have
+
+| Experience area                        | Strongest use in the statement                                                                                                                                                                     |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **South Western Technologies**         | Main workplace data-analysis anchor: multi-source operational reporting, job close-out tracker, data quality, stakeholder communication, recurring reporting, QHSE statistical judgement.          |
+| **Fraud decisioning platform**         | Strongest technical/project anchor: data flows, automation, BI/monitoring layer, data validation, AI implementation, statistical evaluation, thresholds, model/rule monitoring, project ownership. |
+| **MSc Data Science with AI**           | Formal technical foundation: advanced modelling, statistics, Python, machine learning, evaluation metrics, uncertainty, limitations, research discipline.                                          |
+| **MSc thesis**                         | Deep modelling example: multi-task learning, large sensor dataset, preprocessing, segmentation, BiLSTM/CNN/GRU-style modelling, F1/precision/recall, reproducibility.                              |
+| **Facebook Business Activity project** | Public-data/time-series/policy-context example: combining 1,004 files, 2.4m rows, metric selection, data quality, time-series trends, cautious interpretation.                                     |
+| **Five Guys**                          | Service/values anchor: frontline service, pressure, accuracy, communication, process discipline, accountability, respect, customer focus.                                                          |
+| **Swing Dance Society**                | People/values anchor: inclusion, communication, committee teamwork, initiative, welcoming beginners, building something from scratch.                                                              |
+| **Honest gaps**                        | Mature handling of no direct NHS analytics, FOI, NHS contract reporting or PRINCE2.                                                                                                                |
+
+## The main argument is now clear
+
+The statement should argue:
+
+> Eric is not a direct NHS analyst yet, but he brings a strong combination of operational data-analysis experience, formal data science and AI training, production-shaped data platform work, BI/reporting thinking, statistical judgement, public-data analysis, service-facing communication, and values-led frontline experience.
+
+That is much stronger than the earlier draft.
+
+## What we should major on
+
+The final statement should major on:
+
+1. **South Western** — because it is real workplace data analysis.
+2. **Fraud platform** — because it proves data flows, automation, BI, AI implementation and statistical judgement.
+3. **MSc / thesis** — because it satisfies advanced statistical/modelling capability.
+4. **Values/service communication** — Five Guys and Swing Dance, but used carefully.
+
+## What we should minor on
+
+Five Guys and Swing Dance should not take too much space. They are important, but they support the people/service/values side. They should not compete with South Western, the platform and the MSc for technical weight.
+
+The Facebook Business Activity project is useful, but probably as a short bridge to public-data/time-series/policy interpretation rather than a full paragraph unless we need to strengthen the population/service-planning angle.
+
+## What we still need before rewriting
+
+Only two things:
+
+1. **Decide the exact word count** — 1,000 words means we must be ruthless.
+2. **Choose paragraph allocation** — probably 6 paragraphs, not more.
+
+A strong structure would be:
+
+| Paragraph | Purpose                                                                            |
+| --------- | ---------------------------------------------------------------------------------- |
+| 1         | Opening fit and main argument                                                      |
+| 2         | South Western operational reporting/data quality/stakeholder example               |
+| 3         | Platform data flows, BI, automation, validation and statistical monitoring         |
+| 4         | MSc/thesis advanced modelling and statistical judgement                            |
+| 5         | Public-data project + communication/interpretation, if space allows                |
+| 6         | Five Guys/Swing Dance values, service mindset, honest NHS gap handling and closing |
+
+So yes — we have what we need. The next draft should be much stronger than the first because we now have **specific anchor stories**, not generic claims.
+
+---
+
+# Recommended Supporting Statement Length and Structure
+
+Given this job description, I would **not** aim for a short 700–800 word statement. The role has too many scoring points: data flows, BI, statistical methods, data quality, automation, service-manager support, FOI/contract reporting, population insight, communication, CARE values and NHS Constitution behaviours. The advert and JD both make clear this is not just a dashboard role; it is a data-and-insight role supporting operational management, service improvement, reporting and transformation.
+
+## Suggested word count
+
+I suggest **1,200–1,350 words**.
+
+That is enough space to defend the application properly without turning it into a report. If the form allows 1,500 words, I would not use all 1,500 unless needed. A strong **1,250-ish word** statement is better than a stretched 1,500-word one.
+
+If the form forces a 1,000-word limit, we can compress. But the best version for this role is probably around **1,250 words**.
+
+## Suggested paragraph count
+
+I suggest **7 paragraphs**.
+
+Not 4, because the criteria are too broad.
+Not 10, because it will become fragmented.
+Seven gives us enough structure without making it feel like a report.
+
+## Main selection argument
+
+The whole statement should defend this argument:
+
+> **I am a strong fit because I combine formal Data Science and AI training, real operational data-analysis experience, BI/reporting and automation capability, statistical judgement, public-data analysis, and service-facing communication. I do not claim direct NHS analyst experience, but I have the analytical discipline, data-quality mindset and values-led service awareness needed to transfer into healthcare insight work responsibly.**
+
+That is the backbone.
+
+## Recommended structure
+
+| Paragraph                                                          | Word count | Purpose                                                                                  | Main evidence                                              |
+| ------------------------------------------------------------------ | ---------: | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 1. Opening fit                                                     |    100–130 | State the role fit and overall argument                                                  | MSc, Data Analyst role, platform, service mindset          |
+| 2. South Western operational analytics                             |    230–260 | Main workplace proof: multi-source reporting, data quality, operational decisions        | Weekly job close-out / operations reporting pack           |
+| 3. South Western statistical judgement + stakeholder communication |    170–200 | Show statistical thinking, variation, denominators, non-technical communication          | QHSE reporting, rates per man-hour, exception reporting    |
+| 4. Fraud platform                                                  |    220–250 | Cover data flows, BI/dashboarding, automation, AI implementation, validation, monitoring | AWS-hosted fraud decisioning platform                      |
+| 5. MSc + thesis                                                    |    170–210 | Cover qualification, advanced modelling, statistics, research discipline, evaluation     | MSc Data Science with AI + multi-task learning thesis      |
+| 6. Public-data project + interpretation                            |    110–140 | Cover public-data/time-series/service-planning style analysis                            | Facebook Business Activity + OxCGRT project                |
+| 7. Values, service, honest gap handling and close                  |    160–200 | CARE values, EDI/service mindset, Five Guys/Swing Dance, honest NHS gap handling         | Five Guys, Swing Dance, no direct NHS/FOI/contract/PRINCE2 |
+
+Total: roughly **1,160–1,390 words**.
+
+## What we major on
+
+The statement should major on **South Western** and the **fraud platform**.
+
+South Western gives us the strongest real workplace example: operational records, multiple teams, recurring reporting, data quality, definitions, stakeholder communication and decision support. That directly answers the job’s need for analysis that supports operational and strategic service needs.
+
+The platform gives us the strongest technical/project example: data flows, automation, validation, BI/monitoring, AI implementation, model evaluation and statistical judgement. That answers the criteria around BI tools, advanced statistical/modelling knowledge, AI understanding, process improvement and reducing manual work.
+
+## What we minor on
+
+Five Guys and Swing Dance should be used **lightly but deliberately**.
+
+Five Guys should support: pressure, accuracy, frontline service, communication, accountability, process discipline.
+
+Swing Dance should support: inclusion, communication, teamwork, initiative, respect, helping people engage with something unfamiliar.
+
+They should not carry the technical argument. They should help close the statement around values and service mindset.
+
+## Where the MSc fits
+
+The MSc and thesis should not become a long academic explanation. They should prove:
+
+* degree-level qualification;
+* advanced statistical/modelling knowledge;
+* AI/data science understanding;
+* Python/data handling;
+* evaluation metrics;
+* class imbalance, precision/recall/F1;
+* limitations and responsible interpretation.
+
+The interview evidence gives us enough concrete material to write this without sounding generic.
+
+## Final recommended statement shape
+
+The best version is:
+
+1. **Open with fit.**
+2. **Lead with South Western as the main workplace data story.**
+3. **Add statistical/stakeholder depth from South Western.**
+4. **Use the platform for BI, automation, AI, data flows and monitoring.**
+5. **Use MSc/thesis for formal technical/statistical strength.**
+6. **Use public-data project for time-series/public-service-style insight.**
+7. **Close with values, service mindset and honest NHS gap handling.**
+
+That structure gives the panel a clear answer to: **“Why should we believe this person can do Band 6 Data & Insights work even without direct NHS analyst experience?”**

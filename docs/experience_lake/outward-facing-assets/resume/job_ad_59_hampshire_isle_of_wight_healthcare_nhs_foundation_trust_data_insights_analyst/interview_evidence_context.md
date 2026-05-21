@@ -2473,3 +2473,149 @@ The most important lesson I took from it was that building something for people 
 So, in one sentence, I would describe my role as:
 
 > I was an early committee member helping establish the University of Exeter Swing Dance Society by supporting session organisation, beginner engagement, communication, inclusion and the practical work needed to turn the society from an idea into a functioning student activity.
+
+---
+
+# Interview Evidence - Closing Synthesis
+
+## Question
+
+Is there any aspect we haven't touched on in this interview before we leave?
+
+## Response
+
+Yes, there are a few aspects I would briefly add before leaving the interview, because they connect to the role but have not been pulled together explicitly.
+
+The first is **responsible handling of information**. I have not worked with NHS patient data, so I would not claim that. But across South Western, my platform and my MSc work, I learned that data can affect real decisions and must be handled carefully. At South Western, operational reports could affect how jobs, delays, safety records or close-out actions were interpreted. In the platform, a model score or dashboard movement could affect whether a case was treated as suspicious. In my thesis, model results could be misleading if I ignored class imbalance, sampling choices or limitations. So I have built the habit of documenting assumptions, separating missing data from true zero values, and not presenting uncertain findings as certain.
+
+The second is **workload management and persistence**. My experience has required balancing multiple demands: MSc deadlines, thesis work, the platform build, Five Guys shifts, and society responsibilities. The platform especially taught me persistence because it took more than a year and involved repeated debugging, redesign and testing. That matters because this role involves changing requirements, reporting deadlines, competing priorities and supporting different users.
+
+The third is **user-focused communication**. We have discussed communication in each example, but the common thread is that I try to translate information into the language of the person using it. At South Western, that meant turning data issues into operational questions like “which jobs are ready for close-out?” At Five Guys, it meant clear communication under pressure. In Swing Dance, it meant making beginners comfortable with something unfamiliar. In the platform, it meant showing reason codes, case status and data-quality issues rather than just model outputs.
+
+The fourth is **honest gap handling**. I would be clear that I do not have direct NHS analyst experience, direct FOI experience, NHS contract reporting experience, or PRINCE2. But I do have strong adjacent experience in operational reporting, data quality, BI/dashboard thinking, statistical modelling, AI implementation, public-data analysis, service-facing communication and process improvement. I would want the panel to see that I understand the seriousness of moving into healthcare analytics and that I would approach NHS systems, governance and service context carefully.
+
+The final point is **why the role makes sense as a next step**. My background has moved from operational data analysis at South Western, to advanced data science in my MSc, to building a production-shaped data platform, while also gaining frontline service experience at Five Guys. This role sits at the intersection of those things: data, service delivery, reliable reporting, stakeholder communication and improvement. That is why I would see it as a strong fit, not because I have already done the exact NHS role, but because my experience has prepared me for the kind of analytical judgement, service awareness and responsible communication the role requires.
+
+---
+
+# Interview Evidence - Honest Gaps and Transferable Readiness
+
+## Question
+
+Can you expand on those 4 gaps (3000 words)
+
+## Response
+
+I’ll answer as Eric in first person.
+
+The four gaps I would be honest about are: **direct NHS analyst experience, direct FOI experience, NHS contract reporting experience, and PRINCE2 certification**. I would not try to hide them, because a panel would see through that quickly. But I would also not present them as disqualifying gaps, because the role itself allows for someone taking the next step in their data career, and the person specification does not make every one of these a strict essential requirement. FOI and contract reporting are listed in the duties, while PRINCE2 is desirable rather than essential.
+
+## 1. Direct NHS analyst experience
+
+The first gap is that I have not worked as an NHS analyst before. I have not used Hampshire and Isle of Wight Healthcare NHS Foundation Trust’s systems, and I have not worked directly with clinicians, NHS service managers, commissioners, national returns, NHS data definitions or local NHS reporting processes.
+
+I would be very clear about that. I would not say “I have NHS analytics experience” when I do not. That would be the wrong way to approach a healthcare role, especially one where information quality, confidentiality, professional accountability and honesty are important.
+
+What I can say is that I understand the kind of work the role is asking for. The job is about using data to support patient care, outcomes and service delivery; working with clinicians, managers and stakeholders; analysing data from multiple sources; supporting performance monitoring, service improvement and planning; and translating complex information into clear insight for non-technical audiences.
+
+Although my direct data analyst experience was in oilfield services rather than healthcare, the underlying discipline is transferable. At South Western Technologies & Oilfield Services Ltd, I worked with operational records, job status, close-out documentation, equipment status, man-hours, QHSE reporting and management summaries. The subject matter was different, but the analytical problem was similar: scattered operational information had to be turned into a reliable view that managers could use.
+
+The key lesson I would bring from that experience is that operational data has to be understood in context. A job marked “completed” in one tracker was not always fully closed if the signed service report, equipment return confirmation or man-hour record was missing. In the NHS, I would expect similar care to be needed with service activity, patient pathways, performance indicators or reporting definitions. A number may look simple, but the analyst needs to understand what sits behind it before presenting it as insight.
+
+I also bring formal data science training from my MSc Data Science with Artificial Intelligence, where I worked with modelling, evaluation, data preprocessing, large datasets, uncertainty, class imbalance, performance metrics and limitations. That does not replace NHS experience, but it gives me the technical discipline to learn NHS data properly.
+
+The way I would close this gap is by being very deliberate during the first months in post. I would focus on learning the Trust’s services, systems, data flows, definitions and reporting calendar. I would ask questions before producing conclusions: where the data comes from, what each field means, what exclusions apply, who uses the report, what decision it supports, and what limitations are known. I would also learn from the Lead Data & Insights Analyst and data preparation colleagues, because the JD makes clear that this role works with service managers and digital/data colleagues rather than operating in isolation.
+
+So I would frame the NHS-experience gap like this:
+
+> “I do not bring direct NHS analyst experience, but I bring strong operational analytics, data quality, statistical modelling, BI/reporting and service-facing communication experience. I understand that NHS data has specific governance, definitions and patient impact, and I would approach the transition by learning the Trust’s systems and reporting rules carefully before making unsupported assumptions.”
+
+That is honest, but still confident.
+
+## 2. Direct FOI experience
+
+The second gap is direct Freedom of Information experience. The advert says the role will assist with trust-wide FOI requests, liaising with service leads and providing information within specified timescales.
+
+I have not personally completed NHS FOI responses. I have not worked inside an NHS FOI workflow, and I have not had responsibility for responding under statutory FOI timescales. I would not claim that.
+
+But I do understand why FOI work matters in this role. FOI responses need accuracy, timeliness, clarity, and careful handling. The analyst must provide the requested information without misrepresenting the data, exposing sensitive information, or giving figures that are not properly checked. In an NHS setting, that is especially important because the organisation holds sensitive information and operates under strict information governance, confidentiality, records management and data protection expectations. The JD explicitly mentions information governance, confidentiality, Data Protection Act 2018, records management, information security and responsibility for information quality standards.
+
+My adjacent experience is in producing time-bound operational reports where information had to be checked before being shared. At South Western, if a job was listed as completed but had missing documentation, I could not simply report it as fully closed. I had to separate confirmed information from items requiring clarification. If a delay reason was unclear, I could not guess. I had to mark it properly or ask the relevant colleague.
+
+That habit is relevant to FOI work because FOI is not just about extracting a number. It is about making sure the answer is accurate, defensible and based on the right definition. If someone asks for activity volumes, waiting-time data, contract information, incidents or service performance, the analyst needs to know exactly what is included, what is excluded, what date range applies, whether the figures are complete, and whether any suppression/anonymisation rules apply.
+
+I would also bring experience from my public-data and MSc work. In my Facebook Business Activity Trends project, I had to read dataset definitions carefully and choose the right metric. I chose activity quantile over activity percentage because it was more robust for the analysis. That taught me not to use a metric just because it is available or easy to understand. In an FOI context, the same principle applies: the answer must match the request and must be based on the right measure.
+
+If I were in post, my approach to FOI would be cautious and process-led. I would first clarify the request and the exact information needed. Then I would identify the data source, check the relevant definitions, produce the extract or summary, validate totals, document assumptions, and make clear any limitations. I would also work within the Trust’s FOI and information governance procedures rather than improvising. If the request involved small numbers, sensitive categories or potential identification risk, I would escalate or seek guidance rather than making an unsafe judgement alone.
+
+So the way I would explain this gap is:
+
+> “I have not completed NHS FOI responses directly, but I have experience preparing time-bound operational information, validating records, clarifying uncertain data and communicating exceptions. I understand that FOI work requires accuracy, timescale discipline, information governance and careful wording, and I would follow the Trust’s established process closely.”
+
+That is the right level of claim: not pretending, but showing readiness.
+
+## 3. NHS contract reporting experience
+
+The third gap is NHS contract reporting. The advert says the postholder will support trust-wide national and local contract reporting and queries, providing information within specified timescales. The JD also mentions contractual analysis, business planning and transformation as part of the role purpose.
+
+I have not worked on NHS contract reporting. I have not produced commissioner returns, NHS Benchmarking Network returns, local contract monitoring reports, or activity submissions for an NHS trust. That is a genuine gap.
+
+But I do understand the type of discipline contract reporting requires. Contract reporting is not just “send numbers.” It requires consistency, definitions, timeliness, traceability and confidence that the figures match the agreed reporting rules. If a service is being monitored against contract requirements, a wrong number can affect how performance is understood and how the organisation is held accountable.
+
+My South Western experience gives me an adjacent example. In oilfield services, job close-out and operational reporting had commercial consequences. A job could not be treated as ready for the next stage if the service report was missing, the client reference was unclear, the equipment return was unconfirmed, or the crew/man-hour record was incomplete. That is not the same as NHS contract reporting, but it taught me that reporting can sit between operations, documentation, management and commercial processes.
+
+The relevant skill is understanding that a report has a downstream use. At South Western, a weekly close-out report might help operations know which jobs needed follow-up, admin/commercial teams know which jobs were ready for closure, and managers understand where delays were occurring. If I reported a job as fully ready when documentation was missing, someone else could act on that wrong status. That trained me to treat reporting as part of an operating process, not just a spreadsheet exercise.
+
+For NHS contract reporting, I would apply the same discipline. I would want to understand the reporting specification: what activity is counted, what date range applies, how records are grouped, what exclusions exist, what definitions are used, and what validation checks are expected. I would also want to understand who uses the report: internal managers, commissioners, finance colleagues, performance teams or external bodies.
+
+The JD’s focus on data quality assurance, validation, documentation, version control, and updating analysis production methods after changes is very relevant here. Contract reporting needs repeatability. If the definition changes or the data source changes, the analyst needs to know what changed and whether previous outputs are still comparable.
+
+My platform experience also helps here because it taught me about data flows, repeatable outputs and versioning. In the platform, if a threshold changed, a rule changed, or a model version changed, the output changed. That meant comparisons were only meaningful if the change was understood and documented. Contract reporting has a similar risk: if a metric changes because the extract logic changed rather than because service activity changed, the organisation could draw the wrong conclusion.
+
+So I would handle this gap by saying:
+
+> “I have not produced NHS contract reports, but I have worked on operational reporting where definitions, completeness, status, documentation and downstream use mattered. I understand that contract reporting requires consistent rules, validation, traceability and timescale discipline. I would focus first on learning the Trust’s reporting specifications and existing procedures, then apply my experience in structured reporting and data quality to produce reliable outputs.”
+
+That keeps the claim honest and useful.
+
+## 4. PRINCE2 certification / formal project-management qualification
+
+The fourth gap is PRINCE2. The person specification lists “PRINCE2 or equivalent experience of managing projects” as desirable.
+
+I do not have PRINCE2 certification. I would not put PRINCE2 on an application, and I would not imply that I have been formally trained in that framework.
+
+But I do have project-delivery experience. The important distinction is between **formal project-management certification** and **practical project ownership**. I lack the first, but I have evidence of the second.
+
+The clearest example is my independent fraud/data platform. That took over a year and required scoping, sequencing, building, testing, deploying, operating, debugging and improving a production-shaped data system. I had to break the work into components: ingestion, validation, decisioning, case management, dashboards/monitoring, offline evaluation and cloud deployment. I also had to manage cost, reliability and scope. That is not PRINCE2, but it is real project ownership.
+
+My MSc thesis is another example. The Data Science Research Project required me to define a research problem, review literature, prepare a large dataset, design a methodology, build models, evaluate results, write a dissertation and deliver by a deadline. That involved planning and managing a long piece of work independently.
+
+My Swing Dance Society experience is a smaller, people-focused project example. Helping establish a society required coordination, communication, session planning, beginner engagement, committee teamwork and adapting based on attendance and feedback. Again, not formal project management, but it shows initiative, organisation and delivery through people.
+
+For this NHS role, the JD includes project-management-type expectations: keeping work within scope, reporting progress, advising on data/digital plans, leading or supporting pilots/testing, and helping implementation and sustainability. I can speak to those behaviours through my project experience, but I should not overstate them as formal PRINCE2 experience.
+
+The way I would close this gap is straightforward. If appointed, I would be willing to learn the Trust’s project-management framework and, if useful, work toward PRINCE2 or equivalent training. I already understand the practical importance of scope, stakeholders, requirements, testing, risk, documentation and sustainability. What I would need is the formal NHS/Trust project-management language and governance structure.
+
+So my honest framing would be:
+
+> “I do not hold PRINCE2 certification, but I have practical experience delivering complex technical and organisational projects, including a year-long AWS-hosted data/AI platform, an MSc research project and society-building work. I understand scope, milestones, testing, documentation, stakeholder communication and iterative improvement, and I would be keen to align that experience with the Trust’s project-management framework.”
+
+That is strong but not misleading.
+
+## How I would bring all four gaps together
+
+The most important thing is that I would not handle these gaps defensively. I would handle them maturely.
+
+I would say:
+
+> “The main areas I would need to develop are direct NHS systems experience, FOI processes, NHS contract reporting and formal PRINCE2 project-management methodology. I am not presenting myself as someone who has already done those exact NHS tasks. What I do bring is strong adjacent evidence: operational data analysis, multi-source reporting, data quality assurance, statistical modelling, BI/dashboard thinking, automation, public-data analysis, project ownership and service-facing communication.”
+
+That is the right argument.
+
+The panel does not need me to pretend. They need to trust that I understand what I have and have not done, and that I can transfer my skills responsibly into healthcare.
+
+For this role, the safest and strongest position is:
+
+> “I have not worked inside NHS analytics before, but my experience has prepared me for the analytical discipline the role needs: understanding the data source, validating definitions, communicating clearly, supporting operational decisions, documenting limitations, and learning the local governance context quickly.”
+
+That is how I would expand on the gaps without weakening the application.
