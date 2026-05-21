@@ -1895,3 +1895,50 @@ response end
 ## How To Use This In Future
 
 For future supporting statements, use this transcript by following the sequence: extract the scoring criteria; build the candidate evidence bank; classify evidence as strong, partial, adjacent or unusable; identify any missing evidence that can be truthfully built as a claim-bearing slice; decide the main selection argument; then write compact mini-STAR paragraphs ordered by sift value rather than chronology.
+
+## Appendix: Framework Calibration Note
+
+Use Civil Service and Government Digital and Data frameworks for calibration, not decoration.
+
+The job advert and person specification remain the marking scheme. They decide what must be answered. The frameworks help judge how strong the candidate's evidence is, what level it can defensibly support, and whether the statement is underselling or overclaiming the evidence.
+
+Relevant framework links:
+
+- Civil Service Success Profiles: https://www.gov.uk/government/publications/success-profiles
+- Success Profiles: Technical: https://www.gov.uk/government/publications/success-profiles/success-profiles-technical
+- Civil Service Behaviours: https://www.gov.uk/government/publications/success-profiles/civil-service-behaviours
+- Government Digital and Data Profession Capability Framework: https://ddat-capability-framework.service.gov.uk/
+- Data analyst role profile: https://ddat-capability-framework.service.gov.uk/role/data-analyst
+
+The calibration principle:
+
+> Do not present yourself as junior if your evidence supports working/practitioner-level capability. But do not claim senior/expert capability unless the evidence can survive interview pressure.
+
+The target is maximal defensible positioning:
+
+- avoid underselling real experience in beginner language;
+- avoid overclaiming senior or expert capability without enough proof;
+- use the strongest truthful wording supported by work, project, portfolio, university, operational, or frontline evidence.
+
+Use the frameworks like this:
+
+| Source | What it gives us | How we use it |
+| --- | --- | --- |
+| Job advert/person spec | Exact sift criteria | Controls the statement |
+| Civil Service Success Profiles | Assessment lens: behaviours, experience, technical, strengths, ability | Helps show actions, judgement and impact |
+| Government Digital and Data Capability Framework | Role/skill expectations and level language | Helps avoid underselling data/tech capability |
+| Candidate evidence bank | Actual proof from work, projects, platform, university, Five Guys, etc. | Grounds the claims |
+
+For each piece of evidence, ask:
+
+1. What skill does this prove?
+2. What level does it prove: awareness, working, practitioner, or expert?
+3. What artefact backs it up?
+4. What behaviour does it show?
+5. What result, decision, risk, improvement, or user need did it support?
+6. How would a stronger candidate phrase this same evidence?
+7. What is the strongest version we can write without exaggerating?
+
+The practical question for future statements is:
+
+> What is the highest defensible version of this evidence against the criterion, judged against the job advert, Success Profiles and relevant Government Digital and Data capability expectations?
