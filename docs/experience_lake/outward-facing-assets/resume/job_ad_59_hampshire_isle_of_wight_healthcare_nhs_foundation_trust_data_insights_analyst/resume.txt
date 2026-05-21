@@ -1,0 +1,70 @@
+Esosa Orumwese
+Data & Insights Analyst | Operational Reporting, Data Quality & Statistical Insight | SQL, Power BI & Python
+Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+
+PROFESSIONAL SUMMARY
+
+Data & Insights Analyst with experience using SQL, Power BI, Python and Excel to build reporting datasets, validate source data, investigate metric movement and produce clear operational insight. Built BI reports, reconciliation checks, variance summaries and automated reporting workflows across large transactional, operational and behavioural datasets. Strong MSc Data Science with Artificial Intelligence background, with experience translating complex analysis into practical findings for non-technical review.
+
+TECHNICAL SKILLS
+
+BI & Reporting: Power BI, Looker, KPI dashboards, recurring reports, dashboard commentary
+Data & Analytics: SQL, Google BigQuery, Python, Pandas, NumPy, Excel, reporting tables
+Data Quality: validation checks, reconciliation, missing/duplicate checks, source-to-report checks, data dictionaries
+Statistical Insight: variance analysis, baseline comparison, model evaluation, trend analysis, sample-size and limitation notes
+Process Improvement: automated reporting workflows, VBA refresh macros, exception flags, reporting procedure documentation
+
+RELEVANT EXPERIENCE
+
+Data Analyst
+Operational Insight, Reporting & Data Quality Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
+Built a SQL/BigQuery, Python, Power BI and Looker reporting platform for turning large operational, transaction and activity datasets into validated reporting tables, KPI dashboards, variance summaries, data-quality checks and stakeholder-ready insight outputs across a 2.35B-row data surface.
+
+- Built BigQuery reporting tables across 2.35B activity, transaction and behavioural records, turning raw source data into reusable KPI tables for recurring Power BI and Looker reporting.
+- Developed Power BI and Looker dashboard views showing activity movement, exception volume, segment change and report-quality flags, giving reviewers a clearer view of where performance changed.
+- Investigated a 19% response-rate movement in BigQuery, separating activity-volume, segment-mix, response-pattern and source-table quality drivers before reporting the change.
+- Added validation checks across BigQuery source tables and Power BI/Looker reports, reducing reporting errors by 38% before recurring report release.
+- Built reusable reporting workflows with versioned configs, validation gates, freshness checks and score-stability reports across repeated scoring and reporting runs.
+- Produced stakeholder-ready insight notes explaining metric movement, data-quality caveats, threshold trade-offs and practical follow-up questions for non-technical review.
+
+Crew Member
+Five Guys - Exeter, UK | Sep 2024 - Present
+Frontline service role in a fast-paced food retail environment requiring accuracy, communication, procedure-following and prioritisation during busy service periods.
+
+- Worked in a high-volume customer-service environment handling order accuracy, payment handoffs, food-safety procedures and service flow during peak trading periods.
+- Followed till, food-safety, stock, cleaning and close-down procedures while maintaining accuracy and clear communication under time pressure.
+- Built practical service-operations context around queue pressure, order fulfilment, customer issues and transaction flow, supporting understanding of how frontline service quality is affected by process discipline.
+
+Data Scientist
+University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
+Python modelling project using smartphone accelerometer, gyroscope and trip-signal data to build model-ready features, compare model performance against a baseline and test reliability.
+
+- Built a Python modelling dataset from accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity from behavioural sensor data.
+- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared model workflow for movement-pattern and identity-recognition tasks.
+- Tested model robustness across trips, users and transport modes, documenting misclassified sensor patterns, failure cases and model limitations.
+
+Business Analyst
+University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
+Trend-analysis project using country-sector activity tables and policy-response data to compare movement against baselines and produce a visual recommendation report.
+
+- Built a country-sector comparison table grouping activity into rebound, persistent disruption and structural-shift categories against pre-crisis baselines.
+- Merged activity data with policy-response signals, using restriction, support-measure and reopening patterns to explain abnormal movement.
+- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-driver notes to explain which groups rebounded, remained disrupted or structurally shifted.
+
+Data Analyst
+South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
+Operations reporting role using Excel, VBA and Power BI to reconcile field reports, HSE logs, equipment checks and daily completions records before manager review.
+
+- Built an Excel reconciliation workbook comparing field reports, HSE logs, equipment checks and daily completions records, reducing incomplete or conflicting entries by 32% before supervisor review.
+- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
+- Built a Power BI operational KPI dashboard across 12 completions jobs and 140 rig days, tracking job progress, equipment readiness, documentation gaps and review status before manager review.
+
+EDUCATION
+
+University of Exeter
+Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
+Relevant focus: statistical modelling, machine learning, Python, SQL, data management, applied AI, model validation and reporting-ready analysis across large behavioural and business datasets.
+
+Covenant University
+Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
+Relevant focus: engineering mathematics, numerical analysis, process systems, operational reporting and data-led performance improvement.
