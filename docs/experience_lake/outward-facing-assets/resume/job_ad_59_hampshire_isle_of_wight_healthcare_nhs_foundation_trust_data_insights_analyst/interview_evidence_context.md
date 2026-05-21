@@ -1327,3 +1327,1149 @@ For the NHS Data & Insights Analyst role, I would not present my MSc as direct h
 [8]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=COMM510&sys=1 "COMM510 | 2023/4 | University of Exeter"
 [9]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=ECMM426&sys=1 "ECMM426 | 2023/4 | University of Exeter"
 [10]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=ECMM451&sys=1 "ECMM451 | 2023/4 | University of Exeter"
+
+---
+
+# Interview Evidence - Fraud Decisioning Platform Experience
+
+## Question
+
+Alright, I noticed that you put in a platform as your experience. What's that about, why did it take over a year for you to work on. Can you talk me through your experience building it, challenges faced, operating it live, what information its meant to convey, how it is relevant to this job. As well as statistically, what kind of techniques were employed and why. (4000 words as this is an intensive line of questioning)
+
+## Response
+
+I’ll answer as Eric in first person.
+
+The platform I mentioned is my independent fraud and transaction decisioning platform. I built it because I wanted to move beyond small notebook-style projects and prove that I could design, build, deploy and operate something closer to a real data product: a system where data comes in continuously, is processed, checked, scored, turned into decisions, reviewed through a case-management layer, and then evaluated offline to understand whether the decisions were working.
+
+It took over a year because I was not just building one model or one dashboard. I was building a full production-shaped system: ingestion, data processing, decisioning, monitoring, case review, evaluation, learning loops, and deployment on AWS. That meant the work was not only about “can I train a model?” It was about the whole lifecycle around a data product: how data enters the system, how decisions are made, how outputs are explained, how cases are reviewed, how performance is measured, and how the system can be improved safely over time.
+
+The reason I think it is relevant to this Data & Insights Analyst role is that the Trust is looking for someone who can work with multiple data sources, support reporting and service improvement, use statistical techniques appropriately, reduce manual processes, produce clear insight for non-technical audiences, and support operational decision-making. The platform is not healthcare, and I would not pretend it is. But it does show that I have worked seriously on data flows, automated decision support, data quality, dashboards/reporting, statistical evaluation, monitoring and explaining outputs in a way that supports action. Those are very relevant patterns for this role.
+
+## What the platform was built to do
+
+The platform was designed around fraud detection and transaction monitoring. The basic problem was:
+
+> When transactions or events come into the system, how do we decide which ones look normal, which ones look suspicious, which ones need review, and how do we give a user enough information to understand why a case was flagged?
+
+I did not want to build a model in isolation. A model on its own does not solve the operational problem. In a real setting, a flagged case needs to be visible to someone. The reason for the flag needs to be understandable. The case needs a status. Someone needs to know whether it was reviewed, approved, rejected or escalated. Later, the system needs to be evaluated to see whether the rules or model are producing too many false positives, missing important cases, or drifting as the data changes.
+
+So the platform was meant to convey several kinds of information:
+
+* incoming transaction/event volume;
+* risk scores or decision outputs;
+* reasons why something was flagged;
+* case status and review queue;
+* trends in flagged activity over time;
+* model/rule performance;
+* false positives and false negatives in evaluation;
+* data quality or missing-field issues;
+* operational metrics such as review backlog or decision distribution;
+* whether the system’s behaviour changed over time.
+
+That is why I describe it as production-shaped. It was not just a machine learning notebook. It was a system that tried to connect data ingestion, decisioning, review and evaluation.
+
+## Why it took over a year
+
+It took over a year because every time I solved one layer, another layer became visible.
+
+At the beginning, it would have been easy to build a simple fraud model, put accuracy in a README and call it a project. But that would not have proved much. In real data work, the difficult part is not only building the first model. The difficult part is making sure the data is reliable, the outputs are interpretable, the process is repeatable, the system can run, and the results can be evaluated properly.
+
+The early stage was mostly about defining the problem and data shape. I had to decide what an event or transaction looked like, what fields mattered, what kind of features might be useful, and what a decision should mean. For example, a transaction might have an amount, timestamp, user or account identifier, merchant or category, location or channel, historical behaviour, velocity features, and previous flags. I had to think about what information would be available at decision time and what information would only be known later. That distinction matters because a real-time decision system cannot use future information.
+
+Then I moved into ingestion and processing. That meant building a way for events to enter the platform, be validated, transformed and passed into the decisioning layer. I had to think about data quality from the start: what happens if fields are missing, if timestamps are malformed, if amounts are negative or unrealistic, if duplicate events arrive, or if a field has a value the system does not recognise? If those issues are ignored, the model or rules may produce unreliable decisions.
+
+After that came the decisioning layer. I built the platform so that transactions could be assessed using a combination of rules and model-based scoring. That was important because in fraud work, rules and models each have strengths. Rules are easier to explain: for example, unusually high amount, repeated attempts, unusual timing, mismatch between current and historic behaviour. Models can capture patterns that are harder to express manually, but they can also be harder to explain. I wanted the platform to support both risk scoring and reason codes, so a case was not just “flagged” but came with a reason.
+
+Then I needed a case-management layer. This was one of the biggest differences between a simple data science project and a production-shaped platform. A fraud system is only useful if someone can see the flagged cases and act on them. So I built a case workflow where flagged transactions could appear as cases, have statuses, be reviewed, and hold enough context for someone to understand why they were there. The case view needed to show the transaction, risk score, key features, flag reasons, and review status.
+
+Then came offline evaluation. This was important because a platform like this needs to be judged. It is not enough to say, “The system flagged cases.” I needed to know whether the flags were useful. Were there too many false positives? Were high-risk cases being missed? Was the model biased toward certain patterns? Did the threshold need adjusting? Were certain rules firing too often? Were some features unstable over time?
+
+Then came deployment and operation. Running something live on AWS created a different level of discipline. When something is deployed, cost, reliability, logging, monitoring, access, configuration and failures matter. I had to think about what happens if a component fails, if ingestion stops, if a service times out, if data is delayed, or if a dashboard shows a number that does not match the source. I also had to manage cloud cost because the platform was not free to run. It cost real money to build, deploy and operate, so I had to think about value, efficiency and what was worth running continuously.
+
+That is why it took over a year. It was not one large task. It was a sequence of design, implementation, testing, rework, deployment, monitoring, evaluation and improvement.
+
+## My experience building it
+
+The most useful part of building the platform was that it forced me to think end to end.
+
+In a smaller academic project, the workflow is often: get dataset, clean dataset, train model, evaluate model, write report. That is useful, but it is not the same as building a system. With this platform, I had to ask:
+
+* How does the data arrive?
+* What checks happen before the decision?
+* What happens if the data is incomplete?
+* What features are calculated?
+* Are the features available at decision time?
+* What rules or model are used?
+* What threshold determines a flag?
+* How is the case presented to a user?
+* What does the user need to know?
+* How do we measure whether the decision was good?
+* How do we monitor the system over time?
+* How do we update it without breaking trust?
+
+That changed how I think about data work. I became much more aware that a good analytical output is not just accurate in a technical sense. It has to be usable, explainable, governed and connected to a real workflow.
+
+One example is feature engineering. In fraud detection, raw transaction amount is useful, but it is rarely enough. I had to create features that describe behaviour, such as:
+
+* transaction amount relative to typical amount;
+* number of transactions within a time window;
+* time since previous transaction;
+* unusual hour or day pattern;
+* repeated failures or attempts;
+* frequency of activity by user/account;
+* deviation from previous behaviour;
+* high-risk category or channel;
+* ratio or count features over recent windows.
+
+Those features are more meaningful because fraud is often behavioural. A £500 transaction might be normal for one account and unusual for another. So the platform needed features that compared current activity against history, not just fixed thresholds.
+
+But that created another challenge: time-causality. If I am scoring a transaction at 10:05, I cannot use information from 10:10. So I had to be careful that features were built from information available up to the decision point. That taught me a very important lesson about leakage. A model can look strong in testing if it accidentally uses future information, but it will fail in reality. So I had to design the data flow and evaluation with that in mind.
+
+## Challenges I faced
+
+The first major challenge was scope. The project could easily become too large. Fraud platforms can include ingestion, streaming, rules, machine learning, case management, dashboards, monitoring, explainability, feedback loops, model registry, deployment pipelines and more. I had to decide what was essential and what was unnecessary. That is harder than it sounds because every component feels useful, but not every component is needed at the same level of depth.
+
+The second challenge was data quality. Transaction-style data can have missing fields, duplicate events, unusual values, inconsistent timestamps and edge cases. I had to decide how to handle those issues. Some records could be rejected. Some could be flagged for review. Some missing fields could be imputed or handled with default categories. But the important thing was to avoid silently turning bad data into confident decisions. Where data quality affected confidence, the system needed to make that visible.
+
+The third challenge was balancing rules and models. Rules are interpretable but can be too rigid. Models can be more flexible but may be harder to explain. A purely rule-based system can create too many alerts if thresholds are badly set. A purely model-based system can become hard for users to trust if they cannot understand why a case was flagged. So I used the idea of decisioning with supporting reason codes. Even when a score was used, the platform needed to show why the case deserved attention.
+
+The fourth challenge was false positives. In fraud detection, a system that flags everything suspicious is not useful if it overwhelms the review queue. Too many false positives make the system operationally expensive and reduce trust. So I had to think about thresholds, precision, recall and review capacity. It is not just a statistical question; it is an operational question. A threshold that looks good in a notebook may not be good if it creates more cases than anyone can review.
+
+The fifth challenge was evaluation. Fraud is difficult because labels may be delayed, incomplete or imperfect. A transaction may not be confirmed as fraud immediately. Some cases may be reviewed later. Some fraud may never be labelled. That means evaluation must be handled carefully. I had to think about the difference between immediate decision output and later outcome labels. The system needed offline evaluation where historical decisions could be compared against later known outcomes.
+
+The sixth challenge was operating live. Once deployed, practical issues became visible: cloud cost, logs, monitoring, configuration, system errors, latency, data persistence and reliability. A notebook does not teach you those things. A deployed platform does. I had to learn how to make the system observable enough that if something went wrong, I could find where the issue was.
+
+## Operating it live
+
+Operating it live was probably the most valuable part of the experience.
+
+When something is live, it stops being theoretical. If the ingestion layer fails, data stops arriving. If the decisioning service breaks, cases are not created. If the dashboard pulls stale data, the user sees the wrong picture. If logs are poor, debugging takes longer. If cloud resources are left running unnecessarily, cost increases. If a rule fires too often, the review queue becomes noisy.
+
+So I had to think like both an analyst and an operator.
+
+I monitored whether events were arriving, whether decisions were being generated, whether cases were appearing, and whether the dashboard reflected the underlying data. I paid attention to volumes, error patterns, decision distributions and unusual changes. For example, if flagged cases suddenly dropped to zero, that could mean risk genuinely reduced, but it could also mean ingestion broke, a rule stopped firing, or data fields changed. The platform taught me not to trust a chart without checking the process behind it.
+
+That lesson is very relevant to healthcare reporting. If a hospital or service suddenly shows lower activity, lower waits, fewer incidents or fewer referrals, the first question should not always be, “Has performance improved?” It may be, “Has the data flow changed? Are submissions complete? Did a definition change? Is the reporting process working?” That is the same discipline I learned from operating the platform.
+
+## What information the platform conveyed
+
+The platform was meant to convey several layers of information.
+
+At the operational level, it showed:
+
+* how many events or transactions were processed;
+* how many were approved, flagged or sent for review;
+* which rules or model outputs contributed to flags;
+* what cases were open, reviewed or closed;
+* which cases were highest risk;
+* whether the review queue was growing;
+* what patterns appeared across time, user/account, category or channel.
+
+At the analytical level, it showed:
+
+* model score distributions;
+* proportion of flagged cases;
+* precision/recall-style performance in offline evaluation;
+* false positive and false negative patterns;
+* feature distributions;
+* threshold effects;
+* drift or change in input patterns;
+* data-quality issue counts;
+* missing fields or invalid event records.
+
+At the management/reporting level, it could answer questions like:
+
+* Is the system flagging a manageable number of cases?
+* Are the highest-risk cases concentrated in certain categories or patterns?
+* Are decisions stable over time?
+* Are data-quality problems affecting decisions?
+* Is the model/rule set producing useful signals?
+* Where should review attention go first?
+* What needs adjustment in the decisioning process?
+
+That is why I see it as a data and insights platform, not only a fraud project. It was about turning raw events into information that supported decisions.
+
+## Statistical techniques used and why
+
+The statistical side was important. I did not just use statistics to sound technical. Each technique answered a practical question.
+
+### 1. Descriptive statistics
+
+I used descriptive statistics to understand the transaction/event data before modelling. That included counts, means, medians, standard deviations, percentiles, minimums, maximums and distributions.
+
+This mattered because fraud detection depends heavily on what is normal versus unusual. The median amount may be more useful than the mean if a few very large transactions distort the average. Percentiles help identify unusual values without assuming the data is normally distributed. Standard deviation helps understand spread, though transaction data is often skewed, so I also had to use robust measures.
+
+The question was:
+
+> What does normal behaviour look like, and where do current events sit relative to that?
+
+### 2. Distribution analysis
+
+I looked at distributions of transaction amounts, time between transactions, frequency of events, scores and feature values.
+
+This helped identify skew, outliers and unusual behaviour. For example, if most transactions are small but a few are very large, a simple average is not enough. If a feature has a long tail, the model may be affected by extreme values. If a score distribution suddenly changes, that may indicate drift or a data issue.
+
+The question was:
+
+> Are the values shaped in a way that affects interpretation or model behaviour?
+
+### 3. Outlier detection
+
+Fraud often appears as unusual behaviour. I used outlier thinking around transaction amount, velocity, frequency, timing and deviation from previous behaviour.
+
+This did not mean every outlier was fraud. That is an important point. Outlier detection gives a signal, not a conclusion. A large transaction may be legitimate. A sudden increase in frequency may be explainable. So outlier features were used as risk indicators, not automatic proof.
+
+The question was:
+
+> Which events are unusual enough to deserve attention?
+
+### 4. Rate and ratio features
+
+A lot of the useful features were rates or ratios, not raw values.
+
+For example:
+
+* number of events in a recent time window;
+* current amount divided by typical amount;
+* failed attempts as a share of total attempts;
+* flagged transactions as a percentage of all processed transactions;
+* review cases per day;
+* false positives as a proportion of reviewed cases.
+
+Rates matter because raw counts can mislead. A user with 20 transactions may not be suspicious if that is normal for them, but it may be suspicious for another user. A model that flags 100 cases may be fine if volume is huge, but terrible if the review team can only handle 20.
+
+The question was:
+
+> Are we comparing behaviour fairly relative to volume or baseline?
+
+### 5. Classification metrics
+
+For model evaluation, I used classification metrics such as accuracy, precision, recall, F1-score and confusion matrices.
+
+Accuracy alone was not enough because fraud data is usually imbalanced. If only a small percentage of transactions are fraudulent, a model can look highly accurate by predicting almost everything as non-fraud. That would be useless. So I had to look at precision and recall.
+
+Precision answers:
+
+> Of the cases we flagged, how many were actually problematic?
+
+Recall answers:
+
+> Of the problematic cases, how many did we catch?
+
+Those two metrics create a trade-off. High recall may catch more fraud but create more false positives. High precision may reduce false positives but miss more fraud. The right balance depends on operational priorities and review capacity.
+
+### 6. Threshold analysis
+
+The model or scoring system needed thresholds. A score above a threshold might trigger review. But the threshold affects workload and risk.
+
+I looked at how changing the threshold affected:
+
+* number of cases flagged;
+* false positives;
+* false negatives;
+* precision;
+* recall;
+* review volume.
+
+This was very important because the best statistical threshold is not always the best operational threshold. A lower threshold may catch more suspicious cases but overwhelm reviewers. A higher threshold may reduce workload but miss more cases.
+
+The question was:
+
+> What decision threshold gives a reasonable balance between risk detection and operational workload?
+
+### 7. Trend analysis
+
+I used trends to monitor changes over time: event volume, flag rate, score distribution, case backlog, false positive rate and data-quality errors.
+
+Trends help distinguish one-off movement from sustained change. If flagged cases spike one day, it could be a real risk pattern, a data issue, or a rule firing too broadly. If the spike continues, it needs more attention.
+
+The question was:
+
+> Is this a temporary change, a sustained trend, or a signal that something in the data/process changed?
+
+### 8. Drift monitoring
+
+Drift was important because models can degrade when input patterns change.
+
+I paid attention to whether feature distributions changed over time. For example, transaction amounts, categories, timing, frequency or channel patterns might shift. If the model was trained on one type of behaviour and the incoming data changes, performance can drop.
+
+The question was:
+
+> Is the data the model sees now still similar to the data it was trained or evaluated on?
+
+### 9. Cohort or segment analysis
+
+I also looked at performance across segments. For example, transaction type, category, user/account group, channel or time period. This matters because a system can perform well overall but poorly in one segment.
+
+The question was:
+
+> Is the system behaving consistently across different types of cases?
+
+### 10. Error analysis
+
+After evaluation, I looked at false positives and false negatives.
+
+False positives show where the system is too sensitive. False negatives show where risk was missed. Error analysis is important because it tells you how to improve rules, features, thresholds or model training.
+
+The question was:
+
+> What kinds of mistakes is the system making, and what can we learn from them?
+
+## Why these techniques mattered
+
+The statistical techniques mattered because they helped avoid superficial conclusions.
+
+For example:
+
+* A high accuracy model may still be bad if the data is imbalanced.
+* A high flag count may mean more risk, or it may mean a threshold is too sensitive.
+* A drop in suspicious cases may mean improvement, or it may mean ingestion is failing.
+* A high-risk score may need explanation before someone can trust it.
+* A model may work at launch but degrade if data drifts.
+* A rate is often more meaningful than a raw count.
+
+That is the kind of judgement I think is important in this NHS role as well. The Trust’s job description specifically talks about using statistical techniques so conclusions are appropriate for sample size and variation, and about producing information that colleagues can understand and use. My platform experience taught me that the analyst’s job is not just to calculate; it is to prevent misleading interpretation.
+
+## Relevance to the Data & Insights Analyst role
+
+The platform is relevant in several ways.
+
+First, it shows data flows. The role mentions implementing data flows for new reporting requirements and minimising manual processes. My platform involved designing data movement from ingestion through validation, decisioning, case creation and reporting.
+
+Second, it shows automation. The platform automated parts of the decisioning process while keeping outputs visible for review. That connects to the Trust’s need to reduce manual processes and provide automated information solutions.
+
+Third, it shows statistical judgement. I had to think about thresholds, false positives, false negatives, variation, drift, distributions, segments and model performance. Those are directly relevant to producing conclusions that are appropriate for the data.
+
+Fourth, it shows BI/reporting thinking. The platform was not useful unless the outputs could be viewed and understood. The case-management and monitoring layers were about presenting information in a way that supports action.
+
+Fifth, it shows operational awareness. A model that creates too many cases is not useful. A dashboard that shows stale data is dangerous. A flagged case without explanation is hard to trust. Those lessons apply strongly to healthcare reporting, where services need reliable information and clear interpretation.
+
+Sixth, it shows responsibility. Fraud decisions affect people and businesses. Healthcare decisions affect patients and services. The domains are different, but both require care, transparency and caution when presenting data.
+
+## Final reflection
+
+The biggest thing I learned from the platform is that data work becomes much more serious when it moves from analysis to operation.
+
+In a notebook, a model score is just a number. In a live platform, that score can create a case, affect a workflow, increase workload, or trigger a decision. That means the data analyst or data scientist has to think beyond the algorithm.
+
+They have to ask:
+
+* Is the data reliable?
+* Is the decision explainable?
+* Is the threshold sensible?
+* Are we creating too much noise?
+* Are we missing important cases?
+* Is the system still performing over time?
+* Can users understand the output?
+* Are limitations visible?
+* What happens when the data changes?
+* What happens when the system fails?
+
+Those are the questions that made the project take over a year. They are also the questions that made it valuable.
+
+So if I were asked why this platform matters for the Data & Insights Analyst role, I would say:
+
+It matters because it shows I have gone beyond academic analysis and built a working data system where data quality, modelling, decisioning, reporting, monitoring, automation and user interpretation all had to connect. I understand that insight is only useful when it is reliable, explainable and operationally usable. That is the same mindset I would bring into NHS data and insights work: not simply producing reports, but helping services trust, understand and act on the information.
+
+---
+
+# Interview Evidence - Fraud Decisioning Platform BI and Dashboard Layer
+
+## Question
+
+Your experience said that the platform had some BI or dashboard or analytical aspect to it, given our criteria, can you talk more about it with regards to what's relevant?
+
+## Response
+
+Yes. The BI/dashboard side of the platform is important because it is the part that turns the platform from “I built a model/system” into **“I built information that a user could understand and act on.”**
+
+I would not frame it as “I built a Power BI dashboard for the NHS,” because that would not be true. I would frame it as:
+
+> I built an analytical and monitoring layer around the platform so that decisions, cases, data quality, model/rule behaviour and operational activity could be inspected, explained and improved.
+
+That is relevant because this NHS role asks for BI/data visualisation, clear findings for non-technical users, data quality assurance, reporting from multiple sources, automation, and support for operational decision-making. The JD specifically says the analyst should present clear findings colleagues can understand and use, communicate between technical and non-technical audiences, test visualisations against user needs, map information back to raw data, and correct/retest errors.
+
+The platform had three main analytical/dashboard layers.
+
+The first was the **operational monitoring view**. This was about whether the platform was running properly. It answered questions such as: Are events coming in? How many transactions have been processed today? How many were approved, flagged or routed to review? Has the flag rate suddenly changed? Are there missing fields or failed validations? Are there ingestion errors? Are decisions being generated as expected?
+
+That view mattered because in a live system, a good-looking number can be dangerous if the pipeline behind it is broken. For example, if flagged cases suddenly drop to zero, that could mean fraud risk has fallen, but it could also mean the ingestion step failed, a rule stopped firing, or a required field became null. So I needed the dashboard to show not just outcomes, but the health of the data flow.
+
+The second was the **case and decisioning view**. This was closer to a case-management dashboard. It showed flagged transactions or events, risk scores, decision outcomes, reason codes, review status and key contextual fields. The aim was to make the decision understandable. If a transaction was flagged, the user should not only see “high risk”; they should see why it was high risk: unusual amount, repeated attempts, unusual timing, high velocity, mismatch from previous behaviour, missing field, or another rule/model signal.
+
+That is where the dashboard became more than visualisation. It was supporting action. A reviewer needed to know which cases were open, which were highest priority, what triggered the flag, and what had already been reviewed. Without that layer, the model output would be much less useful.
+
+The third was the **offline evaluation and analytical view**. This was where I looked at whether the system was performing well over time. It included things like score distributions, flag rates, false positives, false negatives, precision/recall-style measures, threshold impact, data-quality issue counts, drift indicators and segment-level behaviour. This helped answer a different set of questions: Are we flagging too many cases? Are we missing too many risky cases? Is the threshold too strict or too loose? Are certain case types producing more errors? Has the data changed since the model/rules were designed?
+
+That part is very relevant to the statistical side of this NHS role because the Trust is not just asking for reporting; it asks for advanced statistical techniques so that conclusions are appropriate for sample size and variation. My platform experience taught me that a dashboard should not encourage people to overreact to every movement in a number. It should help them ask whether the change is meaningful, whether the data is complete, and whether the comparison is fair.
+
+A concrete example is the **flag rate**. If the percentage of transactions being flagged increases from one week to the next, that could mean risk is increasing. But it could also mean total volume changed, a new transaction type entered the system, a data-quality issue made a rule fire more often, or a threshold was too sensitive. So I would not treat the raw count of flagged cases as enough. I needed to compare the flag rate against total processed volume, review the score distribution, check whether particular rule triggers had increased, and look for missing-field or validation errors.
+
+That is the same kind of thinking this NHS role needs. In healthcare, if referrals rise, incidents fall, waiting times change, or activity drops, you cannot assume the first interpretation is correct. You need to ask whether the denominator changed, whether the data flow changed, whether definitions changed, whether the sample size is small, or whether the movement is normal variation.
+
+In terms of the actual analytical structure, I tried to make the dashboard answer questions at different levels.
+
+At the top level, it needed simple headline measures:
+
+* total events processed;
+* number and percentage approved;
+* number and percentage flagged;
+* number sent to review;
+* open cases;
+* reviewed cases;
+* average or median risk score;
+* data validation failures;
+* missing-field counts;
+* model/rule decision distribution.
+
+Then the next layer was trend-based:
+
+* processed volume over time;
+* flagged cases over time;
+* flag rate over time;
+* review backlog over time;
+* data-quality errors over time;
+* score distribution changes over time.
+
+Then the next layer was diagnostic:
+
+* flags by reason code;
+* flags by transaction/category/channel;
+* high-risk cases by segment;
+* false positives by rule/model trigger;
+* false negatives by feature pattern;
+* cases with missing or invalid fields;
+* decision outcome by threshold band.
+
+The reason for that structure was that different users need different levels of information. Someone checking the health of the system needs high-level metrics. Someone reviewing cases needs case-level detail. Someone improving the model needs error analysis and distribution views. Someone assessing performance needs offline evaluation.
+
+That is an important BI lesson: a dashboard is not just a collection of charts. It should be designed around user questions.
+
+I also paid attention to traceability. For any summary number, I wanted to be able to trace back to the underlying record or logic. If the dashboard said there were 46 flagged cases, I needed to know which records made up that number and why they were flagged. If it said missing-field errors increased, I needed to know which field and which ingestion batch or event type caused it. That aligns closely with the JD’s expectation that visualisations should map back to underlying raw data and be tested to assure they meet user needs.
+
+A specific example was the case review queue. It would not be useful to show only a count of open cases. The reviewer needed to see:
+
+* case ID;
+* transaction/event timestamp;
+* risk score;
+* decision outcome;
+* reason code;
+* amount or key event value;
+* relevant account/user context;
+* status: open, reviewed, escalated, closed;
+* created date;
+* last updated date.
+
+That allowed the case list to function as an operational tool, not just a chart. The user could prioritise high-risk cases, understand why they were present, and track whether they had been reviewed.
+
+The dashboard also needed to distinguish between **confirmed information** and **information needing review**. For example, an event might be flagged because of a missing or invalid field. That is different from a case flagged because the behaviour itself is suspicious. If those two are mixed together, a user may misunderstand the risk. So I treated data-quality flags separately from behavioural-risk flags where possible.
+
+That is another strong link to the NHS role. In healthcare reporting, missing or incomplete data should not be silently treated as zero or normal. If something is missing, it needs to be visible because it affects interpretation.
+
+The platform’s analytical layer also helped with **threshold analysis**. A fraud decisioning system usually needs thresholds: below a score, allow; above a score, flag; maybe above a higher score, escalate. But the threshold has operational consequences. If the threshold is too low, the system creates too many cases and reviewers lose trust. If it is too high, suspicious activity may be missed.
+
+So I used the analytical layer to compare different thresholds and see how they affected:
+
+* number of cases flagged;
+* review workload;
+* precision;
+* recall;
+* false positives;
+* false negatives;
+* high-risk concentration;
+* score distribution.
+
+The BI part was important because threshold trade-offs are easier to discuss when they are visible. A table of metrics helps, but a chart showing how review volume changes as the threshold moves makes the decision more understandable. That is where analysis becomes decision support.
+
+This also taught me to avoid presenting one metric as the whole truth. Accuracy alone was not enough. A model can be accurate but still miss rare fraud if the dataset is imbalanced. A high recall model can catch more fraud but flood the review queue. A high precision model can reduce false positives but miss edge cases. So the dashboard had to show a balanced view rather than one flattering number.
+
+For this NHS role, that mindset matters because healthcare reports can also become misleading if one metric is presented without context. A service might look better on one measure and worse on another. A small change might not be meaningful. A percentage might hide a small denominator. A count might hide variation in service size. The BI layer should help users understand that context, not hide it.
+
+Another part of the dashboard was **data quality monitoring**. I tracked issues such as:
+
+* missing required fields;
+* invalid timestamps;
+* duplicate events;
+* negative or impossible values;
+* unexpected categories;
+* failed validation checks;
+* records rejected or routed for review;
+* ingestion delays.
+
+This was important because the platform’s decisions depended on the quality of incoming data. If the model expected a field and that field became missing, the decision could become less reliable. If a timestamp was wrong, velocity features could be wrong. If duplicate events arrived, transaction frequency could be overstated. So data quality had to be visible.
+
+This is directly relevant to the NHS JD because it asks for data quality assurance, validation, linkage, cleansing, consistency checks, documentation, and governance. My platform gave me practical experience of building that thinking into the reporting layer rather than treating it as an afterthought.
+
+I also used dashboarding to support **model/rule monitoring**. I wanted to know which rules were firing most often and whether any rule suddenly became noisy. For example, if one rule accounted for a large share of flagged cases, that might be appropriate, or it might mean the threshold was too sensitive. If a rule suddenly stopped firing, that might be a genuine change in behaviour, or it might mean the input feature was broken.
+
+So I monitored:
+
+* flag reason frequency;
+* rule trigger counts;
+* model score bands;
+* score distribution over time;
+* top contributing signals;
+* rule/model overlap;
+* cases where rules and model disagreed.
+
+That helped answer whether the decisioning system was behaving sensibly. It also made the output more explainable. A user is more likely to trust a flagged case if they can see the reason, not just a score.
+
+In terms of presentation, I tried to avoid creating dashboards that looked impressive but were hard to use. I focused on practical questions. For example:
+
+* What is the current state of the system?
+* What changed since the previous period?
+* Which cases need action?
+* Which data-quality issues could affect trust?
+* Which rules or model outputs are creating the most review work?
+* Is the system performance improving or deteriorating?
+
+That is the same kind of design thinking I would bring to an NHS BI/reporting role. The question is not “how many charts can I make?” It is “what does the service manager, analyst, clinician or operational lead need to understand?”
+
+One challenge I faced was deciding how much technical detail to expose. If I showed too much model detail, the dashboard could become overwhelming. If I showed too little, the output could become a black box. I handled that by layering the information: headline view first, then drill-down or supporting detail for users who needed it.
+
+For example, the top-level dashboard might show that flagged cases increased by 12%. The next layer would show which reason codes increased. The next layer would show the underlying cases. The evaluation layer would show whether the increase affected precision or false positives. That way, a non-technical user could understand the headline, while a technical user could investigate.
+
+The dashboard also supported **learning and improvement**. The case outcomes and evaluation results could feed back into the decisioning process. If a rule was producing many false positives, it could be adjusted. If certain false negatives had a common pattern, a new feature or rule might be needed. If data-quality errors were concentrated in one field, validation or ingestion logic needed attention.
+
+That learning loop is important because the role’s JD talks about service improvement and transformation. In my platform, improvement meant making the decisioning process more accurate, manageable and explainable over time. In the NHS role, improvement may mean helping services understand performance, demand, inequalities, reporting quality or operational pressure. The domain differs, but the loop is similar: report, interpret, act, evaluate, improve.
+
+The platform’s BI/analytical aspect also gave me experience with **automation versus manual review**. I did not want every decision to be fully manual, because that defeats the purpose of a decisioning system. But I also did not want blind automation where the system makes decisions that nobody can inspect. The dashboard created a bridge: automated scoring and flagging, but visible case review and evaluation.
+
+That is relevant because the job advert mentions minimising manual processes and providing automated solutions to information challenges. My experience taught me that automation should not remove visibility. It should reduce repetitive work while increasing clarity.
+
+A strong example is the way the platform handled repeated checks. Instead of manually inspecting every transaction, the system produced risk scores, flags and reason codes. The dashboard then surfaced the cases that needed attention. That is a better workflow than either full manual checking or blind automation. It is automation with oversight.
+
+If I were explaining the value of this experience in interview, I would say:
+
+> The dashboard layer helped me understand that BI is not just visual design. It is a control and communication layer. It shows users what is happening, whether the data can be trusted, where attention is needed, and whether the system is improving or failing.
+
+That is a very relevant lesson for this job.
+
+Finally, I would connect it carefully to healthcare. I would not say fraud monitoring is the same as NHS reporting. It is not. But both involve operational decisions based on data. Both can suffer from misleading metrics. Both need data quality checks. Both need dashboards that users can understand. Both need careful interpretation of variation. Both need responsible handling of sensitive information. Both need evidence that can support action.
+
+So, in relation to this Data & Insights Analyst post, the platform’s BI and analytical layer proves that I have experience building reporting around a live data process, not just analysing a static dataset. I have had to think about data flows, automated outputs, dashboard design, user questions, validation, error monitoring, model/rule behaviour, statistical evaluation, and how to communicate risk and uncertainty clearly. That is the relevant part I would bring into the role.
+
+---
+
+# Interview Evidence - Fraud Decisioning Platform Additional Relevant Experience
+
+## Question
+
+Before we move on to looking at the other projects and then your time as a committee member, are there other things you'd want to add with relation to your platform and the job description or person specification so that nothing is left out?
+
+## Response
+
+Yes. Before moving on, I would add a few platform-related points because they connect directly to parts of the job description/person specification that are easy to miss if I only talk about “fraud model” or “dashboard.”
+
+I would not put all of this into the final supporting statement. That would be too much. But I would want these points available because they show the platform was not just a technical project; it covered data flows, automation, governance-style thinking, quality assurance, AI implementation, documentation, operational monitoring and user-focused reporting.
+
+The role asks for someone who can support data flows for reporting requirements, minimise manual processes, use BI tools, assure data quality, communicate clearly with technical and non-technical users, apply statistical techniques, and support operational/service improvement. The attached JD also mentions version control, linked dataset/model versions, anonymisation protocols, QA, documentation, user-tested visualisation, project management, and communicating findings colleagues can understand and use.
+
+So the extra platform points I would add are these.
+
+## 1. The platform gave me experience of implementing data flows, not just analysing a finished dataset
+
+One thing I would want to make clear is that I was not only working with a static CSV file. The platform required a flow of data from one stage to another.
+
+At a high level, the flow was:
+
+> event/transaction enters the system → data is validated → features are created → rules/model score the event → a decision is produced → flagged items become cases → cases are monitored/reviewed → outcomes feed offline evaluation.
+
+That matters because the job description talks about implementing data flows for new reporting requirements and liaising with data preparation colleagues. My platform was a different domain, but it exposed me to the same kind of thinking: the report or dashboard is only the visible end of a chain. If the earlier data flow is weak, the final insight is weak.
+
+The lesson I would carry into this role is that an analyst should understand where the data came from, how it was transformed, what checks were applied, and whether the output can be traced back to source records.
+
+## 2. I built validation checks because bad inputs create bad decisions
+
+Another important part was data validation.
+
+For the platform to make useful decisions, it needed to catch problems such as missing required fields, duplicate events, invalid timestamps, unexpected categories, impossible values, or records arriving in the wrong shape.
+
+That is directly relevant to the JD’s focus on data quality assurance, validation, cleansing, consistency checks and ensuring outputs map back to underlying raw data.
+
+The important point is that I did not treat data quality as a final clean-up task. I treated it as part of the operating system. If a transaction had missing or invalid data, the platform should not silently turn that into a confident risk score. It should either reject it, route it for review, flag the missing field, or make the limitation visible.
+
+That is a strong lesson for healthcare analytics too. Missing data should not be treated as a true zero. Changed definitions should not be hidden. Broken data flows should not be mistaken for improved performance.
+
+## 3. I learned the importance of versioning and reproducibility
+
+The JD specifically mentions awareness of version control and linked versions of datasets and algorithms that led to a visualisation or outcome.
+
+That is something I can connect to the platform.
+
+Because the platform had rules, features, model outputs, dashboards and evaluation results, I needed to think about reproducibility. If a result changed, I needed to know whether it changed because the data changed, the rule changed, the threshold changed, the model changed, or the dashboard logic changed.
+
+This is important because a decisioning platform can become confusing very quickly if versions are not controlled. For example, if last month’s false-positive rate was calculated using one threshold and this month’s using another, the comparison is not fair unless the change is documented.
+
+So I would mention that the platform strengthened my habit of keeping code, configuration, evaluation logic and output definitions controlled and documented. That fits the JD’s wider expectation around quality assurance, documentation and updating analysis production methods after changes.
+
+## 4. The platform gave me a practical understanding of AI implementation
+
+The person specification lists understanding the implementation of AI technologies in data and analytics as a desirable criterion.
+
+This is one of the platform’s strongest links.
+
+My experience taught me that implementing AI is not simply training a model. The real implementation questions are:
+
+* What data is available at decision time?
+* What are the failure modes?
+* How do users interpret the output?
+* What happens when the model is wrong?
+* How are false positives and false negatives handled?
+* How is drift monitored?
+* How are thresholds chosen?
+* How is the model evaluated after deployment?
+* How is the output explained to a human reviewer?
+
+That is the practical understanding I would want to bring out. It is more valuable than saying “I know AI.” I learned that AI outputs need governance, monitoring, evaluation, explanation and operational controls.
+
+## 5. I had to think about manual work versus automation
+
+The advert says the role involves minimising manual processes and providing automated solutions to information challenges.
+
+The platform is relevant because it was built around that exact tension.
+
+A fully manual fraud review process is slow because someone has to inspect too many events. But blind automation is dangerous because the system might make wrong decisions without oversight. So I designed the platform around automation with visibility: automatic scoring and flagging, but with case review, reason codes, monitoring and offline evaluation.
+
+That is an important principle for NHS reporting as well. Automation should reduce repetitive manual work, but it should not make the process less transparent. A good automated report should still show definitions, data quality issues, exceptions and limitations.
+
+## 6. The case-management layer showed that insight must support action
+
+I would also want to explain the case-management part more clearly.
+
+The platform did not only produce a risk score. It created a workflow around flagged cases. A flagged case needed context: what was the transaction, what was the score, what triggered the flag, what status is the case in, and what should be reviewed?
+
+That matters because the NHS role is not asking for analysis for its own sake. The role exists to support operational management, service improvement, planning and transformation.
+
+The platform taught me that a dashboard or report should not just answer:
+
+> “What happened?”
+
+It should help answer:
+
+> “What needs attention, who needs to act, and what should happen next?”
+
+That is the decision-support mindset I would carry over.
+
+## 7. I learned to monitor whether the system itself could be trusted
+
+Another thing I would add is system monitoring.
+
+When the platform was live, I had to monitor not just the business outcomes but the health of the data process itself. For example:
+
+* Are events arriving?
+* Are validation failures increasing?
+* Are duplicate records appearing?
+* Has the flag rate changed suddenly?
+* Has a rule stopped firing?
+* Has the score distribution shifted?
+* Are dashboards showing stale data?
+* Are cases being created properly?
+
+This is relevant because the JD expects the analyst to understand system limitations, human/digital data limitations, and incorporate summary statistics to clarify meaning and variation.
+
+The platform taught me that a change in a number is not automatically a change in reality. Sometimes the pipeline changed. Sometimes a rule changed. Sometimes the data quality changed. Sometimes the input population changed. That is an important analytical habit.
+
+## 8. I can connect the platform to statistical judgement without overloading the statement
+
+For the final statement, I would not list every technique. But I would want to keep the statistical angle clear.
+
+The platform involved:
+
+* descriptive statistics;
+* distribution analysis;
+* outlier detection;
+* rate and ratio features;
+* threshold analysis;
+* classification metrics;
+* precision/recall trade-offs;
+* false-positive and false-negative analysis;
+* trend monitoring;
+* drift checks;
+* segment/cohort analysis;
+* data-quality error rates.
+
+The most relevant part for the job is not the number of techniques. It is the judgement behind them.
+
+The Trust wants conclusions appropriate for sample size and variation. My platform trained me to avoid shallow conclusions, such as:
+
+* high accuracy means a good model;
+* fewer flags means lower risk;
+* more cases means worse performance;
+* a spike always means a real event;
+* a missing value can be ignored;
+* one metric is enough.
+
+That is the part worth carrying into the statement.
+
+## 9. It showed project ownership and persistence
+
+The platform also supports project-management-adjacent evidence.
+
+I would not claim PRINCE2. But I can say the platform required long-term ownership: scoping, sequencing, building, testing, deploying, reviewing, debugging, managing cost and improving the system over time.
+
+That connects to the desirable criterion around project management experience and the JD’s project-management expectations around scope, progress, pilots/testing, findings, lessons learned and sustainability.
+
+The useful point is that I saw a technical project through beyond the first working version. I had to keep refining it after it was live.
+
+## 10. It taught me to communicate limitations clearly
+
+Finally, I would add that the platform taught me to communicate uncertainty.
+
+A model score is not a fact. A flag is not proof. A dashboard movement is not automatically a trend. A missing field is not the same as a zero. A threshold choice involves trade-offs.
+
+That is important for this NHS role because the analyst will be producing information that others use. The JD repeatedly stresses clear communication, unambiguous data description, checking understanding, explaining limitations and presenting recommendations appropriately to non-technical audiences.
+
+So the platform helps me show that I understand responsible insight work: not just producing outputs, but explaining what the output means, what it does not mean, and what action it can safely support.
+
+## What I would not overclaim
+
+I would not claim the platform gives me direct NHS experience.
+
+I would not claim I worked with clinicians.
+
+I would not claim it proves direct FOI, contract reporting or population health experience.
+
+I would not make the platform sound like a commercial product used by an organisation if it was an independent build.
+
+The safe claim is:
+
+> I built and operated an AWS-hosted, production-shaped data/AI platform that gave me practical experience of data flows, validation, decisioning, case management, BI/monitoring, statistical evaluation, automation, documentation and communicating outputs for action.
+
+That is strong enough without exaggerating.
+
+For the final statement, I would use the platform to cover three things mainly:
+
+1. **BI/data flows/automation**
+2. **statistical and AI implementation judgement**
+3. **quality assurance, monitoring and responsible reporting**
+
+That way, it supports the job description without taking over the whole application.
+
+---
+
+# Interview Evidence - MSc Thesis Overview
+
+## Question
+
+Alright, let's move on with the thesis, what's it about: https://meowing-individual-273.notion.site/Multi-Task-Learning-for-Driver-Identification-and-Transport-Mode-Classification-289b81dd36e449f98361b5643082dbb6
+
+## Response
+
+I’ll answer as Eric in first person.
+
+My MSc thesis was titled **“Multi-Task Learning for Driver Identification and Transport Mode Classification.”** In simple terms, it was about building a deep learning model that could use smartphone sensor data to answer two questions at the same time: **what mode of transport is someone using**, and **who is the driver**. The project was part of my MSc Data Science with Artificial Intelligence at the University of Exeter, and the GitHub repository describes it as a multi-task deep learning project using smartphone sensor data from the SHL preview dataset. ([GitHub][1])
+
+The real-world motivation was usage-based insurance. In usage-based insurance, insurers may want to understand driving behaviour so that premiums or risk assessments reflect how someone actually drives. Traditionally, that kind of monitoring can depend on telematics devices fitted inside vehicles, but those can be expensive and raise privacy concerns. Smartphones are more practical because they already contain sensors such as accelerometers, gyroscopes and GPS-related sensors. The issue is that if a phone is used, the system needs to know when the person is travelling by car and whether the phone belongs to the actual driver rather than a passenger. That is the problem my thesis was trying to address.
+
+So the thesis had two linked tasks.
+
+The first task was **transport mode classification**. That means classifying whether a segment of sensor data represented walking, running, cycling, bus, train, subway, car, or standing still. The second task was **driver identification**. That means identifying which user was driving based on their movement/sensor pattern. Instead of training two completely separate models and treating them as unrelated problems, I explored a **multi-task learning** approach where one model architecture could learn both tasks together. The repository describes this as a model for simultaneous driver identification and transport mode classification, with the aim of improving performance across both tasks and supporting real-world applications such as usage-based insurance and transport analytics. ([GitHub][1])
+
+The dataset I used was the **University of Sussex-Huawei Locomotion-Transportation dataset**, specifically the SHL preview subset. The project page says the preview subset contained data for all users across four phone locations, over three recording days, giving about **227 hours of data** and **81,938,560 records** before preprocessing. The sensors I focused on were the accelerometer, gyroscope and rotation vector/orientation sensor.
+
+A major part of the project was preprocessing because the dataset was very large and the raw sensor readings were not immediately suitable for modelling. The original data was sampled at **100Hz**, which means 100 readings per second. I downsampled it to **5Hz** by selecting every 20th row, reducing the data from roughly **81.9 million records to about 4.1 million records**. That was important because I wanted to build an effective model at a lower sampling rate while making the project computationally manageable.
+
+After that, I had to segment the journeys. The raw data for a day could include several transport modes in sequence, for example walking, driving, walking, cycling, bus and so on. So I defined a journey segment as a continuous section where the transport mode did not change. Then, because there were not enough natural journey segments for the driver-identification task, I created sub-segments using a fixed sliding-window approach. I used windows of **112 data points**, which represented **22.4 seconds** at 5Hz, with **50% overlap**. That window size mattered because it gave enough time-series information for the models and allowed the transport classification and driver-identification branches to look at aligned chunks of data.
+
+The modelling approach combined different architectures. For transport mode classification, I used a **BiLSTM-style sequence model**, because the problem involved time-series data and the model needed to learn patterns over time. For driver identification, the project drew on a **ResNet50-GRU-style approach**, where sensor measurements could be transformed into feature-map/image-like representations for a convolutional model, while GRU/RNN components could capture temporal behaviour. The GitHub repository confirms the project included a transport classification single-task notebook using BiLSTM, a driver identification single-task notebook using ResNet50-GRU, and a multi-task notebook combining both tasks. ([GitHub][1])
+
+The key technical idea was **multi-task learning**. Instead of building one model only for transport mode and another only for driver ID, the multi-task model tries to learn shared representations from the sensor data and then produce outputs for both tasks. The reason this is interesting is that the two tasks are related. The way sensor data looks depends partly on the transport mode, but driver behaviour may also create patterns within driving segments. A shared model could potentially learn useful features that help both tasks.
+
+The evaluation side was also important. I used metrics such as **accuracy, precision, recall and F1-score**, and I looked at class-wise performance rather than only overall accuracy. That matters because transport modes and driver classes can be imbalanced. A model can look good overall while performing poorly on a smaller or harder class. The repository notes that the project included metrics scripts for accuracy, precision, recall, F1-score and ROC-AUC, plus learning curves, precision-recall curves and F1-score-recall curves. ([GitHub][1])
+
+The project also compared the multi-task model against single-task models. The repository describes single-task notebooks for driver identification and transport classification, a multi-task model notebook, seed experiments for reproducibility, and ensemble comparisons where predictions from the single-task models were combined and compared with the multi-task model’s predictions. ([GitHub][1])
+
+In terms of what I learned, the thesis taught me a lot about working with complex real-world sensor data. The challenge was not just training a model. It was deciding how to reduce the data, segment journeys, create suitable windows, synchronise the two tasks, represent time-series data properly, evaluate the results fairly, and avoid overclaiming from one metric. It also taught me the importance of reproducibility because the repository includes different random-seed experiments and model checkpoints. ([GitHub][1])
+
+For this NHS Data & Insights Analyst role, I would not pretend the thesis is healthcare experience. It is not. But it is highly relevant to the criteria around **advanced statistical/modelling knowledge, AI implementation, data preprocessing, multi-source/complex data, model evaluation, data visualisation, and explaining limitations**. The transferable point is that I worked through a full analytical pipeline: raw high-frequency data, preprocessing, segmentation, feature representation, modelling, evaluation, comparison and interpretation.
+
+If I had to summarise the thesis in one sentence, I would say:
+
+> My thesis built and evaluated a multi-task deep learning model using smartphone accelerometer, gyroscope and rotation-vector data to classify transport mode and identify the driver, with the aim of supporting more practical smartphone-based usage-based insurance systems.
+
+[1]: https://github.com/EsosaOrumwese/Msc_Research_Project_Multi-Task-Learning_CNN-GRU-biLSTM "GitHub - EsosaOrumwese/Msc_Research_Project_Multi-Task-Learning_CNN-GRU-biLSTM: This project is part of my Master's thesis for the MSc in Data Science with Artificial Intelligence program at the University of Exeter. It implements a multi-task deep learning model for simultaneous driver identification and transport mode classification using smartphone sensor data from the SHL preview dataset."
+
+---
+
+# Interview Evidence - MSc Thesis Working Experience
+
+## Question
+
+What was your experience working on it? (2000 words)
+
+## Response
+
+Working on the thesis was probably the first time I experienced data science as a full end-to-end research problem rather than a coursework exercise. The project was titled **“Multi-Task Learning for Driver Identification and Transport Mode Classification”**, and the aim was to build a deep learning model that could use smartphone sensor data to classify both transport mode and driver identity. The project used the SHL preview dataset, focused on accelerometer, gyroscope and rotation-vector data, and involved reducing a very large 100Hz dataset from about 81.9 million records to about 4.1 million records through downsampling before modelling.
+
+My experience working on it was intense because the project was not just about training a model. It forced me to deal with the whole analytical pipeline: understanding the problem, reading research papers, choosing a feasible scope, preprocessing a large dataset, designing segmentation logic, preparing features, building single-task models, building the multi-task model, evaluating performance, interpreting results, and writing the dissertation in a way that made the work understandable.
+
+At the start, the hardest part was understanding the problem properly. On the surface, it sounds simple: classify transport mode and identify the driver. But once I got into it, I realised both tasks were more complicated. Transport mode classification is not just “is this person in a car?” because the data includes different movement patterns: walking, running, cycling, car, bus, train, subway and still. Driver identification is even more sensitive because the model is trying to recognise who is driving from sensor patterns, not from a normal identifier like a login or account ID. So I had to think carefully about whether the sensor data contained enough behavioural signal to support both tasks.
+
+The research side was also demanding. I had to understand previous work on transport mode classification and driver identification separately, then think about how to combine those ideas into a multi-task learning approach. That meant comparing different model types and understanding why sequence models such as LSTMs are useful for time-series sensor data, and why CNN/RNN-style models can be useful when sensor data is transformed into a representation that captures movement patterns.
+
+The data preparation was probably the most labour-intensive part. The raw dataset was huge, and I could not treat it like a small CSV file. It had high-frequency sensor readings, multiple users, different phone placements, different days, different transport labels and continuous journeys. Before modelling, I had to make the data manageable. That was why I downsampled from 100Hz to 5Hz. It was partly a computational decision, but also a modelling decision: I wanted to test whether a useful model could still be trained from a lower sampling rate.
+
+After downsampling, the next challenge was segmentation. The raw daily data did not arrive as neat “journeys” ready for modelling. A user’s day could include several transport modes in sequence: walking, driving, walking again, cycling, bus, and so on. So I had to define journey segments based on continuous stretches where the transport mode did not change. That decision mattered because the model needed meaningful chunks of behaviour rather than arbitrary pieces of a long day.
+
+Even after segmenting journeys, I realised there were not enough natural segments for the driver-identification task. That led to the sub-segmentation approach, where I used fixed windows of 112 data points, representing 22.4 seconds at 5Hz, with 50% overlap. That was one of the most important project decisions because it affected the number of training samples, the temporal information available to the model, and the synchronisation between the transport classification and driver identification tasks.
+
+This part taught me that preprocessing is not a boring step before “real” machine learning. In this thesis, preprocessing was part of the model design. If I chose the wrong window size, I could lose useful temporal patterns. If I segmented journeys badly, I could introduce noise. If I mishandled labels, the model could learn the wrong thing. So I had to be very deliberate about each decision.
+
+The modelling stage was exciting but also frustrating. I worked with deep learning architectures, including BiLSTM-style modelling for transport classification and CNN/RNN-style modelling for driver identification. The multi-task learning idea was to allow the model to learn shared representations while producing outputs for both tasks. In theory, that is powerful because related tasks can support each other. In practice, it introduces new problems: one task may learn faster than the other, one loss may dominate, or the shared representation may help one task but not the other.
+
+I had to experiment and debug a lot. Some runs did not perform as expected. Sometimes the model appeared to improve overall, but one class still performed badly. Sometimes accuracy looked reasonable, but F1-score revealed weaker class-level performance. That taught me not to rely on one metric. Because the project target was not just high overall accuracy, I had to look at precision, recall and F1-score, especially because class imbalance can hide poor performance.
+
+Another major experience was learning patience with model training. Deep learning work can feel slow because every change takes time: adjust preprocessing, rerun feature extraction, train the model, evaluate, inspect results, then decide what to change. If a model performs badly, it is not always obvious whether the problem is the architecture, the preprocessing, the label structure, the class distribution, the hyperparameters, or the evaluation setup. So I had to become more systematic.
+
+I also learned the importance of reproducibility. I used different runs and seed experiments because model results can vary. That made me more cautious about claiming that one model was better just because of one run. I needed to compare properly and make sure the result was not a lucky run. That lesson has stayed with me because in data work generally, a result is not useful if it cannot be explained or reproduced.
+
+The writing stage was another challenge. I had to translate technical work into a research-style dissertation. That meant explaining the business/problem motivation, dataset, preprocessing pipeline, feature representation, model architecture, evaluation metrics, results and limitations. The writing forced me to clarify my own thinking. If I could not explain why I made a modelling choice, then the choice probably needed more thought.
+
+One of the biggest lessons was around limitations. The project used a preview subset of the SHL dataset, with three participants and three recording days. That gave me enough data volume in terms of sensor readings, but there were still limitations around generalisability. A model trained on a small number of users may not automatically generalise to a wider population. Also, phone placement matters because sensor readings can look different depending on whether the phone is in the hand, hip, bag or torso. So I had to be careful not to overstate the result.
+
+This is where the thesis helped me mature as an analyst. Before, I might have thought a strong model result was enough. But the thesis taught me that a strong result must be interpreted in context: What data was used? What users were represented? What assumptions were made? What sampling rate was used? How were windows created? What classes were easier or harder? What would happen in real-world deployment?
+
+The project also improved my confidence with Python and deep learning workflows. I had to handle large data files, structure preprocessing scripts, prepare arrays/tensors, train models, evaluate outputs and generate plots. It was not just theoretical knowledge. I had to make the work run, fix errors, manage memory and organise outputs so I could compare results.
+
+What I found most valuable was that the project combined research, engineering and analysis. The research side was understanding the problem and previous methods. The engineering side was making the data pipeline and models work. The analysis side was interpreting the results carefully and explaining what the model did well or badly.
+
+In relation to the Data & Insights Analyst role, the thesis is relevant because it shows formal experience with advanced modelling, data preprocessing, evaluation, statistical judgement and responsible interpretation. It does not give me NHS experience, and I would not claim that. But it does show that I can handle a complex dataset, make careful preprocessing decisions, evaluate results beyond surface-level accuracy, and communicate limitations clearly.
+
+The biggest thing I took from the thesis is that data science is not just about producing a model. It is about building a defensible chain from raw data to conclusion. In my thesis, that chain was: smartphone sensor readings, downsampling, journey segmentation, sliding windows, feature representation, model training, performance evaluation and interpretation. If any part of that chain is weak, the conclusion becomes weaker.
+
+That mindset is very relevant to healthcare analytics. In healthcare reporting, a dashboard or metric is only as reliable as the data definitions, preprocessing, exclusions, denominators and interpretation behind it. My thesis trained me to ask those questions rather than accept a final number at face value.
+
+So overall, my experience working on the thesis was demanding, technical and very useful. It pushed me beyond basic analysis into full research delivery. It improved my modelling knowledge, my programming discipline, my ability to work with large datasets, my understanding of evaluation metrics, and my ability to explain uncertainty. It also taught me humility: even when a model works, you still have to ask where it might fail, what assumptions it depends on, and how carefully the result should be used.
+
+---
+
+# Interview Evidence - Facebook Business Activity and COVID Policy Project
+
+## Question
+
+Can you tell me about this project as well: https://meowing-individual-273.notion.site/Discovering-Business-Recovery-Strategies-and-the-Role-of-Governmental-Policies-through-Analysis-of-F-08610cd258054560990475cc2d3d40f4
+
+## Response
+
+Yes. I would describe this as my more **business-analysis and time-series insight project**, compared with the MSc thesis, which was more deep-learning/research-heavy, and the platform, which was more production/data-system-heavy.
+
+The project was titled **“Discovering Business Recovery Strategies and the Role of Governmental Policies through Analysis of Facebook Business Activity Trends during the COVID-19 Pandemic.”** The aim was to understand how business activity changed during COVID-19, and whether government policy responses appeared to relate to those changes. The project used two main datasets: the **Facebook Business Activity Trends dataset**, which measured changes in Facebook business-page activity during the pandemic, and the **Oxford COVID-19 Government Response Tracker**, which recorded government policy responses during the same period.
+
+In simple terms, I was asking:
+
+> “Can we use public business-activity data and government-policy data to understand how businesses were affected during COVID-19, how they recovered, and whether policy restrictions appeared to coincide with changes in activity?”
+
+The project was not about building a predictive model. It was about **data analysis, time-series interpretation, business analytics, public-policy context, and communicating findings from multiple datasets**.
+
+## What the project involved
+
+The Facebook dataset came as **1,004 daily CSV files**, covering the period from **1 March 2020 to 29 November 2022**. I used Python, mainly **pandas**, together with `glob`, to read the files and combine them into one dataset. The combined dataset contained around **2,396,549 observations and 12 variables**.
+
+That was the first practical challenge: the data was not a neat single file. I had to ingest many daily files, combine them, inspect the structure, check what fields were usable, and understand the grain of the data.
+
+The dataset was organised around what the project called a **cell**: a country and business vertical combination. So instead of looking at one individual business, the data looked at business activity by country and sector. The project noted 12 business verticals, including **Grocery & Convenience Stores, Restaurants, Retail, Manufacturing, Professional Services, Travel, Local Events, Home Services**, and an **“All”** category.
+
+I then had to understand the two main measures: **activity quantile** and **activity percentage**. Activity percentage was easier to understand because it compared weekly posting activity against normal baseline activity. But I chose to focus mainly on **activity quantile**, because it was more robust to highly active businesses and more stable where post counts were low. In other words, I did not just choose the easiest metric to explain; I chose the metric that was more appropriate for the analysis.
+
+That is one of the most useful things about the project for this NHS application: it shows I can read a dataset definition, compare available metrics, and make a reasoned choice about what measure is most reliable.
+
+## What countries and sectors I analysed
+
+Because the full dataset covered many countries and business verticals, I narrowed the scope. I selected **United Kingdom, Brazil, Nigeria, New Zealand, Kyrgyzstan and Sweden**. The idea was to choose countries representing different global pandemic contexts, with Sweden included because it was known for a more relaxed restrictions approach.
+
+I also narrowed the business verticals to:
+
+* **Grocery & Convenience Stores**
+* **Restaurants**
+* **All businesses**
+
+That made the analysis manageable and easier to interpret. Restaurants were especially useful because they were highly exposed to restrictions, while grocery/convenience stores were essential-service-adjacent and likely behaved differently during lockdowns.
+
+## How I used the government policy data
+
+The second dataset was the **Oxford COVID-19 Government Response Tracker**. I focused on **containment and closure policies**, such as school closing, workplace closing, cancel public events, restrictions on gatherings, public transport closure, stay-at-home requirements, internal movement restrictions and international travel controls. These policies had ordinal values showing strictness levels.
+
+The goal was not to claim that a policy definitely caused a business trend. That would have been too strong. The goal was to compare timelines:
+
+> “When activity changed, what government restrictions or policy changes were happening around the same period?”
+
+That is an important distinction. I was careful not to overstate correlation as causation.
+
+## What I actually did analytically
+
+The project involved several practical data-analysis steps:
+
+1. **Ingesting and combining files**
+   I combined 1,004 daily FBAT CSV files into a single analysis-ready dataset.
+
+2. **Understanding the data structure**
+   I checked the country, region, subregion and business-vertical fields. The project found that the data was available at country level, while regional/subregional variables were empty.
+
+3. **Data quality checks**
+   I checked coverage by country, business vertical and date. The project found 220 countries and a full 1,004-day period for each country overall, though not every country had every business vertical represented.
+
+4. **Metric selection**
+   I chose activity quantile over activity percentage because activity quantile was less biased toward highly active businesses and more stable for the analysis.
+
+5. **Time-series visualisation**
+   I plotted activity trends over time for selected countries and business verticals.
+
+6. **Cross-country comparison**
+   I compared patterns across the UK, Brazil, Nigeria, New Zealand, Kyrgyzstan and Sweden.
+
+7. **Policy overlay / interpretation**
+   I compared business activity trends with containment and closure policy timelines from OxCGRT.
+
+The project therefore gave me experience with **multi-source public data**, **data quality assessment**, **time-series analysis**, **policy-aware interpretation**, and **visual communication**.
+
+## A concrete finding from the project
+
+One finding was that business activity trends differed by country and business vertical. The project noted that for Brazil, Nigeria, New Zealand and Sweden, the activity quantile trends for Grocery & Convenience Stores and Restaurants generally followed the “All” business category more closely, while the UK showed more significant divergence at certain points between 2020 and 2021. Kyrgyzstan also appeared to show weaker performance in the selected business verticals compared with the “All” category from early 2021 through late 2022.
+
+Another pattern was that all selected countries experienced significant dips in activity quantile for the “All” category around early January 2021 and early January 2022. The project also noted that Nigeria showed the steepest decreasing trend among the selected countries, while Kyrgyzstan showed a decreasing trend that was less steep.
+
+The important part is not just the finding. The important part is how I approached it: I did not just plot a line and declare a conclusion. I looked at country, sector, time period, metric definition, policy context and limitations.
+
+## Why this project is relevant to the NHS Data & Insights Analyst role
+
+This project is relevant because the NHS role asks for someone who can use data from multiple sources, support service planning, understand population/service patterns, present clear findings, and avoid poor conclusions from weak data interpretation. The job also mentions understanding population data and potential inequalities to inform future service provision. This project is not healthcare, but it is public-data analysis with a service/planning logic.
+
+The transferable skills are:
+
+* combining multiple data sources;
+* checking data completeness and definitions;
+* choosing the right metric;
+* analysing time-series patterns;
+* comparing countries/sectors;
+* interpreting policy context;
+* visualising trends clearly;
+* explaining limitations;
+* avoiding overclaiming causation.
+
+For this role, I would not say:
+
+> “This gives me NHS population-health experience.”
+
+That would be too strong.
+
+I would say:
+
+> “This gave me experience analysing public datasets over time, comparing activity patterns across groups, checking metric definitions, and linking observed trends to wider policy context while being careful about limitations.”
+
+That is a strong and honest claim.
+
+## How I would use it in the supporting statement
+
+I would not make this project the main anchor. South Western and the platform are stronger for operational reporting, data flows, automation and decision support.
+
+But this project is useful for one specific gap: **public-data insight and population/service-style analysis**.
+
+It helps show that Eric has experience beyond private operational data. He has worked with public datasets, policy context, time-series trends and cross-group comparison. That makes it a good supporting project for the parts of the NHS job that mention population understanding, inequalities, planning and service improvement.
+
+The cleanest sentence for a supporting statement would be:
+
+> “In a public-data project, I combined Facebook Business Activity Trends data with Oxford COVID-19 policy data to analyse how business activity changed across selected countries and sectors during the pandemic. I used Python and pandas to combine 1,004 daily files into a 2.4 million-row dataset, checked coverage and missingness, selected activity quantile as the more stable metric, and visualised time-series patterns against policy timelines while being careful not to overstate correlation as causation.”
+
+That sentence is concrete, relevant and defensible.
+
+---
+
+# Interview Evidence - Facebook Business Activity and COVID Policy Working Experience
+
+## Question
+
+What was your experience working on it? (2000 words)
+
+## Response
+
+I’ll answer as Eric in first person.
+
+Working on the Facebook Business Activity Trends project was very different from my MSc thesis and my platform build. The thesis was deep-learning and research-heavy, while the platform was about production-shaped decisioning. This project was more about **public-data analysis, business insight, time-series interpretation, policy context and careful communication of findings**.
+
+The project was titled **“Discovering Business Recovery Strategies and the Role of Governmental Policies through Analysis of Facebook Business Activity Trends during the COVID-19 Pandemic.”** The aim was to analyse how business activity changed during COVID-19 and whether government policy responses appeared to align with those changes. I used two datasets: the **Facebook Business Activity Trends dataset**, which measured changes in business-page activity during the pandemic, and the **Oxford COVID-19 Government Response Tracker**, which recorded government policy responses such as restrictions, closures and containment measures.
+
+My experience working on it started with understanding the problem. I was not just trying to make charts about COVID. The real question was: during a crisis, can public digital activity data tell us something useful about how businesses behave, recover or decline, and can that be interpreted alongside policy decisions? That immediately made the project more interesting because it sat between data analysis, business behaviour and public policy.
+
+The first practical challenge was the data structure. The Facebook Business Activity Trends data did not come as one clean file. It came as **1,004 daily CSV files**, one for each day from 1 March 2020 to 29 November 2022. I had to use Python, mainly pandas and `glob`, to read those files and combine them into one dataset. After combining them, the dataset had about **2.4 million observations and 12 variables**.
+
+That was a useful experience because it forced me to think beyond “open one spreadsheet and analyse it.” I had to create a repeatable ingestion process. If the files were not read consistently, or if one file had an issue, the final analysis could become unreliable. So the first part of the project was really about building an analysis-ready dataset from many smaller files.
+
+After combining the files, I had to understand the grain of the data. This was important. The data was not individual business-level data. It was aggregated by country and business vertical. So, for example, I could look at activity for restaurants in Nigeria or grocery/convenience stores in the UK, but not an individual restaurant or business page. That shaped the whole analysis because I had to be careful about the level at which conclusions could be made.
+
+I then spent time understanding the two main activity measures: **activity quantile** and **activity percentage**. Activity percentage was easier to explain because it compared current weekly activity to baseline weekly activity. But it could be sensitive to highly active businesses. Activity quantile was more robust because it compared activity against the baseline distribution and reduced the effect of a small number of businesses posting a lot. So I chose to focus more on activity quantile.
+
+That decision was one of the most valuable parts of the project for me. It taught me that an analyst should not automatically choose the metric that is easiest to explain. The better question is: which metric is most appropriate for the decision or interpretation? In this case, activity quantile was more suitable because I wanted to compare patterns across countries and business sectors without letting highly active Facebook pages distort the picture.
+
+The next stage was data quality assessment. I checked which countries were present, how many dates were available, whether there were missing dates, whether the business verticals were consistent, and whether the regional fields were usable. The project found that the data was available at country level, but the region and subregion fields were empty. It also found 220 countries and that, overall, the dataset covered the full 1,004-day period, although not every business vertical was present for every country.
+
+That was important because I could not just assume the dataset had complete coverage across all sectors and locations. Some business verticals were underrepresented in certain countries, probably because there were not enough Facebook business pages in those cells. That affected what I could reasonably analyse. It also taught me to separate “missing because there was no activity” from “missing because the dataset did not capture that business vertical.” Those are different things.
+
+Because the full dataset was too broad, I narrowed the scope. I selected six countries: the United Kingdom, Brazil, Nigeria, New Zealand, Kyrgyzstan and Sweden. The idea was to cover different pandemic contexts and regions, while Sweden was useful because it had a more relaxed policy approach compared with many countries. I also focused on three business categories: **Grocery & Convenience Stores**, **Restaurants**, and **All businesses**.
+
+That scoping decision mattered because a common mistake in analysis is trying to cover everything and then saying nothing clearly. By narrowing the countries and business verticals, I could produce a more focused time-series comparison. Restaurants were interesting because they were heavily affected by restrictions, while grocery and convenience stores were more essential-service-adjacent and could behave differently.
+
+The second dataset, the Oxford COVID-19 Government Response Tracker, added another layer. I focused on containment and closure policies such as school closing, workplace closing, cancellation of public events, restrictions on gatherings, public transport closure, stay-at-home requirements, restrictions on internal movement and international travel controls.
+
+This was where the project became more than a time-series charting exercise. I was trying to see whether shifts in business activity appeared around the same periods as major policy changes. But I had to be cautious: just because business activity drops around the same time as a policy restriction does not prove the policy caused the drop. There could be other factors: public fear, economic conditions, seasonal effects, infection rates, business adaptation, online behaviour changes or reporting limitations.
+
+So my experience working on the project involved learning to say enough, but not too much. I could say:
+
+> “Business activity declined around this period, while restrictions were also increasing.”
+
+But I had to be careful not to say:
+
+> “This policy caused the decline.”
+
+That distinction is important in public-sector analytics as well. A good analyst must avoid overstating causation from observational data.
+
+The analysis itself involved time-series visualisation. I plotted activity quantile over time for the selected countries and business verticals. I looked for dips, recoveries, divergence between sectors, and differences between countries. For example, the project found that Brazil, Nigeria, New Zealand and Sweden had grocery/convenience and restaurant trends that generally followed the “All” business category more closely, while the UK showed more significant divergence at certain periods between 2020 and 2021. It also noted that Kyrgyzstan’s selected business verticals appeared to perform worse than the “All” category from early 2021 to November 2022.
+
+One challenge was making the visuals readable. With multiple countries, multiple sectors and a long time period, it is easy to make charts that are technically complete but difficult to interpret. I had to think about how to structure the plots so that trends could be compared without overwhelming the reader. That was good practice for insight work because a chart should not just display data; it should help someone see the pattern.
+
+Another thing I learned was that time-series data needs context. If I saw a dip in activity, I had to ask: is this a country-specific event, a global pattern, a seasonal pattern, a policy-related period, or a data artefact? The project noted that all selected countries showed significant dips in the “All” category around early January 2021 and early January 2022. That kind of repeated timing made me think carefully about whether this was policy, seasonality, pandemic waves, public behaviour or a combination.
+
+The policy integration was useful but also difficult. Government response data is structured, but policies do not affect businesses in a perfectly clean way. A workplace closure policy may affect restaurants differently from grocery stores. Stay-at-home requirements may affect physical business activity but possibly increase online posting. International travel controls may affect travel businesses more than local services. So I had to avoid treating all policies as equal.
+
+The project also made me more aware of metric interpretation. Activity quantile is powerful, but it does not mean “revenue.” It measures posting activity relative to baseline behaviour. A business posting less on Facebook may mean reduced activity, but it could also mean the business changed communication channels, had fewer announcements, or behaved differently online. So the metric is a proxy, not the underlying business outcome itself.
+
+That was an important analytical lesson. In many real-world roles, especially in public services, the available metric is often a proxy. Waiting times, referral counts, attendance rates, incident reports, website visits or service contacts do not always tell the full story. The analyst has to understand what the metric actually measures and what it does not measure.
+
+In terms of tools, I used Python and Jupyter notebooks, especially pandas and NumPy for data handling, and visualisation libraries for trend plots. The experience strengthened my ability to work with medium-to-large tabular data, combine files, filter by conditions, group by categories, create summaries, handle dates, and build visual comparisons.
+
+The project also improved my confidence in writing analytical explanations. It was not enough to produce a graph. I had to explain what the graph showed, what countries and sectors were being compared, why activity quantile was chosen, what limitations existed, and how policy context should be interpreted. That is close to the kind of written insight expected in analyst roles: not just “here is the chart,” but “here is what the chart means and how carefully it should be interpreted.”
+
+One thing I would say about the experience is that it taught me how important scope control is. The project could easily have become too broad. The dataset covered hundreds of countries, many sectors and nearly three years of daily data. The policy dataset also contained many indicators. Without scope control, the project would become a huge descriptive report with no clear argument. Selecting six countries and three business verticals gave the analysis enough breadth without losing focus.
+
+It also taught me how to work with public datasets where documentation matters. I had to read what the variables meant, how activity quantile and activity percentage were calculated, what the policy indices represented, and what the dataset could not tell me. That is directly relevant to any data role where definitions matter. A badly understood metric leads to a badly explained finding.
+
+For the NHS Data & Insights Analyst role, this project is not my strongest technical evidence compared with the thesis or platform, and it is not my strongest workplace evidence compared with South Western. But it is valuable because it shows a different skill: public-data insight. It shows that I can work with open datasets, policy context, time trends, group comparisons, metric definitions and limitations.
+
+It also connects to the role’s interest in understanding populations and potential inequalities. I would not claim this was population health analytics, because it was not health data. But the analytical pattern is similar: compare groups over time, understand context, choose appropriate measures, avoid misleading conclusions, and communicate findings clearly.
+
+The biggest lesson I took from the project is that analysis should help people understand a situation, not just calculate numbers. During COVID-19, businesses were affected by restrictions, consumer behaviour, public fear, economic disruption and sector-specific pressures. A good analysis has to respect that complexity. It should identify patterns, but not pretend the data explains everything.
+
+So if I were summarising my experience working on it, I would say:
+
+I worked through a public-data analysis project where I combined over 1,000 daily Facebook Business Activity Trends files into a 2.4 million-row dataset, assessed data coverage and missingness, selected activity quantile as the more robust metric, compared time-series trends across selected countries and business sectors, and interpreted those trends alongside government containment policy data. The experience developed my skills in Python, pandas, time-series analysis, data quality assessment, metric selection, visualisation and cautious interpretation. Most importantly, it taught me how to connect data patterns to a wider real-world context without overstating what the data can prove.
+
+---
+
+# Interview Evidence - University of Exeter Swing Dance Society
+
+## Question
+
+Alright, in 2500 words, can you tell me about your experience starting the University of Exeter Swing Dance Society?
+
+## Response
+
+I’ll answer as Eric in first person.
+
+Starting the University of Exeter Swing Dance Society was one of the most practical leadership and teamwork experiences I had during my MSc. It was not a paid role, and it was not a formal management position, but it taught me a lot about building something from almost nothing: finding people who cared, organising sessions, creating a welcoming environment, dealing with uncertainty, communicating clearly, and keeping momentum when there was no guarantee that people would keep showing up.
+
+I would describe my role as being part of the early committee that helped establish the society’s activity at the university. I would not want to exaggerate and say I single-handedly built everything myself, because that would not be true. A society works because several people contribute. But I was actively involved in helping turn the idea from “it would be nice to have a swing dance group” into something people could actually attend, understand and enjoy.
+
+The starting point was simple: there was interest in swing dance, but there was no strong, established structure around it at the university at that time. Swing dance is a social dance style, so it depends heavily on community. You cannot just create a page and expect the society to work. People need a reason to come, they need to feel comfortable as beginners, they need to understand what the session is, and they need to believe that the space is friendly enough to return to.
+
+The first challenge was that most people were beginners or curious rather than experienced dancers. That shaped everything. If we built the society around people who already knew what they were doing, it would become intimidating. But if we built it around total beginners, we needed to make the sessions accessible, structured and welcoming. That meant thinking carefully about the first impression people would have when they walked into the room.
+
+A lot of the early work was practical. We had to think about rooms, timing, committee roles, promotion, session structure, communication channels, music, attendance, and how to explain what swing dance was to people who had maybe never heard of it. It sounds simple from the outside, but when you are starting a society, even small things matter. If the room is hard to find, people may not come back. If the session starts awkwardly, beginners may feel embarrassed. If the communication is unclear, people may not know whether they need a partner, previous dance experience or special shoes. If the music or session plan is confusing, people may not enjoy it.
+
+One of the things I focused on was helping make the society feel beginner-friendly. A lot of students are willing to try something new, but they worry about looking foolish. Dance is especially sensitive because people may feel self-conscious. So the atmosphere mattered as much as the organisation. When new people arrived, we needed to welcome them, explain that no experience was needed, and make it clear that mistakes were normal. I learned that inclusion is not just a value you state; it is something you build into the way people experience the activity.
+
+For example, if someone came alone, we had to make sure they did not feel left out. Swing dance is partner-based, so people might assume they need to bring a partner. We had to communicate that they could come by themselves and still participate. During sessions, rotating partners or encouraging people to mix helped prevent cliques from forming and made the activity more social. That kind of detail mattered because a society can unintentionally become exclusionary if new people feel they are entering a closed group.
+
+Another part of the experience was communication. We had to explain the society clearly to potential members. That included simple things like telling people when and where sessions were, what to expect, and whether they needed prior experience. But it also included the tone of communication. If the messaging sounded too advanced, people might be put off. If it sounded too casual and unclear, people might not take it seriously. We needed to strike a balance: friendly, open and organised.
+
+In practice, that meant helping with messages, social communication, informal promotion, and explaining the purpose of the sessions to people who asked. I learned to communicate in a way that reduced uncertainty. For example, instead of just saying, “Come to swing dance,” it was better to say, “No partner or experience needed; we’ll go through the basics and it’s beginner-friendly.” That simple clarification could make the difference between someone deciding to attend or not.
+
+The committee side also taught me teamwork. When a society is starting, people naturally have different ideas about what it should become. Some may want more social events. Some may focus on lessons. Some may care more about music or performance. Some may think about admin and room booking. We had to work through those things without letting small disagreements slow everything down. I learned that early-stage organising requires flexibility because not everything will go according to plan.
+
+There were also practical constraints. We had to work around student schedules, university timetables, room availability and people’s energy. MSc life was already demanding, so I had to balance society involvement with coursework, deadlines, research and personal commitments. That meant being realistic about what I could take on. I could contribute, help organise and support sessions, but I also had to be disciplined about time. That experience helped me understand workload management in a non-academic setting.
+
+One of the more difficult parts of starting the society was building momentum. The first few sessions are important because they shape whether people see the society as worth returning to. If attendance is low, it can be discouraging. If attendance is high but the session is poorly managed, people may not come back. We had to think about how to make each session feel worthwhile, even if the group was still small.
+
+That meant paying attention to feedback, even informal feedback. If people seemed confused, we needed to simplify. If people enjoyed the social side, we needed to preserve that. If beginners struggled with a move, it was better to slow down than push ahead. If people were nervous, encouragement mattered. I learned that when you are organising something for people, your measure of success is not just whether the event happened; it is whether people felt able to participate.
+
+I also gained experience in taking initiative without needing formal authority. As a committee member, I was not a manager in the workplace sense. But when you are building a student society, you cannot always wait for someone else to solve every issue. If people need welcoming, you welcome them. If chairs need moving, you move them. If someone is unsure where to go, you help them. If a message needs clarifying, you suggest better wording. Small acts of ownership matter.
+
+One situation that captures the experience well was organising beginner sessions where people arrived with very different confidence levels. Some were excited and outgoing. Some were nervous and stood at the edge of the room. Some came with friends, while others came alone. The task was not only to run the session but to make the space feel safe enough for everyone to try. I helped by speaking to people, encouraging participation, explaining that mistakes were part of learning, and supporting a friendly atmosphere. That is a very human kind of leadership.
+
+What I learned from that is that communication is not just giving instructions. It is reading the room. If people look lost, you explain differently. If people are anxious, you reassure them. If the group energy drops, you adjust. If someone is dominating, you make space for others. That kind of awareness is useful in any role involving people.
+
+The experience also taught me about accessibility. Not everyone joins a society for the same reason. Some want to learn a skill. Some want social connection. Some want exercise. Some want a break from academic pressure. If the society only serves one type of person, it becomes narrow. We had to make the environment broad enough that different students could feel welcome. That meant being patient with beginners, respectful of different personalities, and conscious that people may have different comfort levels with dance and social interaction.
+
+From a values point of view, I think the society experience gave me a strong example of respect and inclusion. In a dance society, people are physically present, learning in front of others, and sometimes feeling exposed or awkward. The environment only works if people treat each other fairly and kindly. That meant encouraging respectful behaviour, making sure beginners were not embarrassed, and helping create a culture where people could learn without judgement.
+
+I also saw the importance of consistency. If people attend one good session but the next one is disorganised, they may lose confidence. A society needs rhythm: regular sessions, clear communication, predictable structure, and a sense that the organisers are reliable. That was a useful lesson because it connects to any service or reporting environment. People trust what is consistent. If you want people to engage, you need to create reliability.
+
+Another part of starting the society was learning how to work with limited resources. We were not a large organisation with staff, funding and established systems. We were students trying to create something. That meant using what was available: rooms, free or low-cost promotion, committee time, informal networks, enthusiasm, and member feedback. It taught me that improvement does not always require large resources. Sometimes it requires clarity, persistence and practical coordination.
+
+The experience also developed my confidence. Starting something publicly means accepting that it may not work immediately. People may not show up. A session may feel awkward. Promotion may not land. A plan may need changing. That can be uncomfortable, but it is also useful. It taught me to keep going, adjust, and not take every difficulty as failure.
+
+I also learned that a committee depends on shared responsibility. If one person carries everything, the society becomes fragile. We had to communicate as a group, divide tasks, follow up, and support each other. Sometimes that meant helping with things outside a formal role because the society needed it. That kind of teamwork is different from group coursework because the outcome is visible in the real world: either people attend and enjoy it, or they do not.
+
+In terms of my day-to-day involvement during that period, it varied. Some weeks might involve helping discuss session plans, supporting communication, attending sessions, welcoming people, helping with setup, or talking through what needed improving. Other weeks might be lighter because of academic deadlines. But the consistent thread was that I was part of making the society function as an actual student community rather than just an idea.
+
+One thing I would emphasise is that this experience was not technical, but it is still valuable. For the Data & Insights Analyst role, I would not use the Swing Dance Society to prove data analysis or modelling skills. That would be forced. I would use it for the people side: teamwork, communication, inclusion, initiative, supporting others, and building something useful for a community.
+
+Those are relevant because data roles are not only about tools. Analysts often need to work with colleagues who may be unfamiliar with the technical detail. They need to explain, listen, adapt, and make people comfortable engaging with information. My society experience helped me practise those softer but important skills in a real setting.
+
+For example, when helping beginners learn a dance, the principle is similar to explaining a technical finding to a non-technical person: you cannot just repeat the same explanation louder. You have to meet people where they are. You break things down, check understanding, use simple language, and create enough confidence for them to participate. That is directly relevant to communication.
+
+The society also gave me experience in encouraging participation. In a data role, if you want service managers or colleagues to use information properly, you need to understand their needs and make the output accessible. In the society, if we wanted people to keep coming back, we had to understand what made them comfortable and what created barriers. Different context, similar human principle.
+
+Another strong lesson was that starting something requires both enthusiasm and structure. Enthusiasm brings people in, but structure keeps things going. The society needed a friendly atmosphere, but it also needed practical planning: when sessions happen, who communicates, what beginners do first, how people are welcomed, how we respond if attendance changes. That combination of people focus and process focus is something I would bring into work.
+
+I would also say the experience gave me a better appreciation of community. During a master’s degree, people can feel isolated or overloaded. A society gives people a place to connect. Helping start that kind of space felt meaningful because it was not just about dance; it was about giving people a reason to come together, learn something and feel included.
+
+The main challenge was uncertainty. When you start a society, you do not know if people will care as much as you do. You have to promote it, explain it and make it easy to try. You also have to adapt if something does not work. That taught me resilience. It also taught me not to become too attached to the first version of an idea. If the goal is to build participation, you need to listen and adjust.
+
+If I were asked what the outcome was, I would say the outcome was that we helped establish a visible swing dance presence at the university, created beginner-friendly activity, and built a foundation for people to participate. I would avoid claiming unrealistic outcomes like building a huge organisation overnight. The real achievement was getting something started, making it welcoming, and helping it move from idea to functioning society activity.
+
+The experience also helped me personally. I became more comfortable speaking to unfamiliar people, encouraging others, working in a committee, dealing with ambiguity, and contributing to something outside my technical studies. It balanced my MSc because it gave me a very human, community-based experience alongside technical academic work.
+
+In summary, starting the University of Exeter Swing Dance Society taught me how to help build a small organisation from the ground up. I learned how to communicate clearly, welcome beginners, work with a committee, plan practical sessions, adapt to feedback, encourage inclusion, and keep momentum despite uncertainty. It was not a data role, but it strengthened the behaviours that matter in any service-focused organisation: teamwork, respect, communication, initiative, patience and reliability. For this application, I would use it as evidence that I can work with people, support inclusion, explain unfamiliar things clearly, and contribute to a positive team culture.
+
+---
+
+# Interview Evidence - University of Exeter Swing Dance Society Role and Day-to-Day
+
+## Question
+
+So how would you describe your role there? What's the day to day like?
+
+## Response
+
+I would describe my role as a **founding / early committee member** for the University of Exeter Swing Dance Society. I was not a paid instructor, and I would not present myself as the sole founder who did everything alone. The more accurate description is that I was part of the small group that helped turn the idea of a swing dance society into an actual student activity with sessions, communication, organisation and a welcoming environment.
+
+Because it was a student society, the “day-to-day” was not like a full-time job. It was more **week-to-week coordination** around making the society function. The work sat in three areas: organising sessions, helping people feel welcome, and supporting the committee so the society could keep momentum.
+
+A normal week would usually involve some combination of checking what needed to happen for the next session, confirming practical arrangements, helping communicate with members, attending the session, welcoming people, supporting the flow of the activity, and then discussing what needed improving afterwards. It was a very practical role. If something needed doing, you did it.
+
+The first part of the role was **organisation**. A society does not run just because people like the idea. Someone has to think about where the session will happen, what time works, how people will hear about it, what the session will look like, who is helping, whether beginners will understand what is going on, and whether the session feels structured enough for people to return. I was involved in those practical discussions and helped support the setup around sessions and activities.
+
+The second part was **communication**. Swing dance can sound intimidating to people who have never tried it. A lot of people assume they need previous dance experience, a partner, special shoes, or confidence. So part of the role was making the communication very clear: people could come as beginners, they did not need a partner, mistakes were normal, and the society was meant to be welcoming. That mattered because the success of the society depended on whether new people felt comfortable enough to try it.
+
+During sessions, my role was often about **welcoming and supporting people**, especially beginners. If someone walked in alone, I did not want them standing awkwardly at the side. I would help make the environment feel less intimidating: greeting people, explaining what was happening, encouraging them to join in, and helping them understand the basic flow of the session. In a dance society, inclusion is not theoretical. You can see immediately whether someone feels comfortable or excluded.
+
+Another practical part was helping the session run smoothly. That could mean helping set up the space, moving chairs or tables if needed, supporting the person leading the session, helping people rotate partners, explaining a simple step or instruction, or checking that nobody was being left out. It was not glamorous work, but it mattered. If a session feels disorganised, people do not come back.
+
+The role also required **teamwork with the committee**. We had to discuss what was working, what was not working, and what needed to change. For example, if beginners looked confused, we needed to simplify the session. If attendance was low, we needed to think about promotion or timing. If people enjoyed the social side, we needed to preserve that atmosphere. It was a small organisation, so feedback was immediate. You could tell from people’s faces whether something was landing.
+
+One thing I learned quickly is that starting a society requires both enthusiasm and structure. Enthusiasm gets people interested, but structure keeps them coming back. So the role involved helping create a rhythm: clear communication, beginner-friendly sessions, reliable organisation, and a sense that people knew what to expect.
+
+It also involved **problem-solving in small but real ways**. If a room arrangement did not work, we adjusted it. If people were nervous, we made the session more relaxed. If someone came without a partner, we reassured them that partner rotation was normal. If people were unsure about the next session, we made communication clearer. These are not dramatic problems, but they are the kinds of details that decide whether a student society grows or fades.
+
+I would also say the role developed my confidence with people. In technical work, I can sometimes work quietly through a problem. In the society, the work was social and visible. I had to speak to people I did not know, make beginners comfortable, explain unfamiliar things clearly, and help maintain a positive atmosphere. That helped me become better at adapting communication to the person in front of me.
+
+The day-to-day experience also included balancing the society with my MSc. I was studying Data Science with Artificial Intelligence at the same time, so I had coursework, deadlines and my research project. That meant I had to be realistic and organised. I could not take on everything, but I had to be reliable for the responsibilities I did take on. That taught me something about commitment: even voluntary work still affects other people if you fail to follow through.
+
+In terms of outcomes, I would describe the achievement carefully. I would not claim that I built a large society overnight. The real achievement was helping establish a visible swing dance activity at the university, supporting beginner-friendly sessions, and contributing to a welcoming student community. The society moved from an idea into something people could actually attend and participate in.
+
+The most important lesson I took from it was that building something for people requires empathy and practical organisation. You need to think about what people need, what might stop them participating, how to communicate clearly, and how to make the process easy enough for them to engage. That is why I see the experience as relevant beyond dancing. It strengthened my teamwork, communication, inclusion, initiative and ability to support people who are engaging with something unfamiliar.
+
+So, in one sentence, I would describe my role as:
+
+> I was an early committee member helping establish the University of Exeter Swing Dance Society by supporting session organisation, beginner engagement, communication, inclusion and the practical work needed to turn the society from an idea into a functioning student activity.
