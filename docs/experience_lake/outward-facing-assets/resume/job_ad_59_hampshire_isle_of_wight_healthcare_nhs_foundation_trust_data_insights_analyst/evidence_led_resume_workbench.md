@@ -363,7 +363,7 @@ The criteria we should not claim directly are:
 
 | Experience | Role / context | Dates |
 | --- | --- | --- |
-| **Five Guys** | Crew Member in a fast-paced customer-service and operations environment | **September 2023 – September 2024** |
+| **Five Guys** | Crew Member in a fast-paced customer-service and operations environment | **September 2024 – Present** |
 | **University of Exeter Swing Dance Society** | Voluntary committee member; helped pioneer/establish the society’s activity at the university | **January 2024 – July 2024** |
 | **Southwestern Oil and Gas** | Data Analyst | **July 2021 – August 2022** |
 
@@ -755,3 +755,286 @@ That is much more believable and much more concrete.
 [2]: https://swoilfield.com/services.php "South Western Technologies and Oilfield Service Limited - Services"
 [3]: https://fingertips.phe.org.uk/ "Fingertips | Department of Health and Social Care"
 [4]: https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/datasets/estimatesofthepopulationforenglandandwales "Dataset Estimates of the population for England and Wales"
+
+---
+
+# 1,000-Word Supporting Statement Structure Plan
+
+Yes. For a 1,000-word supporting statement, the plan should be **criteria-led**, not chronological.
+
+The role is asking for someone who can use data to improve patient care, outcomes and service delivery; work with clinicians, managers and stakeholders; analyse data from multiple sources; support performance monitoring, service improvement and planning; and translate complex information into clear insight for non-technical audiences.
+
+The attached JD then widens that into triangulating data from multiple sources, expert analysis for operational management, service improvement, contractual analysis, business planning and transformation, plus communication, data governance, modelling, cleansing, validation, visualisation, statistics, project work and teamwork.
+
+So the statement’s major argument should be:
+
+```text
+I have the formal data/statistical/AI training and operational data-analysis experience to turn complex data into reliable, validated, useful insight for decision-making, and I can communicate that insight clearly to non-technical users while working responsibly, accurately and with a service-improvement mindset.
+```
+
+Not:
+
+```text
+I am passionate about data.
+```
+
+And not:
+
+```text
+I have done the exact NHS role before.
+```
+
+The argument is transferability with substance.
+
+## 1,000-Word Structure Plan
+
+| Section | Word target | What it should do | Experience type to use | Weight |
+| --- | ---: | --- | --- | --- |
+| 1. Opening fit | 80-100 | Show why this role fits: data, insight, operational decisions, healthcare/service improvement | MSc + data analyst background | Light but clear |
+| 2. Technical/statistical foundation | 130-160 | Cover degree-level data/statistical qualification, numeracy, data literacy, AI/modelling, advanced statistics | MSc Data Science with AI + Engineering | Major |
+| 3. Main operational analytics example | 230-260 | Show real workplace analysis: reporting, messy operational data, data quality, process improvement, management information | Southwestern Oil & Gas data analyst role | Major |
+| 4. BI, data flows, automation and validation | 180-220 | Show Power BI/BI, data structures, automated or repeatable reporting, validation, documentation, reducing manual work | Platform/project + Southwestern | Major |
+| 5. Communication and non-technical translation | 140-170 | Show ability to explain data, adapt language, work with users/stakeholders, check understanding | Data analyst role + Five Guys/Swing Dance if needed | Medium |
+| 6. Values, service mindset, governance and closing | 130-160 | Cover CARE values, EDI, confidentiality, responsibility, NHS/public-service motivation, honest gap handling | Five Guys + society + data responsibility | Medium/light |
+
+Total: around **890-1,070 words**, depending on how much detail each example needs.
+
+## What We Should Major On
+
+### 1. Operational Data Analysis And Reporting
+
+This should be the centre of the statement.
+
+They want analysis that supports operational and strategic needs, trust-wide reporting, contract reporting, transformation and service improvement.
+
+So the strongest paragraph should not be about education alone. It should show a real situation where data was used to support operational decisions or reporting.
+
+This is where **Southwestern Oil & Gas Data Analyst** should probably be the main experience.
+
+### 2. BI Tools, Data Flows, Automation And Validation
+
+The person specification explicitly asks for BI tools such as Tableau, Power BI or Thoughtspot, and the duties mention implementing data flows and minimising manual processes through automated solutions.
+
+So we need a paragraph that shows:
+
+- BI/reporting;
+- data structures;
+- repeatable process;
+- validation;
+- reduction of manual work;
+- clear output.
+
+This can come from **Southwestern**, **a platform/project**, or both.
+
+### 3. Statistical And Modelling Judgement
+
+This role cares about statistical judgement because it says conclusions must be appropriate for **sample size and variation**, and the JD names regression, SPC/XmR charts, normal/special cause variation, predictive analytics and longitudinal analysis.
+
+So we need to show statistical understanding, but not overload the statement with technical methods.
+
+The win is to show:
+
+```text
+I understand that data can mislead if variation, sample size, assumptions and data quality are ignored.
+```
+
+This should come from the **MSc Data Science with AI**, plus one applied example.
+
+### 4. Technical-To-Non-Technical Communication
+
+The JD is very direct about this: the person must explain complex ideas clearly, check understanding, shape communication to the audience, translate technical concepts and present recommendations.
+
+So at least one paragraph must show Eric explaining data or process information to someone who is not a technical analyst.
+
+This can come from:
+
+- reporting to managers at Southwestern;
+- explaining a dashboard/project output;
+- Five Guys customer/team communication;
+- Swing Dance committee work.
+
+But the data-related communication should come first. Five Guys and Swing Dance should support the behaviour, not carry the technical argument.
+
+## What We Should Minor On
+
+### Five Guys
+
+Use it, but do not overuse it.
+
+Five Guys should support:
+
+- pressure;
+- accuracy;
+- service mindset;
+- following procedures;
+- teamwork;
+- accountability;
+- communication.
+
+It should not be used as the main data evidence.
+
+### Swing Dance Society
+
+Use this lightly for:
+
+- teamwork;
+- initiative;
+- inclusion;
+- communication;
+- helping establish something new;
+- making people feel welcome.
+
+It can support EDI/respect/communication, but it should not take a large part of the statement.
+
+### Direct NHS-Specific Areas
+
+We should be careful with:
+
+- direct clinician support;
+- FOI;
+- NHS contract reporting;
+- NHS Benchmarking Network returns;
+- direct population health analytics;
+- NHS Making Data Count.
+
+These are in the job, but unless we have direct experience, they should be handled through adjacent evidence and careful wording, not overclaiming.
+
+## Suggested Paragraph Plan
+
+### Paragraph 1 - Opening
+
+Purpose: position Eric immediately.
+
+Something like:
+
+```text
+I am applying because the role combines data analysis, BI reporting, statistical interpretation, process improvement and service-focused decision support. My background in Data Science with AI, engineering and operational data analysis has trained me to work with complex data, validate outputs and explain findings clearly.
+```
+
+Do not start with a life story.
+
+### Paragraph 2 - Formal Technical Foundation
+
+Use MSc Data Science with AI and BEng Mechanical Engineering.
+
+Cover:
+
+- degree-level mathematical/statistical background;
+- data literacy;
+- AI/modelling;
+- advanced analytical methods;
+- ability to understand variation, assumptions and model limitations.
+
+This satisfies the qualification, numeracy, statistics and AI side.
+
+### Paragraph 3 - Main Workplace Analytics Example
+
+Use Southwestern Oil & Gas.
+
+This should be the strongest paragraph.
+
+It should show a real operational data situation: reporting on service activity, equipment/job status, QHSE reporting, job close-out, or another concrete operational report.
+
+It should cover:
+
+- data from multiple sources;
+- cleaning/validation, but not only cleaning;
+- reporting for managers;
+- process improvement;
+- turning operational records into usable information;
+- explaining what the report showed.
+
+This paragraph carries the “I can do the job” weight.
+
+### Paragraph 4 - BI, Automation And Repeatable Reporting
+
+Use platform/project and/or Southwestern.
+
+Cover:
+
+- Power BI or BI-style reporting;
+- SQL/data structures;
+- automation or reduced manual work;
+- repeatable data flow;
+- validation checks;
+- documentation;
+- dashboard/reporting output.
+
+This directly answers the BI, data flow and manual-process parts.
+
+### Paragraph 5 - Communication, Teamwork And Service Users
+
+Use a mix of data analyst work, Five Guys and Swing Dance.
+
+But order it carefully:
+
+1. data communication first;
+2. frontline/service communication second;
+3. inclusion/teamwork third.
+
+This paragraph should show Eric can work with people, not just systems.
+
+### Paragraph 6 - Governance, Values And Close
+
+Close with:
+
+- responsible handling of data;
+- awareness that healthcare data affects real people;
+- commitment to confidentiality, EDI and CARE values;
+- honest note that he is moving into NHS healthcare analytics, but brings strong transferable data and service evidence.
+
+The Trust’s values are Compassion, Accountability, Respect and Excellence, and the JD links the role to honesty, confidentiality, non-discrimination and professional accountability.
+
+## The Whole Statement In One Sentence
+
+The full statement should make the panel think:
+
+```text
+This candidate may not be an NHS insider, but he has formal data/AI training, real operational data-analysis experience, BI/reporting and automation capability, statistical judgement, service-facing communication, and enough maturity to apply those skills responsibly in a healthcare environment.
+```
+
+That is the planned direction.
+
+---
+
+# Provisional Supporting Statement Draft
+
+It is **not too early for a first version**, but it is too early for a **final** version.
+
+We can draft a **provisional supporting statement** now using the role criteria and the current Eric profile. The final version should only come after we confirm the Southwestern Oil & Gas situations and choose the exact project/platform examples.
+
+Below is a **first draft**, around the 1,000-word direction, written for the Hampshire and Isle of Wight Healthcare NHS Foundation Trust Data & Insights Analyst role. It is based on the advert/JD requirements around data insight, BI tools, statistical judgement, data flows, automation, service improvement, non-technical communication, governance and CARE values.
+
+## Draft Supporting Statement
+
+I am applying for the Data & Insights Analyst role because it brings together the areas I have been building my experience around: data analysis, reporting, statistical thinking, process improvement, automation and communicating information clearly to people who need to make decisions. I recently completed an MSc in Data Science with Artificial Intelligence with Distinction, following a First Class BEng in Mechanical Engineering, and I have practical experience as a Data Analyst in an operational oil and gas services environment. I am particularly interested in this role because the work is not just about producing reports, but about turning data from different sources into reliable insight that supports service improvement, planning and better outcomes for people.
+
+My academic background gives me a strong foundation in numeracy, data literacy, modelling and analytical thinking. During my MSc, I worked with data science and AI methods including data preparation, feature selection, model development, evaluation and interpretation of model outputs. This helped me understand that analysis is only useful when the data, assumptions and limitations are properly understood. I am comfortable working with technical methods, but I am also aware that the purpose of analysis is not to make outputs look complex; it is to produce information that can be trusted and acted upon. My engineering background has also strengthened my ability to work logically with numerical evidence, technical constraints and structured problem-solving.
+
+My main workplace data experience comes from my Data Analyst role at Southwestern Oil and Gas, where I worked with operational records in a field-services environment. The company’s work involved service activity, equipment, crews, job status updates, client records and operational documentation, so the data was connected directly to whether work was progressing, delayed, completed or awaiting follow-up. One area I supported was operational reporting around service activity. This involved bringing together records such as job numbers, service type, location, planned and actual dates, assigned crew or equipment, job status and close-out notes. The purpose was to help managers see which jobs were completed, which were still in progress, which were delayed and what issues needed attention before planning meetings.
+
+That experience taught me that reporting is not just about summarising figures. For example, a job could appear as completed in one tracker while still missing a signed service report, equipment return confirmation or close-out documentation. If those differences were not checked, the report could give a misleading picture of what was actually ready for closure or further action. I used Excel-based checks and structured reporting tables to make the status clearer, highlight gaps, and make the information easier for operational colleagues to use. This is relevant to the Data & Insights Analyst role because the Trust is looking for someone who can work with data from multiple sources, understand whether it is fit for purpose, and provide clear information for operational and strategic needs.
+
+I also developed practical experience in improving reporting processes and reducing avoidable manual work. In an operational environment, repeated reporting can become time-consuming when people rely on separate spreadsheets, inconsistent labels or manual checks. I worked on making reporting outputs more consistent by standardising categories, checking totals against source records, and structuring workbooks so that recurring summaries could be updated more reliably. This included clearer status fields, validation checks and outputs that managers could review without needing to inspect the raw data line by line. This matches the part of the role focused on improving processes, supporting data flows for reporting requirements and minimising manual processes through automated or repeatable solutions.
+
+Alongside workplace reporting, I can bring BI and data visualisation experience from my data science training and project work. I have used tools such as Excel, SQL, Python and Power BI to clean, structure, analyse and present data. In dashboard work, I focus not only on the visual output but also on whether the figures can be traced back to source data, whether definitions are clear, and whether the user can understand the message without being misled. For this role, that is important because the JD places emphasis on visualising data in a way that is relevant to business goals, maps back to underlying raw data, and can be acted upon by end users.
+
+I understand the importance of statistical judgement in reporting. A figure can look meaningful simply because it has changed, but that does not always mean the change is significant or useful for decision-making. Through my MSc, I developed an understanding of modelling, variation, evaluation metrics and the limitations of analytical outputs. I would bring that same caution to healthcare reporting, where conclusions need to be appropriate for sample size, variation and context. I am also willing to develop further in NHS-specific approaches such as Making Data Count, SPC and XmR charts, because I understand why healthcare organisations need to distinguish normal variation from genuine change before making operational decisions.
+
+Communication is another strength I would bring to the role. In my Data Analyst role, the value of the work depended on whether managers and operational colleagues could understand the output and use it. I learned to explain what a report was showing, where the data needed caution, and what actions or follow-up were required. My current role as a Crew Member at Five Guys has also strengthened my communication and service discipline in a fast-paced environment. During busy shifts, accuracy, teamwork and clear communication matter because small mistakes can affect the customer experience and the wider team. This has reinforced the importance of staying calm under pressure, following procedures and supporting colleagues while keeping service standards high.
+
+I have also developed teamwork, initiative and inclusion through my voluntary committee role with the University of Exeter Swing Dance Society, where I helped support the growth of a new society activity. That involved working with others, helping create a welcoming environment for beginners, supporting session organisation and communicating with people who had different confidence levels. I see this as relevant to the Trust’s CARE values, particularly respect, compassion and working with others in a way that helps people feel included.
+
+I recognise that healthcare data carries particular responsibility because it affects patients, staff, clinicians and service decisions. I would approach this role with care around confidentiality, data protection, information quality and honest reporting of limitations. I do not currently claim direct NHS analyst experience, but I do bring formal data science training, operational reporting experience, BI and modelling skills, process-improvement awareness, and a strong service mindset. I would be motivated to apply those skills in a healthcare setting where accurate, well-explained insight can support frontline clinicians, improve services and contribute to better care.
+
+---
+
+---
+
+# Interview Evidence Context
+
+The Five Guys interview-style Q&A evidence has been moved to:
+
+interview_evidence_context.md
+
+This keeps the workbench focused while preserving the detailed raw context for later supporting statements and interviews.
