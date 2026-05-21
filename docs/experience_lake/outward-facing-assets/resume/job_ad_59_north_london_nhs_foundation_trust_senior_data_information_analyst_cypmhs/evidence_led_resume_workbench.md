@@ -471,6 +471,664 @@ The skeleton should look like the candidate profile we want to produce, not like
 
 ---
 
+# MSc Data Science Education Block
+
+This gives us the **University / MSc courses block** for the candidate profile.
+
+The modules taken were:
+
+- **COMM510 - Multi-Objective Optimisation and Decision Making**
+- **ECMM409 - Nature-Inspired Computation**
+- **ECMM422 - Machine Learning**
+- **ECMM426 - Computer Vision**
+- **ECMM443 - Introduction to Data Science**
+- **ECMM444 - Fundamentals of Data Science**
+- **ECMM445 - Learning from Data**
+- **ECMM447 - Social Networks and Text Analysis**
+- **ECMM451 - Data Science Research Project**
+- **Project Submission**
+
+The Exeter module page confirms these Computer Science/Data Science modules for 2023/24, including ECMM409, ECMM422, ECMM426, ECMM443, ECMM444, ECMM445, ECMM447, ECMM451 and COMM510. ([University of Exeter][exeter-modules])
+
+## MSc Data Science Block - First Profile Version
+
+## Education
+
+**MSc Data Science**  
+**University of Exeter**  
+**2023-2024**
+
+Relevant modules included:
+
+- **Introduction to Data Science**
+- **Fundamentals of Data Science**
+- **Learning from Data**
+- **Machine Learning**
+- **Social Networks and Text Analysis**
+- **Computer Vision**
+- **Nature-Inspired Computation**
+- **Multi-Objective Optimisation and Decision Making**
+- **Data Science Research Project**
+
+## What This Gives For The CYPMHS Analyst Role
+
+This gives strong evidence for:
+
+- postgraduate data science training;
+- Python-based data handling and analysis;
+- complex dataset exploration;
+- machine learning and statistical modelling foundations;
+- data visualisation;
+- research methods;
+- independent project delivery;
+- written reporting and presentation;
+- ethics and governance awareness;
+- decision-making and optimisation;
+- ability to learn technical material quickly.
+
+That matters because the North London role asks for large/complex dataset analysis, basic research techniques, spreadsheets/databases, data quality understanding, clear communication, presentation skills, health-system awareness, and the ability to produce clear outputs for non-technical audiences.
+
+## Strongest Modules For This Job
+
+## 1. ECMM443 - Introduction To Data Science
+
+This is highly relevant because it covered data handling, visualisation, machine learning, statistical modelling, social network analysis, text mining, ethics and governance. It also involved Python, practical exercises, group work, presentations and written communication. ([University of Exeter][ecmm443])
+
+**Use in profile:**
+
+This supports:
+
+- data science foundation;
+- Python;
+- data handling;
+- visualisation;
+- ethics/governance;
+- communication;
+- teamwork.
+
+This is useful for the job's requirement to explain complex information clearly and produce outputs for non-technical audiences.
+
+## 2. ECMM444 - Fundamentals Of Data Science
+
+This is also strong because it covered linear algebra, probability, Python for data analysis, computational methods, optimisation, large dataset processing, and the mathematical foundations behind machine learning and statistical modelling. ([University of Exeter][ecmm444])
+
+**Use in profile:**
+
+This supports:
+
+- numerical skills;
+- statistical/mathematical foundation;
+- Python;
+- data analysis procedures;
+- machine learning/statistical modelling foundation.
+
+This helps prove postgraduate-level statistical and computational training.
+
+## 3. ECMM445 - Learning From Data
+
+This is one of the strongest modules for the role. It focused on making sense of complex datasets, machine learning methods, real data, visualisation, classification, regression, clustering, dimensionality reduction, neural networks and Python/scientific analysis. ([University of Exeter][ecmm445])
+
+**Use in profile:**
+
+This supports:
+
+- complex dataset analysis;
+- supervised and unsupervised learning;
+- statistical pattern recognition;
+- Python;
+- visualisation;
+- model selection and trade-offs.
+
+For the NHS role, this is useful for showing that the candidate can interpret data patterns rather than just produce surface-level charts.
+
+## 4. ECMM451 - Data Science Research Project
+
+This is probably the most important education item because it is the independent project/dissertation module. Exeter describes it as a 60-credit independent research project involving problem formulation, literature review, planning, tool development, experimentation, analysis, presentation of results, and a dissertation-style final report. ([University of Exeter][ecmm451])
+
+**Use in profile:**
+
+This supports:
+
+- independent project delivery;
+- research methods;
+- tool development;
+- analysis and experimentation;
+- report writing;
+- presentation;
+- time management;
+- explaining work to a non-specialist audience.
+
+This can become one of the strongest blocks in the candidate profile, but only after the actual project title, tools, dataset and findings are known.
+
+## 5. COMM510 - Multi-Objective Optimisation And Decision Making
+
+This is relevant because the module covered trade-offs between competing objectives, decision-making from a set of possible solutions, software pipelines, research papers, statistical analysis of experimental results and communication of results. ([University of Exeter][comm510])
+
+**Use in profile:**
+
+This supports:
+
+- decision-making under trade-offs;
+- optimisation;
+- evaluating performance;
+- statistical analysis;
+- communicating technical results.
+
+This is useful for the job because the role involves supporting commissioning decisions, interpreting performance, and explaining evidence clearly.
+
+## 6. ECMM447 - Social Networks And Text Analysis
+
+This is useful but more specialised. It covered relational data, unstructured text, social network analysis, computational text analysis at scale, Python, notebooks, visualisation, a pitch-deck presentation and an individual mini-project. ([University of Exeter][ecmm447])
+
+**Use in profile:**
+
+This supports:
+
+- analysing complex datasets;
+- Python notebooks;
+- text analysis;
+- network analysis;
+- visualisation;
+- presentation.
+
+For the NHS role, this could help if the project involved written feedback, survey comments, social data, complaints, notes, or any unstructured text. If not, keep it as supporting technical breadth.
+
+## 7. ECMM422 - Machine Learning
+
+This supports the technical side because it covered statistical machine learning, classification, regression, clustering, PCA, neural networks, model evaluation, dataset balance and research projects. ([University of Exeter][ecmm422])
+
+**Use in profile:**
+
+This supports:
+
+- advanced data analysis;
+- statistical modelling;
+- model evaluation;
+- high-dimensional datasets;
+- research-based technical work.
+
+It is useful, but the supporting statement should not sound like an ML application unless the job asks for it. For this NHS role, translate it into **analytical judgement, complex data, model evaluation and evidence-based decision-making**.
+
+## 8. ECMM426 And ECMM409
+
+These are useful as technical depth but are less directly aligned to the CYPMHS BI role.
+
+**Computer Vision** supports Python implementation, statistical representations, algorithm selection, limitations and technical problem-solving. ([University of Exeter][ecmm426])
+
+**Nature-Inspired Computation** supports optimisation, pattern recognition, algorithm selection, software implementation and communicating technical material to non-specialists. ([University of Exeter][ecmm409])
+
+Do not overuse them in the final statement unless one of the actual assignments produced a strong evidence example.
+
+## How This Should Appear In The Candidate Profile
+
+Not as a long module list.
+
+Something like:
+
+```text
+MSc Data Science - University of Exeter
+The MSc provides postgraduate evidence in Python-based data analysis, machine learning, statistical modelling, data visualisation, ethics/governance, optimisation, research methods and independent project delivery. Relevant modules included Introduction to Data Science, Fundamentals of Data Science, Learning from Data, Machine Learning, Social Networks and Text Analysis, Multi-Objective Optimisation and Decision Making, and the 60-credit Data Science Research Project.
+```
+
+Then add:
+
+```text
+What this gives for the CYPMHS role: strong evidence for degree-level and postgraduate data training, numerical ability, complex dataset analysis, research methods, technical learning, written reporting and presentation. It supports the education and technical foundation, but it does not by itself prove NHS data experience, provider submissions, Power BI reporting or senior stakeholder reporting.
+```
+
+That last sentence is important. It keeps the profile honest.
+
+## What Is Needed Next For The University Block
+
+For the University block, collect only this:
+
+1. **MSc grade/classification** - Distinction, Merit, Pass, or pending.
+2. **Dissertation/project title.**
+3. **Dataset/domain used in the dissertation.**
+4. **Tools used** - Python, SQL, Excel, Power BI, etc.
+5. **One concrete finding or result.**
+6. **One limitation or challenge handled.**
+7. **Any module assignment that involved a report, presentation, dashboard, notebook, or group work.**
+
+Once this is known, the MSc section can become a proper candidate-profile block rather than a generic "I studied Data Science" section.
+
+[exeter-modules]: https://www.exeter.ac.uk/study/studyinformation/modules/?prog=compsci&year=2023%2F4
+[ecmm443]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=ECMM443&sys=1
+[ecmm444]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=ECMM444&sys=1
+[ecmm445]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=ECMM445&sys=1
+[ecmm451]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=ECMM451&sys=1
+[comm510]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=COMM510&sys=1
+[ecmm447]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=ECMM447&sys=1
+[ecmm422]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=ECMM422&sys=1
+[ecmm426]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=ECMM426&sys=1
+[ecmm409]: https://www.exeter.ac.uk/study/studyinformation/modules/info?ay=2023%2F4&moduleCode=ECMM409&sys=1
+
+---
+
+# MSc Distinction And Thesis Evidence
+
+**Distinction** changes the education block immediately. It lets us present the MSc as a strong foundation, not just "I studied Data Science."
+
+The Notion thesis page gives the thesis title as **"Multi-Task Learning for Driver Identification and Transport Mode Classification."** The page describes it as a multitask CNN/RNN model using smartphone sensor data to classify both transport mode and driver identity, with skills including machine learning, deep learning, PyTorch, multi-task learning, CNNs, RNNs, hyperparameter tuning and research.
+
+## First Rule: Keep The Thesis As It Is
+
+We should **not redo the thesis** or bend it into a health/NHS project.
+
+The thesis gives strong evidence for:
+
+- MSc Data Science at distinction level;
+- handling a very large dataset;
+- Python/PyTorch/deep learning;
+- preprocessing and feature engineering;
+- model design and evaluation;
+- independent research delivery;
+- written technical reporting;
+- explaining assumptions, limitations and trade-offs.
+
+From the Notion page, the project used the SHL Preview dataset, described as 227 hours of smartphone sensor data and **81,938,560 records**, then downsampled from 100Hz to 5Hz to reduce the working data to **4,096,928 records**. That is excellent evidence for complex data handling.
+
+But for this NHS role, the thesis does **not** directly prove:
+
+- NHS data experience;
+- Power BI reporting;
+- provider performance dashboards;
+- data quality assurance for submissions;
+- SPC charts;
+- senior stakeholder reporting.
+
+So the thesis is a strong **technical/research evidence block**, but it cannot carry the whole application.
+
+## MSc / Thesis Candidate Profile Block
+
+## Education
+
+**MSc Data Science - University of Exeter**  
+**Classification: Distinction**
+
+Relevant modules included machine learning, learning from data, fundamentals of data science, introduction to data science, social networks and text analysis, multi-objective optimisation and decision making, and the Data Science Research Project.
+
+## Thesis / Research Project
+
+**Project title:**  
+**Multi-Task Learning for Driver Identification and Transport Mode Classification**
+
+## What I Did
+
+For my MSc research project, I developed a multi-task deep learning model to classify both transport mode and driver identity using smartphone sensor data. The project used accelerometer, gyroscope and rotation-vector sensor data from the SHL dataset, with a focus on transforming raw high-frequency sensor readings into model-ready inputs.
+
+A major part of the work involved preprocessing. I downsampled high-frequency 100Hz data to 5Hz, reducing the working dataset from roughly 81.9 million relevant records to around 4.1 million records. I then created journey segments and sub-segments so the models could learn from meaningful time windows rather than treating a full day's movement as one continuous block.
+
+I used Python and PyTorch to build and test deep learning models, drawing on CNN, GRU, biLSTM and multi-task learning approaches. The project required me to make decisions about window length, feature representation, model inputs, class labels, sensor selection and evaluation. I also documented the research aim, dataset, preprocessing stages, model approach and limitations.
+
+## Why This Matters For The CYPMHS Role
+
+This gives evidence for:
+
+- postgraduate-level data science;
+- complex dataset handling;
+- Python technical ability;
+- research methods;
+- statistical and modelling judgement;
+- working with noisy real-world sensor data;
+- independent project delivery;
+- explaining technical methods in a structured report;
+- making design decisions under constraints.
+
+It is not NHS data, but it proves that I can take a large, messy dataset, design a processing approach, build analytical outputs and explain the reasoning clearly.
+
+## Important Boundary On Projects Under The MSc Umbrella
+
+There can be three categories:
+
+## 1. Actual MSc Thesis
+
+This is the real thesis. Use it exactly as it is.
+
+## 2. Actual MSc Coursework Or Module Projects
+
+If there was genuinely a dashboard, notebook, presentation, group project or report during a module, it can be called an MSc coursework/project example.
+
+## 3. New Claim-Bearing Slices After The MSc
+
+If something is built now, do **not** call it "a project I did during my MSc" unless it really was done then.
+
+Safe wording:
+
+```text
+Building on my MSc Data Science training, I completed a self-directed project using public NHS data...
+```
+
+or:
+
+```text
+After my MSc, I created a small Power BI and data-quality project to apply my data science skills to health-service reporting.
+```
+
+That is still strong. It is honest. It also shows initiative.
+
+## Best Two Project Slices For This NHS Role
+
+We do not need a massive project. We need one or two **claim-bearing slices** that support the missing evidence.
+
+## Slice 1 - CYPMHS / Mental Health BI Dashboard
+
+**Purpose:** prove Power BI, health data awareness, reporting, non-technical explanation.
+
+**What we would build:**
+
+- one Power BI dashboard page;
+- public NHS or synthetic provider-level mental health data;
+- referral volumes, waiting-time bands, activity trend, provider/locality view;
+- one simple data dictionary;
+- one Excel validation tab;
+- one-page findings note.
+
+**Claim it supports:**
+
+```text
+I completed a self-directed health-data BI project using public/synthetic NHS-style data, where I built a Power BI dashboard, validated headline figures and wrote a short findings note explaining trends, assumptions and limitations.
+```
+
+This would help cover the job's dashboard/reporting/narrative side.
+
+## Slice 2 - Provider Submission Quality And SPC Slice
+
+**Purpose:** prove data quality, validation, statistical process thinking.
+
+**What we would build:**
+
+- small synthetic provider submission table;
+- checks for missing provider code, duplicate referral ID, invalid dates, blank outcome, inconsistent status labels;
+- quality-issues summary by provider;
+- one SPC chart showing variation in a performance metric;
+- short note explaining which issues require provider clarification.
+
+**Claim it supports:**
+
+```text
+I built a small provider-submission quality-check workbook to practise identifying missing fields, inconsistent categories, invalid dates and month-on-month anomalies, then used an SPC chart to distinguish normal variation from signals requiring review.
+```
+
+This would help cover data quality and SPC without pretending to have handled real NHS provider submissions.
+
+## Where We Are Now In The Candidate Profile
+
+The University block is shaping like this:
+
+1. **MSc Data Science - Distinction**  
+   Strong education signal.
+
+2. **Thesis: Multi-task learning using smartphone sensor data**  
+   Strong evidence for complex data, Python, modelling, preprocessing, research and independent delivery.
+
+3. **Gap-aware note**  
+   Thesis is not NHS BI/reporting evidence.
+
+4. **Next action**  
+   Build one or two small health-data/reporting slices to support Power BI, NHS context, data quality and SPC claims honestly.
+
+This is the right balance. We do not distort the thesis. We let it prove what it genuinely proves, then use small additional projects to cover the job-specific gaps.
+
+---
+
+# Claim-Bearing NHS BI Project Plan
+
+We are **not** building projects for the sake of projects. We are building **claim-bearing evidence**: small, defensible pieces of work that make it possible to truthfully say something relevant in the supporting statement.
+
+For this role, the job is asking for dashboards, Power BI/BI tools, data quality assurance, SPC charts, performance/service improvement analysis, non-technical narratives, ad-hoc information requests, and improvement of reporting frameworks.
+
+The attached JD also says the role supports the Commissioning Hub with business intelligence reflecting pathway/provider performance, using dashboards, reports, data insights, data quality assurance and routine/ad-hoc information support.
+
+So the correct approach is **not** two big projects. It is **one anchor project with two small outputs**.
+
+## Best Project Choice
+
+## Anchor Project: CYPMHS Provider Performance BI And Data Quality Pack
+
+This should be one project, not two separate heavy builds.
+
+It would have:
+
+1. **A Power BI dashboard/reporting output**
+2. **A small data quality and SPC assurance output**
+3. **A one-page findings note written for a non-technical NHS/commissioning audience**
+
+That combination gives the strongest evidence for this job.
+
+## Why This Is The Best Fit
+
+The NHS England **Mental Health Services Monthly Statistics** publication is official statistics, published monthly, and provides a timely picture of people using NHS-funded secondary mental health, learning disability and autism services in England. It also has provider-level geographic granularity, which makes it suitable for a provider-performance BI project. ([NHS England Digital][nhs-mhsds])
+
+The March 2026 publication includes downloadable resources such as the main MHSDS data file, referral spells file, time-series selected measures, data coverage file, and the Data Quality VODIM and Integrity file. ([NHS England Digital][nhs-mhsds-mar-2026])
+
+That means we can use **real public NHS data**, not synthetic data, and still be honest:
+
+```text
+I used public NHS England MHSDS data.
+```
+
+Not:
+
+```text
+I worked with internal NHS provider submissions.
+```
+
+That distinction matters.
+
+## What The Project Would Be
+
+## Project Title
+
+**CYPMHS Provider Performance and Data Quality Dashboard**
+
+## Problem Being Solved
+
+A commissioning or provider-collaborative team needs to understand:
+
+- how children and young people's mental health activity is changing over time;
+- whether referral/contact/activity patterns differ across providers or regions;
+- whether any performance movement looks like normal variation or a signal requiring attention;
+- whether the data is complete and reliable enough to support reporting.
+
+This matches the role because the job is about using BI to support decision-making, performance management, service improvement, provider reporting and data quality assurance.
+
+## Output 1: Power BI Performance Dashboard
+
+## What It Should Show
+
+A small dashboard, not a massive report.
+
+Possible pages:
+
+### Page 1 - Executive Overview
+
+- selected month;
+- provider or region filter;
+- headline CYP mental health activity metric;
+- trend over time;
+- comparison against England or London;
+- short "what this means" note.
+
+### Page 2 - Provider / Pathway Performance
+
+- referrals or open referrals over time;
+- attended contacts over time;
+- provider comparison;
+- month-on-month change;
+- simple flags for unusual movement.
+
+### Page 3 - SPC / Variation View
+
+- one metric over time;
+- centre line;
+- upper/lower control limits;
+- highlighted points where movement may need review;
+- short caveat explaining that this is public aggregate data.
+
+No need to make it huge.
+
+## What This Lets You Claim
+
+A supporting-statement sentence could later say:
+
+```text
+I completed a self-directed Power BI project using public NHS England Mental Health Services Monthly Statistics data, building a small dashboard to show children and young people's mental health activity trends, provider comparisons and variation over time.
+```
+
+That is truthful, relevant and not over-detailed.
+
+## Output 2: Data Quality And Assurance Slice
+
+This is the part that makes the project stronger than "I made a dashboard."
+
+## What It Should Check
+
+Using the public MHSDS data coverage and data quality files, build a small Excel/Python/Power BI check that flags:
+
+- missing values;
+- suppressed or unavailable values;
+- duplicate rows;
+- unexpected provider/month gaps;
+- sudden month-on-month jumps;
+- numerator/denominator issues where relevant;
+- measures where interpretation needs a caveat.
+
+## Artefacts
+
+Keep it light:
+
+- one Excel validation workbook or Python notebook;
+- one "data quality issues" table;
+- one short data dictionary;
+- one-page note: "What I checked before using the data."
+
+## What This Lets You Claim
+
+A later statement sentence could say:
+
+```text
+I added validation checks before presenting the dashboard, including missing-value checks, month-on-month anomaly checks and a short data-quality note explaining where figures needed caveats before being interpreted.
+```
+
+That speaks directly to the role's data quality/assurance requirement without pretending to have handled internal patient or provider data.
+
+## Output 3: One-Page Non-Technical Findings Note
+
+This is important because the job wants clear narratives for non-technical audiences and outputs in Word/PowerPoint.
+
+The note should be one page only.
+
+## Structure
+
+**Title:** CYPMHS public-data dashboard: key messages and caveats
+
+**Sections:**
+
+1. What question I looked at
+2. What data I used
+3. What the dashboard shows
+4. One or two findings
+5. What needs caution
+6. What a service/commissioning team might ask next
+
+## What This Lets You Claim
+
+```text
+I wrote the findings as a short non-technical briefing, focusing on what the trend suggested, what assumptions sat behind it, and what questions a service manager or commissioning team might ask next.
+```
+
+That is exactly the Amelia-type surface-level claim: not a full report, but enough to prove communication and judgement.
+
+## What Codex Would Need To Build
+
+Give Codex this kind of brief:
+
+```text
+Build a small public-data BI project using NHS England Mental Health Services Monthly Statistics. Use the March 2026 publication resources, especially the selected time-series measures and data quality/coverage files. Produce a Power BI-ready cleaned dataset, a lightweight validation report, one SPC chart for a chosen CYP mental health metric, and a one-page findings note. The project should support a job-application evidence claim around Power BI reporting, provider/pathway performance, data quality checks, variation analysis and non-technical communication.
+```
+
+## Deliverables
+
+- `data/raw/` - downloaded NHS files
+- `data/processed/` - cleaned CSV for Power BI
+- `notebooks/` or `scripts/` - cleaning/validation/SPC logic
+- `outputs/data_quality_checks.csv`
+- `outputs/spc_metric.csv`
+- `docs/data_dictionary.md`
+- `docs/findings_note.md`
+- Power BI file or dashboard screenshots
+
+That is enough.
+
+## The Claim This Project Should Support
+
+The final supporting statement should **not** say:
+
+```text
+I downloaded X files, processed Y rows, created Z tables and calculated every metric.
+```
+
+It should say something like:
+
+```text
+To build health-sector reporting evidence, I completed a self-directed project using public NHS England mental health services data. I built a Power BI dashboard showing children and young people's mental health activity trends and provider comparisons, added validation checks to identify missing values and unusual month-on-month changes, and wrote a short non-technical findings note explaining the main trend, assumptions and limitations.
+```
+
+That is the level we want.
+
+It is concrete, but not a report.
+
+## Why Not Other Projects First
+
+## Not A Machine Learning Project
+
+The MSc thesis already proves machine learning and complex data handling. Another ML project would not help this application much.
+
+## Not A General NHS Dashboard
+
+Too broad. This role is about **CYPMHS / provider collaborative / commissioning BI**, so the project should stay close to children and young people's mental health, provider performance, and data quality.
+
+## Not A Huge Synthetic Provider System
+
+Too much work, less credible. Real public NHS data is better.
+
+## Not A Long Written Report
+
+The statement needs evidence of communication, not a full academic paper. A one-page findings note is enough.
+
+## Recommendation
+
+Do **one anchor project**:
+
+```text
+CYPMHS Provider Performance and Data Quality Dashboard
+```
+
+With three small outputs:
+
+1. Power BI dashboard
+2. Data quality/SPC check
+3. One-page non-technical findings note
+
+That single project gives claims for:
+
+- Power BI;
+- NHS public data;
+- children and young people's mental health context;
+- provider/performance reporting;
+- data quality checks;
+- SPC/variation analysis;
+- non-technical communication;
+- service-improvement thinking.
+
+That is stronger than doing two unrelated projects.
+
+[nhs-mhsds]: https://digital.nhs.uk/data-and-information/publications/statistical/mental-health-services-monthly-statistics
+[nhs-mhsds-mar-2026]: https://digital.nhs.uk/data-and-information/publications/statistical/mental-health-services-monthly-statistics/performance-march-2026
+
+---
+
 # Five Guys Evidence Boundary
 
 The earlier scenario mapping stretched the Five Guys evidence too far.
