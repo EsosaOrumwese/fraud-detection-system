@@ -30,7 +30,7 @@ https://ddat-capability-framework.service.gov.uk/
 Use that framework only as a capability reference when building an evidence profile. It should not override the conversation below, and it should not be copied mechanically into a statement.
 
 ## Conversation Transcript
-prompt: All right, one of the major problems that I had back in school or at university was English, especially when it comes to writing letters and statements like this. Considering that we are trying to apply for Civil Service jobs, and we are trying to understand what the sift panel is looking for, especially with regard to each specific job, the essentials and the desirables, I think it is best for me to see how one is written. I am going to pass a job that I am not qualified for, so that you will not assume that I am trying to use you to write a supporting statement for a job. This job is not one I am qualified for, and I do not plan on applying for it. However, I want to see how a supporting statement is written in a way that answers the points they expect. I would want you to come up with the experience of whichever individual you can think of, because I believe it involves giving examples and demonstrating experience. Before we approach it, I would want to see the CV or profile of the person you are working with, so that it can be concrete: maybe a made-up company, but a concrete made-up company with concrete examples and situations. Then, when that is approved, I can see how you approach writing the supporting statement for this job, considering that he or she maybe meets a significant portion of the essentials as well as some of the desirables. Do you understand what I am saying? Remember, I am not using you to write something I am going to submit. I want to see how supporting statements are written, how examples are used, how someone concretises their experience, what it means to demonstrate evidence, and what it means to use the STAR method when writing essays like this, especially how to win over the sift panel for Civil Service-style applications.
+<mark>prompt:</mark> All right, one of the major problems that I had back in school or at university was English, especially when it comes to writing letters and statements like this. Considering that we are trying to apply for Civil Service jobs, and we are trying to understand what the sift panel is looking for, especially with regard to each specific job, the essentials and the desirables, I think it is best for me to see how one is written. I am going to pass a job that I am not qualified for, so that you will not assume that I am trying to use you to write a supporting statement for a job. This job is not one I am qualified for, and I do not plan on applying for it. However, I want to see how a supporting statement is written in a way that answers the points they expect. I would want you to come up with the experience of whichever individual you can think of, because I believe it involves giving examples and demonstrating experience. Before we approach it, I would want to see the CV or profile of the person you are working with, so that it can be concrete: maybe a made-up company, but a concrete made-up company with concrete examples and situations. Then, when that is approved, I can see how you approach writing the supporting statement for this job, considering that he or she maybe meets a significant portion of the essentials as well as some of the desirables. Do you understand what I am saying? Remember, I am not using you to write something I am going to submit. I want to see how supporting statements are written, how examples are used, how someone concretises their experience, what it means to demonstrate evidence, and what it means to use the STAR method when writing essays like this, especially how to win over the sift panel for Civil Service-style applications.
 Below is the job ad:
 
 ```
@@ -106,7 +106,7 @@ Supporting documentsPrivacy noticeBetsi Cadwaladr University Health Board's priv
 ```
 
 --------------------
-response start
+<mark>response start</mark>
 --------------------
 
 Yes — I understand exactly.
@@ -421,14 +421,14 @@ For this job, the strongest version of the candidate is not “I am good at data
 That is the profile I would use for the example supporting statement.
 
 --------------------
-response end
+<mark>response end</mark>
 --------------------
 
-prompt: Well, let's downgrade Amelia to someone closer to my level, because giving her a current role as a Senior Information Analyst would make it difficult to understand exactly how to approach applications like this. She can be a barista at Starbucks or something similar: a recent graduate, but someone who did well at university. However, she should still be good enough to meet some of the criteria needed to get an interview by maximising her past experience, whether from university, societies, projects, work, part-time roles, etc.
+<mark>prompt:</mark> Well, let's downgrade Amelia to someone closer to my level, because giving her a current role as a Senior Information Analyst would make it difficult to understand exactly how to approach applications like this. She can be a barista at Starbucks or something similar: a recent graduate, but someone who did well at university. However, she should still be good enough to meet some of the criteria needed to get an interview by maximising her past experience, whether from university, societies, projects, work, part-time roles, etc.
 
 
 --------------------
-response start
+<mark>response start</mark>
 --------------------
 Yes — that is the better learning setup.
 
@@ -784,13 +784,13 @@ The strongest angle for her would be:
 That is the kind of evidence base we can later turn into a supporting statement.
 
 --------------------
-response end
+<mark>response end</mark>
 --------------------
 
-prompt: Before we go into seeing the supporting statement, is there generally a word count or limit? I have heard that this is important, as there usually is one.
+<mark>prompt:</mark> Before we go into seeing the supporting statement, is there generally a word count or limit? I have heard that this is important, as there usually is one.
 
 --------------------
-response start
+<mark>response start</mark>
 --------------------
 
 Yes — there usually **is** a limit, and it matters.
@@ -818,13 +818,13 @@ For this Band 6 Specialist Information Analyst example, because the person spec 
 [2]: https://faq.nhsbsa.nhs.uk/knowledgebase/article/KA-26342/en-us?utm_source=chatgpt.com "Applicant - Is there a character count when applying for a job ..."
 
 --------------------
-response end
+<mark>response end</mark>
 --------------------
 
-prompt: Let's aim for a 1,500-word limit, or about 1,000 to 1,300 words. What is Amelia's plan for this statement going to be, given the JD, person specification, Civil Service competencies, behaviours and values being assessed together? I know it is an NHS role, but let's kind of make it Civil Service compliant as well, as I have been told to also apply for jobs there and that their panel is strict when it comes to marking, sifting or judging.
+<mark>prompt:</mark> Let's aim for a 1,500-word limit, or about 1,000 to 1,300 words. What is Amelia's plan for this statement going to be, given the JD, person specification, Civil Service competencies, behaviours and values being assessed together? I know it is an NHS role, but let's kind of make it Civil Service compliant as well, as I have been told to also apply for jobs there and that their panel is strict when it comes to marking, sifting or judging.
 
 --------------------
-response start
+<mark>response start</mark>
 --------------------
 
 Yes. For Amelia, the plan should be **strict but realistic**.
@@ -1194,13 +1194,13 @@ That is how you write for a sift panel. The panel is not reading for a beautiful
 [3]: https://bcuhb.nhs.wales/homepage-block/our-values/ "Our Values - Betsi Cadwaladr University Health Board"
 
 --------------------
-response end
+<mark>response end</mark>
 --------------------
 
-prompt: Let's see the statement now
+<mark>prompt:</mark> Let's see the statement now
 
 --------------------
-response start
+<mark>response start</mark>
 --------------------
 
 Below is a **fictional supporting statement** for Amelia, written against the attached Specialist Information Analyst advert. The advert is asking for mental health data analysis/reporting, dashboards, SQL, statistical techniques, data quality, EHR readiness, Microsoft Office/Power BI/Access, data protection/FOI awareness, communication, prioritisation and confidence presenting challenging information. 
@@ -1230,13 +1230,13 @@ I have some awareness of national health datasets, NHS information standards and
 I would bring a logical, analytical and service-focused approach to this role. My motivation is not only to produce reports, but to help services understand what their data is saying, where quality issues may affect decisions, and where information can support improvement. I am comfortable working with numbers and people, and I understand that mental health reporting must be accurate, timely and meaningful because it affects operational delivery, service planning and decisions about care. I would bring strong statistical training, practical dashboard experience, careful data-quality habits, clear communication and a commitment to developing quickly within the Health Board. I would also aim to reflect the values expected in NHS work by being respectful, open, inclusive, accurate and responsible when handling sensitive information and working with colleagues.
 
 --------------------
-response end
+<mark>response end</mark>
 --------------------
 
-prompt: All right, I am looking at what you have given me, or rather this supporting statement. What can you notice, or rather what are the lessons that we have learned, so that as we move into writing my own supporting statement, or walking through it together, we ensure that we land at something similar? Not similar sounding, but something grounded. I think that is the right word, because as I read through it, it feels grounded. It does not feel generic. It feels like this belongs to Amelia. It feels like something that answers the personal statement question as well as the job ad. This is what I would call impressive. So what are the lessons we have learned? From my point of view, the first thing I noticed is the importance of reading the job ad to identify the person specification, the criteria, the essential criteria, the desirable criteria, and the behaviours, values and framework being assessed. Then the next step is building a candidate profile from one's existing experience: project experience, work experience, internships, societies, and anything else we can draw from. This is important because it grounds the personal statement and stops it from looking polished or generic. When I read through Amelia's candidate profile, what was impressive was not just the experience she had, but how real it was and what she could claim. For example, with the Starbucks evidence, we said that a better applicant would use it carefully for behaviours, not technical claims. Then we brought in a concrete situation where, during morning shifts, Amelia noticed that stock shortages were happening most often on Mondays and Fridays and helped the shift supervisor keep track of it. That is essential. Building a concrete candidate profile, with concrete project evidence and a skills profile, then mapping it, is an important step. Once that is done, we look at what we can argue and where we can position ourselves well. Then we ask: what is the hiring panel looking for? What will they be arguing against? What will they see? What kind of argument are we giving to impress the hiring panel, even if it is a stretch candidate? After that, we move into the structure for the application, the word plan, and how we present information in the way they are looking for, especially through the STAR method: situation, task, action and result. All of that was already considered in the candidate profile, so it becomes easier to bring it together before reaching the final response. I think this is what makes it substantive. What about you? Looking back at what we have done, what have you noticed?
+<mark>prompt:</mark> All right, I am looking at what you have given me, or rather this supporting statement. What can you notice, or rather what are the lessons that we have learned, so that as we move into writing my own supporting statement, or walking through it together, we ensure that we land at something similar? Not similar sounding, but something grounded. I think that is the right word, because as I read through it, it feels grounded. It does not feel generic. It feels like this belongs to Amelia. It feels like something that answers the personal statement question as well as the job ad. This is what I would call impressive. So what are the lessons we have learned? From my point of view, the first thing I noticed is the importance of reading the job ad to identify the person specification, the criteria, the essential criteria, the desirable criteria, and the behaviours, values and framework being assessed. Then the next step is building a candidate profile from one's existing experience: project experience, work experience, internships, societies, and anything else we can draw from. This is important because it grounds the personal statement and stops it from looking polished or generic. When I read through Amelia's candidate profile, what was impressive was not just the experience she had, but how real it was and what she could claim. For example, with the Starbucks evidence, we said that a better applicant would use it carefully for behaviours, not technical claims. Then we brought in a concrete situation where, during morning shifts, Amelia noticed that stock shortages were happening most often on Mondays and Fridays and helped the shift supervisor keep track of it. That is essential. Building a concrete candidate profile, with concrete project evidence and a skills profile, then mapping it, is an important step. Once that is done, we look at what we can argue and where we can position ourselves well. Then we ask: what is the hiring panel looking for? What will they be arguing against? What will they see? What kind of argument are we giving to impress the hiring panel, even if it is a stretch candidate? After that, we move into the structure for the application, the word plan, and how we present information in the way they are looking for, especially through the STAR method: situation, task, action and result. All of that was already considered in the candidate profile, so it becomes easier to bring it together before reaching the final response. I think this is what makes it substantive. What about you? Looking back at what we have done, what have you noticed?
 
 --------------------
-response start
+<mark>response start</mark>
 --------------------
 
 Yes — you have understood the method very well. The main lesson is:
@@ -1545,13 +1545,13 @@ The most important takeaway is this:
 [1]: https://www.civil-service-careers.gov.uk/a-guide-to-civil-service-success-profiles/?utm_source=chatgpt.com "A guide to Civil Service Success Profiles"
 
 --------------------
-response end
+<mark>response end</mark>
 --------------------
 
-prompt: One other thing I noticed, or would like to add, is that when coming up with our candidate profile, there is a saying that honesty is not always the best policy, but this is not a case of lying. What I mean is that, given an environment, we can come up with situations that the environment naturally supports. For example, the concrete example we gave for Amelia working at Starbucks, where she noticed stock shortages and came up with a solution, is believable because she works in Starbucks. It is concrete. It is something that could have happened. Unlike if we said that she met with the CEO of Starbucks and led a business pitch to the company leadership that increased sales by 50%. That would not be believable. Another example is with a master's degree. We can come up with projects that are believable because we did a master's. Maybe in reality I have not done a health project, health analysis, or a dashboard relating to health cases or the job I am looking for. However, if there is data out there, and we can quickly come up with a project idea and see what kind of result we are looking for, then it is easier. We can work on those projects, just as Amelia built a Power BI dashboard and a project on mental health. We can create that kind of concrete and realistic situation. The reason it is not a lie is that if, in an interview, we are asked what our findings were or how we went about it, before the interview we can pull up the data we found and actually produce the dashboards, results and reporting. On the day of the interview, we can present this if asked. Another thing about personal statements is that they are not looking for the full details, unlike a report. They are not asking for the report or for all the findings. They are asking what kind of findings you had, how you shared them, who you shared them with, and similar points. They are not asking for the full detail of how we analysed or assessed everything. That is a report, and that is not what they are looking for. So that is something else I learned: we should not limit ourselves. We should make use of our experiences to come up with situations we can talk about. Even with our South Western experience, we can draw from that. When it comes to leadership, we can look at the MSc, the master's, societies such as swimming or dance, and come up with believable experiences. Let us not limit ourselves to what we think we know. That is another important lesson I learned from how this work has gone so far.
+<mark>prompt:</mark> One other thing I noticed, or would like to add, is that when coming up with our candidate profile, there is a saying that honesty is not always the best policy, but this is not a case of lying. What I mean is that, given an environment, we can come up with situations that the environment naturally supports. For example, the concrete example we gave for Amelia working at Starbucks, where she noticed stock shortages and came up with a solution, is believable because she works in Starbucks. It is concrete. It is something that could have happened. Unlike if we said that she met with the CEO of Starbucks and led a business pitch to the company leadership that increased sales by 50%. That would not be believable. Another example is with a master's degree. We can come up with projects that are believable because we did a master's. Maybe in reality I have not done a health project, health analysis, or a dashboard relating to health cases or the job I am looking for. However, if there is data out there, and we can quickly come up with a project idea and see what kind of result we are looking for, then it is easier. We can work on those projects, just as Amelia built a Power BI dashboard and a project on mental health. We can create that kind of concrete and realistic situation. The reason it is not a lie is that if, in an interview, we are asked what our findings were or how we went about it, before the interview we can pull up the data we found and actually produce the dashboards, results and reporting. On the day of the interview, we can present this if asked. Another thing about personal statements is that they are not looking for the full details, unlike a report. They are not asking for the report or for all the findings. They are asking what kind of findings you had, how you shared them, who you shared them with, and similar points. They are not asking for the full detail of how we analysed or assessed everything. That is a report, and that is not what they are looking for. So that is something else I learned: we should not limit ourselves. We should make use of our experiences to come up with situations we can talk about. Even with our South Western experience, we can draw from that. When it comes to leadership, we can look at the MSc, the master's, societies such as swimming or dance, and come up with believable experiences. Let us not limit ourselves to what we think we know. That is another important lesson I learned from how this work has gone so far.
 
 --------------------
-response start
+<mark>response start</mark>
 --------------------
 
 Yes — that is a very important lesson, but I would sharpen it slightly.
@@ -1755,13 +1755,13 @@ Then they present it honestly, concretely and strategically against the person s
 That is why Amelia worked. Not because she had the perfect job title, but because her evidence was believable, concrete and mapped to what the panel was scoring.
 
 --------------------
-response end
+<mark>response end</mark>
 --------------------
 
-prompt: All right, looking back at not making stuff up, I would say that perhaps the safest angle would be working back to slices. For example, in the case of Amelia, where she had a mental health project and a dashboard with specifics and results, we could quickly do the project, even if it is not something where we definitely already had a Power BI project. We could quickly get data and come up with something, even if it means assessing what kind of views we could have, or building a small slice that we can draw from. It does not have to be a full-blown project, but at least something small that will hold the weight of the claims we are making. That way, we are not making something up. We actually build something fast enough to hold the claim, while avoiding the temptation to turn the statement into a report on what we have read. That is a different thing. We do not want to report; we want to support the statements we make with the evidence we have.
+<mark>prompt:</mark> All right, looking back at not making stuff up, I would say that perhaps the safest angle would be working back to slices. For example, in the case of Amelia, where she had a mental health project and a dashboard with specifics and results, we could quickly do the project, even if it is not something where we definitely already had a Power BI project. We could quickly get data and come up with something, even if it means assessing what kind of views we could have, or building a small slice that we can draw from. It does not have to be a full-blown project, but at least something small that will hold the weight of the claims we are making. That way, we are not making something up. We actually build something fast enough to hold the claim, while avoiding the temptation to turn the statement into a report on what we have read. That is a different thing. We do not want to report; we want to support the statements we make with the evidence we have.
 
 --------------------
-response start
+<mark>response start</mark>
 --------------------
 
 Yes — that is exactly the safe, mature version of the idea.
@@ -1890,7 +1890,7 @@ And yes — this is exactly how we should approach your own applications: criter
 
 
 --------------------
-response end
+<mark>response end</mark>
 --------------------
 ## How To Use This In Future
 
