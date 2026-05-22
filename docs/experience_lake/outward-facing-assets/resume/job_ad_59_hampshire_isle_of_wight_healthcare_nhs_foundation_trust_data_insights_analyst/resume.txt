@@ -1,70 +1,93 @@
-Esosa Orumwese
-Data & Insights Analyst | Operational Reporting, Data Quality & Statistical Insight | SQL, Power BI & Python
-Exeter, UK | +44 xxxxx xxxxxx | xxxxx.xxxxxxx@xxxxx.xxx | LinkedIn | GitHub
+## Relevant Experience
 
-PROFESSIONAL SUMMARY
+### Data Analyst
 
-Data & Insights Analyst with experience using SQL, Power BI, Python and Excel to build reporting datasets, validate source data, investigate metric movement and produce clear operational insight. Built BI reports, reconciliation checks, variance summaries and automated reporting workflows across large transactional, operational and behavioural datasets. Strong MSc Data Science with Artificial Intelligence background, with experience translating complex analysis into practical findings for non-technical review.
+**South Western Technologies & Oilfield Services Ltd** — Nigeria
+**July 2021 – August 2022**
 
-TECHNICAL SKILLS
+Supported operational reporting and data analysis for an oilfield services company, working with job activity records, equipment status, crew/man-hour records, QHSE submissions, service reports and close-out documentation. Produced management information to help operations, QHSE, equipment and admin teams understand job status, delays, documentation gaps and follow-up actions.
 
-BI & Reporting: Power BI, Looker, KPI dashboards, recurring reports, dashboard commentary
-Data & Analytics: SQL, Google BigQuery, Python, Pandas, NumPy, Excel, reporting tables
-Data Quality: validation checks, reconciliation, missing/duplicate checks, source-to-report checks, data dictionaries
-Statistical Insight: variance analysis, baseline comparison, model evaluation, trend analysis, sample-size and limitation notes
-Process Improvement: automated reporting workflows, VBA refresh macros, exception flags, reporting procedure documentation
+* Maintained weekly operations and close-out reporting using structured Excel workbooks, lookup formulas, pivot tables, filters, conditional formatting and validation checks.
+* Consolidated records from job trackers, service activity reports, equipment mobilisation/return notes, crew/man-hour sheets, QHSE records and close-out documentation.
+* Identified cases where jobs were marked “completed” but still lacked signed service reports, equipment return confirmation, man-hour records or close-out status.
+* Built exception lists showing active jobs, delayed jobs, field-completed jobs, jobs awaiting documentation, jobs awaiting equipment confirmation and jobs ready for close-out.
+* Standardised service-line names, status categories and delay reasons so recurring reports grouped information consistently and reduced repeated manual checking.
+* Applied statistical techniques to QHSE and operational activity reporting, including rates per 1,000 man-hours, descriptive statistics, median/mean comparison, standard deviation, trend analysis, outlier checks, Pareto-style breakdowns and data-completeness checks.
+* Separated true zero values from missing submissions to avoid misleading conclusions in QHSE and operational reporting.
+* Communicated reporting exceptions to operations, equipment, QHSE and admin colleagues in practical, non-blaming language, clarifying whether issues related to documentation, equipment, client approval, logistics or internal follow-up.
+* Produced reporting outputs that helped managers see what was active, delayed, blocked, completed or requiring follow-up before planning and close-out discussions.
+* Developed strong habits around data quality, source checking, definitions, process understanding and presenting uncertainty clearly.
 
-RELEVANT EXPERIENCE
+---
 
-Data Analyst
-Operational Insight, Reporting & Data Quality Platform (Independent Production Build) - Exeter, UK | May 2025 - Present
-Built a SQL/BigQuery, Python, Power BI and Looker reporting platform for turning large operational, transaction and activity datasets into validated reporting tables, KPI dashboards, variance summaries, data-quality checks and stakeholder-ready insight outputs across a 2.35B-row data surface.
+### MSc Data Science with Artificial Intelligence / Applied Data & AI Projects
 
-- Built BigQuery reporting tables across 2.35B activity, transaction and behavioural records, turning raw source data into reusable KPI tables for recurring Power BI and Looker reporting.
-- Developed Power BI and Looker dashboard views showing activity movement, exception volume, segment change and report-quality flags, giving reviewers a clearer view of where performance changed.
-- Investigated a 19% response-rate movement in BigQuery, separating activity-volume, segment-mix, response-pattern and source-table quality drivers before reporting the change.
-- Added validation checks across BigQuery source tables and Power BI/Looker reports, reducing reporting errors by 38% before recurring report release.
-- Built reusable reporting workflows with versioned configs, validation gates, freshness checks and score-stability reports across repeated scoring and reporting runs.
-- Produced stakeholder-ready insight notes explaining metric movement, data-quality caveats, threshold trade-offs and practical follow-up questions for non-technical review.
+**University of Exeter**
+**September 2023 – September 2024**
 
-Crew Member
-Five Guys - Exeter, UK | Sep 2024 - Present
-Frontline service role in a fast-paced food retail environment requiring accuracy, communication, procedure-following and prioritisation during busy service periods.
+Completed a Distinction-level MSc in Data Science with Artificial Intelligence, developing technical skills in Python, data preprocessing, statistical modelling, machine learning, optimisation, visualisation, model evaluation and research delivery. Completed applied projects covering deep learning, public-data analysis, business insight, dashboards, AI implementation and production-shaped data systems.
 
-- Worked in a high-volume customer-service environment handling order accuracy, payment handoffs, food-safety procedures and service flow during peak trading periods.
-- Followed till, food-safety, stock, cleaning and close-down procedures while maintaining accuracy and clear communication under time pressure.
-- Built practical service-operations context around queue pressure, order fulfilment, customer issues and transaction flow, supporting understanding of how frontline service quality is affected by process discipline.
+* Completed MSc Data Science with Artificial Intelligence with Distinction, building formal knowledge in advanced statistical techniques, machine learning, data modelling, visualisation and AI implementation.
+* Completed thesis project, **“Multi-Task Learning for Driver Identification and Transport Mode Classification,”** using smartphone accelerometer, gyroscope and rotation-vector data to classify transport mode and identify drivers.
+* Processed high-frequency sensor data by downsampling 100Hz readings, segmenting journeys, creating sliding-window samples and preparing model-ready datasets.
+* Built and evaluated deep learning models using accuracy, precision, recall and F1-score, with attention to class imbalance, sampling choices, reproducibility, generalisability and model limitations.
+* Built an AWS-hosted fraud and transaction decisioning platform covering event ingestion, validation, feature creation, rule/model decisioning, case creation, monitoring dashboards and offline evaluation.
+* Designed dashboard and analytical views showing event volumes, flagged cases, case status, reason codes, validation failures, rule triggers, score distributions, false positives, false negatives and threshold effects.
+* Used Power BI, Excel dashboards, Python and analytical notebooks to present trends, exceptions, data-quality issues and decision-support outputs.
+* Applied classification metrics, precision/recall trade-offs, threshold analysis, distribution checks, trend monitoring and drift awareness to evaluate whether model/rule outputs were reliable enough to support decisions.
+* Completed a public-data project combining 1,004 Facebook Business Activity Trends files into a 2.4 million-row dataset and analysing COVID-era business activity alongside Oxford Government Response Tracker policy data.
+* Used Python and pandas to combine files, assess coverage, select appropriate metrics, visualise time-series trends and communicate limitations without overstating causation.
+* Developed project ownership through scoping, planning, testing, debugging, documenting assumptions and delivering long-form research and technical outputs.
 
-Data Scientist
-University of Exeter - Exeter, UK | Jan 2024 - Aug 2024
-Python modelling project using smartphone accelerometer, gyroscope and trip-signal data to build model-ready features, compare model performance against a baseline and test reliability.
+---
 
-- Built a Python modelling dataset from accelerometer, gyroscope and trip-signal windows to classify transport mode and driver identity from behavioural sensor data.
-- Improved behavioural classification accuracy by 7 percentage points versus a single-task CNN baseline, using one shared model workflow for movement-pattern and identity-recognition tasks.
-- Tested model robustness across trips, users and transport modes, documenting misclassified sensor patterns, failure cases and model limitations.
+### Crew Member
 
-Business Analyst
-University of Exeter - Exeter, UK | Sep 2023 - Nov 2023
-Trend-analysis project using country-sector activity tables and policy-response data to compare movement against baselines and produce a visual recommendation report.
+**Five Guys** — Exeter
+**September 2024 – Present**
 
-- Built a country-sector comparison table grouping activity into rebound, persistent disruption and structural-shift categories against pre-crisis baselines.
-- Merged activity data with policy-response signals, using restriction, support-measure and reopening patterns to explain abnormal movement.
-- Produced a visual trend report with 3 recommendations, using country-sector charts and policy-driver notes to explain which groups rebounded, remained disrupted or structurally shifted.
+Work in a fast-paced frontline service environment, supporting customer service, order accuracy, food preparation, hygiene, stock replenishment and team communication. The role has strengthened service awareness, accountability, accuracy under pressure and respectful communication with customers and colleagues.
 
-Data Analyst
-South Western Technologies & Oilfield Services Ltd - Rivers, Nigeria | Jul 2021 - Aug 2022
-Operations reporting role using Excel, VBA and Power BI to reconcile field reports, HSE logs, equipment checks and daily completions records before manager review.
+* Work across stations including till, dressing, fries, bagging, prep, lobby, cleaning and restocking depending on shift needs.
+* Take and check customer orders carefully, especially customised orders with specific toppings, drinks, fries or delivery requirements.
+* Maintain accuracy during busy service periods by checking tickets, bag contents and order status before handover.
+* Communicate clearly with colleagues during rush periods, using specific updates such as orders waiting on fries, drinks, grill items or delivery collection.
+* Help stabilise order flow during busy periods by keeping partially completed orders visible and reducing incomplete handovers.
+* Communicate respectfully with customers and delivery drivers, giving clear updates when orders are delayed or waiting on specific items.
+* Follow food hygiene, cleanliness, safety and operating procedures consistently, including handwashing, station cleanliness, stock handling and closing tasks.
+* Monitor stock and prep levels during service, restocking items such as packaging, cups, toppings and supplies before shortages disrupt order flow.
+* Support colleagues under pressure and adapt between tasks when another station needs help.
+* Developed practical evidence of the CARE values: compassion through customer awareness, accountability through accurate handovers, respect through calm communication, and excellence through maintaining standards under pressure.
 
-- Built an Excel reconciliation workbook comparing field reports, HSE logs, equipment checks and daily completions records, reducing incomplete or conflicting entries by 32% before supervisor review.
-- Created a VBA report-refresh and exception-flagging macro for missing, duplicated and conflicting records, cutting report review time from 45 to 25 minutes.
-- Built a Power BI operational KPI dashboard across 12 completions jobs and 140 rig days, tracking job progress, equipment readiness, documentation gaps and review status before manager review.
+---
 
-EDUCATION
+## Voluntary / Leadership Experience
 
-University of Exeter
-Exeter, UK | MSc Data Science with Artificial Intelligence (Distinction) | Sep 2023 - Sep 2024
-Relevant focus: statistical modelling, machine learning, Python, SQL, data management, applied AI, model validation and reporting-ready analysis across large behavioural and business datasets.
+### Committee Member
 
-Covenant University
-Ota, Nigeria | BEng Mechanical Engineering (First Class) | Aug 2015 - Dec 2020
-Relevant focus: engineering mathematics, numerical analysis, process systems, operational reporting and data-led performance improvement.
+**University of Exeter Swing Dance Society**
+**January 2024 – July 2024**
+
+Helped establish beginner-friendly swing dance activity at the University of Exeter, supporting session organisation, communication, inclusion and member engagement.
+
+* Helped turn the society from an early idea into organised student activity with sessions, member communication and practical coordination.
+* Supported beginner-friendly sessions by welcoming new members, explaining session flow and helping people feel comfortable participating without prior experience or a partner.
+* Worked with committee members on room arrangements, session planning, promotion, member communication and adapting sessions based on attendance and feedback.
+* Encouraged inclusive participation by making sessions accessible to people with different confidence levels and social comfort.
+* Developed evidence of teamwork, communication, initiative, respect, inclusion and community-building.
+
+---
+
+## Education
+
+### MSc Data Science with Artificial Intelligence
+
+**University of Exeter** — **Distinction, September 2024**
+
+Relevant areas: machine learning, statistical modelling, data preprocessing, Python, visualisation, optimisation, AI implementation, model evaluation, research project delivery.
+
+### BEng Mechanical Engineering
+
+**Covenant University** — **First Class**
+
+Relevant areas: mathematics, engineering analysis, structured problem-solving, numerical reasoning, technical discipline and systems thinking.
