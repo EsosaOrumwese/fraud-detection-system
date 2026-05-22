@@ -1,93 +1,86 @@
-## Relevant Experience
+RELEVANT EXPERIENCE
 
-### Data Analyst
-
-**South Western Technologies & Oilfield Services Ltd** — Nigeria
-**July 2021 – August 2022**
+Data Analyst
+South Western Technologies & Oilfield Services Ltd, Nigeria
+July 2021 - August 2022
 
 Supported operational reporting and data analysis for an oilfield services company, working with job activity records, equipment status, crew/man-hour records, QHSE submissions, service reports and close-out documentation. Produced management information to help operations, QHSE, equipment and admin teams understand job status, delays, documentation gaps and follow-up actions.
 
-* Maintained weekly operations and close-out reporting using structured Excel workbooks, lookup formulas, pivot tables, filters, conditional formatting and validation checks.
-* Consolidated records from job trackers, service activity reports, equipment mobilisation/return notes, crew/man-hour sheets, QHSE records and close-out documentation.
-* Identified cases where jobs were marked “completed” but still lacked signed service reports, equipment return confirmation, man-hour records or close-out status.
-* Built exception lists showing active jobs, delayed jobs, field-completed jobs, jobs awaiting documentation, jobs awaiting equipment confirmation and jobs ready for close-out.
-* Standardised service-line names, status categories and delay reasons so recurring reports grouped information consistently and reduced repeated manual checking.
-* Applied statistical techniques to QHSE and operational activity reporting, including rates per 1,000 man-hours, descriptive statistics, median/mean comparison, standard deviation, trend analysis, outlier checks, Pareto-style breakdowns and data-completeness checks.
-* Separated true zero values from missing submissions to avoid misleading conclusions in QHSE and operational reporting.
-* Communicated reporting exceptions to operations, equipment, QHSE and admin colleagues in practical, non-blaming language, clarifying whether issues related to documentation, equipment, client approval, logistics or internal follow-up.
-* Produced reporting outputs that helped managers see what was active, delayed, blocked, completed or requiring follow-up before planning and close-out discussions.
-* Developed strong habits around data quality, source checking, definitions, process understanding and presenting uncertainty clearly.
+- Maintained weekly operations and close-out reporting using structured Excel workbooks, lookup formulas, pivot tables, filters, conditional formatting and validation checks.
+- Consolidated records from job trackers, service activity reports, equipment mobilisation/return notes, crew/man-hour sheets, QHSE records and close-out documentation.
+- Identified cases where jobs were marked "completed" but still lacked signed service reports, equipment return confirmation, man-hour records or close-out status.
+- Built exception lists showing active jobs, delayed jobs, field-completed jobs, jobs awaiting documentation, jobs awaiting equipment confirmation and jobs ready for close-out.
+- Standardised service-line names, status categories and delay reasons so recurring reports grouped information consistently and reduced repeated manual checking.
+- Applied statistical techniques to QHSE and operational activity reporting, including rates per 1,000 man-hours, descriptive statistics, median/mean comparison, standard deviation, trend analysis, outlier checks, Pareto-style breakdowns and data-completeness checks.
+- Separated true zero values from missing submissions to avoid misleading conclusions in QHSE and operational reporting.
+- Communicated reporting exceptions to operations, equipment, QHSE and admin colleagues in practical, non-blaming language, clarifying whether issues related to documentation, equipment, client approval, logistics or internal follow-up.
+- Produced reporting outputs that helped managers see what was active, delayed, blocked, completed or requiring follow-up before planning and close-out discussions.
+- Developed strong habits around data quality, source checking, definitions, process understanding and presenting uncertainty clearly.
 
----
 
-### MSc Data Science with Artificial Intelligence / Applied Data & AI Projects
-
-**University of Exeter**
-**September 2023 – September 2024**
+MSc Data Science with Artificial Intelligence / Applied Data & AI Projects
+University of Exeter
+September 2023 - September 2024
 
 Completed a Distinction-level MSc in Data Science with Artificial Intelligence, developing technical skills in Python, data preprocessing, statistical modelling, machine learning, optimisation, visualisation, model evaluation and research delivery. Completed applied projects covering deep learning, public-data analysis, business insight, dashboards, AI implementation and production-shaped data systems.
 
-* Completed MSc Data Science with Artificial Intelligence with Distinction, building formal knowledge in advanced statistical techniques, machine learning, data modelling, visualisation and AI implementation.
-* Completed thesis project, **“Multi-Task Learning for Driver Identification and Transport Mode Classification,”** using smartphone accelerometer, gyroscope and rotation-vector data to classify transport mode and identify drivers.
-* Processed high-frequency sensor data by downsampling 100Hz readings, segmenting journeys, creating sliding-window samples and preparing model-ready datasets.
-* Built and evaluated deep learning models using accuracy, precision, recall and F1-score, with attention to class imbalance, sampling choices, reproducibility, generalisability and model limitations.
-* Built an AWS-hosted fraud and transaction decisioning platform covering event ingestion, validation, feature creation, rule/model decisioning, case creation, monitoring dashboards and offline evaluation.
-* Designed dashboard and analytical views showing event volumes, flagged cases, case status, reason codes, validation failures, rule triggers, score distributions, false positives, false negatives and threshold effects.
-* Used Power BI, Excel dashboards, Python and analytical notebooks to present trends, exceptions, data-quality issues and decision-support outputs.
-* Applied classification metrics, precision/recall trade-offs, threshold analysis, distribution checks, trend monitoring and drift awareness to evaluate whether model/rule outputs were reliable enough to support decisions.
-* Completed a public-data project combining 1,004 Facebook Business Activity Trends files into a 2.4 million-row dataset and analysing COVID-era business activity alongside Oxford Government Response Tracker policy data.
-* Used Python and pandas to combine files, assess coverage, select appropriate metrics, visualise time-series trends and communicate limitations without overstating causation.
-* Developed project ownership through scoping, planning, testing, debugging, documenting assumptions and delivering long-form research and technical outputs.
+- Completed MSc Data Science with Artificial Intelligence with Distinction, building formal knowledge in advanced statistical techniques, machine learning, data modelling, visualisation and AI implementation.
+- Completed thesis project, "Multi-Task Learning for Driver Identification and Transport Mode Classification," using smartphone accelerometer, gyroscope and rotation-vector data to classify transport mode and identify drivers.
+- Processed high-frequency sensor data by downsampling 100Hz readings, segmenting journeys, creating sliding-window samples and preparing model-ready datasets.
+- Built and evaluated deep learning models using accuracy, precision, recall and F1-score, with attention to class imbalance, sampling choices, reproducibility, generalisability and model limitations.
+- Built an AWS-hosted fraud and transaction decisioning platform covering event ingestion, validation, feature creation, rule/model decisioning, case creation, monitoring dashboards and offline evaluation.
+- Designed dashboard and analytical views showing event volumes, flagged cases, case status, reason codes, validation failures, rule triggers, score distributions, false positives, false negatives and threshold effects.
+- Used Power BI, Excel dashboards, Python and analytical notebooks to present trends, exceptions, data-quality issues and decision-support outputs.
+- Applied classification metrics, precision/recall trade-offs, threshold analysis, distribution checks, trend monitoring and drift awareness to evaluate whether model/rule outputs were reliable enough to support decisions.
+- Completed a public-data project combining 1,004 Facebook Business Activity Trends files into a 2.4 million-row dataset and analysing COVID-era business activity alongside Oxford Government Response Tracker policy data.
+- Used Python and pandas to combine files, assess coverage, select appropriate metrics, visualise time-series trends and communicate limitations without overstating causation.
+- Developed project ownership through scoping, planning, testing, debugging, documenting assumptions and delivering long-form research and technical outputs.
 
----
 
-### Crew Member
-
-**Five Guys** — Exeter
-**September 2024 – Present**
+Crew Member
+Five Guys, Exeter
+September 2024 - Present
 
 Work in a fast-paced frontline service environment, supporting customer service, order accuracy, food preparation, hygiene, stock replenishment and team communication. The role has strengthened service awareness, accountability, accuracy under pressure and respectful communication with customers and colleagues.
 
-* Work across stations including till, dressing, fries, bagging, prep, lobby, cleaning and restocking depending on shift needs.
-* Take and check customer orders carefully, especially customised orders with specific toppings, drinks, fries or delivery requirements.
-* Maintain accuracy during busy service periods by checking tickets, bag contents and order status before handover.
-* Communicate clearly with colleagues during rush periods, using specific updates such as orders waiting on fries, drinks, grill items or delivery collection.
-* Help stabilise order flow during busy periods by keeping partially completed orders visible and reducing incomplete handovers.
-* Communicate respectfully with customers and delivery drivers, giving clear updates when orders are delayed or waiting on specific items.
-* Follow food hygiene, cleanliness, safety and operating procedures consistently, including handwashing, station cleanliness, stock handling and closing tasks.
-* Monitor stock and prep levels during service, restocking items such as packaging, cups, toppings and supplies before shortages disrupt order flow.
-* Support colleagues under pressure and adapt between tasks when another station needs help.
-* Developed practical evidence of the CARE values: compassion through customer awareness, accountability through accurate handovers, respect through calm communication, and excellence through maintaining standards under pressure.
+- Work across stations including till, dressing, fries, bagging, prep, lobby, cleaning and restocking depending on shift needs.
+- Take and check customer orders carefully, especially customised orders with specific toppings, drinks, fries or delivery requirements.
+- Maintain accuracy during busy service periods by checking tickets, bag contents and order status before handover.
+- Communicate clearly with colleagues during rush periods, using specific updates such as orders waiting on fries, drinks, grill items or delivery collection.
+- Help stabilise order flow during busy periods by keeping partially completed orders visible and reducing incomplete handovers.
+- Communicate respectfully with customers and delivery drivers, giving clear updates when orders are delayed or waiting on specific items.
+- Follow food hygiene, cleanliness, safety and operating procedures consistently, including handwashing, station cleanliness, stock handling and closing tasks.
+- Monitor stock and prep levels during service, restocking items such as packaging, cups, toppings and supplies before shortages disrupt order flow.
+- Support colleagues under pressure and adapt between tasks when another station needs help.
+- Developed practical evidence of the CARE values: compassion through customer awareness, accountability through accurate handovers, respect through calm communication, and excellence through maintaining standards under pressure.
 
----
 
-## Voluntary / Leadership Experience
+VOLUNTARY / LEADERSHIP EXPERIENCE
 
-### Committee Member
-
-**University of Exeter Swing Dance Society**
-**January 2024 – July 2024**
+Committee Member
+University of Exeter Swing Dance Society
+January 2024 - July 2024
 
 Helped establish beginner-friendly swing dance activity at the University of Exeter, supporting session organisation, communication, inclusion and member engagement.
 
-* Helped turn the society from an early idea into organised student activity with sessions, member communication and practical coordination.
-* Supported beginner-friendly sessions by welcoming new members, explaining session flow and helping people feel comfortable participating without prior experience or a partner.
-* Worked with committee members on room arrangements, session planning, promotion, member communication and adapting sessions based on attendance and feedback.
-* Encouraged inclusive participation by making sessions accessible to people with different confidence levels and social comfort.
-* Developed evidence of teamwork, communication, initiative, respect, inclusion and community-building.
+- Helped turn the society from an early idea into organised student activity with sessions, member communication and practical coordination.
+- Supported beginner-friendly sessions by welcoming new members, explaining session flow and helping people feel comfortable participating without prior experience or a partner.
+- Worked with committee members on room arrangements, session planning, promotion, member communication and adapting sessions based on attendance and feedback.
+- Encouraged inclusive participation by making sessions accessible to people with different confidence levels and social comfort.
+- Developed evidence of teamwork, communication, initiative, respect, inclusion and community-building.
 
----
 
-## Education
+EDUCATION
 
-### MSc Data Science with Artificial Intelligence
-
-**University of Exeter** — **Distinction, September 2024**
+MSc Data Science with Artificial Intelligence
+University of Exeter
+Distinction, September 2024
 
 Relevant areas: machine learning, statistical modelling, data preprocessing, Python, visualisation, optimisation, AI implementation, model evaluation, research project delivery.
 
-### BEng Mechanical Engineering
 
-**Covenant University** — **First Class**
+BEng Mechanical Engineering
+Covenant University
+First Class
 
 Relevant areas: mathematics, engineering analysis, structured problem-solving, numerical reasoning, technical discipline and systems thinking.

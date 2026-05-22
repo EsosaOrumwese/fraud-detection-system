@@ -1,0 +1,73 @@
+Employment History
+
+Crew Member - Frontline food-service retailer
+September 2024 - Present
+
+Frontline operational role in a high-volume service environment, supporting customer service, food preparation, order accuracy, hygiene, stock replenishment, team communication and training of new starters.
+
+- Work across till, prep, line, fries, bagging, lobby, cleaning and restocking depending on shift needs.
+- Maintain accuracy during busy periods by checking order tickets, bag contents, delivery requirements and station handovers.
+- Communicate clearly with colleagues using specific status updates, such as orders waiting on fries, drinks, grill items or delivery collection.
+- Support new starters and trial-shift staff by explaining station tasks, prep-room work, potato cutting, line processes, hygiene standards, order checks and expected pace.
+- Break tasks down for less experienced colleagues, check understanding, correct mistakes patiently and help them build confidence under pressure.
+- Follow operating procedures, hygiene controls and service standards consistently, with attention to detail and safe handover of work.
+- Built strong habits around clear communication, teamwork, process discipline, user focus, resilience and helping new starters learn under pressure.
+
+Data Analyst - Operational oilfield services company
+July 2021 - August 2022
+
+Supported operational reporting and data analysis for field-service activity, working with Oracle data extracts, SAS programmes, QHSE trackers, equipment movement notes, man-hour records, service reports and close-out files. Produced management information for operations, equipment, QHSE, admin, commercial colleagues and managers.
+
+- Used Oracle data extracts as structured operational sources for job numbers, client records, service lines, equipment references, purchase order details, status fields and completion dates.
+- Used SAS programmes to import, clean, standardise, join, map and check operational records from Oracle and team-held trackers.
+- Built recurring reporting outputs showing which jobs were active, delayed, field-completed, awaiting documentation, awaiting equipment confirmation or ready for close-out.
+- Separated raw extracts, cleaned datasets, exception views and final reporting outputs so each report layer had a clear purpose.
+- Tested outputs using row counts, duplicate checks, missing-field checks, status logic, reconciliation between sources and review of unexpected changes.
+- Created exception lists for completed jobs missing signed service reports, equipment return confirmation, man-hour records or close-out status.
+- Used rates and denominators in QHSE reporting, including observations per 1,000 man-hours, to avoid misleading comparisons between teams with different activity levels.
+- Distinguished true zero values from missing submissions so incomplete reporting was not presented as clean performance.
+- Supported weekly discussions with operations, equipment, QHSE, admin and commercial colleagues by translating data issues into practical follow-up questions.
+- Helped placement students, junior trainees and NYSC students understand reporting workbooks, Excel checks, operational definitions and exception interpretation.
+- Developed strong experience in data integration, repeatable reporting, validation, stakeholder communication and operational data products.
+
+
+Previous skills and experience
+
+Data and machine learning platform build
+
+- Designed, built and deployed an AWS fraud and transaction decisioning platform using Python, SQL and SAS.
+- Developed the platform from early notebooks and scripts into deployed services, scheduled jobs, monitored outputs, access controls and offline evaluation.
+- Built platform components for ingestion, validation, feature creation, rule and model decisioning, case creation, monitoring, evidence storage and model evaluation.
+- Used Python for services, APIs, orchestration, validation and scoring logic.
+- Used SQL for querying, joins, data checks, transformations and curated analytical views.
+- Used SAS for repeatable analytical processing and controlled dataset preparation.
+- Created reusable data layers for raw events, validated events, context projections, feature tables, decision outputs, case records, labels, monitoring outputs and evidence.
+- Enabled services, dashboards and analysis workflows to use trusted data without returning to raw sources each time.
+- Monitored scheduled jobs, logs and dashboard refreshes so failed transformations, stale dashboards or broken feeds were not mistaken for business trends.
+- Documented validation rules, feature definitions, dashboard measures, assumptions, known risks and interpretation limits.
+
+Testing, deployment and cloud architecture
+
+- Applied data-quality checks for required fields, timestamps, duplicate events, unexpected categories, impossible values, failed joins and row-count movements.
+- Evaluated model and decision outputs using score distributions, threshold effects, precision, recall, false-positive review, false-negative review and drift indicators.
+- Used Git and GitHub for version control, making changes to validation logic, feature definitions, thresholds, model evaluation and dashboard measures traceable.
+- Used the command line to run scripts, manage environments, work with repositories and carry out deployment tasks.
+- Used integrated development environments to write Python services, manage configuration, debug code and move work from notebooks into maintainable scripts and deployed services.
+- Applied practical cloud architecture through API Gateway, Lambda, MSK Serverless, EKS, Aurora PostgreSQL, S3, SSM Parameter Store, CloudWatch, IAM, SageMaker, Databricks and MLflow.
+- Built access controls, secrets handling, monitoring, evidence storage and deployment-risk checks into the platform rather than treating them as final clean-up tasks.
+
+Data science and research
+
+- Completed a postgraduate qualification in Data Science with Artificial Intelligence, awarded Distinction.
+- Completed a First Class undergraduate degree in Mechanical Engineering.
+- Built strong technical grounding in Python, SQL, SAS, machine learning, data preprocessing, statistical modelling, classification, regression, feature selection, optimisation, visualisation and model evaluation.
+- Completed research using high-frequency smartphone sensor data to classify transport mode and identify drivers.
+- Processed sensor data by downsampling high-frequency readings, segmenting journeys, creating model-ready windows and training deep learning models.
+- Evaluated outputs using accuracy, precision, recall and F1-score while documenting limitations around sampling, class balance, reproducibility and generalisability.
+- Completed a public-data project combining 1,004 daily business activity files into a 2.4 million-row dataset, checking coverage, selecting appropriate metrics, visualising time-series trends and explaining limitations without overstating causation.
+
+Data protection and responsible analytics
+
+- Working understanding of UK GDPR fundamentals: lawful use, fairness, transparency, purpose limitation, data minimisation, accuracy, storage limitation, integrity, confidentiality and accountability.
+- Applied these principles in platform work by separating raw transaction events from curated analytical outputs, limiting access to sensitive data layers, exposing aggregate monitoring where record-level detail was not needed, keeping credentials out of code, documenting lineage and making validation failures visible.
+- Strong habit of documenting assumptions, separating missing data from true zero values, validating outputs and making uncertainty visible before information is used for decisions.
