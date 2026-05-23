@@ -340,3 +340,76 @@ Do not hide the NHS gap, but do not centre it.
 The final supporting statement should argue:
 
 > I already have the reporting assurance discipline this role requires. I have produced complex operational reports, validated figures, handled ambiguous source data, built dashboards, used SQL and Microsoft reporting tools, supported junior colleagues, and influenced non-managed staff to improve data quality. To prepare specifically for this role, I also built an independent acute reporting project covering waiting-list, contracting and maternity reporting logic using SQL Server, SQL Server Reporting Services, SQL Server Integration Services, Power BI and Excel, with technical documentation and board-style commentary. That makes me able to contribute quickly without pretending I have already worked inside the NHS.
+
+---
+
+## Entry 3 - Revised Honest Positioning on Acute NHS Experience
+
+For this role, adding a freshly invented "independent NHS acute reporting project" as the substitute for acute information department experience would probably make Eric's profile sound suspicious. It would look too conveniently engineered around the advert.
+
+The honest strategy is better:
+
+> **Do not pretend Eric has acute NHS information department experience. Instead, make the statement concede that one area indirectly, then overperform on every other essential requirement: SQL, SSRS, Excel, large reports of figures, formulas, percentages, variances, trends, complex report validation, ambiguous multi-source data, data quality audits, supervision/training and reporting under deadlines.**
+
+The risk is real: the person specification makes **substantive relevant information analysis experience in an Acute Information Department** an essential criterion, alongside waiting-list or contracting knowledge and national guidance/reporting requirements. But if the panel is flexible, Eric can still compete by showing that his operational reporting experience is very close in reporting discipline, even if not NHS acute.
+
+## Best Positioning
+
+Eric's argument should be:
+
+> I have not worked in an NHS Acute Information Department, but I have worked in a high-pressure operational reporting environment where reports had to reconcile multiple systems, meet deadlines, support management decisions, validate complex figures, identify data-quality issues and explain ambiguous information clearly. I also have working knowledge of NHS reporting concepts, including waiting-list, contracting and national guidance logic, and can learn local PAS/reporting rules quickly because I already know how to turn definitions and guidance into repeatable reporting checks.
+
+That is credible. It does not overclaim.
+
+## How to Handle the Difficult Essential Criterion
+
+For the first essential criterion, do not try to "solve" it with a project. Handle it like this:
+
+> "While my direct experience is outside an NHS Acute Information Department, my Data Analyst role required equivalent reporting discipline: extracting operational data from Oracle, transforming and checking it through SAS, Excel and Access, validating large reports of figures, reconciling conflicting records, identifying data-quality issues and producing management-ready outputs under deadline pressure. I have also built working knowledge of waiting-list, contracting and national reporting concepts so I understand how definitions, inclusion rules, exclusions, data-quality checks and submission requirements affect NHS reporting."
+
+That is as strong as we can make it without sounding fake.
+
+## What We Should Hit Hard
+
+The statement should major on these:
+
+1. **Advanced report-writing tools**  
+   SQL, SSRS, Excel, Access, Power BI, SAS, Oracle. If Eric genuinely has SSRS and SSIS exposure, include them clearly. If not, do not invent them.
+
+2. **Validating complex reports**  
+   This is one of Eric's strongest areas: row counts, missing fields, duplicate checks, failed joins, inconsistent statuses, true zero versus missing submission, source-to-output reconciliation.
+
+3. **Large reports of figures**  
+   South Western weekly/monthly reporting, QHSE reports, operational close-out reports, man-hours, percentages, variances, trends, graphs.
+
+4. **Ambiguous multi-source information**  
+   This is a perfect South Western fit: Oracle records, SAS transformations, Excel trackers, Access tables, QHSE submissions, man-hour records, equipment movement notes, close-out documentation.
+
+5. **Data quality processes and audits**  
+   Make this central. It is essential for this role and strongly evidenced.
+
+6. **Supervision and training**  
+   Use South Western trainee support as the main evidence; Five Guys only as secondary.
+
+7. **Urgent requests and deadlines**  
+   Emphasise reporting deadlines, ad-hoc clarifications, unresolved data issues and prioritising the most important checks first.
+
+## What Not to Do
+
+Do not create a shiny NHS acute project unless it actually exists.
+
+Do not claim "Acute Information Department experience."
+
+Do not claim direct PAS, maternity submission, contracting submission or statutory return ownership unless true.
+
+Do not make the platform the main evidence.
+
+Do not try to hide the gap with vague phrases.
+
+## Final Posture
+
+This is the correct application posture:
+
+> "I may not have the exact NHS Acute Information Department background, but I am not a generic analyst. I have real operational reporting experience, strong reporting-tool capability, complex report validation, multi-source data-quality work, management-ready reporting, trainee support and the discipline needed to work with national reporting guidance safely."
+
+That is the believable route. It might not guarantee the sift because the first essential criterion is strict, but it gives Eric the best chance without damaging the profile.
