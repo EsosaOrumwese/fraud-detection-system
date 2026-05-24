@@ -1,0 +1,92 @@
+DEPARTMENT FOR EDUCATION - SENIOR DATA ANALYST (G7)
+CIVIL SERVICE NAME-BLIND CV
+
+This CV section is name-blind. Employer names are included where appropriate, while educational institution names are removed.
+
+
+QUALIFICATIONS
+
+MSc Data Science with Artificial Intelligence - Distinction
+Postgraduate training in data analysis, statistics, machine learning, Python, SQL, data preprocessing, visualisation, model evaluation, research delivery and responsible interpretation of complex data.
+
+BEng Mechanical Engineering - First Class
+Numerate engineering degree covering mathematics, modelling, technical problem-solving, data interpretation and structured analytical thinking.
+
+Mathematics qualifications
+WASSCE Mathematics grade A and IGCSE Mathematics grade A.
+
+
+TECHNICAL SKILLS
+
+SQL, BigQuery, Dataform, Looker, Power BI, Python, Excel, data modelling, data transformation, dashboard development, data quality assurance, validation checks, analytical documentation, stakeholder reporting, model evaluation, public-data analysis, time-series analysis, statistical interpretation and reusable data product development.
+
+
+DATA ANALYST - SOUTH WESTERN TECHNOLOGIES & OILFIELD SERVICES LTD
+July 2021 - August 2022
+
+Worked in an operational data analyst role supporting management reporting, data quality and decision-ready information across service activity, equipment movement, QHSE records, man-hours, close-out documentation and operational status reporting.
+
+- Built recurring reporting outputs from multiple operational sources, including structured enterprise extracts, transformation outputs, spreadsheets, local databases, QHSE submissions, man-hour records, equipment movement notes and close-out files.
+- Used SQL logic, Excel, Access, Power BI, Oracle extracts and SAS processing to prepare reporting views, exception lists, validation checks, management summaries and trend outputs.
+- Improved reporting definitions by separating broad statuses such as "completed" into clearer categories including field-completed, awaiting documentation, awaiting equipment confirmation and ready for close-out.
+- Validated complex reports through row-count checks, duplicate checks, missing-field checks, failed-join review, status reconciliation, unexpected movement checks and source-to-output comparison.
+- Built data-quality checks to distinguish true zero values from missing submissions, especially in QHSE reporting where incomplete returns could otherwise be misread as clean performance.
+- Used percentages, variances, trend views, graphs, standard deviation, median and mean comparisons, Pareto breakdowns and completeness checks to support safer interpretation of operational performance.
+- Translated ambiguous operational records into action-led exception views so managers could identify blockers, follow-up actions and records requiring clarification.
+- Communicated findings to operations, QHSE, equipment, admin, commercial colleagues and managers, adapting the level of detail for technical and non-technical users.
+- Influenced colleagues outside my line management by using evidence-led, non-blaming questions to clarify missing service reports, equipment returns, delay reasons and data-quality issues.
+- Supported trainees by explaining reporting workbooks, validation checks, operational definitions and exception interpretation; set small checking tasks and reviewed outputs to improve reporting quality.
+
+
+INDEPENDENT DATA PRODUCT AND CLOUD ANALYTICS BUILD
+2023 - 2024
+
+Designed and built an independent fraud and transaction decisioning platform to develop end-to-end data product, analytical modelling, dashboarding, data quality and decision-support capability.
+
+- Defined the analytical approach for a decisioning product covering ingestion, validation, feature creation, rule and model decisioning, case creation, monitoring and offline evaluation.
+- Designed analytical data models that separated raw data, validated data, feature tables, decision outputs, case records, monitoring outputs and evaluation evidence.
+- Built time-safe feature definitions, decision reason codes, validation flags, case status views, threshold analysis and performance monitoring so outputs could support decision-making rather than only model scoring.
+- Used SQL and Python for data processing, transformation, feature creation, scoring logic, validation and evaluation.
+- Used BigQuery and Dataform to structure SQL transformation logic into reusable analytical models, separating raw, cleaned and reporting-ready outputs.
+- Used Looker and Power BI to present trends, exceptions, quality indicators, drill-down views, reason codes, validation failures, score distributions and threshold effects.
+- Designed dashboards around user questions, with headline views for quick interpretation and diagnostic views for technical investigation.
+- Built validation checks for missing fields, duplicates, unexpected categories, failed joins, row-count movements and data-quality exceptions.
+- Documented dashboard definitions, data lineage, validation rules, analytical assumptions and reusable SQL models so analysis could be repeated, quality-assured and challenged.
+- Developed practical experience in scalable data products, stakeholder-facing outputs, data quality standards, monitoring, model evaluation and analytical product ownership.
+
+
+PUBLIC DATA AND POLICY-AWARE ANALYSIS
+2023 - 2024
+
+Completed public-data analysis using large multi-file datasets and policy context to practise careful metric selection, time-series interpretation and communication of uncertainty.
+
+- Combined over one thousand daily business activity files into a multi-million-row dataset.
+- Used Python and pandas to ingest, combine, clean and analyse country and sector-level activity data.
+- Compared alternative activity metrics and selected the more appropriate measure for stable cross-group interpretation.
+- Visualised time-series trends and compared patterns across countries, sectors and policy periods.
+- Interpreted findings alongside government policy indicators while avoiding unsupported causal claims.
+- Documented limitations around data coverage, metric meaning, aggregation level and interpretation risk.
+- Developed transferable experience in policy-context analysis, public datasets, cautious interpretation and presenting insight for decision-making.
+
+
+CREW MEMBER - FIVE GUYS
+September 2024 - Present
+
+Work in a fast-paced frontline service role requiring accuracy, teamwork, prioritisation, communication and training under pressure.
+
+- Work across service stations, order checking, preparation, customer communication, stock replenishment, hygiene procedures and handovers.
+- Maintain quality and accuracy during busy periods by checking tickets, order contents, station status and incomplete handovers before work is released.
+- Communicate clearly with colleagues using specific status updates, helping reduce confusion during high-pressure service periods.
+- Train new starters and trial-shift staff by breaking tasks into steps, explaining standards, checking understanding and correcting errors patiently.
+- Developed evidence of quality service, pressure-handling, communication, teamwork, mentoring and maintaining standards in a live service environment.
+
+
+COMMITTEE MEMBER - SWING DANCE SOCIETY
+January 2024 - July 2024
+
+Supported the early development of a student swing dance society, contributing to organisation, communication, inclusion and beginner support.
+
+- Helped organise beginner-friendly swing dance sessions, member communication and practical coordination.
+- Supported inclusive participation by welcoming new members, explaining session flow and helping people engage with an unfamiliar activity.
+- Worked with committee members to adapt sessions based on attendance, feedback and member confidence.
+- Developed experience in teamwork, communication, informal leadership, inclusion and supporting people with different confidence levels.
