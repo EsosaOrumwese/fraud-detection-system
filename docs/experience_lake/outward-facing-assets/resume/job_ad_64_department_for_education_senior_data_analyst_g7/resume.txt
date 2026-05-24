@@ -38,11 +38,12 @@ Worked in an operational data analyst role supporting management reporting, data
 - Supported trainees by explaining reporting workbooks, validation checks, operational definitions and exception interpretation; set small checking tasks and reviewed outputs to improve reporting quality.
 
 
-INDEPENDENT DATA PRODUCT AND CLOUD ANALYTICS BUILD
-2023 - 2024
+DATA ANALYST / DATA SCIENTIST - POSTGRADUATE APPLIED DATA SCIENCE & ANALYTICS WORK
+September 2023 - September 2024
 
-Designed and built an independent fraud and transaction decisioning platform to develop end-to-end data product, analytical modelling, dashboarding, data quality and decision-support capability.
+Completed postgraduate applied data science work covering analytical product design, SQL and cloud analytics, dashboarding, machine learning, public-data analysis, reusable data models, data quality assurance and technical documentation.
 
+- Designed and built an independent fraud and transaction decisioning platform to develop end-to-end data product, analytical modelling, dashboarding, data quality and decision-support capability.
 - Defined the analytical approach for a decisioning product covering ingestion, validation, feature creation, rule and model decisioning, case creation, monitoring and offline evaluation.
 - Designed analytical data models that separated raw data, validated data, feature tables, decision outputs, case records, monitoring outputs and evaluation evidence.
 - Built time-safe feature definitions, decision reason codes, validation flags, case status views, threshold analysis and performance monitoring so outputs could support decision-making rather than only model scoring.
@@ -52,21 +53,13 @@ Designed and built an independent fraud and transaction decisioning platform to 
 - Designed dashboards around user questions, with headline views for quick interpretation and diagnostic views for technical investigation.
 - Built validation checks for missing fields, duplicates, unexpected categories, failed joins, row-count movements and data-quality exceptions.
 - Documented dashboard definitions, data lineage, validation rules, analytical assumptions and reusable SQL models so analysis could be repeated, quality-assured and challenged.
-- Developed practical experience in scalable data products, stakeholder-facing outputs, data quality standards, monitoring, model evaluation and analytical product ownership.
-
-
-PUBLIC DATA AND POLICY-AWARE ANALYSIS
-2023 - 2024
-
-Completed public-data analysis using large multi-file datasets and policy context to practise careful metric selection, time-series interpretation and communication of uncertainty.
-
-- Combined over one thousand daily business activity files into a multi-million-row dataset.
-- Used Python and pandas to ingest, combine, clean and analyse country and sector-level activity data.
+- Completed public-data analysis using large multi-file datasets and policy context to practise careful metric selection, time-series interpretation and communication of uncertainty.
+- Combined over one thousand daily business activity files into a multi-million-row dataset using Python and pandas.
 - Compared alternative activity metrics and selected the more appropriate measure for stable cross-group interpretation.
 - Visualised time-series trends and compared patterns across countries, sectors and policy periods.
 - Interpreted findings alongside government policy indicators while avoiding unsupported causal claims.
-- Documented limitations around data coverage, metric meaning, aggregation level and interpretation risk.
-- Developed transferable experience in policy-context analysis, public datasets, cautious interpretation and presenting insight for decision-making.
+- Completed a postgraduate research project using high-frequency sensor data, preprocessing, modelling and evaluation to strengthen analytical rigour, model assessment and responsible interpretation.
+- Developed practical experience in scalable data products, stakeholder-facing outputs, data quality standards, monitoring, model evaluation, policy-aware analysis and analytical product ownership.
 
 
 CREW MEMBER - FIVE GUYS
