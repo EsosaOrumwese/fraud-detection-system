@@ -1,0 +1,160 @@
+EAST SUSSEX HEALTHCARE NHS TRUST - INFORMATION ANALYST
+TRAC JOBS EMPLOYMENT / EXPERIENCE SECTION
+
+This employment section is tailored to the East Sussex Healthcare Information Analyst role and focuses on SQL, Microsoft SQL Server, Excel, relational databases, dashboards, large datasets, data quality, confidentiality, communication, prioritisation and support/training.
+
+
+1. SOUTH WESTERN TECHNOLOGIES & OILFIELD SERVICES LTD
+
+Employer name
+South Western Technologies & Oilfield Services Ltd
+
+Employer address
+Port Harcourt / Lagos, Nigeria
+
+Type of business
+Oilfield services / energy services
+
+Reporting to (job title)
+Operations Manager / Reporting Lead
+
+Telephone
+Use company contact from your records
+
+Your job title
+Data Analyst
+
+Start date
+July 2021
+
+End date
+August 2022
+
+Grade
+Not applicable
+
+Salary
+Use actual salary from your records
+
+Period of notice
+Use contract notice period if known
+
+Reason for leaving - maximum 50 words
+Completed the role and moved on to further academic and professional development, including postgraduate study in data science and artificial intelligence.
+
+Brief description of your duties and responsibilities - maximum 500 words
+Supported operational reporting, data quality and management information for an oilfield services company, working across service activity, equipment movement, QHSE records, man-hours, job close-out documentation and operational status reporting.
+
+Prepared recurring and ad-hoc reporting outputs from multiple operational sources, including Oracle data extracts, SAS transformation outputs, Excel trackers, Access tables, equipment movement notes, service records and QHSE submissions. Used SQL logic, Excel, Access, Oracle extracts, SAS and Power BI to prepare reporting views, validation checks, exception lists, trend outputs and management-ready summaries.
+
+Built reports showing which jobs were active, delayed, field-completed, awaiting documentation, awaiting equipment confirmation or ready for close-out. Improved reporting definitions by separating broad statuses such as "completed" into clearer operational categories so managers could understand what required action.
+
+Validated complex reports by checking row counts, duplicate records, missing fields, failed joins, inconsistent statuses, unclear service categories, unexpected movements between reporting periods and differences between source extracts and final reports.
+
+Supported QHSE reporting by using rates such as observations per 1,000 man-hours, percentages, variances, trend views, graphs, standard deviation, Pareto breakdowns and completeness checks. Distinguished true zero values from missing submissions so incomplete reporting was not treated as clean performance.
+
+Worked with operations, equipment, QHSE, admin, commercial colleagues and managers to clarify reporting exceptions and improve data quality. Communicated findings through written summaries, exception views, dashboard outputs and verbal explanations. Supported NYSC students and industrial training students by explaining reporting workbooks, Excel checks, operational definitions and exception interpretation, setting small checking tasks and reviewing outputs before figures were used.
+
+
+2. UNIVERSITY OF EXETER
+
+Employer name
+University of Exeter
+
+Employer address
+Exeter, Devon, United Kingdom
+
+Type of business
+Higher education / postgraduate data science and applied analytics
+
+Reporting to (job title)
+Academic Supervisor / MSc Programme Team
+
+Telephone
+Use university contact if required
+
+Your job title
+Data Analyst / Data Scientist - Postgraduate Applied Analytics Work
+
+Start date
+September 2023
+
+End date
+September 2024
+
+Grade
+MSc student / postgraduate project work
+
+Salary
+Not paid academic project work
+
+Period of notice
+Not applicable
+
+Reason for leaving - maximum 50 words
+Completed the MSc Data Science with Artificial Intelligence programme, including applied analytics, dashboarding, public-data analysis, machine learning, data-quality work and an independent research project.
+
+Brief description of your duties and responsibilities - maximum 500 words
+Completed postgraduate applied data science and analytics work involving large datasets, SQL, Python, Microsoft SQL Server concepts, relational data modelling, dashboard development, statistical modelling, data preprocessing, visualisation, technical documentation and responsible interpretation of results.
+
+Completed an MSc research project using high-frequency smartphone sensor data. Processed and prepared large sensor datasets, created model-ready windows, trained machine learning models and evaluated outputs using accuracy, precision, recall and F1-score. Documented limitations around sampling, class balance, reproducibility and generalisability.
+
+Built an independent fraud and transaction decisioning platform to develop practical data product, reporting, validation and dashboarding capability. Designed components for ingestion, validation, transformation, feature creation, rule and model decisioning, case creation, monitoring and evaluation. Created reusable data layers for raw events, validated records, feature tables, decision outputs, case records, monitoring outputs and evaluation evidence.
+
+Used SQL and Python for data processing, transformation, feature creation, scoring logic, validation and evaluation. Used Microsoft SQL Server concepts, relational table design, joins, validation queries and report-ready output structures. Used Power BI to build dashboard views showing trends, exceptions, status measures, validation failures, reason codes, score distributions and drill-down outputs.
+
+Completed a public-data analysis project combining over one thousand daily files into a multi-million-row dataset. Used Python and pandas to ingest, combine, clean, analyse and visualise time-series data. Compared alternative metrics, selected appropriate measures, documented limitations and interpreted findings without overstating what the data could prove.
+
+Developed experience in large dataset handling, dashboard development, self-service reporting concepts, data-quality checks, development and release cycles, technical documentation, source-to-output lineage, modelling, validation and communication of analytical findings.
+
+
+3. FIVE GUYS
+
+Employer name
+Five Guys
+
+Employer address
+Exeter, United Kingdom
+
+Type of business
+Food service / hospitality / quick-service restaurant
+
+Reporting to (job title)
+Shift Manager / General Manager
+
+Telephone
+Use store or HR contact from your records
+
+Your job title
+Crew Member
+
+Start date
+September 2024
+
+End date
+Present
+
+Grade
+Crew Member
+
+Salary
+Use current hourly rate from your contract
+
+Period of notice
+Use contract notice period
+
+Reason for leaving - maximum 50 words
+Current role.
+
+Brief description of your duties and responsibilities - maximum 500 words
+Work in a fast-paced frontline service environment, supporting customer service, order accuracy, food preparation, hygiene, stock replenishment, team communication and training of new starters.
+
+Work across stations including till, prep, line, fries, bagging, lobby, cleaning and restocking depending on shift needs. Take and check customer orders carefully, especially customised orders with specific toppings, drinks, fries or delivery requirements. Maintain order accuracy during busy periods by checking tickets, order contents, station status and handovers before orders leave the store.
+
+Communicate clearly with colleagues during busy periods using specific updates, such as orders waiting on fries, drinks, grill items or delivery collection. Help stabilise order flow by keeping partially completed orders visible and reducing incomplete handovers.
+
+Follow food hygiene, cleanliness, safety and operating procedures consistently, including handwashing, station cleanliness, stock handling, cleaning tasks and closing routines. Monitor stock and prep levels during service, restocking items such as packaging, cups, toppings and supplies before shortages affect service.
+
+Support new starters and trial-shift staff by explaining station tasks, prep-room work, potato cutting, line processes, hygiene standards, order checks, handovers and expected pace. Break tasks down, check understanding and correct errors patiently.
+
+Developed strong evidence of reliability, attention to detail, prioritisation, teamwork, customer-service attitude, working under pressure, supporting others and maintaining quality standards in a busy service environment.
