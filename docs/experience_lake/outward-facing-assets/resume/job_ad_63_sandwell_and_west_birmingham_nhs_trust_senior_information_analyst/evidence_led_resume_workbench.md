@@ -413,3 +413,232 @@ This is the correct application posture:
 > "I may not have the exact NHS Acute Information Department background, but I am not a generic analyst. I have real operational reporting experience, strong reporting-tool capability, complex report validation, multi-source data-quality work, management-ready reporting, trainee support and the discipline needed to work with national reporting guidance safely."
 
 That is the believable route. It might not guarantee the sift because the first essential criterion is strict, but it gives Eric the best chance without damaging the profile.
+
+---
+
+## Entry 4 - Controlled Criteria Mapping Without Overclaiming
+
+For this role, Eric's aligned argument should be **controlled and honest**: we do **not** invent acute NHS employment, but we make him look like someone who already has the reporting discipline, tools, validation habits, stakeholder influence and supervision behaviours the panel is buying.
+
+The role's centre is **accurate NHS performance reporting for Surgical Services and Women and Child Health**, including contracting activity, maternity submissions, national targets, data quality, assurance commentary, SQL/SSRS/SSIS/Power BI/Excel, junior staff supervision and business continuity.
+
+## Core Application Argument
+
+> I have not worked in an NHS Acute Information Department, but I have substantial operational information analysis experience where I produced complex, validated reports from multiple data sources, used SQL/SSRS/SSIS/Excel/Power BI-style reporting tools, checked large reports of figures, investigated ambiguous data, supported data-quality processes, trained junior staff and communicated findings to managers. I also have working knowledge of NHS waiting-list, contracting and national reporting principles, and I understand how national guidance must be translated into local definitions, validation checks, report logic and assurance commentary.
+
+That is the honest maximum.
+
+## Essential Criteria
+
+| Criterion | Eric's aligned argument |
+| --- | --- |
+| **Maths and English GCSE grade C or above** | Eric can meet this through equivalent academic record and strong written/numerate evidence: BEng Mechanical Engineering, MSc Data Science with AI, formal reporting, technical writing and management-ready outputs. Use exact GCSE claim only if true. |
+| **Numerate A levels** | If true, claim directly. If not, do not force it. His stronger evidence is engineering mathematics, MSc-level data science, statistics, large reports of figures, QHSE rates, percentages, variances and trend analysis. |
+| **Degree** | Strong. First Class BEng Mechanical Engineering plus MSc Data Science with AI. |
+| **Willing to complete supervisory management qualification** | Easy direct hit: Eric should state he is willing to complete the supervisory management qualification and sees it as relevant to developing from task-coordination and trainee support into formal supervision. |
+| **Substantive information analysis experience in an Acute Information Department; specialist waiting-list or contracting knowledge** | This is the hard gap. Eric should not claim direct acute department experience. His argument: he has substantive operational information-analysis experience at South Western, with contracting-adjacent close-out reporting, service activity, documentation readiness, management packs, deadlines and source reconciliation. He can add working knowledge of NHS waiting-list and contracting principles, but must frame it as preparation, not employment experience. |
+| **National guidance and reporting requirements** | Eric's argument: he understands how guidance becomes reporting logic: definitions, inclusion rules, exclusions, authoritative source selection, validation checks, reporting periods, sign-off evidence and explanatory commentary. South Western gives the transferable proof: "completed" versus "ready for close-out" had to be defined properly before reporting. |
+| **Advanced report-writing and analysis tools: SQL, SSRS, Excel** | Strong if SSRS is genuinely in profile. Eric should say he has used SQL for report queries, joins, validation checks and curated outputs; SSRS for report building, scheduling or publication if true; Excel for advanced reporting workbooks, formulas, pivots, lookups, graphs, variances and validation. |
+| **SSIS** | The advert names SSIS in the job summary, though the person spec highlights SQL, SSRS and Excel. If true, Eric can claim SSIS for extraction/loading/transform workflows. If not true, avoid making it central and lean on SAS, SQL, Access, Python and platform ETL discipline. |
+| **Competent with text editors, Word, internet and email** | Straightforward. Eric can evidence this through report writing, documentation, technical notes, email-based stakeholder follow-up, MSc writing and routine professional communication. |
+| **ECDL or equivalent qualification** | If no ECDL, argue equivalent digital competence through MSc, advanced Excel, Access, SQL, Power BI, SSRS, SAS, Python, documentation and reporting outputs. |
+| **Numbers, formulas, percentages, variances, trends and graphs; large reports of figures** | Very strong. South Western QHSE and operations reports: observations per 1,000 man-hours, percentages, variances, trend views, Pareto breakdowns, Excel charts and large operational reporting packs. |
+| **Validating figures on complex reports** | Very strong. Row-count checks, duplicate checks, missing-field checks, inconsistent status logic, failed joins, source-to-output reconciliation, unexpected movement checks and true-zero versus missing-submission distinction. |
+| **Assimilate and interpret complex or ambiguous information across wide data** | Very strong. South Western: Oracle records, SAS transformations, Excel trackers, Access tables, QHSE submissions, equipment movement notes, man-hour records and close-out files often conflicted. Eric's argument is that he resolved ambiguity into reportable categories and action lists. |
+| **Data quality processes and audits** | Strong. Eric should major on this: QHSE completeness checks, missing submissions, failed joins, duplicate records, inconsistent statuses, data-quality exceptions, validation rules and audit-like reconciliation before report release. |
+
+The person spec makes the acute experience, SQL/SSRS/Excel, large reports of figures, validation, ambiguous multi-source data and data quality processes central essentials.
+
+## Management, Supervision and Coordination
+
+| Requirement | Eric's aligned argument |
+| --- | --- |
+| **Plan and manage own workload effectively** | South Western recurring reporting deadlines; ad-hoc clarifications; prioritising critical checks before report release; MSc and platform workload management. |
+| **Make decisions in own area, sometimes affecting others** | Eric's reporting categories affected how managers interpreted job readiness, delays and follow-up actions. He separated confirmed information from items needing clarification, which shaped what colleagues acted on. |
+| **Project management skills** | Platform build, MSc thesis and South Western reporting improvements show scoping, sequencing, documentation, testing and delivery. Do not claim formal PRINCE2 unless true. |
+| **Motivate self and others** | Self: MSc distinction, independent platform, reporting deadlines. Others: trainee support at South Western, new-starter training at Five Guys. |
+| **Train and support junior members** | South Western: NYSC/industrial training students; setting small checking tasks; reviewing checks; explaining reporting definitions; correcting misunderstandings before outputs were used. |
+| **Oversee ad-hoc request workflow and resolve escalated problems** | Do not claim formal department workflow unless true. Transferable argument: Eric managed recurring and ad-hoc reporting clarifications, triaged unresolved exceptions, and escalated/clarified issues with the right team. |
+| **Coordinate department workflow in absence of senior managers** | Be careful. If not true, do not claim. Stronger safe version: Eric has created repeatable documentation, report checks and structured outputs that support continuity when someone else needs to pick up the work. |
+| **Assist on interview panels** | Do not claim unless true. |
+| **Prince2 Foundation** | Only claim if true. Otherwise omit or say project-management discipline through platform and reporting work, but do not list Prince2. |
+
+The person specification explicitly expects workload management, project skills, training junior members, ad-hoc workflow oversight, and business continuity in senior absence.
+
+## Written and Verbal Communication
+
+| Requirement | Eric's aligned argument |
+| --- | --- |
+| **Explain complex analysis clearly in writing** | MSc thesis, South Western reporting commentary, platform documentation, dashboard notes and written exception summaries. |
+| **Document processes and tasks to aid delegation** | South Western reporting workbooks, validation checks, status definitions, exception categories; platform documentation, query/check logic and dashboard measures. |
+| **Read and interpret national guidance** | Eric should state he can convert guidance into report definitions, inclusion/exclusion rules, source selection, validation checks and explanatory notes. Use targeted NHS reporting preparation to support, not replace, experience. |
+| **Excellent oral and written communication** | South Western weekly reporting discussions; written summaries; email follow-up; MSc presentations; platform explanations. |
+| **Present highly complex information to large groups** | Use only if genuinely true. If not, phrase as "presented reporting exceptions and summaries in meetings" rather than claiming large groups. |
+| **Explain complex information to specialists and non-specialists** | Strong. Eric explained job status/data issues differently to operations, QHSE, admin, commercial and managers. |
+| **Confident senior communication** | South Western manager-facing reporting and decision-support discussions. |
+| **Negotiate with managers, clinicians and staff** | Do not claim clinicians. Claim negotiation with managers and cross-functional colleagues; transfer the method to clinicians/service teams. |
+| **Issue instructions to junior information staff** | South Western trainee task-setting is the closest evidence. Frame as junior/trainee support, not formal line management. |
+| **Explain processes to information staff and wider Trust** | Eric can evidence explaining reporting workbooks, checks and definitions to trainees; platform documentation supports process explanation. |
+
+The JD and person spec emphasise internal/external meetings, presenting complex information, negotiation with senior managers/clinicians, and explaining processes to information staff.
+
+## Knowledge Criteria
+
+| Requirement | Eric's aligned argument |
+| --- | --- |
+| **Strong analytical skills** | Strong: South Western, MSc, platform, QHSE, public-data project. |
+| **Ability to grasp concepts quickly** | Strong: MSc distinction, platform build, rapid learning across Oracle/SAS/Access/Power BI/SQL/Python, targeted NHS reporting preparation. |
+| **NHS national patient-based returns and data definitions** | Do not claim direct professional use. Argue working knowledge of reporting principles: patient-based returns rely on definitions, data items, reporting periods, data quality, national guidance and sign-off. |
+| **Data Manual and NHS Information Notices** | Same: working knowledge/preparation only unless true. The stronger wording is "I understand the discipline of using national definitions/notices to update reporting logic." |
+| **PAS modules** | Do not claim detailed PAS module knowledge unless true. Safe argument: Eric understands enterprise administration-system logic from Oracle and has prepared around PAS concepts such as referral, appointment, attendance, waiting-list status and pathway events. |
+| **Expert knowledge in areas of information work** | Eric can claim strongest expertise in operational reporting assurance, data-quality checks, exception reporting, dashboard measures and source-to-output reconciliation. |
+| **Patient flows in acute hospital environment** | Do not pretend direct acute flow experience. Use working knowledge: waiting lists, referrals, attendances, theatre/surgical activity, maternity pathway events, demand/capacity and contracting logic. |
+
+The person specification's knowledge section is very NHS-specific, so this should be handled carefully, not inflated.
+
+## Personal Qualities
+
+| Requirement | Eric's aligned argument |
+| --- | --- |
+| **Highly numerate, high accuracy** | Engineering, MSc, QHSE rates, variance/trend analysis, validation checks, report reconciliation. |
+| **Self-motivated** | MSc distinction, AWS platform, independent learning of reporting tools and NHS reporting concepts. |
+| **Structured manner** | South Western reporting layers: raw extracts, cleaned datasets, exception views, final reports. |
+| **Pressure and tight deadlines** | South Western reporting deadlines, unresolved data issues, Five Guys busy shifts, MSc deadlines. |
+| **Initiative** | Creating exception views, clearer status definitions, validation checks, dashboards, platform monitoring. |
+| **Problem solving** | Resolving "completed" versus "not ready for close-out," failed joins, missing submissions, ambiguous delay reasons. |
+| **Lead role within the team** | Strongest safe claim: took lead on reporting outputs/exception views, supported trainees, coordinated small checking tasks. |
+| **Advanced interpersonal skills and negotiation** | Non-blaming data-quality conversations; influencing teams not managed by him to correct records and clarify definitions. |
+
+## Working Conditions and Practical Requirements
+
+| Requirement | Eric's aligned argument |
+| --- | --- |
+| **Keyboard skills / extensive VDU use** | Daily Excel, Access, Power BI, SQL, SAS, Python, documentation, report writing. |
+| **Long concentration on figures despite interruptions** | South Western large reporting packs and QHSE checks under deadlines; platform debugging and validation; MSc research. |
+| **Mainly desk-based work** | Fine. Eric's data/reporting work fits. |
+| **Willing to travel to off-site meetings** | Include if true: willing and able to travel to off-site meetings. |
+| **Flexibility in working hours** | Include if true: flexible around service needs and deadlines. |
+| **Keen to work in this field** | State through commitment to information quality, performance assurance and better patient/service decisions, not generic passion. |
+| **Good health record** | Do not mention unless asked. |
+
+## Trust Values
+
+The Trust's values are **Ambition, Respect and Compassion**, and its purpose is to improve life chances and health outcomes of its population. The advert also stresses respect for the area's cultural diversity.
+
+| Value | Eric's argument |
+| --- | --- |
+| **Ambition** | Eric improves reporting processes rather than just maintaining them: exception reports, validation checks, dashboards, automation, clearer definitions and documentation. |
+| **Respect** | Eric's South Western communication was non-blaming and evidence-led; he respected operational colleagues' context and used their feedback to improve reports. |
+| **Compassion** | Eric understands that accurate reporting affects people: in this role, surgical, maternity and WCH reporting supports patients, families, service planning and population outcomes. |
+| **Belonging and diversity** | Five Guys and Swing Dance help show inclusive communication; South Western shows adapting to mixed technical/non-technical audiences. |
+| **Improve life chances and health outcomes** | Eric's bridge: accurate, validated, timely information helps the Trust understand demand, capacity, performance, risks and inequalities, which supports better decisions for patients and communities. |
+
+## What We Should Major and Minor On
+
+**Major on:**
+
+- South Western operational reporting.
+- Complex report validation.
+- Data quality processes and audits.
+- Excel, SQL, SSRS if true, Power BI and report publication.
+- National guidance as working knowledge and method.
+- Supervision/training of juniors.
+- High-pressure deadlines and ad-hoc requests.
+- Assurance commentary.
+
+**Minor on:**
+
+- MSc thesis.
+- AWS platform.
+- Five Guys.
+- Swing Dance.
+
+**Do not claim unless true:**
+
+- NHS Acute Information Department employment.
+- Direct PAS module use.
+- Direct maternity submission ownership.
+- Direct statutory return ownership.
+- Direct clinician-facing experience.
+- Prince2.
+- Interview panel experience.
+
+---
+
+## Entry 5 - Supporting Statement Structure With Clarified Maths Evidence
+
+With the Maths evidence clarified, the structure becomes cleaner. We can now tick the qualification/numeracy requirements directly without awkward wording: **WASSCE Mathematics grade A, A-level/IGCSE-equivalent Maths exposure, BEng Mechanical Engineering with numerate modules, and MSc Data Science with Artificial Intelligence**.
+
+For this role, the statement must not read like a general data analyst statement. It should read like:
+
+> **Eric can operate in a senior information analyst function: producing high-stakes reports, validating complex figures, handling ambiguous multi-source data, applying reporting definitions, supporting national-return logic, using SQL, SSRS, SSIS, Excel and Power BI, training junior staff, and influencing people to correct or act on information.**
+
+The role is very specific: Surgical Services and Women and Child Health reporting, contracting activity submissions, maternity data submissions, national targets, SQL, SSRS, SSIS, Power BI, Excel, data quality, assurance commentary, junior staff supervision and continuity of statutory reporting. The person spec is also strict on acute information analysis, waiting-list or contracting knowledge, report-writing tools, validation of complex reports, ambiguous information, data quality processes and audits, supervision, presentations and negotiation.
+
+## Recommended Structure
+
+Aim for **1,100-1,300 words**. This is enough to hit the essentials and desirable points without sounding desperate.
+
+| Paragraph | Argument | Main evidence |
+| --- | --- | --- |
+| **1. Opening fit** | "I understand this is a senior NHS information reporting role: accurate, validated, timely reports for Surgical and WCH services, with national guidance, contracting/maternity submissions and assurance." | Role understanding, South Western, tools, data quality |
+| **2. Qualifications and numeracy** | "I meet the formal numeracy and qualification requirements." | WASSCE Maths A, A-level/IGCSE Maths, BEng Mechanical Engineering, MSc Data Science with AI |
+| **3. Core information analysis experience** | "I have substantial operational information analysis experience, even though not in an NHS Acute Information Department." | South Western Data Analyst role; Oracle, SAS, Excel, Access, Power BI; large operational reports |
+| **4. Report-writing tools** | "I can use the tools this role names." | SQL, SSRS, SSIS if true, Excel, Power BI, Access, Word, text editors, email, internet; ECDL-equivalent digital competence |
+| **5. Validating complex reports** | "I can validate figures before they are used." | Row counts, duplicates, missing fields, failed joins, source reconciliation, true zero versus missing submission, unexpected movement checks |
+| **6. Ambiguous multi-source data** | "I can turn conflicting source data into a reliable reporting position." | Completed versus ready-for-close-out; equipment status; QHSE records; man-hours; delay reasons |
+| **7. Waiting-list, contracting and national guidance logic** | "I understand how national guidance becomes reporting rules, even without claiming NHS employment." | Working knowledge of waiting-list, contracting, maternity/perinatal reporting principles; definitions, inclusion rules, exclusions, reporting periods, validation and commentary |
+| **8. Trends, variances, commentary and assurance** | "I do not just publish numbers; I explain movement and risk." | Percentages, variances, trends, graphs, QHSE rates, board-style commentary, performance interpretation |
+| **9. Supervision, training and workflow** | "I can support junior staff and help maintain continuity." | South Western trainees, task checking, documentation, Five Guys new-starter training, repeatable reporting packs |
+| **10. Communication, influence and values** | "I can influence people I do not manage and work with Ambition, Respect and Compassion." | South Western stakeholder discussions; respectful non-blaming challenge; Trust values; willingness to travel and work flexibly |
+
+## The Paragraph Arguments in Plain English
+
+The opening says: **I know what this job is really about.**
+
+The qualification paragraph says: **I meet the numeracy and degree requirements directly.**
+
+The South Western paragraph says: **I have real information-analysis experience with complex operational reporting.**
+
+The tools paragraph says: **I can use the required reporting stack, especially SQL, SSRS, SSIS, Excel and Power BI.**
+
+The validation paragraph says: **I can protect report accuracy before figures reach managers, boards or returns.**
+
+The ambiguity paragraph says: **I can resolve conflicting records into a clear reporting position.**
+
+The national guidance paragraph says: **I can translate reporting rules into local checks without pretending I already worked in an NHS Acute Information Department.**
+
+The commentary paragraph says: **I can explain percentages, variances, trends and assurance risks, not just produce tables.**
+
+The supervision paragraph says: **I can train, support and quality-check junior colleagues' work.**
+
+The final paragraph says: **I can communicate respectfully, influence action, support service continuity and align with SWB's Ambition, Respect and Compassion.**
+
+## Evidence Weighting
+
+For this job, I would weight the statement like this:
+
+| Evidence source | Weight |
+| --- | ---: |
+| **South Western operational reporting** | **45%** |
+| **SQL, SSRS, SSIS, Excel, Power BI, Access tools evidence** | **20%** |
+| **Data quality and validation evidence** | **15%** |
+| **Working knowledge of NHS reporting guidance, waiting-list, contracting and maternity logic** | **10%** |
+| **Training/supervision evidence** | **5%** |
+| **MSc/platform/Five Guys/Swing Dance** | **5% combined** |
+
+The platform and MSc should not dominate. They support technical capability, but this role is buying senior information reporting delivery.
+
+## Key Posture
+
+We should not write:
+
+> "I know I do not have acute NHS information department experience..."
+
+That weakens the opening.
+
+Instead, write:
+
+> "My strongest experience is in operational information analysis where reporting accuracy, definitions, validation, deadlines and management use mattered. I have also built working knowledge of NHS waiting-list, contracting and maternity reporting principles, particularly how national guidance must be translated into report definitions, validation checks, commentary and submission-ready outputs."
+
+That is honest and competitive.
