@@ -35,3 +35,27 @@ In this specific problem, your lane was:
 * flagging any mismatch to the field supervisor before the operation became live
 * updating the job notes once the supervisor/client rep confirmed the corrected sequence
 ```
+
+## Action
+
+When I noticed the tally and physical sequence had stopped matching, I went back to the rack area before raising it. The joint that should have been next in the working tally had been placed aside with the thread protector off, and the next joint had been moved closer to the pick-up area.
+
+I asked the operator hand beside the rack why that joint had been pulled out of sequence. He explained that during the pre-run check, the connection did not look clean enough to go straight into the string. The senior operator had asked for it to be held aside for re-check instead of letting it continue in the pick-up order.
+
+I then checked three things before going to the field supervisor. First, I confirmed the joint number/marking against the working tally. Second, I confirmed which joint had been moved forward in its place. Third, I checked whether the pulled-aside joint had been formally rejected or was only being held for inspection. At that point, the issue was clear: the physical crew had adjusted the sequence for a valid equipment-quality reason, but the change had not yet been reflected in the working tally or communicated to everyone relying on the sequence.
+
+I went to the SouthWestern field supervisor with the specific facts: the original next joint had been held aside because of a connection check, the following joint had been moved forward, and the tally needed to be reconciled before the first joints were run. I showed him the two positions on the tally and pointed out the joint that had physically moved.
+
+The supervisor called the senior operator over, confirmed the inspection status of the pulled-aside joint, and checked the corrected running order with the company representative. Once they agreed the replacement sequence, I updated my working notes with the corrected order and the reason for the change.
+
+For the first part of the run, I stayed close to the tally and checked each pick-up against the corrected sequence. I also noted the connection-check issue in the job notes so the post-job record would explain why the sequence changed before the operation started.
+
+## Result
+
+The run started with the corrected tally in place. The joint that raised the connection concern stayed out of the running sequence until it could be rechecked properly, and the approved alternate joint was brought into the sequence with the field supervisor, senior operator, and company representative all aware of the change.
+
+When the rig crew began picking up the first joints, the physical order matched the tally I was holding. I ticked off the first section of the run against the corrected record, and there was no argument on the floor about which joint was next or why the earlier joint had been held back.
+
+The bigger result was that we avoided a mid-run stoppage over something that could have been settled before the string went in hole. If the mismatch had carried forward, the crew could have lost time later trying to reconcile the tally, or the post-job record could have shown a different sequence from what was actually run.
+
+By catching it before the first pick-up, the supervisor had a clean basis to proceed, the company representative had visibility of the change, and the job notes carried the reason for the sequence adjustment. The operation moved into the run with the crew, the physical string, and the written record aligned.
