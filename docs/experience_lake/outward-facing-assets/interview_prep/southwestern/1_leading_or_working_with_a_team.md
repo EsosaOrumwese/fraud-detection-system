@@ -20,3 +20,18 @@ I noticed that the physical order of the tubing and accessories being prepared d
 That created a real risk before the operation became live. The rig crew needed a clear pick-up order, the company representative needed confidence that the completion string would match the programme, our senior operator needed to know what connection/accessory was coming next, and I needed the job notes/tally record to match what was physically going into the hole.
 
 The problem was time-sensitive because the rig was ready to move. If we allowed the first joints to start without reconciling the sequence, we could create confusion on the floor, record the wrong tally, or delay the operation later when someone realised the physical string and the written record did not match.
+
+## Role
+
+My role was to support the SouthWestern field supervisor from the operations-data side of the job. I was holding the working tally and job notes, checking the tubing/accessory sequence against what was physically being prepared at the rack, and making sure the field record matched the string that was about to be run. I was also checking equipment readiness and inventory details from our side, so if the physical setup, the tally, or the job notes stopped matching, I was expected to catch it early and raise it to the supervisor before the operation became live.
+
+```
+In this specific problem, your lane was:
+
+* holding the working tally / job notes
+* checking the physical tubing and accessory sequence
+* comparing what was prepared at the rack/V-door with what was on the job record
+* confirming that the equipment/accessories matched the planned completion string
+* flagging any mismatch to the field supervisor before the operation became live
+* updating the job notes once the supervisor/client rep confirmed the corrected sequence
+```
