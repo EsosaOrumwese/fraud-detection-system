@@ -59,3 +59,11 @@ When the rig crew began picking up the first joints, the physical order matched 
 The bigger result was that we avoided a mid-run stoppage over something that could have been settled before the string went in hole. If the mismatch had carried forward, the crew could have lost time later trying to reconcile the tally, or the post-job record could have shown a different sequence from what was actually run.
 
 By catching it before the first pick-up, the supervisor had a clean basis to proceed, the company representative had visibility of the change, and the job notes carried the reason for the sequence adjustment. The operation moved into the run with the crew, the physical string, and the written record aligned.
+
+## Learning
+
+I learned that in field operations, a record is only useful if it still matches what is physically happening on the ground. The tally looked correct until the crew changed the running sequence after pulling one joint aside for a connection re-check. If I had only trusted the paper record, I would have missed the fact that the physical string had already changed.
+
+I also learned to check the facts before escalating. I did not go to the supervisor with a vague concern. I checked the joint marking, confirmed which joint had moved forward, asked why the original joint had been held back, and found out whether it had been rejected or only kept aside for inspection. That meant when I raised it, I was bringing a clear operational issue, not confusion.
+
+The main lesson was that small mismatches become expensive once the operation is live. Before run-in-hole, a tally correction is a short pause. After the string starts going in, the same issue can become a delay, a disagreement on the floor, or a poor post-job record. Since then, I treat the final pre-run check as a physical verification exercise: the tally, the crew’s sequence, the equipment, and the job notes all have to match before the operation starts.
