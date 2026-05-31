@@ -553,3 +553,484 @@ By default, often no.
 With deliberate pressure-building and revision, yes, it can get much closer.
 
 ---
+
+PROMPT5:
+> The reason why I'm asking all these questions as well as laying down this discussion is because we would be writing a fictional story. Just as I've already talked about, the framework of the story is more, I'm not gonna say it's more, yes, in our argument right now, this discussion, you were saying something about even though the author does not have to actually see literal dragons or walk in a fantasy land, most of those things are defined by a real human pressure or emotions that you mentioned on the list. So in my story, I don't want to fully, right, I will not say, even though it sounds like it's realistic, it is not fully based on realistic events, hence the name fiction. And so, we would probably have to walk through what kind of pressure engines we're looking for in order to have a realistic story or to come up with a realistic set of events. The framework of it is just like this. I'd like already discussed with the interview baseline, or rather interview framework I give. It's about this Interviewer, who would I say is new on earth, but it's also the founders ages. I just popped into earth. I wanted to understand the woes of human life. But when I say, so let me not call him an alien, because if I say he's new to earth, almost every experience would be new to him. Instead, let me say he is a regular middle-aged guy, let's say he's an English regular middle-aged guy. And he wants to understand, well, let me say middle-aged, but more forties, forties, fifties, early fifties, but not mid-fifties, yeah, that's the right way to put it. And he lives in a different time and a different world. He's in England in a different England, different times and things were different. So when it came to experiences and he had mostly experiences, and so he wanted to understand, although not contrasting against his own own experiences, he wants to live his own experiences and not let it bias or influence the story, but more focus on understanding the experience itself that he's going to look at. So he wanted to understand the experiences of a young mid-twenties person who just came into England from... A different country, let's say from an African country, from Nigeria, and he's looking for, he's looking at starting life in this new country. And that's what would look more like currently getting a job and, uh, yeah, most likely getting a job and finally settling down. And the majority of the people, this story focused on his experience so far. So the point where he met this student or rather graduate because he was at the University, the point where he met this graduate was when he was on his graduate visa, the last year of the graduate visa. So there is the pressure of follow-up. This pressure doesn't really influence his, the interview or the story, but then just the background of the person's interview, because the pressure of time ticking out because he's on his last year of his, of his visa, as well as, and so there's the time pressure. and so, he then comes across this guy, maybe, let's say in church, he comes across because he's been wanting to understand um what the experience of someone like this, so he comes across this guy in church, this person, this student or this graduate in church, and then offers to help him out, but there's a catch. Well, not like a negative catch, it's more of a symbiotic relationship. The problem that the person, or not the problem, the problem that the person is trying to face, or rather the student or the graduate is facing at the moment, is preparing for an interview, he's trying to prepare for interviews, apply, like I said again, the pressure of time, he's applying for jobs, trying to get a job and trying to get himself ready for an interview. And the guy offered to help him because he saw that it will also benefit him in gaining an understanding towards the experience that the person has had growing up, because I mean, if the student graduates himself, he's looking for how to start applying, the best person that would help him would be a coach who would come in, um talk to him, understand what kind of experiences he has had, prepare him for interviews, possible questions that he might face, and all. And so this is where this interviewer comes in, because I mean, he, he worked as an Amazon hirer. All right, he worked at Amazon carrier for a long time before switching out. And so he was fully trained on looking at qualities for in interviewees or in hirers, focused on like the 15 leadership principles, and also he had this past experience. And what better way to mine out a unique experience from someone than someone who is looking for a job, and he then comes in, interviews it, and in trying to understand his experience in life, he himself, the student or the graduate himself, then also understands in his own experience in life and in relation to exactly what is necessary for applying for jobs. And so this is completely fictional, but we would see that this graduate has the background of, let's say, a field engineer walking in, this is the similarity of Southwest England, this is fictional, but let's give the similarity of SouthwestERN, completions, also this kind of environment. And he worked there from like July 2021 to August 2023 before coming over to the UK in September 2023 to do his master's in data science, which lasted for like a year, finished in September 2024, and he got a job, that's five years while he's working currently. So this is the ideal person that this person would like to interview and understand his experiences and the kind of questions you'll be asking him. That is the focus of the book. Because the book is not written in the discussion kind of way. Yes, it is less of the focus, less of rather, less focus is placed on the man interviewing, more focus is placed on the mining of this friend's experience. You understand me? And so, uh, his trying to also prepare, his friends are also trying to prepare for an operations area manager role, and what better person to help him than this, um, ex from Amazon, who is really versed in the Amazon leadership principles. So just to give you the framework of the story that I, I will be, I'm planning on writing, the fictional story.
+
+This is a strong framework, and it actually solves the exact creative-writing problem we have been discussing.
+
+The story should **not** be “a man helps a graduate prepare for Amazon interviews.”
+
+That would become thin very quickly.
+
+The deeper story is:
+
+**A man trained to reduce people into hiring evidence meets a young migrant whose life refuses to fit neatly into interview answers.**
+
+That is the engine.
+
+The interviewer thinks he is helping the graduate prepare for interviews. On the surface, he is. But underneath, he is learning that a person’s experience cannot be mined cleanly without changing the person, and maybe without changing himself.
+
+The graduate thinks he is coming for interview coaching. On the surface, he is. But underneath, he is being forced to look at his own life as material: field engineering, leaving Nigeria, coming to the UK, studying, working shifts, visa pressure, failed applications, small humiliations, adaptation, pride, shame, endurance.
+
+That gives you two layers:
+
+**Outer plot:** interview preparation.
+**Inner plot:** the excavation of a life.
+
+And yes, this can be fiction without being “based on a real event.” The realism comes from pressure, not autobiography.
+
+For real-world grounding, the UK Graduate visa currently matters dramatically because it is time-bound: GOV.UK says it cannot be extended, though a person may be able to switch to another visa such as Skilled Worker. That means the graduate’s job search is not ordinary career ambition; it is tied to whether his life in the UK can continue. ([GOV.UK][1])
+
+Amazon is also a useful model for the interviewer because Amazon’s own hiring material says its interviews focus heavily on past experiences, behavioural examples, STAR structure, and follow-up questions about the “what,” “how,” and “why” of decisions. ([Amazon.jobs][2]) So the interviewer’s method naturally becomes a story-mining machine.
+
+But for fiction, I would avoid making it feel like an Amazon interview-prep manual. The hiring framework should be the **scaffolding**, not the building.
+
+The actual book should live in moments like:
+
+The graduate starts with a polished answer:
+
+> “During my time as a field engineer, I demonstrated ownership by resolving an operational issue under pressure.”
+
+And the interviewer stops him.
+
+> “No. Where were you standing?”
+
+That question opens the real story.
+
+Was he in a yard? On a rig site? In a dusty office? Was someone waiting on him? Was there a supervisor who did not trust him yet? Was the equipment late? Was he pretending to understand something he was still learning? Did he call someone older? Did he make a mistake and hide it for ten minutes before admitting it?
+
+That is where the fiction becomes alive.
+
+The interviewer’s job is to keep stripping away generic language:
+
+> “I improved teamwork.”
+> “Who was angry?”
+>
+> “I handled pressure.”
+> “What were you afraid would happen?”
+>
+> “I adapted to a new environment.”
+> “What was the first thing in England that made you feel foolish?”
+>
+> “I showed resilience.”
+> “What did you do when nobody was watching?”
+
+That is the core mechanism of the story.
+
+I think the strongest version of your book is built around **sessions**, not chapters in the normal plot-heavy sense. Each session begins with an interview question, but the answer becomes a doorway into a lived scene.
+
+For example:
+
+### Session 1: “Tell me about yourself.”
+
+The graduate gives the safe version: Nigeria, field engineer, MSc Data Science, currently applying for operations roles.
+
+The interviewer hears the summary and realises it contains no life. He asks him to start again, but not from education. From the day he decided to leave.
+
+This opens the first real scene: not dramatic migration poetry, but perhaps a room, a laptop, a family conversation, a bank statement, an offer letter, someone saying, “England will be better,” while nobody says what “better” will cost.
+
+### Session 2: “Tell me about a time you worked under pressure.”
+
+The graduate tries to use a field-engineering example.
+
+The first version sounds like a CV bullet. The interviewer pushes him until the story becomes physical: heat, delay, a senior technician losing patience, equipment that should have arrived but has not, a young engineer trying to sound calmer than he feels.
+
+### Session 3: “Tell me about a time you failed.”
+
+The graduate wants to avoid this because failure feels dangerous when your visa clock is already running.
+
+He chooses something small at first. The interviewer rejects it. Then the graduate talks about struggling at Five Guys: being slow at prep, managers asking what he was doing downstairs, the humiliation of not being able to prove that he had been working, writing times on the whiteboard, asking older crew members how to move faster.
+
+That scene could be one of the best in the book because it breaks the dignity-image. He was once a field engineer. Now he is being judged by how quickly he can prep food. That is not shameful, but it is emotionally complicated.
+
+### Session 4: “Tell me about a time you influenced without authority.”
+
+This could go back to university: a society event, a dance room, a 10-to-11 slot, fear that nobody would attend, asking people from a local dance school to help, trying to make the room feel alive before new students walked in.
+
+The key is not “he organised an event.” The key is that he had to borrow confidence before he had any institutional weight.
+
+### Session 5: “Tell me about a time you had conflict.”
+
+This should not be a loud argument. Real workplace conflict is often quiet. Someone dismisses him. Someone talks over him. Someone changes a plan. Someone asks for work without giving enough information. He has to decide whether to challenge, absorb, document, or quietly work around it.
+
+### Session 6: “Why operations?”
+
+This becomes dangerous because the honest answer may not be pure passion.
+
+Maybe he wants operations because it joins his old field-engineering life with his new UK survival needs. It is physical systems, people, process, pressure, metrics, and movement. But it is also sponsorship, salary, stability, a way to stay.
+
+The interviewer may ask:
+
+> “If you already had the right to stay, would you still want this job?”
+
+That question could disturb him.
+
+Not because the answer is no, but because the answer is mixed.
+
+That is good fiction.
+
+The graduate should not be made too noble. If he is always hardworking, humble, resilient, grateful, and wise, he becomes another generic inspirational migrant character.
+
+He needs contradictions.
+
+He may be proud of his field-engineering background but embarrassed by his current job.
+
+He may resent being asked to turn painful experiences into neat interview stories.
+
+He may want help but hate needing help.
+
+He may believe he is practical, while actually carrying a lot of unspoken fear.
+
+He may talk about “settling down” as if it is admin, but what he really wants is permission to stop proving his life belongs somewhere.
+
+The interviewer also needs pressure. Otherwise he becomes a convenient device.
+
+His pressure could be this:
+
+He spent years judging candidates through structured evidence. He became very good at detecting polished lies. But he is less sure he knows how to listen when the answer is not useful yet.
+
+Maybe he left Amazon, retired early, burned out, lost someone, or moved into a quieter church life. Maybe he comes from an older England where work had a different promise: stay long enough, do well enough, and life becomes stable. The graduate’s situation unsettles him because effort no longer guarantees stability.
+
+That gives him a private wound too:
+
+**He knows how to evaluate people, but he is no longer sure he knows how to understand them.**
+
+That is much richer than “wise older mentor helps young man.”
+
+The church setting is also good, but it should not be sentimental. Church can be sanctuary, network, performance, pressure, gossip, kindness, obligation, prayer, tea after service, people asking “how is the job search?” too often, someone offering help sincerely, someone else offering advice that makes things worse.
+
+The first meeting should be ordinary.
+
+Not:
+
+> The old man saw destiny in the young man’s eyes.
+
+More like:
+
+> The graduate was stacking chairs after service because leaving immediately meant answering questions outside. The older man noticed that he was wearing formal shoes with a cheap winter coat, and that he checked his phone twice in the space of one hymn sheet being folded.
+
+Then the older man asks something practical.
+
+> “Are you waiting for a call?”
+
+That can begin everything.
+
+I would build the book around this central question:
+
+**Can a life be translated into evidence without being reduced?**
+
+Because that is what job interviews ask people to do. Especially migrants. Especially graduates on a visa clock. Especially people whose strongest experiences happened in places the interviewer may not understand.
+
+The story’s danger is that it becomes too clean:
+
+> Experience → interview answer → confidence → job.
+
+Avoid that.
+
+A better arc is:
+
+> Experience → resistance → memory → embarrassment → argument → reframing → partial answer → deeper self-knowledge → still uncertain outcome.
+
+The job outcome should not be the only emotional payoff. The real payoff is that the graduate learns how to speak about his life without flattening it.
+
+And the interviewer learns that the best stories are not extracted by asking for “leadership.” They are found by asking where the person was standing, what they feared, who was watching, what object was in their hand, what choice they nearly made, and what they still do not like admitting.
+
+So the book is fictional, yes.
+
+But its realism will come from making each interview question collide with a different pressure:
+
+**Visa pressure:** time is running out.
+**Status pressure:** former field engineer, current service worker, aspiring operations manager.
+**Translation pressure:** Nigerian experience must become UK hiring language.
+**Class pressure:** money, rent, shifts, transport, application fees, family expectations.
+**Faith/community pressure:** church as help and exposure.
+**Masculinity/pride pressure:** needing help without wanting pity.
+**Institutional pressure:** interviews demand neat STAR stories from messy lives.
+**Memory pressure:** the graduate discovers that some stories are not the ones he thought mattered.
+
+That is the book.
+
+Not “an interview coach helps a graduate get a job.”
+
+More like:
+
+**An older English interviewer teaches a young Nigerian graduate how to turn experience into answers, and accidentally discovers that every answer has a life underneath it.**
+
+[1]: https://www.gov.uk/graduate-visa?utm_source=chatgpt.com "Graduate visa: Overview"
+[2]: https://amazon.jobs/content/en/how-we-hire/bie-interview-prep?utm_source=chatgpt.com "BIE Interview Prep"
+
+---
+
+PROMPT6:
+> So once again, to make, to ensure that we focus on different aspects, before we get into the whole storyline, I think the places that we should focus on now, in order to gain material for later working on the whole or the rather the whole story itself, is on, again, the aim is understanding experience of this individual. It's on the interview prep part, where he's asking questions of tell me a time you did this, and he's digging deeper into the person to then get a realistic experience or for the person to then realize his own experience. Just as we have an example that we gave, I said that the interviewer got them students and started asking them about their university experience and they all had diverse and rich experiences. So in order to avoid us from, again, you and LL, to avoid managing different things at the same time, it's better to just keep focused on the task at hand, which is, this is an interview for now. Let's, don't let the interviewer be the mouthpiece of the, of this story, rather don't let there be the entire focus of the story. Instead, let's, it's be the situation of the focus is on the Nigerian graduate who is asking questions.
+
+Yes. This is the right narrowing.
+
+For now, the story should be treated as **an interview-prep chamber**, where the Nigerian graduate’s experience is slowly uncovered through questions.
+
+The interviewer should not become the emotional centre. He is the tool. The graduate is the landscape.
+
+The book’s immediate focus is:
+
+**A Nigerian graduate in the final year of his Graduate visa is preparing for operations/area-manager interviews, and each behavioural question forces him to recover a real scene from his life that he had previously flattened into CV language.**
+
+That is the working frame.
+
+The interviewer’s role is mainly to interrupt abstraction.
+
+The graduate says:
+
+> “I showed resilience while adapting to a fast-paced environment.”
+
+The interviewer says:
+
+> “No. Where were you standing when you first realised you were too slow?”
+
+Then the story opens.
+
+That is the mechanism.
+
+### The core rule
+
+Every interview question should produce **two answers**.
+
+First, the graduate gives the safe, generic, job-application answer.
+
+Then the interviewer pushes until the buried experience appears.
+
+For example:
+
+**Question:** Tell me about a time you improved your performance.
+
+**First answer:**
+
+> “At work, I noticed I was slower than expected during prep, so I sought feedback and improved my efficiency.”
+
+This is technically useful, but dead.
+
+**Recovered story:**
+
+> He remembers being downstairs at Five Guys, hearing movement above him, knowing the managers were wondering why prep was taking so long. The frustrating part was that he was working, but he could not prove where the time had gone. So he began writing the prep steps and timings on the whiteboard, partly to improve, partly to defend himself. Then he started asking older crew members how they moved faster.
+
+That is the story.
+
+The interview preparation is the door. The lived scene is the room.
+
+### The graduate should remain the centre
+
+The interviewer should not give long speeches about his own life. He should mainly ask sharp, practical questions:
+
+> “Who was watching?”
+> “What did you want to say but couldn’t?”
+> “What would have happened if you failed?”
+> “What did you do first?”
+> “What detail are you leaving out because it embarrasses you?”
+> “What did that teach you that an interviewer would actually believe?”
+
+This keeps the attention on the graduate.
+
+The interviewer becomes memorable through his method, not through taking over the story.
+
+### The structure for each interview scene
+
+Each major section can follow this pattern:
+
+1. **Interview question**
+
+   The interviewer asks a behavioural question.
+
+2. **Polished answer**
+
+   The graduate gives the version he thinks employers want.
+
+3. **Resistance**
+
+   The interviewer hears the emptiness and challenges it.
+
+4. **Pressure point**
+
+   The graduate identifies what was really at stake: time, status, money, visa, pride, shame, fear, family expectation, being underestimated.
+
+5. **Recovered scene**
+
+   The narrative enters the actual event.
+
+6. **Return to interview room**
+
+   The graduate and interviewer reshape the experience into an answer.
+
+7. **Residue**
+
+   The graduate leaves with more than an interview answer. He understands one part of his life differently.
+
+That last part matters. The story should not feel like coaching content. Each session should leave a mark on him.
+
+### The experience banks
+
+For this graduate, the richest material should probably come from these areas:
+
+**1. Field engineering / completions work**
+
+This gives him early professional identity. It can carry pressure around hierarchy, technical responsibility, site conditions, older workers, safety, equipment, deadlines, and being young in a serious environment.
+
+Possible questions:
+
+> “Tell me about a time you handled pressure.”
+> “Tell me about a time you made a decision with incomplete information.”
+> “Tell me about a time you earned trust.”
+
+The danger here is making it sound too polished. The field-engineering scenes need physical and social detail: waiting for parts, being corrected by someone older, trying not to look unsure, client pressure, documentation, equipment checks, heat, noise, site hierarchy.
+
+**2. Coming to the UK**
+
+This gives him dislocation. Not dramatic in a cheap way, but practical: accommodation, accents, weather, bank account, transport, food prices, loneliness, calling home, pretending things are going better than they are.
+
+Possible questions:
+
+> “Tell me about a time you adapted quickly.”
+> “Tell me about a time you had to learn a new environment.”
+> “Tell me about a time you dealt with uncertainty.”
+
+The key is not to make “moving to the UK” one broad emotional summary. It should appear through small pressures: misunderstanding a bus route, being cold in the wrong coat, not knowing how to answer casual British humour, checking rent against savings, smiling on calls home.
+
+**3. MSc Data Science**
+
+This gives him intellectual transition. He moves from field operations into data, models, code, assignments, group work, technical confusion, and proving that his old experience still matters.
+
+Possible questions:
+
+> “Tell me about a time you learned something difficult.”
+> “Tell me about a time you solved a complex problem.”
+> “Tell me about a time you worked in a team.”
+
+The story should avoid generic “I learned Python and machine learning.” Better: a model failed, a group member disappeared, he misunderstood the task, he stayed late debugging, he realised field experience made him think differently about messy data.
+
+**4. Five Guys / part-time work**
+
+This is extremely valuable because it creates status tension. Former field engineer. Master’s graduate. Now being judged on prep speed, shift discipline, and operational rhythm.
+
+Possible questions:
+
+> “Tell me about a time you improved.”
+> “Tell me about a time you received difficult feedback.”
+> “Tell me about a time you worked under pressure.”
+> “Tell me about a time you took ownership.”
+
+This is one of the strongest story banks because it has concrete objects: downstairs prep, whiteboard timings, managers asking what he was doing, older crew members showing him faster methods, the smell and pace of the shop, shift pressure.
+
+**5. Church/community**
+
+This is where help, exposure, dignity, and discomfort mix. Church can introduce the interviewer naturally, but it can also show the graduate being visible in ways he may not want.
+
+Possible questions:
+
+> “Tell me about a time you asked for help.”
+> “Tell me about a time you built trust.”
+> “Tell me about a time someone challenged you.”
+
+Church should not become sentimental. It can be tea after service, someone asking about jobs again, a WhatsApp group, someone offering advice too confidently, the graduate deciding how much truth to reveal.
+
+**6. Job applications / visa pressure**
+
+This is the background engine. It should not be repeated loudly in every scene, but it should always be present.
+
+Possible questions:
+
+> “Why this role?”
+> “Tell me about a time you stayed motivated after rejection.”
+> “Tell me about a time you dealt with ambiguity.”
+
+The visa pressure changes everything. A rejection email is not just career disappointment. It is time leaving the room. But the graduate may not want to say that directly because it makes him feel exposed.
+
+### The main creative danger
+
+The biggest danger is turning the graduate into a “resilience character.”
+
+That would flatten him.
+
+He should not always be noble, grateful, hardworking, and humble. He should have pride. He should sometimes be defensive. He should sometimes give bad answers. He should sometimes resent the process.
+
+For example, the interviewer asks:
+
+> “Tell me about a time you failed.”
+
+The graduate may think:
+
+> Why do they always want failure from people who cannot afford to fail?
+
+That is more interesting than an immediate polished answer.
+
+Or the interviewer asks:
+
+> “Why do you want to be an Area Manager?”
+
+The graduate first says something acceptable:
+
+> “I enjoy leading teams and improving operations.”
+
+But the real answer is messier:
+
+He wants a job that joins his old life and new life. He wants stability. He wants sponsorship. He wants to stop feeling temporary. He wants a role where physical operations, people, process, and pressure make sense to him. He wants not to go backwards.
+
+That tension is the story.
+
+### The working principle
+
+For every interview question, we should ask:
+
+**What polished answer would he give?**
+**What lived scene is hiding underneath?**
+**What pressure made that scene matter?**
+**What object, place, or person makes it concrete?**
+**What does he understand after telling it that he did not understand before?**
+
+That is how we avoid generic AI writing.
+
+We do not begin with “write a touching story about a Nigerian graduate.”
+
+We begin with:
+
+> He is asked about failure.
+> He chooses the wrong story.
+> The interviewer notices.
+> He resists.
+> Then he remembers the whiteboard downstairs.
+
+That is where the life is.
+
+----
+
+PROMPT7:
+> Okay, so in this chat, I'll draw this conversation now, keeping in mind the diversity as well as the richness, because this is where it's very important. You would act as the, not that you say you would act, you are the Nigerian graduate. You are the one who is in this situation. And so, um, I don't know what approach you take. I will be the one asking you the questions, probing you, and um, you would be the one responding. I do not know how you want to handle your pressure engine for each of your various experiences. Again, noting that again, you are the Nigerian graduate and you have experience in um field engineering as an um operations person. You also have experience in your university life, doing your masters at the university, the University of Exeter, and you then also have your um five guys experience, which started after you were done with university. So you didn't have the problem of um combining work and uni, just to keep that story straight. And so I would don't, I don't know if it's a case of you defining your pressure engine or things that for each of these different experiences or you define your pressure engine for each question I ask before you then ask answer, or I don't know, but then remember, we're going for diversity, we're going for richness, you know, that's to make this fictional story resonate with the reader.
+
+Understood.
+
+From this point, I am the Nigerian graduate in the interview-prep situation.
+
+I will answer as him, in first person, as though I am sitting across from you. I will not make every answer polished immediately, because that would defeat the purpose. Sometimes I may begin with the safer interview answer, then reveal more if you probe. If the question touches something uncomfortable, I may hesitate, defend myself, answer too generally, or only later admit the real detail.
+
+The pressure engines I will carry in the background are these:
+
+**Field engineering / operations in Nigeria**
+I was young, trying to be taken seriously around older field people, supervisors, equipment, deadlines, site pressure, and practical work where mistakes are not abstract. The pressure here is competence, hierarchy, safety, and pride.
+
+**MSc Data Science at the University of Exeter**
+I came into a new country, a new academic culture, and a more technical/data-focused environment. I was not working during the master’s, so the pressure is not “balancing work and university.” It is intellectual transition, loneliness, adapting to England, proving that my previous engineering experience still matters, and learning how to speak in rooms where I am unsure how I am being read.
+
+**Five Guys after university**
+This came after finishing the MSc. The pressure here is status compression: I have a degree, field experience, and ambitions, but I am being judged on speed, prep, shift discipline, and whether managers trust what I am doing. It is not shame exactly, but it is complicated. There is dignity in the work, but also frustration.
+
+**Graduate visa / job search**
+This sits behind everything. I will not mention it every time, because in real life people do not say “my visa is expiring” in every answer. But it changes the weight of ordinary things. A rejected application is not just a rejected application. A bad interview is not just a bad interview. Time is involved.
+
+**Church / community**
+This is where I met you. It is also where help can feel both kind and exposing. People ask about jobs. People offer advice. Sometimes you are grateful. Sometimes you wish nobody had asked.
+
+When you ask me questions, I will try to answer with lived specificity: places, objects, awkward moments, wrong first answers, small details that carry pressure. I will avoid generic “I learned resilience” answers unless the character is initially hiding behind interview language.
+
+You can begin the interview whenever you are ready.
+
+----
+
+PROMPT8:
