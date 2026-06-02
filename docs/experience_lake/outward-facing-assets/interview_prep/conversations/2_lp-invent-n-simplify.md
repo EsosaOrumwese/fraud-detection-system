@@ -231,3 +231,78 @@ He waits.
 **If you were the manager, how would you make this prep improvement repeatable for another crew member without turning it into unnecessary admin?**
 
 ## Graduate
+If I were managing that shift, I would not make everyone track every prep item forever. I would use the timing only as a short diagnostic tool.
+
+First, I would show the setup sequence before prep starts: containers out, lids matched, labels ready, bin positioned, and the first few prep items in order. That way the crew member is not starting each item from zero.
+
+Then I would agree the key prep items that matter most before service, because not every item has the same urgency. The focus would be on the items upstairs depends on early, so the tracking is tied to readiness, not just making someone look busy.
+
+If a crew member was struggling, I would ask them to time two or three shifts on the whiteboard, just enough to see where the time is going. I would look for the same pattern I had: long gaps between items, too much checking, searching for containers, or cleaning at the wrong moments.
+
+Then I would pair them briefly with a faster crew member, but with a specific focus. Not just “watch him.” I would ask them to watch the sequence: where the containers are placed, when labels are prepared, how often the person touches the same item, and how they move from one prep item to the next.
+
+After that, I would stop the detailed timing once the flow became stable. The ongoing check would be simpler: are the key prep items ready before service, and does upstairs still need to chase? If the answer is yes, the process is working. If chase-downs start again, then I would bring the timing back temporarily.
+
+So I would make it repeatable by turning the lesson into a simple prep routine, not extra admin: set up first, follow the agreed sequence, use short-term timing only to diagnose waste, and measure success by readiness for the team upstairs.
+
+
+## Interviewer
+The interviewer listens, then writes one sentence:
+
+**Use timing to diagnose, not to manage forever.**
+
+He looks up.
+
+“Good. That is exactly the answer.”
+
+He taps the page.
+
+“You did not say, ‘I would make everyone write everything down forever.’ That would sound like you solved one problem by creating another. You said you would use timing temporarily to find waste, then manage by the real business signal: are the key prep items ready before service, and does upstairs still need to chase?”
+
+He underlines:
+
+**readiness for upstairs**
+
+“That is the part that matters. Not the whiteboard. Not the timing for its own sake. The operation does not care that a board exists. The operation cares whether the line has what it needs before pressure arrives.”
+
+He sits back.
+
+“Invent and Simplify is covered.”
+
+Then he turns to a new page.
+
+**DELIVER RESULTS**
+
+He pauses before speaking.
+
+“Now we go to Deliver Results. This is not ‘I worked hard.’ It is not ‘I stayed late.’ It is: there was a result that had to be delivered, there were obstacles, and you protected the outcome.”
+
+He writes three possible stories:
+
+1. **Late close**
+2. **Fries bottleneck**
+3. **Five Guys prep timing**
+
+“The late close is probably your cleanest Deliver Results story. The deliverable was not glamorous, but it was real: the front, collection, and lobby areas had to be closed, stocked, cleaned, and ready for the morning team.”
+
+He looks at the graduate.
+
+“But Amazon will ask for proof. So if you use the late close, do not say, ‘We closed properly.’ Say what properly meant.”
+
+He writes:
+
+* around twenty minutes behind after late rush;
+* front looked clean but was not reset;
+* bins close to full;
+* bags, cups, lids, sauces low;
+* late customers still coming through;
+* final wipe could not happen too early;
+* result: bins done, front restocked, lobby cleared, final wipe after last customer-facing activity, fewer loose ends at manager check.
+
+Then he says:
+
+“For Deliver Results, I want your first-choice story, backup story, and proof. The proof must show the result was actually delivered, not just that you were busy.”
+
+He leans forward.
+
+**For Deliver Results, what is your first-choice story, what is your backup story, and what evidence shows you delivered the result despite obstacles?**
