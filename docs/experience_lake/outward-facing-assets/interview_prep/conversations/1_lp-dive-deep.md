@@ -95,3 +95,135 @@ That story is a good backup because it also shows going past the first explanati
 
 
 ## Interviwer
+The interviewer’s eyes narrow slightly.
+
+“Good.”
+
+He writes the numbers down:
+
+**6 prep shifts**
+**70 mins → 55 mins**
+**2–3 chases → 0–1 chase**
+
+Then he looks up.
+
+“This is the first time the story has become Amazon-shaped.”
+
+He taps the page.
+
+“You have a baseline. You have a measurement method. You have a change. You have a result that matters to the operation.”
+
+He points to the numbers one by one.
+
+“Seventy minutes to fifty-five minutes is not just ‘I became faster.’ It means the prep became ready closer to the time the operation needed it. Two or three chase-downs becoming zero or one is even better, because that shows the upstream team had less uncertainty. That is business impact.”
+
+Then he pauses.
+
+“But I am going to test the numbers.”
+
+He leans forward.
+
+“If you say **six prep shifts**, **seventy minutes**, and **fifty-five minutes**, I will ask:”
+
+> “Were those the same prep items? Were the shifts comparable? Was volume similar? How did you avoid comparing an easy prep day with a harder prep day?”
+
+He lets that sit.
+
+“That is the follow-up you must survive.”
+
+He writes:
+
+**same list? same station? comparable demand?**
+
+Then he speaks.
+
+“Your answer does not need to be perfect. It needs to be honest. You might say:
+
+> ‘I did not treat it as a formal time study. It was a practical shift-level comparison across similar prep lists. I tracked the same core items — lettuce, tomatoes, onions, mushrooms — and looked for repeated patterns, especially the gaps between items. The exact time varied by shift, but the trend was clear: the same core prep route moved from around seventy minutes to around fifty-five, and upstairs stopped chasing as often.’
+
+That would be credible.”
+
+He sits back.
+
+“Now you answer.”
+
+**If the interviewer asks, ‘How did you know the improvement was real and not just because the prep list was easier that day?’ what do you say?**
+
+## Graduate
+I would say:
+
+I did not treat it as a formal time study, so I would not overclaim it as a perfectly controlled experiment. It was a practical shift-level comparison across similar prep work.
+
+I tracked the same core prep route across those shifts: lettuce, tomatoes, onions, mushrooms, and the main containers upstairs usually depended on before service. The exact quantity varied a little by day, but it was not a comparison between a full prep day and an unusually light one.
+
+The reason I trusted the improvement was that two things changed together.
+
+First, the whiteboard timings showed the same pattern improving: the gaps between items reduced. Before, I might lose three to five minutes between tasks by finding containers, matching lids, checking the list again, or resetting the station. After changing the setup, those gaps were usually around a minute or less.
+
+Second, the team impact changed. Before, upstairs typically chased me two or three times before service for key items. Over the next two weeks, that dropped to usually zero or one chase because those items were ready earlier.
+
+So I would not say the number is laboratory-perfect. But because the same core prep items were being tracked, the repeated dead spaces reduced, and upstairs had less need to chase, I was confident the improvement was real and not just an easier day.
+
+
+## Interviewer
+The interviewer nods.
+
+“That answer survives the follow-up.”
+
+He writes:
+
+**Not formal study — practical shift comparison.**
+**Same core prep route.**
+**Two signals changed together: timing gaps + chase-downs.**
+
+“That is honest. You did not pretend it was laboratory-perfect. You explained why the trend was reliable enough for an operations decision.”
+
+He taps the page.
+
+“The strongest part is this:”
+
+> “Two things changed together.”
+
+“That is exactly how you defend the result. One metric alone can be argued with. But when the whiteboard showed shorter dead spaces **and** upstairs stopped chasing as often, the story becomes stronger.”
+
+He pauses.
+
+“One wording change. Do not say ‘the main containers upstairs usually depended on.’ Say it more plainly.”
+
+He writes:
+
+> “the key prep items the upstairs team needed before service”
+
+“That is clearer.”
+
+Then he closes the **Dive Deep** line.
+
+“Dive Deep is covered.”
+
+He turns the page and writes:
+
+**INVENT AND SIMPLIFY**
+
+“Now we use the same story, but the angle changes.”
+
+He looks at the graduate.
+
+“For Dive Deep, the point was that you found the hidden cause. For Invent and Simplify, the point is different. They are asking: what did you make simpler, and why did that simplification improve the work?”
+
+He draws two columns.
+
+**Before:**
+Each prep item treated like a separate project. Finish one, reset, search, check, clean, restart.
+
+**After:**
+Station set up once. Containers, lids, labels, bin position ready. Sequence planned. Fewer touches. Less dead time.
+
+He says:
+
+“The simplification is not the whiteboard itself. The whiteboard helped you see the problem. The simplification was changing the prep flow so each item did not begin from zero.”
+
+He looks back up.
+
+“So answer this.”
+
+**For Invent and Simplify, what is your first-choice story, what is your backup story, and what exactly did you simplify?**
