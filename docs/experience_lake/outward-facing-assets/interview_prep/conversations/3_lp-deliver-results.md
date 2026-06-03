@@ -1,3 +1,37 @@
+## Question Variants
+Based on the **Deliver Results transcript alone**, they are testing whether the candidate can identify the key inputs, deliver with the right quality and timing, handle setbacks, and keep improving after the first delivery. For the Graduate Area Manager role, that maps directly to safety, quality, productivity, corrective actions, process efficiency, team management, escalations, and meeting customer demand across shifts. ([Amazon.jobs][1])
+
+Most likely question variants:
+
+| Likely question                                                                   | What they are really testing                                             |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Tell me about a time you delivered a result despite setbacks.**                 | Did you protect the outcome when conditions were not ideal?              |
+| **Tell me about a time you had to hit a deadline under pressure.**                | Could you deliver on time without dropping quality?                      |
+| **Tell me about a time you had to focus on the key inputs to achieve a result.**  | Did you know what actually drove the outcome?                            |
+| **Tell me about a time you had multiple obstacles but still completed the work.** | Did you rise to the occasion or drift into excuses?                      |
+| **Tell me about a time you delivered quality when people were tired or rushed.**  | Did you maintain the standard, not just finish?                          |
+| **Tell me about a time you recovered a situation that was behind schedule.**      | Could you regain control and deliver the required result?                |
+| **Tell me about a time you delivered for the next team or customer.**             | Did you think about the handoff/customer impact?                         |
+| **Tell me about a time you completed something, then improved it afterward.**     | Did you treat delivery as the starting line, not the finish line?        |
+| **Tell me about a time you had to decide what inputs mattered most.**             | Did you prioritise the drivers of delivery, not just the visible output? |
+| **Tell me about a time you refused to settle for “good enough.”**                 | Did you finish properly with quality?                                    |
+
+Most likely for **Graduate Area Manager**:
+
+1. **Tell me about a time you delivered a result despite setbacks.**
+2. **Tell me about a time you had to recover something that was behind schedule.**
+3. **Tell me about a time you delivered quality under time pressure.**
+4. **Tell me about a time you focused on the key inputs to achieve an operational result.**
+5. **Tell me about a time you completed work for a handover or next team.**
+
+The answer must show:
+
+> **required result → setback/pressure → key inputs chosen → action → delivered outcome → quality protected → learning/iteration.**
+
+[1]: https://www.amazon.jobs/en/jobs/3078659/graduate-area-manager-2026-start-date?utm_source=chatgpt.com "Graduate Area Manager - 2026 Start Date, OB - Job ID"
+
+----
+
 ## Interviewer
 The interviewer listens, then writes one sentence:
 
@@ -301,3 +335,29 @@ He sits back.
 “So answer this.”
 
 **For Insist on the Highest Standards, what is your first-choice story, what is your backup story, and what evidence proves you protected the standard rather than just slowed the work down?**
+
+
+## STAR Responses
+### Main story: Late close
+
+At Five Guys, I had a close where my front, collection, and lobby area had to be properly closed, stocked, cleaned, and ready for handover.
+
+The obstacle was that the rush had run late. We were roughly twenty minutes behind where that area would normally be at that stage of close, late customers were still coming through, and everyone was tired. From a distance, the front counter looked almost clean, but it was not actually reset: bags, cups, lids, and sauces were low, and the bins were close to full.
+
+I focused on the key inputs that would decide whether the close was actually complete. I cleared bins first because full bins slow down the rest of the clean-down. Then I restocked the front before the final wipe, because moving cups, lids, bags, and sauces afterward would disturb the area again. For areas still being used by late orders, I kept them as “done except final wipe” and came back after the last customer-facing activity.
+
+The result was that the area passed the close check with the obvious handover risks handled: bins done, front stock replenished, lobby cleared, and final wipe completed after customer-facing activity ended. The area did not have to be reopened for obvious loose ends like missing stock, full bins, or a counter needing another final wipe.
+
+What I learned was that delivering results is not just finishing the visible task. In a close, the real result is whether the next shift receives an area that is actually ready to use. Clean is one part; reset is another.
+
+### Backup story: Fries bottleneck
+
+At Five Guys, I had a busy service period where several orders were nearly complete but could not leave collection because fries were behind.
+
+There were around four or five partially packed bags waiting. The burgers were ready, customers were watching the collection area, but the person bagging could not close and call the orders because the fries were missing. At the same time, there were smaller front-area tasks calling for attention, like restocking and tidying.
+
+I checked that the other tasks were not safety or hygiene issues. Since they were lower-priority tidying and restocking tasks, I delayed them briefly and focused on the bottleneck. I asked which orders were waiting on fries, helped match fries to the right tickets, and helped get the completed bags out to collection. When a customer looked like he needed an update, I kept it short: “We’re just waiting on fries for a few orders — they’re coming through now.”
+
+The result was that several bags were completed and called, collection pressure reduced, and the person bagging was no longer blocked by the same missing item. Once the immediate flow was under control, I went back to the delayed restocking and tidying before they became the next problem.
+
+What I learned was that under pressure, delivering results means finding the input that is blocking the most output. In that moment, fries were the constraint. Clearing that constraint released several orders instead of letting the team stay busy around the problem.
