@@ -1,3 +1,40 @@
+## Question Variant
+
+Based on the **Customer Obsession** transcript, Amazon is testing whether the candidate starts from what the customer actually needs, protects customer trust, removes friction, and thinks about whether the solution is sustainable — not just whether they were polite. The transcript also makes clear that customer obsession can include economics and competitor awareness, but the main focus is still what customers care about most. 
+
+For the **Graduate Area Manager** role, this connects to fulfilment reliability, customer promises, quality, productivity, process improvement, and improving customer service. Amazon’s role description explicitly mentions analysing performance, implementing corrective actions, optimising work, and improving customer service. ([Amazon.jobs][1])
+
+| Likely Customer Obsession question                                                                                       | What they are really testing                                   |
+| ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| **Tell me about a time you dealt with an unhappy customer.**                                                             | Did you understand and resolve the customer’s actual problem?  |
+| **Tell me about a time you protected customer trust after something went wrong.**                                        | Could you recover a customer-impacting defect?                 |
+| **Tell me about a time you improved customer experience.**                                                               | Did your action reduce friction for customers?                 |
+| **Tell me about a time you worked backwards from what a customer needed.**                                               | Did you start from the customer problem, not your own task?    |
+| **Tell me about a time you balanced customer needs with operational pressure.**                                          | Could you protect service without creating chaos for the team? |
+| **Tell me about a time you fixed a process because it was affecting customers.**                                         | Did you address root cause, not just one complaint?            |
+| **Tell me about a time a customer issue forced you to act quickly.**                                                     | Could you restore the customer promise under pressure?         |
+| **Tell me about a time you had to prioritise one customer issue while others were also waiting.**                        | Did you make a fair customer-focused decision?                 |
+| **Tell me about a time you received customer feedback or saw customer frustration and changed your approach.**           | Did you listen and act on customer signals?                    |
+| **Tell me about a time you made a decision that was right for the customer even though it created short-term pressure.** | Did you protect trust over convenience?                        |
+
+Most likely for **Graduate Area Manager**:
+
+1. **Tell me about a time you dealt with an unhappy customer.**
+2. **Tell me about a time you protected customer experience during operational pressure.**
+3. **Tell me about a time you improved customer service by fixing a process issue.**
+4. **Tell me about a time you prioritised a customer issue fairly.**
+5. **Tell me about a time you restored trust after the operation made a mistake.**
+
+The answer must show:
+
+> **customer problem → customer expectation → action taken → customer outcome → operational impact.**
+
+For this LP, the main story should be **wrong bacon cheeseburger**, and the backup should be **fries bottleneck**.
+
+[1]: https://www.amazon.jobs/en/jobs/3078642/graduate-area-manager-2026-start-date?utm_source=chatgpt.com "Graduate Area Manager - 2026 Start Date - Job ID: 3078642"
+
+----
+
 ## Interviewer
 
 The interviewer nods.
@@ -305,3 +342,36 @@ He taps the second story.
 He asks:
 
 **For Bias for Action, what is your first-choice story, what is your backup story, and what proof shows your action was fast but controlled rather than rushed?**
+
+## STAR Response
+### Main story: wrong bacon cheeseburger
+
+At Five Guys, I dealt with a customer issue during a busy service period where the customer came back to the counter with his bag open.
+
+He had already waited, collected his order, stepped aside, opened the bag, and found that his bacon cheeseburger was wrong. The ticket said no pickles and grilled onions, but the burger had pickles and was missing the grilled onions.
+
+The customer problem was not only the wrong food. It was that he had already spent time waiting once, and now he had to come back to the counter during a rush to get the order corrected.
+
+I did not start by defending the shop or blaming the kitchen. I apologised, checked the receipt, and repeated the issue back to him so he knew I had understood it properly: no pickles, grilled onions.
+
+Then I took it to the person coordinating the line and said clearly, “This customer’s bacon cheeseburger has been made wrong. Ticket says no pickles and grilled onions. He’s already waited and come back. Can we remake this one as priority?”
+
+I went back to the customer and told him it was being remade and that I would keep an eye on it. When the remake came through, I checked it against the correction before handing it back.
+
+The result was that the customer’s tone softened, he stepped back from the counter instead of continuing to argue, accepted the corrected order, said thanks, and left without further escalation. The situation did not need further manager escalation, and the complaint did not keep interrupting the collection area.
+
+What I learned was that customer recovery is not only about fixing the item. It is also about removing uncertainty for the customer. In that situation, he needed the correct food, but he also needed not to feel invisible in the queue while the rush continued around him.
+
+### Backup story: fries bottleneck
+
+At Five Guys, I had a busy service period where customers were waiting near collection because several orders were almost complete but could not leave the counter.
+
+The issue was fries. There were around four or five partially packed bags waiting. The burgers were ready, but the person bagging could not close and call those orders because fries were behind. Customers could see bags on the counter, but their orders were not being handed out.
+
+At the same time, there were smaller front-area tasks calling for attention, like restocking and tidying. I checked that those tasks were not safety or hygiene issues, then focused on the fries because that was the bottleneck blocking the customer flow.
+
+I asked which orders were waiting on fries, helped match fries to the right tickets, and helped get the completed bags out to collection. When a customer looked like he needed an update, I kept it short and clear: “We’re just waiting on fries for a few orders — they’re coming through now.”
+
+The result was that several bags were completed and called, collection pressure reduced, and the person bagging was no longer blocked by the same missing item. Once the immediate flow was under control, I went back to the lower-priority restocking and tidying before they became the next issue.
+
+What I learned was that customer experience is often affected by the flow behind the counter, not only by direct customer conversations. In that moment, clearing the fries bottleneck helped customers get orders that were already nearly complete instead of watching bags sit open at collection.
