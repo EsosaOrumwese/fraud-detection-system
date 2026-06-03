@@ -1,3 +1,34 @@
+## Question Variants
+
+Yes. Ignoring our saved stories/conversation, and using only the **Dive Deep transcript** plus the **Graduate Area Manager role**, these are the most likely question types.
+
+Amazon’s Area Manager role is heavily tied to safety, process efficiency, corrective actions, productivity, quality, performance metrics, team leadership, and operational issues across shifts. ([Amazon.jobs][1])
+
+| Likely Dive Deep question                                                                       | What they are really testing                                                 |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Tell me about a time you used data to find the root cause of a problem.**                     | Can you go beyond the surface issue and identify the real driver?            |
+| **Tell me about a time the first explanation for a problem was wrong.**                         | Do you challenge assumptions instead of accepting the obvious answer?        |
+| **Tell me about a time you noticed a small detail others missed.**                              | Do you stay close enough to the work to catch operational defects?           |
+| **Tell me about a time you investigated a performance drop.**                                   | Can you connect metrics, process details, and corrective action?             |
+| **Tell me about a time the data looked fine but an anecdote or complaint suggested a problem.** | Are you sceptical when metrics and lived reality do not match?               |
+| **Tell me about a time you had to audit or inspect work yourself.**                             | Are you willing to roll up your sleeves and check the details directly?      |
+| **Tell me about a time you found waste or inefficiency in a process.**                          | Can you see hidden causes behind delays, rework, or low productivity?        |
+| **Tell me about a time you solved a problem by getting into the details.**                      | Do you operate at all levels, not just talk at a high level?                 |
+| **Tell me about a time you used both data and observation to make a decision.**                 | Can you combine metrics with what is actually happening on the floor?        |
+| **Tell me about a time you found a problem before it showed up as a major metric issue.**       | Can you follow small signals before they become larger customer/team issues? |
+
+Most likely for **Graduate Area Manager**, I would expect one of these three:
+
+1. **Tell me about a time you used data to find the root cause of a problem.**
+2. **Tell me about a time you investigated a performance or process issue in detail.**
+3. **Tell me about a time the obvious explanation was not the real problem.**
+
+The answer must show: **surface problem → detail checked → evidence found → root cause → business result.**
+
+[1]: https://amazon.jobs/en-gb/jobs/3078642/graduate-area-manager-2026-start-date?utm_source=chatgpt.com "Graduate Area Manager - 2026 Start Date - Job ID: 3078642"
+
+----
+
 ## Interviewer
 
 The interviewer listens, then nods slowly.
@@ -227,3 +258,42 @@ He looks back up.
 “So answer this.”
 
 **For Invent and Simplify, what is your first-choice story, what is your backup story, and what exactly did you simplify?**
+
+
+## STAR Responses
+### Main Story: Five Guys prep timing
+> At Five Guys, I had a prep issue where the surface problem was that I was too slow downstairs. A manager came down during prep, looked at what had been completed, and asked, “What have you been doing down here?” That stayed with me because I had been working, but the upstairs team was still waiting on key prep items before service.
+>
+> I did not want to solve it by just telling myself to work harder. I needed to understand where the time was actually going. So across six comparable prep shifts, I used the whiteboard to record start and finish times for the core prep route: lettuce, tomatoes, onions, mushrooms, and the key prep items the upstairs team needed before service.
+>
+> The timings showed that the problem was not only cutting speed. I was losing around 10 to 15 minutes in the gaps between tasks: finishing one item, then looking for containers, matching lids, checking the list again, cleaning at the wrong point, or resetting the station before starting the next item. Every prep item had its own restart cost.
+> 
+> Once I saw that, I changed the flow. Before cutting, I set up the containers, lids, labels, and bin position. I planned the next item before finishing the current one, and I watched faster crew members to learn how they moved from one item to the next without touching the same thing multiple times.
+> 
+> The result was that the core prep route reduced from about 70 minutes to 55 minutes, improving prep readiness by around 21%. More importantly for the business, pre-service chase-downs from upstairs dropped from 2–3 per shift to usually 0–1, because key prep items were ready earlier.
+>
+> What I learned was that the first complaint is not always the real problem. Everyone could see I was slow, but the timings showed where the delay actually lived: between tasks, not only inside the cutting. By measuring the work and observing the flow, I could fix the cause instead of just pushing myself to move faster.
+
+### Backup-1: Limited laptop/dataset sample
+
+Good, but technical. It fits Dive Deep because the surface issue was “laptop too slow,” but the real issue was a pipeline problem: train and test columns not matching after encoding.
+
+Use it only if the interviewer asks about:
+  - data;
+  - technical problem solving;
+  - root cause;
+  - using detail to diagnose a hidden issue.
+
+> During my MSc, I had a classification project where the surface problem looked like my laptop was too slow for the dataset. I was working in Jupyter on a dataset containing booking records, and full runs were taking long enough that I was wasting time. A cell would run for several minutes, the laptop fan would start, and then I would find out I had made a basic mistake earlier in the pipeline.
+> 
+> At first, I could have treated it as only a resource problem: the dataset was too big, the laptop was too weak, or I needed better compute. But I wanted to know whether the slow runs were hiding a deeper issue in my workflow.
+> 
+> So I created a smaller representative sample that still kept the same target, key numerical and categorical columns, missing values, and both outcomes. I checked the class distribution with value counts so the sample would not hide the harder part of the problem.
+> 
+> That sample exposed the real issue quickly. After categorical encoding, the training and test data were not ending up with the same feature columns. The model was being given one set of columns during training and a different set during testing. On the full dataset, that had felt like one large confusing failure. On the sample, I could see the actual break point.
+> 
+> I fixed the preprocessing route on the sample, added checks to confirm the training and test columns matched before model training, and restarted the notebook environment to prove the route worked from a clean state. Only after that did I return to the full dataset and run the final pipeline section by section.
+> 
+> The result was that the full dataset became the final proof stage, not the place where I debugged every small mistake. I submitted on time with an end-to-end pipeline I could explain, and the final metrics used in the write-up came from the full dataset, not the sample.
+> 
+> What I learned was that the first explanation is not always the real one. The visible issue was a slow laptop, but the deeper issue was that my workflow was using full runs to discover basic pipeline errors.
