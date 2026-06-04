@@ -1,3 +1,48 @@
+## Question Variants
+
+For **Frugality**, the interviewer is testing whether the graduate can make progress with limited resources **without lowering the standard**.
+
+This is not “being cheap.” It is:
+
+> limited resources → smart workaround → same quality bar → less waste.
+
+Most likely question variants:
+
+| Likely question                                                                           | What they are testing                                               |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Tell me about a time you had limited resources.**                                       | Did you make progress without ideal tools, people, time, or budget? |
+| **Tell me about a time you had to do more with less.**                                    | Could you deliver without asking for more resources first?          |
+| **Tell me about a time constraints forced you to be resourceful.**                        | Did the constraint create a better method?                          |
+| **Tell me about a time you solved a problem without the ideal setup.**                    | Did you adapt instead of complain?                                  |
+| **Tell me about a time you reduced wasted effort.**                                       | Did you remove an inefficient route?                                |
+| **Tell me about a time you avoided unnecessary cost, time, or complexity.**               | Did you protect resources while still delivering?                   |
+| **Tell me about a time you had to work with limited time.**                               | Did you prioritise the route that gave the best result fastest?     |
+| **Tell me about a time you simplified your approach because resources were constrained.** | Did you make the work leaner without weakening quality?             |
+| **Tell me about a time you had to deliver without extra help.**                           | Did you use what you had effectively?                               |
+| **Tell me about a time you found a more efficient way to test or prove something.**       | Did you avoid using the full system for every small mistake?        |
+
+Most likely for the graduate:
+
+1. **Tell me about a time you had limited resources.**
+2. **Tell me about a time you had to do more with less.**
+3. **Tell me about a time you reduced wasted effort.**
+4. **Tell me about a time you solved a problem without the ideal tools.**
+5. **Tell me about a time you kept the standard high despite limited resources.**
+
+Best story fit:
+
+**Main story:** limited laptop / dataset sample.
+It works because the resource constraint was clear: limited compute, deadline, slow full-dataset runs. The graduate did not lower the final standard; he used a representative sample as a test route, then ran the final pipeline on the full dataset. The saved discussion already frames this as “sample = test route, not final evidence.” 
+
+**Backup story:** Swing Dance taster.
+Use this only if the question is about limited people, limited room time, limited setup, or low initial momentum.
+
+The answer must show:
+
+> **constraint → wasted route identified → leaner method → quality preserved → result delivered.**
+
+---
+
 ## Interviewer
 
 The interviewer nods.
@@ -211,3 +256,34 @@ He writes:
 Then he asks:
 
 **For inclusion/adapting communication/team culture, what is your first-choice story, what is your backup story, and what proof shows your action helped someone stay engaged rather than just made you sound supportive?**
+
+## STAR Responses
+### Main story: limited laptop / dataset sample
+
+During my MSc, I had a classification project where I had to deliver without ideal resources.
+
+The dataset was heavy enough that full notebook runs were slow on my laptop, I did not have a more powerful setup available, and there was still a coursework deadline. At first, I was wasting the resource I did have — time — because I kept running the full dataset just to discover basic pipeline mistakes.
+
+I did not lower the standard of the final work. I changed the route. I created a smaller representative sample that still kept the same target, key numerical and categorical columns, missing values, and both outcomes. I checked the target distribution with value counts so the sample would not hide the harder part of the problem.
+
+That sample exposed a real issue quickly. After categorical encoding, the training and test data were not ending up with the same feature columns. So the model was being given one set of columns during training and a different set during testing.
+
+I fixed the preprocessing route on the sample, added checks to confirm the training and test columns matched, and restarted the notebook environment to prove the route worked from a clean state. Only after that did I return to the full dataset and run the final pipeline section by section.
+
+The result was that the full dataset became the final proof stage, not the place where I debugged every small mistake. I submitted on time with an end-to-end pipeline I could explain, and the final metrics used in the write-up came from the full dataset, not the sample.
+
+What I learned was that frugality is not accepting a lower standard because resources are limited. It is finding a smarter route to reach the same standard. In that case, the sample reduced wasted debugging time, but the final quality standard stayed attached to the full data.
+
+### Backup story: Swing Dance taster
+
+At the University of Exeter Swing Dance Society, we had a January refreshers taster where the constraint was limited people, limited room time, and very little natural momentum at the start.
+
+We had a short slot, around 10 to 11, and only a small group in the room: a few society members and a couple of stronger dancers from the local swing dance scene. The room was booked, the music was available, and people were willing to help, but the middle of the room was empty. A few students were hovering near the door, but if they looked in and saw nothing happening, they would probably keep walking.
+
+We did not have a big crowd, a big performance, or a perfect setup. So I focused on using what we had. I suggested we should not wait for the room to fill before starting. I asked two stronger dancers to do something simple in the middle, not a performance, just enough to make the room feel alive. I also helped split the small jobs: one person near the door, one person on music, and others ready to reassure beginners that they did not need a partner or experience.
+
+Once the music started and two people were dancing, the room changed. Students who had been hovering came in, tried the beginner step, and stayed long enough to ask about the next regular session.
+
+The result was that a small, quiet room became a working taster session without needing more people, more budget, or a bigger setup. We used the limited resources we had — the room, the music, two stronger dancers, and a simple beginner step — to create enough activity for beginners to join.
+
+What I learned was that limited resources are not always the issue. Sometimes the issue is waiting for the perfect setup instead of using the few useful things already available.

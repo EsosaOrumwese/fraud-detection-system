@@ -1,3 +1,44 @@
+## Question Variants
+
+For **Learn and Be Curious**, the interviewer is testing whether the graduate can honestly recognise a gap, build a real plan to improve, and change behaviour afterward — not just say “I like learning.”
+
+Most likely question variants:
+
+| Likely question                                                                        | What they are testing                                 |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Tell me about a time you had to learn something difficult.**                         | Did you build a real learning process?                |
+| **Tell me about a time you were out of your depth.**                                   | Could you self-assess honestly instead of pretending? |
+| **Tell me about a time you failed or struggled while learning.**                       | Did you respond with structure, not panic?            |
+| **Tell me about a time you changed your approach after realising it was not working.** | Did learning change behaviour?                        |
+| **Tell me about a time you sought help to learn something.**                           | Did you ask for useful help, not rescue?              |
+| **Tell me about a time feedback changed how you worked.**                              | Could you act on feedback?                            |
+| **Tell me about a time you improved a skill over time.**                               | Was there evidence of progress?                       |
+| **Tell me about a time you had to learn quickly under a deadline.**                    | Could you learn while still delivering?               |
+| **Tell me about a time you stopped using an ineffective learning method.**             | Did you inspect your own learning process?            |
+| **Tell me about something you would do differently now.**                              | Did the learning stay with you?                       |
+
+Most likely for the Graduate Area Manager role:
+
+1. **Tell me about a time you had to learn something quickly.**
+2. **Tell me about a time you were out of your depth and how you handled it.**
+3. **Tell me about a time you received feedback and improved.**
+4. **Tell me about a time you changed your approach after realising it was not working.**
+5. **Tell me about a time your learning changed how you worked afterward.**
+
+Best story fit:
+
+**Main story:** MSc machine learning assignment.
+It shows the graduate moving from tutorial-watching and panic to a staged checklist, specific help, smaller tests, and repeatable diagnosis.
+
+**Backup story:** Five Guys prep timing.
+It works if the question is about learning from feedback in an operational setting. The saved discussion already frames these two stories that way. 
+
+The answer must show:
+
+> **gap recognised → weak learning method abandoned → better learning plan → evidence of improvement → behaviour changed afterward.**
+
+---
+
 ## Interviewer
 
 The interviewer writes:
@@ -209,3 +250,32 @@ He pauses.
 “Now answer the coverage question.”
 
 **For Frugality, what is your first-choice story, what is your backup story, and what proof shows you made progress despite limited resources rather than simply accepting a lower standard?**
+
+## STAR Responses
+### Main story: MSc machine learning assignment
+
+During my MSc Data Science programme, I had an early machine learning assignment where I realised I was out of my depth.
+
+I understood individual concepts like train-test split, missing values, preprocessing, and evaluation. But when I had to connect them into one working notebook, the pipeline kept breaking. I was in the library with the notebook failing, and at first I made the mistake of watching too many tutorials. It felt productive, but it did not fix my actual dataset.
+
+So I changed how I was learning. I stopped trying to “learn machine learning” generally and started diagnosing where my own pipeline was failing. I broke the notebook into stages: load and inspect data, define target and features, split the data, preprocess, train, evaluate, and explain.
+
+I also made a smaller version of the dataset so I could test the route without being overwhelmed. Then I added checks after each stage: train and test shapes, missing values, transformed columns, and whether the target column had accidentally stayed inside the features. I also asked a coursemate for specific help, not to fix the code for me, but to check whether the structure made sense.
+
+The result was that I submitted on time with a notebook that ran end-to-end and that I could explain step by step. More importantly, I reused that staged-checklist method in later coursework. After that, when an error happened, it had a location. I could look at the stage where the pipeline broke instead of treating the whole notebook as one big failure.
+
+What I learned was that learning is not just consuming more information. I had to change from passive tutorial-watching to active diagnosis. That shift helped me build a method I could reuse, not just finish one assignment.
+
+### Backup story: Five Guys prep timing
+
+At Five Guys, I had to learn from difficult feedback when my downstairs prep was not ready early enough for the upstairs team before service.
+
+A manager came down during prep, looked at what had been completed, and asked, “What have you been doing down here?” That was uncomfortable because I had been working, but the output was not reliable enough for the team upstairs.
+
+Instead of defending myself or just trying to move faster, I tried to understand what I needed to learn. I tracked start and finish times on the whiteboard across six comparable prep shifts for the core prep route: lettuce, tomatoes, onions, mushrooms, and the key prep items upstairs needed before service.
+
+The timings showed that I was losing around 10 to 15 minutes between tasks: finding containers, matching lids, checking the list again, cleaning at the wrong point, and resetting before starting the next item. I also asked faster crew members to show me their sequence and learned how they moved through prep with fewer touches and fewer resets.
+
+The result was that the core prep route went from about 70 minutes to 55 minutes, around a 21% reduction. More importantly, upstairs chase-downs dropped from 2–3 before service to usually 0–1 because key prep items were ready earlier.
+
+What I learned was that feedback is only useful if I turn it into a change in behaviour. In that case, the lesson was not simply “work faster”; it was to understand the flow, learn from people who were better at it, and make my output reliable for the team depending on me.

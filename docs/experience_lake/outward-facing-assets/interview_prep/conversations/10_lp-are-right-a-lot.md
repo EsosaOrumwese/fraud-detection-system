@@ -1,3 +1,46 @@
+## Question Variants
+
+For **Are Right, A Lot**, the interviewer is testing judgement under ambiguity.
+
+They are **not** testing whether the graduate’s idea always wins. They are testing whether he can seek input, test assumptions, separate signal from noise, and choose the best answer for the customer/business even if it is not his original preference.
+
+Most likely question variants:
+
+| Likely question                                                                             | What they are testing                           |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **Tell me about a time you made a good decision with incomplete information.**              | Can you judge under ambiguity?                  |
+| **Tell me about a time your first assumption was wrong.**                                   | Can you disconfirm your own belief?             |
+| **Tell me about a time you changed your mind after hearing another perspective.**           | Do you seek different views?                    |
+| **Tell me about a time you used evidence to make a decision.**                              | Do you separate signal from noise?              |
+| **Tell me about a time someone disagreed with you and you still reached the right answer.** | Can you use disagreement productively?          |
+| **Tell me about a time you had to choose between two reasonable options.**                  | Can you balance trade-offs?                     |
+| **Tell me about a time you did not pick the option with the best metric.**                  | Do you understand context behind data?          |
+| **Tell me about a time you asked for another person’s view before acting.**                 | Do you avoid over-trusting your own judgement?  |
+| **Tell me about a time you made a decision that balanced performance, risk, and delivery.** | Can you judge the whole system, not one metric? |
+| **Tell me about a time you checked your judgement before escalating.**                      | Do you verify before acting?                    |
+
+Most likely for the graduate:
+
+1. **Tell me about a time you had to make a judgement call between two reasonable options.**
+2. **Tell me about a time you tested another person’s idea before deciding.**
+3. **Tell me about a time you used evidence to decide, not just opinion.**
+4. **Tell me about a time the highest metric was not the best decision.**
+5. **Tell me about a time you sought another perspective before escalating.**
+
+Best story fit from the saved discussion:
+
+**Main story:** random forest disagreement.
+This works because the graduate did not simply reject the more complex model. He gave it a fair test, looked at the metric improvement, weighed that against explainability and delivery risk, and chose the option the team could own by the deadline. 
+
+**Backup story:** oilfield loadout mismatch.
+This works when the question is about operational judgement: he noticed a mismatch, checked the tag and job sheet, then asked an experienced colleague to verify before escalating. 
+
+The answer must show:
+
+> **initial view → different perspective/evidence → test/check → trade-off decision → business/team result.**
+
+---
+
 ## Interviewer
 
 The interviewer writes:
@@ -290,3 +333,36 @@ He writes:
 He looks at the graduate.
 
 “For Learn and Be Curious, what is your first-choice story, what is your backup story, and what proof shows your learning changed your behaviour afterward?”
+
+## STAR Responses
+### Main story: random forest disagreement
+
+During my MSc, I had a group project where we had to decide whether to change our main model close to the submission deadline.
+
+We were a four-person group, about two days from submission, and we already had a simpler model that ran end-to-end and matched the report. One teammate wanted to introduce a random forest because it gave a small improvement in F1 and could make the work stronger.
+
+My first concern was that changing the model that late could destabilise the project. But I did not dismiss his idea, because his point was valid. A better-performing model could improve the submission if we could explain and support it properly.
+
+So I asked, “What would need to change if we use this as the main model?” That moved the discussion from personal preference to the full impact on the submission: results table, figures, evaluation wording, limitations, and whether all four of us could explain the final output.
+
+We agreed to test it separately while keeping the working model safe as the baseline. The random forest improved one balanced classification metric slightly, but not enough to justify rewriting the centre of the project two days before submission.
+
+The judgement was not “my idea won.” It was that the stronger model had a fair test, the evidence was considered, and the group chose the option that best balanced performance, explainability, and delivery risk.
+
+The result was that we submitted on time with a model the whole group could defend. The random forest was not ignored; we kept it as a comparison and future-work point.
+
+What I learned was that being right is not about holding onto your first view or picking the highest number in isolation. It is about testing assumptions, listening to the other side, and choosing the decision that works best in the full situation.
+
+### Backup story: oilfield loadout mismatch
+
+In my field engineering role, I had a loadout where I had to check my own judgement before escalating a possible issue.
+
+We were preparing completions equipment in the yard, and one component had been grouped with the job equipment. From where it was placed, it looked like it belonged there. But when I checked the tag against the job sheet, the connection description did not match.
+
+I did not want to assume I was right immediately, because I was still younger in that environment and the team was trying to keep the loadout moving. So I wiped the tag, checked the job sheet line again, compared it back to the physical item, and then asked a more experienced colleague to verify it with me.
+
+When he checked it himself, he agreed that the connection did not match. We escalated it to the supervisor, who paused that section of the loadout and asked the team to find the correct component. The correct item was found elsewhere in the yard and swapped before dispatch.
+
+The result was that the equipment left with the correct component. The pause cost around 20–30 minutes in the yard, but it avoided a likely rig-site delay, rework, extra transport, and client escalation.
+
+What I learned was that good judgement is not just trusting your first read. It is checking the detail, asking the right person to verify when the risk is high, and then acting once the evidence is strong enough.

@@ -1,3 +1,44 @@
+## Question Variants
+
+For **Have Backbone; Disagree and Commit**, the interviewer is testing whether the graduate can **challenge respectfully when the decision matters**, avoid weak compromise for social comfort, and then fully support the final decision once it is made.
+
+Most likely question variants:
+
+| Likely question                                                                         | What they are testing                                             |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **Tell me about a time you disagreed with someone.**                                    | Did you challenge respectfully, not avoid tension?                |
+| **Tell me about a time you challenged a team decision.**                                | Did you speak up when the direction risked the outcome?           |
+| **Tell me about a time you had to push back on someone more confident or experienced.** | Did you have backbone without ego?                                |
+| **Tell me about a time you disagreed but still committed afterward.**                   | Did you stop arguing once the decision was made?                  |
+| **Tell me about a time you avoided a poor compromise.**                                 | Did you seek the right answer, not just social peace?             |
+| **Tell me about a time you challenged a shortcut.**                                     | Did you protect quality/customer/business outcome under pressure? |
+| **Tell me about a time you had to defend your view with evidence.**                     | Was your disagreement grounded, not emotional?                    |
+| **Tell me about a time you changed your approach after debate.**                        | Could you listen and still commit to the group outcome?           |
+| **Tell me about a time you had to make a difficult team decision.**                     | Did you balance disagreement, delivery, and ownership?            |
+| **Tell me about a time you supported a decision you initially disagreed with.**         | Did you commit after the final call?                              |
+
+Most likely for the **Graduate Area Manager** role:
+
+1. **Tell me about a time you disagreed with a teammate or colleague.**
+2. **Tell me about a time you challenged a decision that could affect delivery or quality.**
+3. **Tell me about a time you disagreed but committed once the team decided.**
+4. **Tell me about a time you pushed back under pressure.**
+5. **Tell me about a time you avoided going along with the group just to keep peace.**
+
+The answer must show:
+
+> **disagreement → why it mattered → respectful challenge → evidence/reasoning → decision → full commitment afterward.**
+
+Best story fit from the saved discussion:
+
+**Main story:** random forest disagreement.
+It works because the graduate challenged the timing and delivery risk, not the teammate’s ambition. The timebox gave the idea a fair test, and after the group chose the stable model, he helped align the notebook, report, figures, evaluation, and conclusion. 
+
+**Backup story:** oilfield loadout mismatch.
+Use this if the question is about challenging work in motion to protect the standard.
+
+----
+
 ## Interviewer
 
 The interviewer nods.
@@ -228,3 +269,37 @@ He looks at the graduate.
 “So answer this.”
 
 **For Are Right, A Lot, what is your first-choice story, what is your backup story, and what evidence shows you improved your judgement by checking assumptions or seeking another perspective?**
+
+
+## STAR Responses
+### Main story: random forest disagreement
+
+During my MSc, I had a disagreement in a four-person group project about whether to change our main model close to the submission deadline.
+
+We were about two days from submission, and we already had a simpler model that ran end-to-end and matched the report. One teammate wanted to introduce a random forest because it might improve performance and make the project look more technically credible.
+
+I understood his point. The issue was not that the idea was bad. My concern was the timing. If we made it the main model that late, it would not just change one piece of code. We would need to update the results table, figures, evaluation section, limitations, and make sure all four of us could explain the new output.
+
+So I challenged the decision, but not by simply saying no. I asked, “What would need to change if we use this as the main model?” That shifted the discussion from preference to delivery impact.
+
+Then I suggested a timebox. We kept the working model safe as the baseline, and he tested the random forest separately. If it ran cleanly, improved the result clearly, and we had time to explain it properly, we could include it. If not, we would keep the stable model as the main submission and use the random forest as comparison or future work.
+
+The random forest improved one metric slightly, but not enough to justify rebuilding the centre of the project two days before the deadline. Once the group agreed to keep the stable model, I committed to that decision. I helped align the notebook, results table, confusion matrix, report wording, and conclusion so the final submission told one consistent story.
+
+The result was that we submitted on time with a model the whole group could explain. The random forest was not wasted; it stayed as a comparison and future-work point. What I learned was that backbone is not about winning the argument. It is about challenging when the outcome is at risk, then fully supporting the decision once the group commits.
+
+### Backup story: oilfield loadout mismatch
+
+In my field engineering role, I had a situation where I needed to challenge the flow of work during a loadout.
+
+The truck was waiting, the team was trying to keep equipment moving, and one component had been grouped with the job equipment. From the arrangement, it looked like it belonged there. But when I checked the tag against the job sheet, the connection description did not match.
+
+I did not want to stop the loadout based on a vague concern, so I checked it properly. I wiped the tag, checked the job sheet again, compared it back to the physical item, and then asked a more experienced colleague to verify it with me. When he agreed, we escalated it to the supervisor.
+
+The supervisor paused that section of the loadout, moved the item aside, and asked the team to find the correct component. The correct item was found elsewhere in the yard and swapped before dispatch.
+
+The result was that a 20–30 minute pause in the yard prevented the wrong component from being sent to site, avoiding likely rework, transport delay, and client escalation.
+
+Once the supervisor made the decision, I committed to the correction. I did not just point out the problem and step away. I supported the check, kept the uncertain item out of the ready-to-load flow, and followed the corrected process.
+
+What I learned was that having backbone is not about being difficult. It is about speaking up when the standard or outcome is at risk, using evidence rather than ego, and then supporting the final decision fully.
