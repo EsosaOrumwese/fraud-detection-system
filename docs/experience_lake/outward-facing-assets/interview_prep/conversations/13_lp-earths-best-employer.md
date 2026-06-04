@@ -272,34 +272,34 @@ He pauses.
 ## STAR Responses
 ### Main story: Swing Dance beginner withdrawing
 
-At the University of Exeter, I was involved with the Swing Dance Society, and one example of helping create a better team environment happened during a regular beginner session.
-
-The room had a mix of experienced dancers, society members, and complete beginners. During partner rotation, I noticed one beginner near the edge of the room. She was trying, but every time she missed the timing, she apologised almost immediately, then apologised again before the next count had even started. She kept looking down at her feet, and after each correction her steps got smaller.
-
-The experienced dancers were trying to help, but they were giving several technical corrections at once: frame, weight, timing, lead, follow. Those corrections were accurate, but for her they were becoming too much. She was physically still in the room, but I could see she was starting to withdraw.
-
-I did not want to criticise the experienced dancers because they were trying to help. So during a pause, I said quietly to one of them, “Let’s give one correction at a time. If we give three, they’ll stop hearing all of them.”
-
-Then when I danced with her, I changed the language. I said, “Don’t worry about making it look like dancing yet. Just step, step, wait. If you lose it, smile and come back in on the next one.” When she started apologising again, I said, “You don’t need to apologise every time. Everyone here is being wrong at different speeds.”
-
-That made her laugh properly, not in the embarrassed way from before. I gave her one thing to focus on: keep the step small. She still made mistakes, but she stayed in the rotation instead of stepping out to the wall.
-
-The result was that she stayed engaged in the session. She stopped apologising after every mistake, kept moving, and the corrections around her became simpler and more useful.
-
-What I learned was that a better team environment is not created by lowering the standard. It is created by helping people receive the standard in a way they can act on. In that room, the same correction was landing differently on different people, so the useful thing was to change the delivery: one correction, clearer language, and enough confidence for the beginner to keep participating.
+> At the University of Exeter, I was involved with the Swing Dance Society, and one example of helping create a better team environment happened during a regular beginner session.
+>
+> The room had a mix of experienced dancers, society members, and complete beginners. During partner rotation, I noticed one beginner near the edge of the room. She was trying, but every time she missed the timing, she apologised almost immediately, then apologised again before the next count had even started. She kept looking down at her feet, and after each correction her steps got smaller.
+>
+> The experienced dancers were trying to help, but they were giving several technical corrections at once: frame, weight, timing, lead, follow. Those corrections were accurate, but for her they were becoming too much. She was physically still in the room, but I could see she was starting to withdraw.
+>
+> I did not want to criticise the experienced dancers because they were trying to help. So during a pause, I said quietly to one of them, “Let’s give one correction at a time. If we give three, they’ll stop hearing all of them.”
+>
+> Then when I danced with her, I changed the language. I said, “Don’t worry about making it look like dancing yet. Just step, step, wait. If you lose it, smile and come back in on the next one.” When she started apologising again, I said, “You don’t need to apologise every time. Everyone here is being wrong at different speeds.”
+>
+> That made her laugh properly, not in the embarrassed way from before. I gave her one thing to focus on: keep the step small. She still made mistakes, but she stayed in the rotation instead of stepping out to the wall.
+>
+> The result was that she stayed engaged in the session. She stopped apologising after every mistake, kept moving, and the corrections around her became simpler and more useful.
+>
+> What I learned was that a better team environment is not created by lowering the standard. It is created by helping people receive the standard in a way they can act on. In that room, the same correction was landing differently on different people, so the useful thing was to change the delivery: one correction, clearer language, and enough confidence for the beginner to keep participating.
 
 ### Backup story: newer crew member bagging
 
-At Five Guys, I supported a newer crew member during a busy shift near bagging and collection.
-
-He had been shown the individual tasks before, but during the rush he was struggling to keep the sequence under control. He had two or three bags open, tickets still attached, food coming from different stations, and customers waiting near collection. The issue was not that he did not care. He was active, but every open bag looked equally urgent, so he kept rereading the same tickets and hesitating before calling orders out.
-
-I stepped beside him quietly rather than taking over in front of customers. I said, “Take one order first. Don’t hold all three in your head.” Then I helped him separate the bags into three groups: ready, waiting, and unclear.
-
-For one order, I pointed to the ticket and asked, “What is this one missing?” He said, “Regular fries.” I said, “Good. That is all you watch for. When the fries come, put them in, close it, and call it. Don’t reread the whole ticket unless something changes.”
-
-I stayed close for the next few orders, but I let him complete them himself. I also encouraged him to say missing items aloud, like, “This one’s only waiting on fries,” so the rest of the team could help without guessing.
-
-The result was that he stopped rereading the same tickets repeatedly, started calling out missing items, and closed completed bags more decisively. Over the next few orders, he needed less intervention from me or the coordinator, and later in the shift I saw him use the same ready / waiting / unclear pattern without me beside him.
-
-What I learned was that supporting someone under pressure is not only about being encouraging. It is about finding where the work is breaking for them and giving them a pattern they can actually use. In that case, he did not need more pressure; he needed a way to sort the work and stay in the flow.
+> At Five Guys, I supported a newer crew member during a busy shift near bagging and collection.
+>
+> He had been shown the individual tasks before, but during the rush he was struggling to keep the sequence under control. He had two or three bags open, tickets still attached, food coming from different stations, and customers waiting near collection. The issue was not that he did not care. He was active, but every open bag looked equally urgent, so he kept rereading the same tickets and hesitating before calling orders out.
+>
+> I stepped beside him quietly rather than taking over in front of customers. I said, “Take one order first. Don’t hold all three in your head.” Then I helped him separate the bags into three groups: ready, waiting, and unclear.
+>
+> For one order, I pointed to the ticket and asked, “What is this one missing?” He said, “Regular fries.” I said, “Good. That is all you watch for. When the fries come, put them in, close it, and call it. Don’t reread the whole ticket unless something changes.”
+>
+> I stayed close for the next few orders, but I let him complete them himself. I also encouraged him to say missing items aloud, like, “This one’s only waiting on fries,” so the rest of the team could help without guessing.
+>
+> The result was that he stopped rereading the same tickets repeatedly, started calling out missing items, and closed completed bags more decisively. Over the next few orders, he needed less intervention from me or the coordinator, and later in the shift I saw him use the same ready / waiting / unclear pattern without me beside him.
+>
+> What I learned was that supporting someone under pressure is not only about being encouraging. It is about finding where the work is breaking for them and giving them a pattern they can actually use. In that case, he did not need more pressure; he needed a way to sort the work and stay in the flow.

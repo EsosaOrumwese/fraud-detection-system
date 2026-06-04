@@ -264,30 +264,30 @@ Then he looks back at the graduate.
 ## STAR Responses
 ### Main story: Oilfield loadout mismatch
 
-In my field engineering role, I had a loadout where the pressure was to keep the equipment moving, but I noticed a standards issue before dispatch.
-
-We were preparing completions equipment in the yard, and the truck was either waiting or close to being ready. One component had been grouped with the job equipment, so it looked like it belonged there. But when I checked the tag against the job sheet, the connection description did not match.
-
-I did not want to stop the loadout over a vague feeling, so I checked it properly. I wiped the tag, checked the line again, compared it back to the physical item, and then asked a more experienced colleague to verify it with me. When he agreed the connection did not match, we escalated it to the supervisor.
-
-The supervisor paused that section of the loadout, moved the item aside, and asked the team to locate the correct component. The correct item was found elsewhere in the yard and swapped before dispatch.
-
-The business effect was that we took a 20–30 minute pause in the yard, but prevented the wrong component from leaving for site. At minimum, that avoided a likely rig-site delay, rework, extra transport, and client escalation. So the pause protected the larger operation rather than simply slowing the yard down.
-
-After that, I changed my checking habit. I stopped trusting where items were placed and started checking document-to-physical: job sheet first, then physical tag, marking, quantity, and condition. For similar-looking items, I also used second-person verification before treating them as confirmed.
-
-What I learned was that high standards mean slowing down at the right point. Not every delay is waste. Sometimes a short pause before dispatch prevents a much more expensive problem downstream.
+> In my field engineering role, I had a loadout where the pressure was to keep the equipment moving, but I noticed a standards issue before dispatch.
+>
+> We were preparing completions equipment in the yard, and the truck was either waiting or close to being ready. One component had been grouped with the job equipment, so it looked like it belonged there. But when I checked the tag against the job sheet, the connection description did not match.
+>
+> I did not want to stop the loadout over a vague feeling, so I checked it properly. I wiped the tag, checked the line again, compared it back to the physical item, and then asked a more experienced colleague to verify it with me. When he agreed the connection did not match, we escalated it to the supervisor.
+>
+> The supervisor paused that section of the loadout, moved the item aside, and asked the team to locate the correct component. The correct item was found elsewhere in the yard and swapped before dispatch.
+>
+> The business effect was that we took a 20–30 minute pause in the yard, but prevented the wrong component from leaving for site. At minimum, that avoided a likely rig-site delay, rework, extra transport, and client escalation. So the pause protected the larger operation rather than simply slowing the yard down.
+>
+> After that, I changed my checking habit. I stopped trusting where items were placed and started checking document-to-physical: job sheet first, then physical tag, marking, quantity, and condition. For similar-looking items, I also used second-person verification before treating them as confirmed.
+>
+> What I learned was that high standards mean slowing down at the right point. Not every delay is waste. Sometimes a short pause before dispatch prevents a much more expensive problem downstream.
 
 ### Backup story: Tomato label
 
-At Five Guys, I had a smaller but useful example during a busy service period.
-
-The line was running low on sliced tomatoes, and a replacement container came up from prep. The team needed it quickly because orders were still coming through, but when I checked the container, the label was not clear enough. I could not confirm the prep time and date properly.
-
-The tempting thing would have been to assume it was fine because it had just come from prep. But for food safety and traceability, “probably fine” is not enough. So I kept that container off the line and told the team not to use it yet.
-
-To avoid stopping the line unnecessarily, we used what was left from the previous properly labelled container for the next immediate orders. Then I checked with prep and the shift lead and made sure only a properly labelled replacement went into service.
-
-The business effect was that service only had a short delay, but we avoided putting an unconfirmed food item on the line. The team kept moving, and the standard was protected instead of being traded away for speed.
-
-What I learned was that standards usually slip in small moments, not dramatic ones. Nobody says, “ignore food safety.” It happens when people are busy and something looks probably fine. The right response is to pause, confirm, communicate clearly, and get the operation moving again without passing uncertainty to the customer.
+> At Five Guys, I had a smaller but useful example during a busy service period.
+>
+> The line was running low on sliced tomatoes, and a replacement container came up from prep. The team needed it quickly because orders were still coming through, but when I checked the container, the label was not clear enough. I could not confirm the prep time and date properly.
+>
+> The tempting thing would have been to assume it was fine because it had just come from prep. But for food safety and traceability, “probably fine” is not enough. So I kept that container off the line and told the team not to use it yet.
+>
+> To avoid stopping the line unnecessarily, we used what was left from the previous properly labelled container for the next immediate orders. Then I checked with prep and the shift lead and made sure only a properly labelled replacement went into service.
+>
+> The business effect was that service only had a short delay, but we avoided putting an unconfirmed food item on the line. The team kept moving, and the standard was protected instead of being traded away for speed.
+>
+> What I learned was that standards usually slip in small moments, not dramatic ones. Nobody says, “ignore food safety.” It happens when people are busy and something looks probably fine. The right response is to pause, confirm, communicate clearly, and get the operation moving again without passing uncertainty to the customer.

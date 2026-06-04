@@ -276,14 +276,14 @@ He looks back up.
 
 ### Backup-1: Limited laptop/dataset sample
 
-Good, but technical. It fits Dive Deep because the surface issue was “laptop too slow,” but the real issue was a pipeline problem: train and test columns not matching after encoding.
-
-Use it only if the interviewer asks about:
-  - data;
-  - technical problem solving;
-  - root cause;
-  - using detail to diagnose a hidden issue.
-
+> Good, but technical. It fits Dive Deep because the surface issue was “laptop too slow,” but the real issue was a pipeline problem: train and test columns not matching after encoding.
+>
+> Use it only if the interviewer asks about:
+>   - data;
+>   - technical problem solving;
+>   - root cause;
+>   - using detail to diagnose a hidden issue.
+>
 > During my MSc, I had a classification project where the surface problem looked like my laptop was too slow for the dataset. I was working in Jupyter on a dataset containing booking records, and full runs were taking long enough that I was wasting time. A cell would run for several minutes, the laptop fan would start, and then I would find out I had made a basic mistake earlier in the pipeline.
 > 
 > At first, I could have treated it as only a resource problem: the dataset was too big, the laptop was too weak, or I needed better compute. But I wanted to know whether the slow runs were hiding a deeper issue in my workflow.

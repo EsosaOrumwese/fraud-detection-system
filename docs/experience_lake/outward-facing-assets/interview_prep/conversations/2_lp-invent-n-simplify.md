@@ -346,27 +346,27 @@ He leans forward.
 
 ## STAR Response
 ### Main Story: Five Guys prep timing
-At Five Guys, I improved the downstairs prep flow I was responsible for. The surface problem was that I was slow, but the real issue was that every prep item had its own restart cost.
-
-I would finish one item, then look for the next container, match the lid, check the list again, clean or reset at the wrong point, and only then start the next item. So I was working, but the flow kept stopping and restarting.
-
-To understand it properly, I tracked start and finish times on the whiteboard across six comparable prep shifts. That showed I was losing around 10 to 15 minutes in the gaps between tasks, not just in the cutting itself.
-
-The simplification was changing the setup and sequence. Before cutting, I got the containers, lids, labels, bin position, and next few items ready. I also learned from faster crew members and adapted how they moved through prep with fewer touches and fewer resets.
-
-The core prep route went from about 70 minutes to 55 minutes, roughly a 21% reduction. More importantly, upstairs chase-downs dropped from 2–3 before service to usually 0–1 because key prep items were ready earlier.
-
-I also kept the standards: correct containers, labels, cleanliness, and food handling. So the improvement was not just speed. It was earlier readiness for the upstairs team without creating quality issues somewhere else.
+> At Five Guys, I improved the downstairs prep flow I was responsible for. The surface problem was that I was slow, but the real issue was that every prep item had its own restart cost.
+>
+> I would finish one item, then look for the next container, match the lid, check the list again, clean or reset at the wrong point, and only then start the next item. So I was working, but the flow kept stopping and restarting.
+>
+> To understand it properly, I tracked start and finish times on the whiteboard across six comparable prep shifts. That showed I was losing around 10 to 15 minutes in the gaps between tasks, not just in the cutting itself.
+>
+> The simplification was changing the setup and sequence. Before cutting, I got the containers, lids, labels, bin position, and next few items ready. I also learned from faster crew members and adapted how they moved through prep with fewer touches and fewer resets.
+>
+> The core prep route went from about 70 minutes to 55 minutes, roughly a 21% reduction. More importantly, upstairs chase-downs dropped from 2–3 before service to usually 0–1 because key prep items were ready earlier.
+>
+> I also kept the standards: correct containers, labels, cleanliness, and food handling. So the improvement was not just speed. It was earlier readiness for the upstairs team without creating quality issues somewhere else.
 
 ### Backup Story: Loadout status tracker
-In my field engineering role, I simplified how we tracked a loadout that was becoming unclear.
-
-The printed equipment list told us what should go, but it did not tell us the state of each item. So people kept asking the same questions: “Has this been checked?” “Is it staged?” “Is it still on the rack?” “Who is handling it?”
-
-I did not create anything complicated. I took the latest equipment list and added simple columns: location, checked status, staged status, pending issue, and owner of the next action. Then I walked the yard against the list.
-
-The loadout had around 40 equipment and accessory lines. When I turned it into a tracker, about 7 lines still needed physical confirmation or owner follow-up. One accessory people thought “should be with the kit” had not actually been staged, so I kept it open until it was physically found before final loading.
-
-The simplification was that the team no longer had to keep restarting the same status questions from memory. The supervisor could ask, “What’s still open?” and get a short answer from the sheet.
-
-The result was that about 7 open lines were converted into named actions or confirmations, and one unconfirmed accessory was found before it became a late-stage search. The bigger lesson was that a checklist tells you what should exist, but a simple tracker tells you what state the work is actually in.
+> In my field engineering role, I simplified how we tracked a loadout that was becoming unclear.
+>
+> The printed equipment list told us what should go, but it did not tell us the state of each item. So people kept asking the same questions: “Has this been checked?” “Is it staged?” “Is it still on the rack?” “Who is handling it?”
+>
+> I did not create anything complicated. I took the latest equipment list and added simple columns: location, checked status, staged status, pending issue, and owner of the next action. Then I walked the yard against the list.
+>
+> The loadout had around 40 equipment and accessory lines. When I turned it into a tracker, about 7 lines still needed physical confirmation or owner follow-up. One accessory people thought “should be with the kit” had not actually been staged, so I kept it open until it was physically found before final loading.
+>
+> The simplification was that the team no longer had to keep restarting the same status questions from memory. The supervisor could ask, “What’s still open?” and get a short answer from the sheet.
+>
+> The result was that about 7 open lines were converted into named actions or confirmations, and one unconfirmed accessory was found before it became a late-stage search. The bigger lesson was that a checklist tells you what should exist, but a simple tracker tells you what state the work is actually in.

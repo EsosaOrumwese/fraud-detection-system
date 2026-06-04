@@ -278,30 +278,30 @@ He looks directly at the graduate.
 ## STAR Response
 ### Main story: fallback evaluation slide
 
-During my MSc, I was part of a four-person group presentation where we had to act before everything was fully ready.
-
-The presentation was the next day, and when we tried to rehearse, the evaluation and limitations section was still mostly a placeholder. That section sat in the middle of the deck, so the gap affected timing, the transition from results, and the conclusion.
-
-Waiting was becoming risky because the group could not rehearse the full flow. But taking over completely would also have been wrong because that section belonged to another teammate.
-
-So I created a basic fallback slide using only material we had already agreed: the main evaluation output from the notebook, one or two limitations, and a transition line into the conclusion. I labelled it clearly as a fallback in the group chat and told the teammate they could replace it with their version when ready. I also kept their section and speaking slot.
-
-The action was fast, but controlled. I did not invent new analysis, change the ownership, or remove the teammate’s role. I created a temporary version so the group could rehearse.
-
-Later, when the teammate sent their material, we used the fallback structure and incorporated the useful parts of their version. The result was that we rehearsed with a complete flow, the final deck matched the notebook, and we presented on time without last-minute risk around an incomplete section.
-
-What I learned was that Bias for Action is not rushing in or taking over. It is taking a controlled, reversible step when waiting is becoming risky.
+> During my MSc, I was part of a four-person group presentation where we had to act before everything was fully ready.
+>
+> The presentation was the next day, and when we tried to rehearse, the evaluation and limitations section was still mostly a placeholder. That section sat in the middle of the deck, so the gap affected timing, the transition from results, and the conclusion.
+>
+> Waiting was becoming risky because the group could not rehearse the full flow. But taking over completely would also have been wrong because that section belonged to another teammate.
+>
+> So I created a basic fallback slide using only material we had already agreed: the main evaluation output from the notebook, one or two limitations, and a transition line into the conclusion. I labelled it clearly as a fallback in the group chat and told the teammate they could replace it with their version when ready. I also kept their section and speaking slot.
+>
+> The action was fast, but controlled. I did not invent new analysis, change the ownership, or remove the teammate’s role. I created a temporary version so the group could rehearse.
+>
+> Later, when the teammate sent their material, we used the fallback structure and incorporated the useful parts of their version. The result was that we rehearsed with a complete flow, the final deck matched the notebook, and we presented on time without last-minute risk around an incomplete section.
+>
+> What I learned was that Bias for Action is not rushing in or taking over. It is taking a controlled, reversible step when waiting is becoming risky.
 
 ### Backup story: fries bottleneck
 
-At Five Guys, I had a busy service period where several orders were almost complete but could not leave collection because fries were behind.
-
-There were around four or five partially packed bags waiting. The burgers were ready, customers were watching the collection area, and the person bagging could not close and call the orders because the fries were missing. At the same time, there were smaller tasks calling for attention, like restocking and tidying.
-
-I quickly checked that the other tasks were not safety or hygiene issues. Since they were lower-priority tidying and restocking tasks, I delayed them briefly and focused on the bottleneck.
-
-I asked which orders were waiting on fries, helped match fries to the right tickets, and helped get the completed bags out to collection. When a customer looked like he needed an update, I kept it short and clear: “We’re just waiting on fries for a few orders — they’re coming through now.”
-
-The result was that several bags were completed and called, collection pressure reduced, and the person bagging was no longer blocked by the same missing item. Once the immediate flow was under control, I went back to the delayed restocking and tidying before they became the next issue.
-
-What I learned was that acting quickly does not mean reacting blindly. I first checked that I was not delaying a safety or hygiene issue, then acted on the constraint that was blocking the most customer flow.
+> At Five Guys, I had a busy service period where several orders were almost complete but could not leave collection because fries were behind.
+>
+> There were around four or five partially packed bags waiting. The burgers were ready, customers were watching the collection area, and the person bagging could not close and call the orders because the fries were missing. At the same time, there were smaller tasks calling for attention, like restocking and tidying.
+>
+> I quickly checked that the other tasks were not safety or hygiene issues. Since they were lower-priority tidying and restocking tasks, I delayed them briefly and focused on the bottleneck.
+>
+> I asked which orders were waiting on fries, helped match fries to the right tickets, and helped get the completed bags out to collection. When a customer looked like he needed an update, I kept it short and clear: “We’re just waiting on fries for a few orders — they’re coming through now.”
+>
+> The result was that several bags were completed and called, collection pressure reduced, and the person bagging was no longer blocked by the same missing item. Once the immediate flow was under control, I went back to the delayed restocking and tidying before they became the next issue.
+>
+> What I learned was that acting quickly does not mean reacting blindly. I first checked that I was not delaying a safety or hygiene issue, then acted on the constraint that was blocking the most customer flow.

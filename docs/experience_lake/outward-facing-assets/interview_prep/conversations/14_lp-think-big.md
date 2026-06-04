@@ -288,32 +288,32 @@ Here are the **Think Big** responses.
 
 ### Main story: loadout tracker as repeatable control
 
-In my field engineering role, I had a loadout where I first created a tracker reactively because the status of the job had become unclear.
-
-The team was busy, but the loadout status was living in people’s heads. The printed equipment list told us what should go, but it did not show the state of each line: what had been checked, what was staged, what was ready to load, what was still pending, and who owned the next action.
-
-On that day, I turned the equipment list into a working tracker and it helped us narrow about seven open lines into specific actions or confirmations. One accessory people thought “should be with the kit” was found elsewhere in the yard before final loading.
-
-But the bigger idea was that this should not stay as something created only after confusion appeared. The next version would be a pre-loadout readiness tracker set up before the yard gets busy.
-
-It would still be simple: item or line, required quantity, physical location, checked, staged, ready to load, pending issue, and owner of next action. The important part would be defining the status words before work starts. “Checked” means physically verified against the job sheet. “Staged” means in the correct loadout area. “Ready to load” means checked, staged, and no open issue. “Pending” means someone owns the next action.
-
-That matters because an equipment list is only a checklist; it tells you what should exist. The tracker shows the state of the work. The larger idea is moving control earlier, before the truck is waiting or final loading pressure starts.
-
-The result I would expect is fewer repeated status questions, fewer open items discovered late, and fewer last-minute searches before dispatch. The goal is not a neater checklist. It is fewer surprises at the point where surprises are expensive.
-
-What I learned was that thinking bigger at my level does not have to mean proposing something dramatic. Sometimes it means seeing that a one-time fix should become a repeatable way to prevent the same problem from happening again.
+> In my field engineering role, I had a loadout where I first created a tracker reactively because the status of the job had become unclear.
+>
+> The team was busy, but the loadout status was living in people’s heads. The printed equipment list told us what should go, but it did not show the state of each line: what had been checked, what was staged, what was ready to load, what was still pending, and who owned the next action.
+>
+> On that day, I turned the equipment list into a working tracker and it helped us narrow about seven open lines into specific actions or confirmations. One accessory people thought “should be with the kit” was found elsewhere in the yard before final loading.
+>
+> But the bigger idea was that this should not stay as something created only after confusion appeared. The next version would be a pre-loadout readiness tracker set up before the yard gets busy.
+>
+> It would still be simple: item or line, required quantity, physical location, checked, staged, ready to load, pending issue, and owner of next action. The important part would be defining the status words before work starts. “Checked” means physically verified against the job sheet. “Staged” means in the correct loadout area. “Ready to load” means checked, staged, and no open issue. “Pending” means someone owns the next action.
+>
+> That matters because an equipment list is only a checklist; it tells you what should exist. The tracker shows the state of the work. The larger idea is moving control earlier, before the truck is waiting or final loading pressure starts.
+>
+> The result I would expect is fewer repeated status questions, fewer open items discovered late, and fewer last-minute searches before dispatch. The goal is not a neater checklist. It is fewer surprises at the point where surprises are expensive.
+>
+> What I learned was that thinking bigger at my level does not have to mean proposing something dramatic. Sometimes it means seeing that a one-time fix should become a repeatable way to prevent the same problem from happening again.
 
 ### Backup story: Five Guys prep timing as repeatable method
 
-At Five Guys, I improved my own downstairs prep flow after realising I was losing time between tasks. The first improvement was personal: I used whiteboard timings, found the gaps between prep items, and changed my setup and sequence.
-
-But the bigger idea was that this should not only help me. If another crew member was struggling with prep, the same approach could be turned into a simple repeatable method.
-
-I would not make everyone track every prep item forever. That would create unnecessary admin. Instead, I would use timing as a short diagnostic tool for two or three shifts, just long enough to find where the person is losing time. Then I would teach the setup sequence: containers out, lids matched, labels ready, bin positioned, and the first few prep items in order before cutting starts.
-
-The focus would be on the key prep items upstairs needs before service, not timing for its own sake. If the issue is long gaps between items, then the fix is to simplify the flow. If the issue is cutting technique, then the fix is different. Once the flow becomes stable, the ongoing measure should be simple: are key prep items ready before service, and does upstairs still need to chase?
-
-The result from my own change was that the core prep route went from about 70 minutes to 55 minutes, and pre-service chase-downs dropped from 2–3 to usually 0–1. The bigger idea would be to make that learning repeatable for other crew members without turning it into extra paperwork.
-
-What I learned was that an improvement is more valuable if it can become a simple method others can use. For me, that meant turning whiteboard timing from a personal fix into a short diagnostic tool for improving prep readiness.
+> At Five Guys, I improved my own downstairs prep flow after realising I was losing time between tasks. The first improvement was personal: I used whiteboard timings, found the gaps between prep items, and changed my setup and sequence.
+>
+> But the bigger idea was that this should not only help me. If another crew member was struggling with prep, the same approach could be turned into a simple repeatable method.
+>
+> I would not make everyone track every prep item forever. That would create unnecessary admin. Instead, I would use timing as a short diagnostic tool for two or three shifts, just long enough to find where the person is losing time. Then I would teach the setup sequence: containers out, lids matched, labels ready, bin positioned, and the first few prep items in order before cutting starts.
+>
+> The focus would be on the key prep items upstairs needs before service, not timing for its own sake. If the issue is long gaps between items, then the fix is to simplify the flow. If the issue is cutting technique, then the fix is different. Once the flow becomes stable, the ongoing measure should be simple: are key prep items ready before service, and does upstairs still need to chase?
+>
+> The result from my own change was that the core prep route went from about 70 minutes to 55 minutes, and pre-service chase-downs dropped from 2–3 to usually 0–1. The bigger idea would be to make that learning repeatable for other crew members without turning it into extra paperwork.
+>
+> What I learned was that an improvement is more valuable if it can become a simple method others can use. For me, that meant turning whiteboard timing from a personal fix into a short diagnostic tool for improving prep readiness.

@@ -280,32 +280,32 @@ He leans forward.
 ## STAR Response
 ### Main story: Five Guys prep timing
 
-At Five Guys, I had a situation where I needed to earn trust after my prep work started creating uncertainty for the upstairs team.
-
-I was working downstairs on prep, and one shift a manager came down, looked at what had been completed, and asked, “What have you been doing down here?” That stayed with me because I had been working, but key prep items were still not ready early enough for service. From my side, it felt like effort. From upstairs, it looked like delay.
-
-I did not try to defend myself with “I’ve been busy.” I needed to make the work more reliable and visible. So across six comparable prep shifts, I started recording start and finish times on the whiteboard for the core prep route: lettuce, tomatoes, onions, mushrooms, and the key prep items upstairs needed before service.
-
-The timings showed that I was losing time between tasks, not only during cutting. I was losing around 10 to 15 minutes across prep by looking for containers, matching lids, checking the list again, cleaning at the wrong point, and restarting between items.
-
-Once I saw that, I changed the setup. Before cutting, I got containers, lids, labels, bin position, and the next few items ready. I also learned from faster crew members and adapted how they moved through prep with fewer touches and fewer resets.
-
-The result was that the core prep route reduced from about 70 minutes to 55 minutes, roughly a 21% improvement. More importantly, upstairs chase-downs dropped from 2–3 before service to usually 0–1 because key prep items were ready earlier.
-
-I would not say the manager formally told me, “I trust you now.” But the behaviour around my work changed. There were fewer urgent checks, less need for me to explain myself, and more reliance on the visible prep progress. What I learned was that trust is not built by insisting you are trying hard. It is built when people can see and rely on your output.
+> At Five Guys, I had a situation where I needed to earn trust after my prep work started creating uncertainty for the upstairs team.
+>
+> I was working downstairs on prep, and one shift a manager came down, looked at what had been completed, and asked, “What have you been doing down here?” That stayed with me because I had been working, but key prep items were still not ready early enough for service. From my side, it felt like effort. From upstairs, it looked like delay.
+>
+> I did not try to defend myself with “I’ve been busy.” I needed to make the work more reliable and visible. So across six comparable prep shifts, I started recording start and finish times on the whiteboard for the core prep route: lettuce, tomatoes, onions, mushrooms, and the key prep items upstairs needed before service.
+>
+> The timings showed that I was losing time between tasks, not only during cutting. I was losing around 10 to 15 minutes across prep by looking for containers, matching lids, checking the list again, cleaning at the wrong point, and restarting between items.
+>
+> Once I saw that, I changed the setup. Before cutting, I got containers, lids, labels, bin position, and the next few items ready. I also learned from faster crew members and adapted how they moved through prep with fewer touches and fewer resets.
+>
+> The result was that the core prep route reduced from about 70 minutes to 55 minutes, roughly a 21% improvement. More importantly, upstairs chase-downs dropped from 2–3 before service to usually 0–1 because key prep items were ready earlier.
+>
+> I would not say the manager formally told me, “I trust you now.” But the behaviour around my work changed. There were fewer urgent checks, less need for me to explain myself, and more reliance on the visible prep progress. What I learned was that trust is not built by insisting you are trying hard. It is built when people can see and rely on your output.
 
 ### Backup story: old equipment-list revision mistake
 
-In my field engineering role, I had to earn trust after making a mistake during equipment staging for a loadout.
-
-A revised equipment list had come through, but I failed to remove or mark the earlier printed version. I continued checking and staging from the old revision. I realised the mistake when the supervisor asked me, “Which revision are you using?” I checked the sheet in my hand and saw straight away that it was not the latest version.
-
-At that point, I could have explained that the update came through later, but the real issue was that I had allowed a superseded document to stay active in the work area. So I owned it directly. I said, “That’s my mistake. I’m using the earlier revision.”
-
-Then I removed the old copy, crossed it out as superseded, printed the latest version, and rechecked the affected section with one of the technicians. We compared the staged items against the revised list, corrected the mismatch, and I confirmed the current revision with the supervisor before continuing. I also checked the desk and job-pack area for any other old printed copies.
-
-The issue was contained before dispatch. It caused about 20 minutes of avoidable rework in one loadout section, including rechecking the affected lines and restaging two items, but it did not travel into final loading or site work.
-
-After that, I changed how I handled printed lists. Before staging from any equipment list, I checked the revision number, date, and latest job-pack update. If a new copy replaced an old one, I removed or marked the old copy immediately. Later, that habit helped me catch another revision mismatch before people started staging from the wrong sheet.
-
-What I learned was that trust after a mistake comes from owning the reality quickly, containing the impact, and changing the process so people are not relying on your apology alone. I had been checking carefully, but against the wrong source. Version control is part of operational control.
+> In my field engineering role, I had to earn trust after making a mistake during equipment staging for a loadout.
+>
+> A revised equipment list had come through, but I failed to remove or mark the earlier printed version. I continued checking and staging from the old revision. I realised the mistake when the supervisor asked me, “Which revision are you using?” I checked the sheet in my hand and saw straight away that it was not the latest version.
+>
+> At that point, I could have explained that the update came through later, but the real issue was that I had allowed a superseded document to stay active in the work area. So I owned it directly. I said, “That’s my mistake. I’m using the earlier revision.”
+>
+> Then I removed the old copy, crossed it out as superseded, printed the latest version, and rechecked the affected section with one of the technicians. We compared the staged items against the revised list, corrected the mismatch, and I confirmed the current revision with the supervisor before continuing. I also checked the desk and job-pack area for any other old printed copies.
+>
+> The issue was contained before dispatch. It caused about 20 minutes of avoidable rework in one loadout section, including rechecking the affected lines and restaging two items, but it did not travel into final loading or site work.
+>
+> After that, I changed how I handled printed lists. Before staging from any equipment list, I checked the revision number, date, and latest job-pack update. If a new copy replaced an old one, I removed or marked the old copy immediately. Later, that habit helped me catch another revision mismatch before people started staging from the wrong sheet.
+>
+> What I learned was that trust after a mistake comes from owning the reality quickly, containing the impact, and changing the process so people are not relying on your apology alone. I had been checking carefully, but against the wrong source. Version control is part of operational control.

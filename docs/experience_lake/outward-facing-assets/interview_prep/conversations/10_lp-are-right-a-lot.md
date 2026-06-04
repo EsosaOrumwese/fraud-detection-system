@@ -337,32 +337,32 @@ He looks at the graduate.
 ## STAR Responses
 ### Main story: random forest disagreement
 
-During my MSc, I had a group project where we had to decide whether to change our main model close to the submission deadline.
-
-We were a four-person group, about two days from submission, and we already had a simpler model that ran end-to-end and matched the report. One teammate wanted to introduce a random forest because it gave a small improvement in F1 and could make the work stronger.
-
-My first concern was that changing the model that late could destabilise the project. But I did not dismiss his idea, because his point was valid. A better-performing model could improve the submission if we could explain and support it properly.
-
-So I asked, “What would need to change if we use this as the main model?” That moved the discussion from personal preference to the full impact on the submission: results table, figures, evaluation wording, limitations, and whether all four of us could explain the final output.
-
-We agreed to test it separately while keeping the working model safe as the baseline. The random forest improved one balanced classification metric slightly, but not enough to justify rewriting the centre of the project two days before submission.
-
-The judgement was not “my idea won.” It was that the stronger model had a fair test, the evidence was considered, and the group chose the option that best balanced performance, explainability, and delivery risk.
-
-The result was that we submitted on time with a model the whole group could defend. The random forest was not ignored; we kept it as a comparison and future-work point.
-
-What I learned was that being right is not about holding onto your first view or picking the highest number in isolation. It is about testing assumptions, listening to the other side, and choosing the decision that works best in the full situation.
+> During my MSc, I had a group project where we had to decide whether to change our main model close to the submission deadline.
+>
+> We were a four-person group, about two days from submission, and we already had a simpler model that ran end-to-end and matched the report. One teammate wanted to introduce a random forest because it gave a small improvement in F1 and could make the work stronger.
+>
+> My first concern was that changing the model that late could destabilise the project. But I did not dismiss his idea, because his point was valid. A better-performing model could improve the submission if we could explain and support it properly.
+>
+> So I asked, “What would need to change if we use this as the main model?” That moved the discussion from personal preference to the full impact on the submission: results table, figures, evaluation wording, limitations, and whether all four of us could explain the final output.
+>
+> We agreed to test it separately while keeping the working model safe as the baseline. The random forest improved one balanced classification metric slightly, but not enough to justify rewriting the centre of the project two days before submission.
+>
+> The judgement was not “my idea won.” It was that the stronger model had a fair test, the evidence was considered, and the group chose the option that best balanced performance, explainability, and delivery risk.
+>
+> The result was that we submitted on time with a model the whole group could defend. The random forest was not ignored; we kept it as a comparison and future-work point.
+>
+> What I learned was that being right is not about holding onto your first view or picking the highest number in isolation. It is about testing assumptions, listening to the other side, and choosing the decision that works best in the full situation.
 
 ### Backup story: oilfield loadout mismatch
 
-In my field engineering role, I had a loadout where I had to check my own judgement before escalating a possible issue.
-
-We were preparing completions equipment in the yard, and one component had been grouped with the job equipment. From where it was placed, it looked like it belonged there. But when I checked the tag against the job sheet, the connection description did not match.
-
-I did not want to assume I was right immediately, because I was still younger in that environment and the team was trying to keep the loadout moving. So I wiped the tag, checked the job sheet line again, compared it back to the physical item, and then asked a more experienced colleague to verify it with me.
-
-When he checked it himself, he agreed that the connection did not match. We escalated it to the supervisor, who paused that section of the loadout and asked the team to find the correct component. The correct item was found elsewhere in the yard and swapped before dispatch.
-
-The result was that the equipment left with the correct component. The pause cost around 20–30 minutes in the yard, but it avoided a likely rig-site delay, rework, extra transport, and client escalation.
-
-What I learned was that good judgement is not just trusting your first read. It is checking the detail, asking the right person to verify when the risk is high, and then acting once the evidence is strong enough.
+> In my field engineering role, I had a loadout where I had to check my own judgement before escalating a possible issue.
+>
+> We were preparing completions equipment in the yard, and one component had been grouped with the job equipment. From where it was placed, it looked like it belonged there. But when I checked the tag against the job sheet, the connection description did not match.
+>
+> I did not want to assume I was right immediately, because I was still younger in that environment and the team was trying to keep the loadout moving. So I wiped the tag, checked the job sheet line again, compared it back to the physical item, and then asked a more experienced colleague to verify it with me.
+>
+> When he checked it himself, he agreed that the connection did not match. We escalated it to the supervisor, who paused that section of the loadout and asked the team to find the correct component. The correct item was found elsewhere in the yard and swapped before dispatch.
+>
+> The result was that the equipment left with the correct component. The pause cost around 20–30 minutes in the yard, but it avoided a likely rig-site delay, rework, extra transport, and client escalation.
+>
+> What I learned was that good judgement is not just trusting your first read. It is checking the detail, asking the right person to verify when the risk is high, and then acting once the evidence is strong enough.

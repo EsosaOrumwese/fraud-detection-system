@@ -346,32 +346,32 @@ He asks:
 ## STAR Response
 ### Main story: wrong bacon cheeseburger
 
-At Five Guys, I dealt with a customer issue during a busy service period where the customer came back to the counter with his bag open.
-
-He had already waited, collected his order, stepped aside, opened the bag, and found that his bacon cheeseburger was wrong. The ticket said no pickles and grilled onions, but the burger had pickles and was missing the grilled onions.
-
-The customer problem was not only the wrong food. It was that he had already spent time waiting once, and now he had to come back to the counter during a rush to get the order corrected.
-
-I did not start by defending the shop or blaming the kitchen. I apologised, checked the receipt, and repeated the issue back to him so he knew I had understood it properly: no pickles, grilled onions.
-
-Then I took it to the person coordinating the line and said clearly, “This customer’s bacon cheeseburger has been made wrong. Ticket says no pickles and grilled onions. He’s already waited and come back. Can we remake this one as priority?”
-
-I went back to the customer and told him it was being remade and that I would keep an eye on it. When the remake came through, I checked it against the correction before handing it back.
-
-The result was that the customer’s tone softened, he stepped back from the counter instead of continuing to argue, accepted the corrected order, said thanks, and left without further escalation. The situation did not need further manager escalation, and the complaint did not keep interrupting the collection area.
-
-What I learned was that customer recovery is not only about fixing the item. It is also about removing uncertainty for the customer. In that situation, he needed the correct food, but he also needed not to feel invisible in the queue while the rush continued around him.
+> At Five Guys, I dealt with a customer issue during a busy service period where the customer came back to the counter with his bag open.
+>
+> He had already waited, collected his order, stepped aside, opened the bag, and found that his bacon cheeseburger was wrong. The ticket said no pickles and grilled onions, but the burger had pickles and was missing the grilled onions.
+>
+> The customer problem was not only the wrong food. It was that he had already spent time waiting once, and now he had to come back to the counter during a rush to get the order corrected.
+>
+> I did not start by defending the shop or blaming the kitchen. I apologised, checked the receipt, and repeated the issue back to him so he knew I had understood it properly: no pickles, grilled onions.
+>
+> Then I took it to the person coordinating the line and said clearly, “This customer’s bacon cheeseburger has been made wrong. Ticket says no pickles and grilled onions. He’s already waited and come back. Can we remake this one as priority?”
+>
+> I went back to the customer and told him it was being remade and that I would keep an eye on it. When the remake came through, I checked it against the correction before handing it back.
+>
+> The result was that the customer’s tone softened, he stepped back from the counter instead of continuing to argue, accepted the corrected order, said thanks, and left without further escalation. The situation did not need further manager escalation, and the complaint did not keep interrupting the collection area.
+>
+> What I learned was that customer recovery is not only about fixing the item. It is also about removing uncertainty for the customer. In that situation, he needed the correct food, but he also needed not to feel invisible in the queue while the rush continued around him.
 
 ### Backup story: fries bottleneck
 
-At Five Guys, I had a busy service period where customers were waiting near collection because several orders were almost complete but could not leave the counter.
-
-The issue was fries. There were around four or five partially packed bags waiting. The burgers were ready, but the person bagging could not close and call those orders because fries were behind. Customers could see bags on the counter, but their orders were not being handed out.
-
-At the same time, there were smaller front-area tasks calling for attention, like restocking and tidying. I checked that those tasks were not safety or hygiene issues, then focused on the fries because that was the bottleneck blocking the customer flow.
-
-I asked which orders were waiting on fries, helped match fries to the right tickets, and helped get the completed bags out to collection. When a customer looked like he needed an update, I kept it short and clear: “We’re just waiting on fries for a few orders — they’re coming through now.”
-
-The result was that several bags were completed and called, collection pressure reduced, and the person bagging was no longer blocked by the same missing item. Once the immediate flow was under control, I went back to the lower-priority restocking and tidying before they became the next issue.
-
-What I learned was that customer experience is often affected by the flow behind the counter, not only by direct customer conversations. In that moment, clearing the fries bottleneck helped customers get orders that were already nearly complete instead of watching bags sit open at collection.
+> At Five Guys, I had a busy service period where customers were waiting near collection because several orders were almost complete but could not leave the counter.
+>
+> The issue was fries. There were around four or five partially packed bags waiting. The burgers were ready, but the person bagging could not close and call those orders because fries were behind. Customers could see bags on the counter, but their orders were not being handed out.
+>
+> At the same time, there were smaller front-area tasks calling for attention, like restocking and tidying. I checked that those tasks were not safety or hygiene issues, then focused on the fries because that was the bottleneck blocking the customer flow.
+>
+> I asked which orders were waiting on fries, helped match fries to the right tickets, and helped get the completed bags out to collection. When a customer looked like he needed an update, I kept it short and clear: “We’re just waiting on fries for a few orders — they’re coming through now.”
+>
+> The result was that several bags were completed and called, collection pressure reduced, and the person bagging was no longer blocked by the same missing item. Once the immediate flow was under control, I went back to the lower-priority restocking and tidying before they became the next issue.
+>
+> What I learned was that customer experience is often affected by the flow behind the counter, not only by direct customer conversations. In that moment, clearing the fries bottleneck helped customers get orders that were already nearly complete instead of watching bags sit open at collection.

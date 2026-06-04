@@ -254,28 +254,28 @@ He pauses.
 ## STAR Responses
 ### Main story: MSc machine learning assignment
 
-During my MSc Data Science programme, I had an early machine learning assignment where I realised I was out of my depth.
-
-I understood individual concepts like train-test split, missing values, preprocessing, and evaluation. But when I had to connect them into one working notebook, the pipeline kept breaking. I was in the library with the notebook failing, and at first I made the mistake of watching too many tutorials. It felt productive, but it did not fix my actual dataset.
-
-So I changed how I was learning. I stopped trying to “learn machine learning” generally and started diagnosing where my own pipeline was failing. I broke the notebook into stages: load and inspect data, define target and features, split the data, preprocess, train, evaluate, and explain.
-
-I also made a smaller version of the dataset so I could test the route without being overwhelmed. Then I added checks after each stage: train and test shapes, missing values, transformed columns, and whether the target column had accidentally stayed inside the features. I also asked a coursemate for specific help, not to fix the code for me, but to check whether the structure made sense.
-
-The result was that I submitted on time with a notebook that ran end-to-end and that I could explain step by step. More importantly, I reused that staged-checklist method in later coursework. After that, when an error happened, it had a location. I could look at the stage where the pipeline broke instead of treating the whole notebook as one big failure.
-
-What I learned was that learning is not just consuming more information. I had to change from passive tutorial-watching to active diagnosis. That shift helped me build a method I could reuse, not just finish one assignment.
+> During my MSc Data Science programme, I had an early machine learning assignment where I realised I was out of my depth.
+>
+> I understood individual concepts like train-test split, missing values, preprocessing, and evaluation. But when I had to connect them into one working notebook, the pipeline kept breaking. I was in the library with the notebook failing, and at first I made the mistake of watching too many tutorials. It felt productive, but it did not fix my actual dataset.
+>
+> So I changed how I was learning. I stopped trying to “learn machine learning” generally and started diagnosing where my own pipeline was failing. I broke the notebook into stages: load and inspect data, define target and features, split the data, preprocess, train, evaluate, and explain.
+>
+> I also made a smaller version of the dataset so I could test the route without being overwhelmed. Then I added checks after each stage: train and test shapes, missing values, transformed columns, and whether the target column had accidentally stayed inside the features. I also asked a coursemate for specific help, not to fix the code for me, but to check whether the structure made sense.
+>
+> The result was that I submitted on time with a notebook that ran end-to-end and that I could explain step by step. More importantly, I reused that staged-checklist method in later coursework. After that, when an error happened, it had a location. I could look at the stage where the pipeline broke instead of treating the whole notebook as one big failure.
+>
+> What I learned was that learning is not just consuming more information. I had to change from passive tutorial-watching to active diagnosis. That shift helped me build a method I could reuse, not just finish one assignment.
 
 ### Backup story: Five Guys prep timing
 
-At Five Guys, I had to learn from difficult feedback when my downstairs prep was not ready early enough for the upstairs team before service.
-
-A manager came down during prep, looked at what had been completed, and asked, “What have you been doing down here?” That was uncomfortable because I had been working, but the output was not reliable enough for the team upstairs.
-
-Instead of defending myself or just trying to move faster, I tried to understand what I needed to learn. I tracked start and finish times on the whiteboard across six comparable prep shifts for the core prep route: lettuce, tomatoes, onions, mushrooms, and the key prep items upstairs needed before service.
-
-The timings showed that I was losing around 10 to 15 minutes between tasks: finding containers, matching lids, checking the list again, cleaning at the wrong point, and resetting before starting the next item. I also asked faster crew members to show me their sequence and learned how they moved through prep with fewer touches and fewer resets.
-
-The result was that the core prep route went from about 70 minutes to 55 minutes, around a 21% reduction. More importantly, upstairs chase-downs dropped from 2–3 before service to usually 0–1 because key prep items were ready earlier.
-
-What I learned was that feedback is only useful if I turn it into a change in behaviour. In that case, the lesson was not simply “work faster”; it was to understand the flow, learn from people who were better at it, and make my output reliable for the team depending on me.
+> At Five Guys, I had to learn from difficult feedback when my downstairs prep was not ready early enough for the upstairs team before service.
+>
+> A manager came down during prep, looked at what had been completed, and asked, “What have you been doing down here?” That was uncomfortable because I had been working, but the output was not reliable enough for the team upstairs.
+>
+> Instead of defending myself or just trying to move faster, I tried to understand what I needed to learn. I tracked start and finish times on the whiteboard across six comparable prep shifts for the core prep route: lettuce, tomatoes, onions, mushrooms, and the key prep items upstairs needed before service.
+>
+> The timings showed that I was losing around 10 to 15 minutes between tasks: finding containers, matching lids, checking the list again, cleaning at the wrong point, and resetting before starting the next item. I also asked faster crew members to show me their sequence and learned how they moved through prep with fewer touches and fewer resets.
+>
+> The result was that the core prep route went from about 70 minutes to 55 minutes, around a 21% reduction. More importantly, upstairs chase-downs dropped from 2–3 before service to usually 0–1 because key prep items were ready earlier.
+>
+> What I learned was that feedback is only useful if I turn it into a change in behaviour. In that case, the lesson was not simply “work faster”; it was to understand the flow, learn from people who were better at it, and make my output reliable for the team depending on me.
