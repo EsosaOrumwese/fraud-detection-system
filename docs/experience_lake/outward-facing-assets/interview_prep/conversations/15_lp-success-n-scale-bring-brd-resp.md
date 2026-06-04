@@ -1,3 +1,48 @@
+## Question Variants
+
+For **Success and Scale Bring Broad Responsibility**, the interviewer is testing whether the graduate thinks about **secondary effects**: the next team, the next process, the customer, the site, the wider operation.
+
+It is not just “I completed my task.” It is:
+
+> Did you leave the operation better than you found it, or did someone downstream inherit your shortcut?
+
+Most likely question variants:
+
+| Likely question                                                                             | What they are testing                                |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| **Tell me about a time your work affected another team.**                                   | Did you think beyond your own task?                  |
+| **Tell me about a time you protected a handover.**                                          | Did you prevent the next team inheriting problems?   |
+| **Tell me about a time you considered the downstream impact of your actions.**              | Did you understand secondary effects?                |
+| **Tell me about a time you left something better than you found it.**                       | Did your work improve the wider process?             |
+| **Tell me about a time you prevented a problem from travelling downstream.**                | Did you stop local issues becoming bigger issues?    |
+| **Tell me about a time you made a decision that helped people beyond your immediate team.** | Did you think broadly, not narrowly?                 |
+| **Tell me about a time you improved a handoff or transition.**                              | Did you protect continuity between shifts/processes? |
+| **Tell me about a time you took responsibility for a wider outcome.**                       | Did you own the result beyond your piece?            |
+| **Tell me about a time you considered the long-term effect of a shortcut.**                 | Did you avoid passing hidden cost to others?         |
+| **Tell me about a time you made a process more sustainable for the next person.**           | Did you reduce future friction?                      |
+
+Most likely for the **Graduate Area Manager** role:
+
+1. **Tell me about a time you protected a handover.**
+2. **Tell me about a time you thought about downstream impact.**
+3. **Tell me about a time you left something better than you found it.**
+4. **Tell me about a time your work affected the next team or process.**
+5. **Tell me about a time you prevented a small issue becoming a bigger issue later.**
+
+Best story fit from the saved discussion:
+
+**Main story:** late close.
+This works because the close was not just about finishing the shift; it was about whether the morning team inherited full bins, low stock, or a front area that only looked clean. 
+
+**Backup story:** loadout status tracker.
+This works because unclear yard status could travel into final loading, transport, or site work. 
+
+The answer must show:
+
+> **immediate task → downstream risk → action taken → handover protected → wider effect.**
+
+---
+
 ## Interviewer
 The interviewer writes:
 
@@ -242,3 +287,34 @@ He taps the table.
 He writes the final rule at the bottom of the page:
 
 **Scene. Pressure. Action. Evidence. Follow-up defence.**
+
+## STAR Responses
+Here are the **Success and Scale Bring Broad Responsibility** responses.
+
+### Main story: late close
+
+At Five Guys, I had a late close where I had to think beyond simply finishing my own shift.
+
+The front, collection, and lobby area had to be closed, stocked, cleaned, and ready for handover. The rush had run late, we were roughly twenty minutes behind where that area would normally be at that stage of close, and late customers were still coming through.
+
+From a distance, the front counter looked almost clean, but it was not actually reset. Bags, cups, lids, and sauces were low, bins were close to full, and some customer-facing areas still needed a final wipe after the last orders went out.
+
+I treated that as a handover risk. If we only made the area look clean, the next team could inherit the unfinished work. So I cleared bins early because full bins slow down later cleaning. I restocked before the final wipe because moving stock afterward would disturb the area again. For areas still being used, I kept them as “done except final wipe” and came back once customer-facing activity had finished.
+
+The result was that the area passed the close check with the main handover risks handled: bins done, front stock replenished, lobby cleared, and final wipe completed after customer-facing activity ended.
+
+What I learned was that the close is not finished just because your shift is ending. The result has to work for the next team. Clean means the visible area is dealt with; reset means the next team has what they need to start.
+
+### Backup story: loadout status tracker
+
+In my field engineering role, I had a loadout where unclear status in the yard could have travelled downstream into final loading, transport, or site work.
+
+The team was busy, but the status was living in different people’s heads. The printed equipment list showed what should go, but it did not show what had been checked, what was staged, what was still pending, or who owned the next action.
+
+I turned the latest equipment list into a working tracker with columns for location, checked status, staged status, pending issue, and owner. Then I walked the yard against the list instead of relying on where people assumed things were.
+
+There were around forty equipment and accessory lines on the list. When I first made the tracker, about seven still needed physical confirmation or owner follow-up. One accessory people said “should be with the kit” had not actually been seen with the staged equipment. I kept it open until it was found elsewhere in the yard before final loading.
+
+The result was that the loadout status stopped living only in people’s heads. The supervisor could ask, “What’s still open?” and get a short answer from the tracker. The team avoided discovering that unconfirmed accessory at the truck or later in the loadout, when the correction would have been more disruptive.
+
+What I learned was that a local uncertainty does not always stay local. If unclear work is passed forward, someone downstream pays for it. So the responsible thing is to make the status visible while there is still time to correct it calmly.
