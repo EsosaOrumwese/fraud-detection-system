@@ -1,3 +1,51 @@
+## Question Variant
+Based on the **Bias for Action** transcript, the interviewer is testing whether the graduate can move quickly without being reckless.
+
+They are looking for:
+
+* speed when waiting creates risk;
+* knowing the difference between reversible and irreversible decisions;
+* taking calculated action;
+* not hiding behind over-analysis;
+* still protecting quality, safety, and customer experience.
+
+For the Graduate Area Manager role, likely question variants are:
+
+| Likely question                                                             | What they are testing                                 |
+| --------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Tell me about a time you acted quickly with limited information.**        | Did you move before everything was perfectly settled? |
+| **Tell me about a time you made a quick decision under pressure.**          | Could you act without freezing?                       |
+| **Tell me about a time waiting would have made the problem worse.**         | Did you recognise urgency?                            |
+| **Tell me about a time you took a calculated risk.**                        | Was the action controlled, not careless?              |
+| **Tell me about a time you made a reversible decision.**                    | Did you understand “two-way door” thinking?           |
+| **Tell me about a time you had to balance speed and quality.**              | Did you move fast without lowering standards?         |
+| **Tell me about a time you acted before getting full agreement.**           | Did you protect progress without overstepping?        |
+| **Tell me about a time you removed a blocker quickly.**                     | Did your action unlock team/customer flow?            |
+| **Tell me about a time you avoided overthinking and got something moving.** | Did you prioritise useful action over delay?          |
+| **Tell me about a time you had to respond to a live operational issue.**    | Could you act quickly in a real-time environment?     |
+
+Most likely for this role:
+
+1. **Tell me about a time you acted quickly under pressure.**
+2. **Tell me about a time you made a decision with incomplete information.**
+3. **Tell me about a time waiting would have created more risk.**
+4. **Tell me about a time you balanced speed with standards.**
+5. **Tell me about a time you removed a blocker quickly.**
+
+Best story fit from the saved discussion:
+
+**Main story:** fallback evaluation slide.
+This is strongest for the “reversible action / two-way door” angle: the graduate created a fallback so the team could rehearse, but kept the teammate’s ownership and used agreed material only. 
+
+**Backup story:** fries bottleneck.
+This is strongest for live operations: the graduate acted quickly on the constraint blocking several orders, after checking that no safety or hygiene issue was being delayed. 
+
+The answer must show:
+
+> **urgent risk → controlled action → reversible or low-risk choice → standards protected → progress unlocked.**
+
+---
+
 ## Interviewer
 The interviewer nods once.
 
@@ -226,3 +274,34 @@ He looks directly at the graduate.
 “So now answer the coverage question.”
 
 **For Have Backbone; Disagree and Commit, what is your first-choice story, what is your backup story, and what proof shows you challenged constructively rather than just resisted change?**
+
+## STAR Response
+### Main story: fallback evaluation slide
+
+During my MSc, I was part of a four-person group presentation where we had to act before everything was fully ready.
+
+The presentation was the next day, and when we tried to rehearse, the evaluation and limitations section was still mostly a placeholder. That section sat in the middle of the deck, so the gap affected timing, the transition from results, and the conclusion.
+
+Waiting was becoming risky because the group could not rehearse the full flow. But taking over completely would also have been wrong because that section belonged to another teammate.
+
+So I created a basic fallback slide using only material we had already agreed: the main evaluation output from the notebook, one or two limitations, and a transition line into the conclusion. I labelled it clearly as a fallback in the group chat and told the teammate they could replace it with their version when ready. I also kept their section and speaking slot.
+
+The action was fast, but controlled. I did not invent new analysis, change the ownership, or remove the teammate’s role. I created a temporary version so the group could rehearse.
+
+Later, when the teammate sent their material, we used the fallback structure and incorporated the useful parts of their version. The result was that we rehearsed with a complete flow, the final deck matched the notebook, and we presented on time without last-minute risk around an incomplete section.
+
+What I learned was that Bias for Action is not rushing in or taking over. It is taking a controlled, reversible step when waiting is becoming risky.
+
+### Backup story: fries bottleneck
+
+At Five Guys, I had a busy service period where several orders were almost complete but could not leave collection because fries were behind.
+
+There were around four or five partially packed bags waiting. The burgers were ready, customers were watching the collection area, and the person bagging could not close and call the orders because the fries were missing. At the same time, there were smaller tasks calling for attention, like restocking and tidying.
+
+I quickly checked that the other tasks were not safety or hygiene issues. Since they were lower-priority tidying and restocking tasks, I delayed them briefly and focused on the bottleneck.
+
+I asked which orders were waiting on fries, helped match fries to the right tickets, and helped get the completed bags out to collection. When a customer looked like he needed an update, I kept it short and clear: “We’re just waiting on fries for a few orders — they’re coming through now.”
+
+The result was that several bags were completed and called, collection pressure reduced, and the person bagging was no longer blocked by the same missing item. Once the immediate flow was under control, I went back to the delayed restocking and tidying before they became the next issue.
+
+What I learned was that acting quickly does not mean reacting blindly. I first checked that I was not delaying a safety or hygiene issue, then acted on the constraint that was blocking the most customer flow.
