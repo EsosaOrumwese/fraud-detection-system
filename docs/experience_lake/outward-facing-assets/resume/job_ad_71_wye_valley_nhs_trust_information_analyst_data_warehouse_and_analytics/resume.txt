@@ -1,0 +1,160 @@
+## 1. South Western Technologies & Oilfield Services Ltd
+
+Employer name
+South Western Technologies & Oilfield Services Ltd
+
+Employer address
+Port Harcourt / Lagos, Nigeria
+
+Type of business
+Oilfield services / well-service and completions operations
+
+Reporting to
+Field Supervisor / Operations Manager
+
+Telephone
+Use company contact from your records
+
+Your job title
+Field Engineer and Operations Analytics Support
+
+Start date
+July 2021
+
+End date
+August 2023
+
+Grade
+Not applicable
+
+Salary
+Use actual salary from your records
+
+Period of notice
+Use contract notice period if known
+
+Reason for leaving — max 50 words
+Left the role to begin postgraduate study in Data Science with Artificial Intelligence, building on my operational analytics, data-quality, SQL Server and reporting experience.
+
+Brief description of duties and responsibilities — max 500 words
+
+* Supported field engineering, operations reporting, information management and post-job analysis for oilfield well-service and completions operations.
+* Contributed to the move from scattered Excel files, Word documents, field reports and local folders toward a more structured Microsoft SQL Server-based reporting environment.
+* Helped clean and structure field data, job documents, QHSE records, loadout sheets, post-job reports, financial information and operational records before migration into reporting outputs.
+* Supported the development of Excel pack templates for base preparation, onsite job capture, post-job assessment and operational reporting.
+* Helped reduce duplicated records, missing fields, inconsistent service-line records and unclear operational descriptions.
+* Used SQL Server 2019+ concepts, SQL querying, SSRS, SSIS and SSAS knowledge to support data warehouse reporting, automated workflows and analysis outputs.
+* Used SSIS-type workflows to collate field records, operations data, QHSE submissions and post-job information for reporting in Excel, PDF and Power BI dashboards.
+* Supported SSRS-style reporting and after-job assessment outputs for management and field teams.
+* Used Excel, VBA, SQL, SAS, Access and Power BI to clean, reconcile, analyse and present operational data.
+* Used VBA-supported Excel analysis for preliminary checks before connecting cleaned data into Power BI for insight generation and presentation.
+* Produced or supported reports showing job readiness, time and resource use, missing tools or units, delay causes, QHSE completeness, equipment availability and areas for improvement.
+* Used structured timing data and Analysis Services to assess field-operation trends, including identifying where running speed changed during equipment activity downhole.
+* Supported training material and user guidance so staff could use templates, reporting processes and data fields consistently.
+* Worked with field crews, supervisors, HSE, logistics, maintenance, inventory, commercial colleagues and operations management.
+* Explained reporting issues, missing fields, duplicate records and data-quality concerns to technical and non-technical colleagues.
+
+---
+
+## 2. University of Exeter
+
+Employer name
+University of Exeter
+
+Employer address
+Exeter, Devon, United Kingdom
+
+Type of business
+Higher education / postgraduate data science and applied analytics
+
+Reporting to
+Academic Supervisor / MSc Programme Team
+
+Telephone
+Use university contact if required
+
+Your job title
+Data Analyst / Data Scientist — Postgraduate Applied Analytics Work
+
+Start date
+September 2023
+
+End date
+September 2024
+
+Grade
+MSc student / postgraduate applied project work
+
+Salary
+Not paid academic project work
+
+Period of notice
+Not applicable
+
+Reason for leaving — max 50 words
+Completed the MSc Data Science with Artificial Intelligence programme with Distinction, including database management, data governance, SQL, machine learning, statistical learning and technical reporting.
+
+Brief description of duties and responsibilities — max 500 words
+
+* Completed postgraduate applied analytics work covering database management, SQL, Python, statistics, machine learning, data governance, data preparation, visualisation and technical reporting.
+* Developed stronger understanding of data warehouse principles, structured datasets, data quality, reproducible workflows and responsible data handling.
+* Completed technical coursework and projects requiring data cleaning, transformation, modelling, validation and written explanation of methodology and limitations.
+* Built an independent analytics platform to deepen practical knowledge of data pipelines, cloud deployment, logs, configuration, repeatable processing and reporting outputs.
+* Used Python, SQL and cloud-based tools to process data, create structured outputs, test workflows and produce user-facing reports or dashboards.
+* Completed a public-data analysis project combining large daily files into structured datasets for time-series reporting and dashboard presentation.
+* Used Power BI, Power Query, DAX and SQL in applied reporting work to reshape data, define measures, stage data and present trends through dashboards.
+* Completed an MSc research project using high-frequency smartphone sensor data, cleaning and preparing model-ready data, then evaluating outputs using accuracy, precision, recall and F1-score.
+* Developed technical communication skills through written reports, presentations, methodology explanations and discussion of assumptions, risks and limitations.
+* Strengthened workload prioritisation, project management, documentation and ability to explain technical outputs clearly.
+
+---
+
+## 3. Five Guys
+
+Employer name
+Five Guys
+
+Employer address
+Exeter, United Kingdom
+
+Type of business
+Food service / hospitality / quick-service restaurant
+
+Reporting to
+Shift Manager / General Manager
+
+Telephone
+Use store or HR contact from your records
+
+Your job title
+Crew Member
+
+Start date
+September 2024
+
+End date
+Present
+
+Grade
+Crew Member
+
+Salary
+Use current hourly rate from your contract
+
+Period of notice
+Use contract notice period
+
+Reason for leaving — max 50 words
+Current role.
+
+Brief description of duties and responsibilities — max 500 words
+
+* Work in a fast-paced frontline service environment requiring accuracy, teamwork, prioritisation and clear communication.
+* Work across till, order entry, customer handoff, food-preparation support, fries, bagging, lobby recovery, stock top-ups, cleaning and close-down routines.
+* Maintain accuracy during busy periods by checking tickets, order details, station status and incomplete handovers before orders are released.
+* Communicate clearly with colleagues using specific status updates, especially during rush periods and handovers.
+* Follow food-safety, hygiene, cleaning, handwashing, PPE and operational procedures during live service.
+* Monitor stock and preparation levels, restocking packaging, cups, sauces, gloves and other supplies before shortages affect service.
+* Support new starters and trial-shift staff by explaining station tasks, order accuracy, handovers, hygiene standards and expected pace.
+* Break tasks into clear steps, check understanding and correct errors patiently.
+* Developed evidence of reliability, attention to detail, prioritisation, teamwork, working under pressure, supporting others and maintaining quality standards.

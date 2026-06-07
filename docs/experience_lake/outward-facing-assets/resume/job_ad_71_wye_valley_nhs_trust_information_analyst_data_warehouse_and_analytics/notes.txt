@@ -1,0 +1,14 @@
+Research
+
+1. https://www.ionos.co.uk/digitalguide/server/know-how/microsoft-sql-server/
+2. https://www.hipaajournal.com/healthcare-information-management/
+
+Accomplishments
+- Contributed to the migration from unstructured and scattered data management to the development of the data warehouse on MSSQL server 2019 in SouthWestern
+   - My exact contribution:
+      - I helped in the cleaning of data to avoid replication
+      - development of Excel pack template for jobs (onsite and base)
+      - development of training material for staff
+- Pioneered the shift from trends on PowerBI/Excel to utilizing SSAS to assess trends in relation to on-site field work and off-site reporting purposes
+- Utilized the reporting services for after job assessments, using PowerBI for presentation of insights found
+- etc. in relation to the job ad.
