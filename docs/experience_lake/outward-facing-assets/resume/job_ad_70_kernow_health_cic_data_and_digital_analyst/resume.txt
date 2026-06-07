@@ -1,0 +1,88 @@
+Kernow Health CIC - Data and Digital Analyst
+Resume / employment-history content
+
+1. Job details
+
+Job title
+Field Engineer and Operations Analytics Support
+
+Employer
+South Western Technologies & Oilfield Services Ltd
+
+Key tasks
+Supported field engineering, operations reporting, data quality and post-job analysis for oilfield well-service and completions operations. Worked in a procedure-driven, safety-critical environment where QHSE records, permits, risk assessments, equipment readiness and accurate reporting affected whether work could proceed safely.
+
+Built and maintained Excel-based trackers to manage loadout items, tools, accessories, paperwork and equipment movements during mobilisation and demobilisation. The tracker recorded what had been packed, where items were placed, who removed or borrowed items, whether they were returned, and what was still missing before mobilisation.
+
+Used Excel, SQL logic, SAS, Access and Power BI where required to clean, reconcile, summarise and present operational data. Supported reporting around job readiness, delay causes, equipment availability, inventory exceptions, QHSE completeness, maintenance follow-up and service-line activity.
+
+Checked missing job fields, duplicate records, inconsistent equipment status, incomplete close-outs, incorrect service-line coding and unclear delay descriptions. Produced summaries, exception views and dashboard outputs to show what was ready, what was blocked, what needed clarification and what action was required.
+
+Worked with field crews, supervisors, HSE, logistics, maintenance, inventory staff, commercial colleagues and operations managers, adapting the level of detail for different users. Supported trainees by explaining Excel trackers, reporting workbooks, data checks and operational definitions.
+
+Start date
+Month: 07
+Year: 2021
+
+Finish date
+Month: 08
+Year: 2023
+
+---
+
+2. Job details
+
+Job title
+Data Analyst / Data Scientist - Postgraduate Applied Analytics Work
+
+Employer
+University of Exeter
+
+Key tasks
+Completed postgraduate applied data science and analytics work involving Python, SQL, statistics, data preparation, modelling, visualisation, responsible interpretation, dashboard development and technical documentation.
+
+Completed a public-data project examining the impact of COVID-19 government policies on business activity using Facebook Business Activity data. Used Python and pandas to clean and combine large daily files, then used Power BI to present interactive dashboards and time-series visualisations comparing trends, unusual movements and policy-period differences across representative countries including the United Kingdom, Sweden, Kazakhstan, Brazil and Nigeria.
+
+Used Power Query to reshape and clean source files, DAX to define measures such as period changes and selected KPI views, and SQL where data needed to be joined, filtered or staged before visualisation. Presented findings through country-level comparisons, KPI summaries, trend indicators and filters that allowed users to explore changes by location and time period.
+
+Built an independent AWS-hosted analytics platform to develop digital, reporting and workflow skills. This involved learning cloud and deployment concepts, building repeatable workflows, working with logs and configuration, testing outputs, and understanding how data processes fit into wider digital systems.
+
+Developed experience in Power BI dashboard development, data cleaning, data-quality checks, time-series analysis, automation, documentation, SQL, Python, stakeholder-friendly reporting and responsible interpretation of data.
+
+Start date
+Month: 09
+Year: 2023
+
+Finish date
+Month: 09
+Year: 2024
+
+---
+
+3. Job details
+
+Job title
+Crew Member
+
+Employer
+Five Guys
+
+Key tasks
+Work in a fast-paced frontline service environment requiring accuracy, teamwork, prioritisation, communication and attention to detail under pressure.
+
+Work across till, order entry, customer handoff, food-preparation support, fries, bagging, lobby recovery, stock top-ups, cleaning and close-down routines depending on shift needs. Take and check customer orders carefully, especially customised orders with specific toppings, drinks, fries or delivery requirements.
+
+Maintain quality and accuracy during busy periods by checking tickets, order contents, station status and incomplete handovers before orders are released. Communicate clearly with colleagues using specific status updates, such as orders waiting on fries, drinks, grill items or delivery collection.
+
+Follow food-safety, hygiene, cleaning, handwashing, PPE and operational procedures during live service. Monitor stock and preparation levels, restocking items such as packaging, cups, sauces, gloves and front-of-house supplies before shortages affect service.
+
+Support new starters and trial-shift staff by explaining station tasks, order accuracy, handovers, hygiene standards and expected pace. Break tasks down into clear steps, check understanding and correct errors patiently.
+
+Developed evidence of reliability, attention to detail, prioritisation, teamwork, customer-service attitude, working under pressure, supporting others and maintaining quality standards in a busy service environment.
+
+Start date
+Month: 09
+Year: 2024
+
+Finish date
+Leave blank because this is your current job.
